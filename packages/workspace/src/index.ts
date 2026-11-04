@@ -53,6 +53,8 @@ export interface ChartWindowState {
   /** Liquidity map column size. */
   heatColumnMs: 250 | 1000 | 5000;
   minLots: number;
+  /** Extension data keyed by extension id (indicators, drawings, …) — saved with the workspace. */
+  ext?: Record<string, unknown>;
 }
 
 export interface DomWindowState {
@@ -61,11 +63,14 @@ export interface DomWindowState {
   lots: number;
   link: LinkColor;
   grouping: number;
+  ext?: Record<string, unknown>;
 }
 
 export interface ModuleWindowState {
   kind: 'module';
   module: string;
+  /** Module-specific saved state (filters, columns, selected tab, …). */
+  params?: Record<string, unknown>;
 }
 
 export type WindowState = ChartWindowState | DomWindowState | ModuleWindowState;

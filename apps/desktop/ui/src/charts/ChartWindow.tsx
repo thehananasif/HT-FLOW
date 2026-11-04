@@ -22,6 +22,7 @@ import { usePalette } from './palette';
 import { useMarketStore, useStoreTicker } from './useMarket';
 import { SideTools } from './SideTools';
 import { DomTrader } from '../trading/DomView';
+import { chartExtensions } from './extensions';
 
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 
@@ -54,7 +55,14 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   useEffect(() => {
     if (!store.ready || !hostA.current) return;
     const hosts = [hostA.current, ...(hostB.current ? [hostB.current] : [])];
-    const h = buildChart(hosts, store, s, palette);
+    const h = buildChart(hosts, store, s, palette, {
+      windowId: id,
+      setExt: (extId, value) => {
+        const cur = useWindows.getState().windows[id];
+        if (cur?.kind !== 'chart') return;
+        patch(id, { ext: { ...(cur.ext ?? {}), [extId]: value } } as Partial<WindowState>);
+      },
+    });
     handle.current = h;
     h.cores.forEach((c) => (c.mouseMode = mouseMode));
     return () => {
@@ -220,6 +228,10 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
         label: 'Export… PNG',
         onSelect: () => window.dispatchEvent(new CustomEvent('htflow:snapshot', { detail: id })),
       },
+      ...chartExtensions().flatMap((e) => {
+        const ctx = handle.current?.extCtx.get(e.id);
+        return ctx && e.menu ? e.menu(ctx, menuPx) : [];
+      }),
       { kind: 'separator', id: 's3' },
       { id: 'settings', label: 'Settings… (P34)', shortcut: 'Ctrl+S', disabled: true },
     ],
@@ -265,6 +277,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             )}
             <div ref={hostA} className="chart-host" />
             {isSplit && <div ref={hostB} className="chart-host" />}
+            {chartExtensions().map((e) =>
+              e.Overlay ? <e.Overlay key={e.id} windowId={id} state={s} /> : null,
+            )}
             {(s.template === 'liquidity-map' || s.template === 'order-flow-dark') && (
               <div
                 className={`lots-filter ${isSplit ? 'lots-filter--split' : ''}`}
