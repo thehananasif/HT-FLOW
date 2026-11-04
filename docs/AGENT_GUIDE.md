@@ -11,7 +11,7 @@ pnpm typecheck && pnpm lint  # TS strict + ESLint
 pnpm test                    # Vitest (all packages + UI)
 pnpm format                  # Prettier (run before committing)
 pnpm dev:web                 # UI in a browser at http://localhost:1420 (no Rust needed)
-pnpm e2e                     # Playwright against the browser build
+E2E_PORT=<your port> pnpm e2e  # Playwright (each agent uses its own port)
 cargo fmt --all && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
 ```
 
