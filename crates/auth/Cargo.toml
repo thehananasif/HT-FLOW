@@ -1,0 +1,22 @@
+[package]
+name = "htflow-auth"
+description = "Local multi-user accounts: Argon2id-wrapped data keys, encrypted profiles, recovery codes, PIN"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+argon2.workspace = true
+base64.workspace = true
+htflow-vault.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

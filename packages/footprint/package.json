@@ -1,0 +1,18 @@
+{
+  "name": "@htflow/footprint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Footprint / cluster chart layers",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "@htflow/market-data": "workspace:*",
+    "@htflow/chart-engine": "workspace:*"
+  },
+  "peerDependencies": {}
+}
