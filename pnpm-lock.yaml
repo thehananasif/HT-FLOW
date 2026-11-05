@@ -152,6 +152,12 @@ importers:
 
   packages/market-data: {}
 
+  packages/tape:
+    dependencies:
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+
   packages/trading:
     dependencies:
       '@htflow/market-data':
