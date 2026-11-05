@@ -160,4 +160,36 @@ describe('PaperEngine', () => {
       9,
     );
   });
+
+  it('pre-trade checks can reject; the first reason wins and nothing is placed', () => {
+    const { eng } = setup();
+    const seen: number[] = [];
+    eng.preTradeChecks.push((req) => {
+      seen.push(req.qty);
+      return req.qty > 3 ? 'Too big' : null;
+    });
+    eng.preTradeChecks.push(() => undefined);
+    const big = eng.place({ accountId: 'A', instrumentId: 'X', side: 'buy', type: 'market', qty: 4 });
+    expect(big.status).toBe('rejected');
+    expect(big.reason).toBe('Too big');
+    expect(eng.fills).toHaveLength(0);
+    const ok = eng.place({ accountId: 'A', instrumentId: 'X', side: 'buy', type: 'market', qty: 2 });
+    expect(ok.status).toBe('filled');
+    expect(seen).toEqual([4, 2]);
+  });
+
+  it('post-fill hooks run after the operation and may place orders (no re-entrancy)', () => {
+    const { eng } = setup();
+    const hooked: string[] = [];
+    eng.postFillHooks.push((f, e) => {
+      hooked.push(`${f.side}:${f.qty}`);
+      // Flatten from inside the hook: must not corrupt the operation that produced the fill.
+      if (f.side === 'buy') e.flatten('A', 'X');
+    });
+    eng.place({ accountId: 'A', instrumentId: 'X', side: 'buy', type: 'market', qty: 5 });
+    // 5 lots fill at two levels (3 + 2) → two buy fills, then one flatten sell (book bid 5 @ 9999).
+    expect(hooked).toEqual(['buy:3', 'buy:2', 'sell:5']);
+    expect(eng.position('A', 'X').qty).toBe(0);
+  });
 });
+

@@ -17,6 +17,18 @@ export interface PaperEngineDeps {
 
 type Listener = () => void;
 
+/** Pre-trade check (risk rules): return a reason to reject the order, or nothing to allow it. */
+export type PreTradeCheck = (
+  req: OrderRequest,
+  engine: PaperEngine,
+) => string | null | undefined | void;
+
+/**
+ * Called once per fill, after the operation that produced it has finished, so a hook may safely
+ * place, cancel or flatten (risk monitoring, activity log).
+ */
+export type PostFillHook = (fill: Fill, engine: PaperEngine) => void;
+
 let seq = 0;
 const nextId = (p: string) => `${p}${Date.now().toString(36)}${(++seq).toString(36)}`;
 
@@ -34,6 +46,11 @@ export class PaperEngine {
     { accountId: string; instrumentId: string; spec: NonNullable<OrderRequest['bracket']> }
   >();
   private listeners = new Set<Listener>();
+  /** Run in order before every new order is accepted; the first reason returned rejects it. */
+  readonly preTradeChecks: PreTradeCheck[] = [];
+  readonly postFillHooks: PostFillHook[] = [];
+  private pendingFills: Fill[] = [];
+  private draining = false;
   version = 0;
 
   constructor(private deps: PaperEngineDeps) {}
@@ -48,8 +65,22 @@ export class PaperEngine {
   }
 
   private emit(): void {
+    this.flushFillHooks();
     this.version++;
     for (const l of this.listeners) l();
+  }
+
+  private flushFillHooks(): void {
+    if (this.draining) return;
+    this.draining = true;
+    try {
+      while (this.pendingFills.length) {
+        const f = this.pendingFills.shift()!;
+        for (const h of this.postFillHooks) h(f, this);
+      }
+    } finally {
+      this.draining = false;
+    }
   }
 
   createAccount(a: Partial<Account> & { id: string; name: string }): Account {
@@ -162,6 +193,10 @@ export class PaperEngine {
       const reduces = (pos.qty > 0 && req.side === 'sell') || (pos.qty < 0 && req.side === 'buy');
       if (!reduces) return reject('Reduce-only order would increase position');
       order.qty = Math.min(order.qty, Math.abs(pos.qty));
+    }
+    for (const check of this.preTradeChecks) {
+      const reason = check(req, this);
+      if (reason) return reject(reason);
     }
     this.orders.set(order.id, order);
     if (req.bracket && (req.bracket.slTicks || req.bracket.tpTicks?.length)) {
@@ -350,7 +385,7 @@ export class PaperEngine {
     o.filled += qty;
     o.status = o.filled >= o.qty - 1e-12 ? 'filled' : 'partial';
     o.updatedAt = this.now();
-    this.fills.push({
+    const fill: Fill = {
       id: nextId('f'),
       orderId: o.id,
       accountId: o.accountId,
@@ -362,7 +397,9 @@ export class PaperEngine {
       commission,
       liquidity,
       realized,
-    });
+    };
+    this.fills.push(fill);
+    if (this.postFillHooks.length) this.pendingFills.push(fill);
     if (o.status === 'filled') {
       if (o.oco)
         for (const x of this.orders.values())
