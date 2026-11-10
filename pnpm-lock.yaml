@@ -56,6 +56,9 @@ importers:
       '@htflow/dom':
         specifier: workspace:*
         version: link:../../packages/dom
+      '@htflow/drawings':
+        specifier: workspace:*
+        version: link:../../packages/drawings
       '@htflow/footprint':
         specifier: workspace:*
         version: link:../../packages/footprint
@@ -129,6 +132,15 @@ importers:
       '@htflow/trading':
         specifier: workspace:*
         version: link:../trading
+
+  packages/drawings:
+    dependencies:
+      '@htflow/chart-engine':
+        specifier: workspace:*
+        version: link:../chart-engine
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
 
   packages/footprint:
     dependencies:

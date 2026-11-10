@@ -253,6 +253,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     >
       <div className="chart-main">
         <SideTools
+          windowId={id}
           mode={s.footprintMode}
           onMode={(m) =>
             set({
