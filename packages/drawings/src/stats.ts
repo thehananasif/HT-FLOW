@@ -283,7 +283,13 @@ export function regression(
 /** Throttled per-drawing cache for heavy computations on live data. */
 const cache = new Map<string, { key: string; version: number; at: number; value: unknown }>();
 
-export function cached<T>(id: string, key: string, version: number, fn: () => T, maxAgeMs = 400): T {
+export function cached<T>(
+  id: string,
+  key: string,
+  version: number,
+  fn: () => T,
+  maxAgeMs = 400,
+): T {
   const now = Date.now();
   const e = cache.get(id);
   if (e && e.key === key && (e.version === version || now - e.at < maxAgeMs)) return e.value as T;

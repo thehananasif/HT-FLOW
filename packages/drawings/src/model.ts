@@ -1,4 +1,12 @@
-import type { Anchor, Drawing, DrawingsDoc, DrawingStyle, FibLevel, PropValue, ToolId } from './types';
+import type {
+  Anchor,
+  Drawing,
+  DrawingsDoc,
+  DrawingStyle,
+  FibLevel,
+  PropValue,
+  ToolId,
+} from './types';
 
 export const DEFAULT_STYLE: DrawingStyle = {
   color: '#4FA3F7',
@@ -49,9 +57,7 @@ export const FIB_EXTENSION_LEVELS: FibLevel[] = [
   lv(2.618, false),
 ];
 export const FIB_FAN_LEVELS: FibLevel[] = [lv(0.236), lv(0.382), lv(0.5), lv(0.618), lv(0.786)];
-export const FIB_TIME_LEVELS: FibLevel[] = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89].map((v) =>
-  lv(v),
-);
+export const FIB_TIME_LEVELS: FibLevel[] = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89].map((v) => lv(v));
 export const FIB_ARC_LEVELS: FibLevel[] = [lv(0.382), lv(0.5), lv(0.618), lv(1)];
 export const GANN_FAN_LEVELS: FibLevel[] = [1 / 8, 1 / 4, 1 / 3, 1 / 2, 1, 2, 3, 4, 8].map((v) =>
   lv(v),

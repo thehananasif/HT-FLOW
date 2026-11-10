@@ -169,10 +169,14 @@ function arcThrough(
   const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
   if (Math.abs(d) < 1e-6) return [ax, ay, cx, cy];
   const ux =
-    ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) /
+    ((ax * ax + ay * ay) * (by - cy) +
+      (bx * bx + by * by) * (cy - ay) +
+      (cx * cx + cy * cy) * (ay - by)) /
     d;
   const uy =
-    ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) /
+    ((ax * ax + ay * ay) * (cx - bx) +
+      (bx * bx + by * by) * (ax - cx) +
+      (cx * cx + cy * cy) * (bx - ax)) /
     d;
   const r = Math.hypot(ax - ux, ay - uy);
   const a0 = Math.atan2(ay - uy, ax - ux);
@@ -265,7 +269,7 @@ function profileShapes(
 
 function profileOf(d: Drawing, P: Proj, i0: number, i1: number, lo?: number, hi?: number) {
   const bars = P.bars!;
-  const mode = prop(d, 'mode', 'volume');
+  const mode = prop<string>(d, 'mode', 'volume');
   const va = prop(d, 'va', 70) / 100;
   const key = `${i0}|${i1}|${lo}|${hi}|${mode}|${va}|${bars.length}`;
   return cached(d.id, key, P.barsVersion, () =>
@@ -386,7 +390,15 @@ function fibArcs(d: Drawing, P: Proj, circles: boolean): Shape[] {
   for (const l of enabled(d.levels)) {
     const col = levelColor(d, l);
     if (circles) {
-      out.push({ k: 'ellipse', cx: x0, cy: y0, rx: r * l.value, ry: r * l.value, ...stroke(d), stroke: col });
+      out.push({
+        k: 'ellipse',
+        cx: x0,
+        cy: y0,
+        rx: r * l.value,
+        ry: r * l.value,
+        ...stroke(d),
+        stroke: col,
+      });
     } else {
       // half circles centred on the second point, opening towards the first
       const up = y0 < y1;
@@ -599,17 +611,41 @@ function rangeBox(d: Drawing, P: Proj, kind: 'ruler' | 'measure' | 'date' | 'pri
   const yt = Math.min(y0, y1);
   const yb = Math.max(y0, y1);
   if (kind === 'date') {
-    out.push({ k: 'path', pts: rectPts(xl, yt, xr, yb), closed: true, fill: col, fillAlpha: 0.12, hit: 'fill' });
+    out.push({
+      k: 'path',
+      pts: rectPts(xl, yt, xr, yb),
+      closed: true,
+      fill: col,
+      fillAlpha: 0.12,
+      hit: 'fill',
+    });
     out.push(path(d, [xl, yt, xl, yb]), path(d, [xr, yt, xr, yb]));
     const ym = (yt + yb) / 2;
     out.push(path(d, [x0, ym, x1, ym], { arrow: 1 }));
   } else if (kind === 'price') {
-    out.push({ k: 'path', pts: rectPts(xl, yt, xr, yb), closed: true, fill: col, fillAlpha: 0.12, hit: 'fill' });
+    out.push({
+      k: 'path',
+      pts: rectPts(xl, yt, xr, yb),
+      closed: true,
+      fill: col,
+      fillAlpha: 0.12,
+      hit: 'fill',
+    });
     out.push(path(d, [xl, yt, xr, yt]), path(d, [xl, yb, xr, yb]));
     const xm = (xl + xr) / 2;
     out.push(path(d, [xm, y0, xm, y1], { arrow: 1 }));
   } else {
-    out.push({ k: 'path', pts: rectPts(xl, yt, xr, yb), closed: true, fill: col, fillAlpha: 0.14, hit: 'fill', stroke: col, width: 1, alpha: 0.6 });
+    out.push({
+      k: 'path',
+      pts: rectPts(xl, yt, xr, yb),
+      closed: true,
+      fill: col,
+      fillAlpha: 0.14,
+      hit: 'fill',
+      stroke: col,
+      width: 1,
+      alpha: 0.6,
+    });
     const xm = (xl + xr) / 2;
     const ym = (yt + yb) / 2;
     out.push({ k: 'path', pts: [xm, y0, xm, y1], stroke: col, width: 1, arrow: 1 });
@@ -674,11 +710,17 @@ function marker(d: Drawing, P: Proj): Shape[] {
   ];
   if (d.style.text)
     out.push(
-      text(x, d.type === 'arrow-down' ? y - size / 2 - 4 : y + size / 2 + 4, d.style.text, d.style.color, {
-        align: 'center',
-        base: d.type === 'arrow-down' ? 'bottom' : 'top',
-        size: d.style.fontSize,
-      }),
+      text(
+        x,
+        d.type === 'arrow-down' ? y - size / 2 - 4 : y + size / 2 + 4,
+        d.style.text,
+        d.style.color,
+        {
+          align: 'center',
+          base: d.type === 'arrow-down' ? 'bottom' : 'top',
+          size: d.style.fontSize,
+        },
+      ),
     );
   return out;
 }
@@ -695,7 +737,16 @@ function priceLabel(d: Drawing, P: Proj, side: 'left' | 'right'): Shape[] {
   const xe = xb + dir * w;
   const pts = [x, y, xb, y - h / 2, xe, y - h / 2, xe, y + h / 2, xb, y + h / 2];
   return [
-    { k: 'path', pts, closed: true, fill: d.style.color, fillAlpha: d.style.opacity, stroke: d.style.color, width: 1, hit: 'fill' },
+    {
+      k: 'path',
+      pts,
+      closed: true,
+      fill: d.style.color,
+      fillAlpha: d.style.opacity,
+      stroke: d.style.color,
+      width: 1,
+      hit: 'fill',
+    },
     text((xb + xe) / 2, y, t, '#000000', { align: 'center', weight: 600, hit: false }),
   ];
 }
@@ -714,8 +765,22 @@ function positionShapes(d: Drawing, P: Proj, side: 'long' | 'short'): Shape[] {
   const xl = Math.min(xe, xr);
   const xh = Math.max(xe, xr);
   const out: Shape[] = [
-    { k: 'path', pts: rectPts(xl, ye, xh, yt), closed: true, fill: up, fillAlpha: 0.18, hit: 'fill' },
-    { k: 'path', pts: rectPts(xl, ye, xh, ys), closed: true, fill: down, fillAlpha: 0.18, hit: 'fill' },
+    {
+      k: 'path',
+      pts: rectPts(xl, ye, xh, yt),
+      closed: true,
+      fill: up,
+      fillAlpha: 0.18,
+      hit: 'fill',
+    },
+    {
+      k: 'path',
+      pts: rectPts(xl, ye, xh, ys),
+      closed: true,
+      fill: down,
+      fillAlpha: 0.18,
+      hit: 'fill',
+    },
     { k: 'path', pts: [xl, ye, xh, ye], stroke: '#BDBDBD', width: 1 },
     { k: 'path', pts: [xl, yt, xh, yt], stroke: up, width: 1, alpha: 0.8, hit: 'none' },
     { k: 'path', pts: [xl, ys, xh, ys], stroke: down, width: 1, alpha: 0.8, hit: 'none' },
@@ -724,32 +789,50 @@ function positionShapes(d: Drawing, P: Proj, side: 'long' | 'short'): Shape[] {
   const cx = (xl + xh) / 2;
   const tpAbove = yt < ys;
   out.push(
-    text(cx, tpAbove ? yt - 4 : yt + 4, `Target: ${st.tpTicks} ticks (${tv(st.tpTicks)}) · ${money(st.profit)}`, '#FFFFFF', {
-      align: 'center',
-      base: tpAbove ? 'bottom' : 'top',
-      size: 10,
-      bg: up,
-      bgAlpha: 0.85,
-      pad: 3,
-      hit: false,
-    }),
-    text(cx, tpAbove ? ys + 4 : ys - 4, `Stop: ${st.slTicks} ticks (${tv(st.slTicks)}) · ${money(-st.loss)}`, '#FFFFFF', {
-      align: 'center',
-      base: tpAbove ? 'top' : 'bottom',
-      size: 10,
-      bg: down,
-      bgAlpha: 0.85,
-      pad: 3,
-      hit: false,
-    }),
-    text(cx, ye, `${side === 'long' ? 'Long' : 'Short'} ${st.qty} · R:R ${st.rr.toFixed(2)}`, '#FFFFFF', {
-      align: 'center',
-      size: 10,
-      bg: '#1A1A1A',
-      bgAlpha: 0.9,
-      pad: 3,
-      hit: false,
-    }),
+    text(
+      cx,
+      tpAbove ? yt - 4 : yt + 4,
+      `Target: ${st.tpTicks} ticks (${tv(st.tpTicks)}) · ${money(st.profit)}`,
+      '#FFFFFF',
+      {
+        align: 'center',
+        base: tpAbove ? 'bottom' : 'top',
+        size: 10,
+        bg: up,
+        bgAlpha: 0.85,
+        pad: 3,
+        hit: false,
+      },
+    ),
+    text(
+      cx,
+      tpAbove ? ys + 4 : ys - 4,
+      `Stop: ${st.slTicks} ticks (${tv(st.slTicks)}) · ${money(-st.loss)}`,
+      '#FFFFFF',
+      {
+        align: 'center',
+        base: tpAbove ? 'top' : 'bottom',
+        size: 10,
+        bg: down,
+        bgAlpha: 0.85,
+        pad: 3,
+        hit: false,
+      },
+    ),
+    text(
+      cx,
+      ye,
+      `${side === 'long' ? 'Long' : 'Short'} ${st.qty} · R:R ${st.rr.toFixed(2)}`,
+      '#FFFFFF',
+      {
+        align: 'center',
+        size: 10,
+        bg: '#1A1A1A',
+        bgAlpha: 0.9,
+        pad: 3,
+        hit: false,
+      },
+    ),
   );
   return out;
 }
@@ -802,7 +885,13 @@ const pricesAndTimes = (d: Drawing) => ({
 const pricesOnly = (d: Drawing) => ({ px: d.anchors.map((a) => a.px), t: [] });
 const timesOnly = (d: Drawing) => ({ px: [], t: d.anchors.map((a) => a.t) });
 
-const PENDING = (id: ToolId, label: string, group: ToolGroup, note: string, shortcut?: string): ToolDef => ({
+const PENDING = (
+  id: ToolId,
+  label: string,
+  group: ToolGroup,
+  note: string,
+  shortcut?: string,
+): ToolDef => ({
   id,
   label,
   group,
@@ -834,7 +923,9 @@ const waveTool = (id: ToolId, label: string, n: number, group: ToolGroup = 'elli
   mode: 'multi',
   n,
   ready: true,
-  defaults: { style: id === 'xabcd' || id === 'head-shoulders' ? { fill: '#4FA3F7', fillOpacity: 0.1 } : {} },
+  defaults: {
+    style: id === 'xabcd' || id === 'head-shoulders' ? { fill: '#4FA3F7', fillOpacity: 0.1 } : {},
+  },
   build: wave,
 });
 
@@ -931,7 +1022,12 @@ export const TOOLS: ToolDef[] = [
       return [
         path(d, [L, y, R, y]),
         ...(d.style.text
-          ? [text(L + 8, y - 4, d.style.text, d.style.color, { base: 'bottom', size: d.style.fontSize })]
+          ? [
+              text(L + 8, y - 4, d.style.text, d.style.color, {
+                base: 'bottom',
+                size: d.style.fontSize,
+              }),
+            ]
           : []),
       ];
     },
@@ -954,7 +1050,10 @@ export const TOOLS: ToolDef[] = [
     defaults: { showLabels: true },
     build: (d, P) => {
       const [x, y] = xy(P, d.anchors[0]);
-      return [path(d, [Math.max(P.plot.x, x), y, P.plot.x + P.plot.w, y]), ...caption(d, x + 60, y)];
+      return [
+        path(d, [Math.max(P.plot.x, x), y, P.plot.x + P.plot.w, y]),
+        ...caption(d, x + 60, y),
+      ];
     },
     labels: pricesOnly,
   },
@@ -1001,7 +1100,12 @@ export const TOOLS: ToolDef[] = [
     n: 0,
     ready: true,
     defaults: { style: { width: 2 } },
-    build: (d, P) => [path(d, d.anchors.flatMap((a) => xy(P, a)))],
+    build: (d, P) => [
+      path(
+        d,
+        d.anchors.flatMap((a) => xy(P, a)),
+      ),
+    ],
     handles: () => [],
   },
   {
@@ -1024,7 +1128,10 @@ export const TOOLS: ToolDef[] = [
     note: 'Click points; double-click or Enter to finish',
     build: (d, P) => [
       {
-        ...path(d, d.anchors.flatMap((a) => xy(P, a))),
+        ...path(
+          d,
+          d.anchors.flatMap((a) => xy(P, a)),
+        ),
         closed: prop(d, 'closed', false),
         ...(prop(d, 'closed', false) ? fillOf(d) : {}),
       },
@@ -1055,8 +1162,16 @@ export const TOOLS: ToolDef[] = [
       const [p0, p1] = d.anchors as [Anchor, Anchor];
       if (key === 0) d.anchors = [a, p1];
       else if (key === 1) d.anchors = [p0, a];
-      else if (key === 2) d.anchors = [{ t: p0.t, px: a.px }, { t: a.t, px: p1.px }];
-      else d.anchors = [{ t: a.t, px: p0.px }, { t: p1.t, px: a.px }];
+      else if (key === 2)
+        d.anchors = [
+          { t: p0.t, px: a.px },
+          { t: a.t, px: p1.px },
+        ];
+      else
+        d.anchors = [
+          { t: a.t, px: p0.px },
+          { t: p1.t, px: a.px },
+        ];
     },
   },
   {
@@ -1070,7 +1185,10 @@ export const TOOLS: ToolDef[] = [
     defaults: { style: { fill: '#4FA3F7', fillOpacity: 0.15 } },
     build: (d, P) => [
       {
-        ...path(d, d.anchors.flatMap((a) => xy(P, a))),
+        ...path(
+          d,
+          d.anchors.flatMap((a) => xy(P, a)),
+        ),
         closed: true,
         ...fillOf(d),
         hit: d.style.fill ? 'fill' : 'stroke',
@@ -1115,7 +1233,16 @@ export const TOOLS: ToolDef[] = [
       const [x1, y1] = xy(P, d.anchors[1]);
       const r = dist(x0, y0, x1, y1);
       return [
-        { k: 'ellipse', cx: x0, cy: y0, rx: r, ry: r, ...stroke(d), ...fillOf(d), hit: d.style.fill ? 'fill' : 'stroke' },
+        {
+          k: 'ellipse',
+          cx: x0,
+          cy: y0,
+          rx: r,
+          ry: r,
+          ...stroke(d),
+          ...fillOf(d),
+          hit: d.style.fill ? 'fill' : 'stroke',
+        },
       ];
     },
   },
@@ -1149,7 +1276,14 @@ export const TOOLS: ToolDef[] = [
       const y1 = P.y(d.anchors[1]!.px);
       const [L, R] = fullWidth(P);
       return [
-        { k: 'path', pts: rectPts(L, y0, R, y1), closed: true, fill: d.style.fill || d.style.color, fillAlpha: d.style.fillOpacity, hit: 'fill' },
+        {
+          k: 'path',
+          pts: rectPts(L, y0, R, y1),
+          closed: true,
+          fill: d.style.fill || d.style.color,
+          fillAlpha: d.style.fillOpacity,
+          hit: 'fill',
+        },
         path(d, [L, y0, R, y0], { hit: 'none' }),
         path(d, [L, y1, R, y1], { hit: 'none' }),
       ];
@@ -1172,7 +1306,14 @@ export const TOOLS: ToolDef[] = [
       const T = P.plot.y;
       const B = P.plot.y + P.plot.h;
       return [
-        { k: 'path', pts: rectPts(x0, T, x1, B), closed: true, fill: d.style.fill || d.style.color, fillAlpha: d.style.fillOpacity, hit: 'fill' },
+        {
+          k: 'path',
+          pts: rectPts(x0, T, x1, B),
+          closed: true,
+          fill: d.style.fill || d.style.color,
+          fillAlpha: d.style.fillOpacity,
+          hit: 'fill',
+        },
         path(d, [x0, T, x0, B], { hit: 'none' }),
         path(d, [x1, T, x1, B], { hit: 'none' }),
       ];
@@ -1203,7 +1344,8 @@ export const TOOLS: ToolDef[] = [
     defaults: { style: { fill: '#4FA3F7', fillOpacity: 0.08 }, props: { sigma: 2 } },
     build: (d, P) => {
       const [a, b] = d.anchors as [Anchor, Anchor];
-      if (!P.bars) return [...lineThrough(d, P, a, b, false, false), noData(P, P.x(a.t), P.y(a.px))];
+      if (!P.bars)
+        return [...lineThrough(d, P, a, b, false, false), noData(P, P.x(a.t), P.y(a.px))];
       const { i0, i1 } = barRange(P.bars, a.t, b.t);
       const r = regression(P.bars, i0, i1);
       if (!r) return lineThrough(d, P, a, b, false, false);
@@ -1214,14 +1356,28 @@ export const TOOLS: ToolDef[] = [
       const out: Shape[] = [];
       const lines: number[][] = [];
       for (const f of [k, 0, -k]) {
-        const seg = extendSegment(xs, P.y(r.a + f * r.sd), xe, P.y(r.a + r.b * n + f * r.sd), P.plot, d.extendLeft, d.extendRight);
+        const seg = extendSegment(
+          xs,
+          P.y(r.a + f * r.sd),
+          xe,
+          P.y(r.a + r.b * n + f * r.sd),
+          P.plot,
+          d.extendLeft,
+          d.extendRight,
+        );
         if (!seg) continue;
         lines.push(seg);
         out.push(path(d, [...seg], f === 0 ? { dash: 'dashed' } : {}));
       }
       if (d.style.fill && lines.length === 3) {
         const [u, , l] = lines as [number[], number[], number[]];
-        out.unshift({ k: 'path', pts: [u[0]!, u[1]!, u[2]!, u[3]!, l[2]!, l[3]!, l[0]!, l[1]!], closed: true, ...fillOf(d), hit: 'fill' });
+        out.unshift({
+          k: 'path',
+          pts: [u[0]!, u[1]!, u[2]!, u[3]!, l[2]!, l[3]!, l[0]!, l[1]!],
+          closed: true,
+          ...fillOf(d),
+          hit: 'fill',
+        });
       }
       return out;
     },
@@ -1254,15 +1410,40 @@ export const TOOLS: ToolDef[] = [
       const [x1, y1] = xy(P, b);
       const xl = Math.min(x0, x1);
       const out: Shape[] = [
-        { k: 'path', pts: rectPts(xl, y0, Math.max(x0, x1), y1), closed: true, stroke: d.style.color, width: 1, dash: 'dashed', alpha: 0.5, hit: 'stroke' },
+        {
+          k: 'path',
+          pts: rectPts(xl, y0, Math.max(x0, x1), y1),
+          closed: true,
+          stroke: d.style.color,
+          width: 1,
+          dash: 'dashed',
+          alpha: 0.5,
+          hit: 'stroke',
+        },
       ];
       if (!P.bars) return [...out, noData(P, xl + 4, Math.min(y0, y1) + 10)];
       const { i0, i1 } = barRange(P.bars, a.t, b.t);
       const lo = Math.round(Math.min(a.px, b.px));
       const hi = Math.round(Math.max(a.px, b.px));
       const prof = profileOf(d, P, i0, i1, lo, hi);
-      out.push(...profileShapes(d, P, prof, xl, (Math.abs(x1 - x0) * prop(d, 'width', 70)) / 100, d.showLabels));
-      out.push({ k: 'path', pts: rectPts(xl, y0, Math.max(x0, x1), y1), closed: true, hit: 'fill', fill: '#000000', fillAlpha: 0 });
+      out.push(
+        ...profileShapes(
+          d,
+          P,
+          prof,
+          xl,
+          (Math.abs(x1 - x0) * prop(d, 'width', 70)) / 100,
+          d.showLabels,
+        ),
+      );
+      out.push({
+        k: 'path',
+        pts: rectPts(xl, y0, Math.max(x0, x1), y1),
+        closed: true,
+        hit: 'fill',
+        fill: '#000000',
+        fillAlpha: 0,
+      });
       return out;
     },
   },
@@ -1275,7 +1456,11 @@ export const TOOLS: ToolDef[] = [
     n: 2,
     ready: true,
     note: 'Profile of every price traded between two times',
-    defaults: { style: { color: '#8C8C8C' }, showLabels: true, props: { va: 70, mode: 'volume', width: 70 } },
+    defaults: {
+      style: { color: '#8C8C8C' },
+      showLabels: true,
+      props: { va: 70, mode: 'volume', width: 70 },
+    },
     build: (d, P) => {
       const [a, b] = d.anchors as [Anchor, Anchor];
       const x0 = P.x(Math.min(a.t, b.t));
@@ -1287,8 +1472,21 @@ export const TOOLS: ToolDef[] = [
       if (!(prof.total > 0)) return [path(d, [x0, P.y(a.px), x1, P.y(a.px)], { dash: 'dashed' })];
       const yt = P.y(prof.high + 0.5);
       const yb = P.y(prof.low - 0.5);
-      out.push({ k: 'path', pts: rectPts(x0, yt, x1, yb), closed: true, stroke: d.style.color, width: 1, dash: 'dotted', alpha: 0.4, fill: '#000000', fillAlpha: 0, hit: 'fill' });
-      out.push(...profileShapes(d, P, prof, x0, ((x1 - x0) * prop(d, 'width', 70)) / 100, d.showLabels));
+      out.push({
+        k: 'path',
+        pts: rectPts(x0, yt, x1, yb),
+        closed: true,
+        stroke: d.style.color,
+        width: 1,
+        dash: 'dotted',
+        alpha: 0.4,
+        fill: '#000000',
+        fillAlpha: 0,
+        hit: 'fill',
+      });
+      out.push(
+        ...profileShapes(d, P, prof, x0, ((x1 - x0) * prop(d, 'width', 70)) / 100, d.showLabels),
+      );
       return out;
     },
     labels: () => ({ px: [], t: [] }),
@@ -1301,7 +1499,11 @@ export const TOOLS: ToolDef[] = [
     n: 1,
     ready: true,
     note: 'From the anchor bar to the latest bar',
-    defaults: { style: { color: '#8C8C8C' }, showLabels: true, props: { va: 70, mode: 'volume', width: 70 } },
+    defaults: {
+      style: { color: '#8C8C8C' },
+      showLabels: true,
+      props: { va: 70, mode: 'volume', width: 70 },
+    },
     build: (d, P) => {
       const a = d.anchors[0]!;
       const x0 = P.x(a.t);
@@ -1310,17 +1512,37 @@ export const TOOLS: ToolDef[] = [
       const i1 = P.bars.length - 1;
       const prof = profileOf(d, P, i0, i1);
       const x1 = Math.max(x0 + 40, P.xOfSlot(i1 + 0.5));
-      const out: Shape[] = [path(d, [x0, P.plot.y, x0, P.plot.y + P.plot.h], { dash: 'dotted', alpha: 0.5, hit: 'stroke' })];
+      const out: Shape[] = [
+        path(d, [x0, P.plot.y, x0, P.plot.y + P.plot.h], {
+          dash: 'dotted',
+          alpha: 0.5,
+          hit: 'stroke',
+        }),
+      ];
       if (prof.total > 0) {
-        out.push({ k: 'path', pts: rectPts(x0, P.y(prof.high + 0.5), x1, P.y(prof.low - 0.5)), closed: true, fill: '#000000', fillAlpha: 0, hit: 'fill' });
-        out.push(...profileShapes(d, P, prof, x0, ((x1 - x0) * prop(d, 'width', 70)) / 100, d.showLabels));
+        out.push({
+          k: 'path',
+          pts: rectPts(x0, P.y(prof.high + 0.5), x1, P.y(prof.low - 0.5)),
+          closed: true,
+          fill: '#000000',
+          fillAlpha: 0,
+          hit: 'fill',
+        });
+        out.push(
+          ...profileShapes(d, P, prof, x0, ((x1 - x0) * prop(d, 'width', 70)) / 100, d.showLabels),
+        );
       }
       return out;
     },
     handles: (d, P) => [{ x: P.x(d.anchors[0]!.t), y: P.y(d.anchors[0]!.px), key: 0 }],
     labels: timesOnly,
   },
-  PENDING('zigzag-vp', 'ZigZag Volume Profile & TPO', 'volume', 'Pending: needs the ZigZag swing detector (indicators phase)'),
+  PENDING(
+    'zigzag-vp',
+    'ZigZag Volume Profile & TPO',
+    'volume',
+    'Pending: needs the ZigZag swing detector (indicators phase)',
+  ),
   {
     id: 'anchored-vwap',
     label: 'Anchored VWAP',
@@ -1341,19 +1563,33 @@ export const TOOLS: ToolDef[] = [
         if (!(k > 0)) continue;
         for (const s of [1, -1]) {
           out.push(
-            path(d, pts.flatMap((p) => [P.xOfSlot(p.i), P.y(p.vwap + s * k * p.sd)]), {
-              width: 1,
-              dash: 'dashed',
-              alpha: d.style.opacity * 0.6,
-              hit: 'none',
-            }),
+            path(
+              d,
+              pts.flatMap((p) => [P.xOfSlot(p.i), P.y(p.vwap + s * k * p.sd)]),
+              {
+                width: 1,
+                dash: 'dashed',
+                alpha: d.style.opacity * 0.6,
+                hit: 'none',
+              },
+            ),
           );
         }
       }
-      out.push(path(d, pts.flatMap((p) => [P.xOfSlot(p.i), P.y(p.vwap)])));
+      out.push(
+        path(
+          d,
+          pts.flatMap((p) => [P.xOfSlot(p.i), P.y(p.vwap)]),
+        ),
+      );
       const last = pts[pts.length - 1];
       if (last)
-        out.push(text(P.xOfSlot(last.i) + 6, P.y(last.vwap), 'AVWAP', d.style.color, { size: 10, hit: false }));
+        out.push(
+          text(P.xOfSlot(last.i) + 6, P.y(last.vwap), 'AVWAP', d.style.color, {
+            size: 10,
+            hit: false,
+          }),
+        );
       return out;
     },
     handles: (d, P) => {
@@ -1387,7 +1623,12 @@ export const TOOLS: ToolDef[] = [
     handles: (d, P) => [{ x: P.x(d.anchors[0]!.t), y: P.y(d.anchors[0]!.px), key: 0 }],
     labels: () => ({ px: [], t: [] }),
   },
-  PENDING('cvd-correlation', 'CVD correlation', 'volume', 'Pending: needs the CVD indicator (indicators phase)'),
+  PENDING(
+    'cvd-correlation',
+    'CVD correlation',
+    'volume',
+    'Pending: needs the CVD indicator (indicators phase)',
+  ),
   // ---------------------------------------------------------- fibonacci
   {
     id: 'fib-retracement',
@@ -1461,12 +1702,22 @@ export const TOOLS: ToolDef[] = [
     ready: true,
     defaults: { levels: FIB_RETRACEMENT_LEVELS.filter((l) => l.enabled) },
     build: (d, P) => {
-      const out = parallelLines(d, P, enabled(d.levels).map((l) => l.value), false);
+      const out = parallelLines(
+        d,
+        P,
+        enabled(d.levels).map((l) => l.value),
+        false,
+      );
       const [a, b, c] = d.anchors as [Anchor, Anchor, Anchor?];
       if (c) {
         const off = c.px - priceOnLine(P, a, b, c.t);
         for (const l of enabled(d.levels))
-          out.push(text(P.x(b.t) + 4, P.y(b.px + off * l.value), fmtLevel(l.value), levelColor(d, l), { size: 10, hit: false }));
+          out.push(
+            text(P.x(b.t) + 4, P.y(b.px + off * l.value), fmtLevel(l.value), levelColor(d, l), {
+              size: 10,
+              hit: false,
+            }),
+          );
       }
       return out;
     },
@@ -1492,7 +1743,12 @@ export const TOOLS: ToolDef[] = [
         const ty = r >= 1 ? y1 : y0 + dy * r;
         const seg = extendSegment(x0, y0, tx, ty, P.plot, false, true);
         const col = levelColor(d, l);
-        if (seg) out.push({ ...path(d, [...seg]), stroke: col, alpha: r === 1 ? d.style.opacity : d.style.opacity * 0.7 });
+        if (seg)
+          out.push({
+            ...path(d, [...seg]),
+            stroke: col,
+            alpha: r === 1 ? d.style.opacity : d.style.opacity * 0.7,
+          });
         const name = r >= 1 ? `${r}x1` : `1x${Math.round(1 / r)}`;
         out.push(text(tx + 3, ty, name, col, { size: 10, hit: false }));
       }
@@ -1510,7 +1766,9 @@ export const TOOLS: ToolDef[] = [
     build: (d, P) => {
       const [x0, y0] = xy(P, d.anchors[0]);
       const [x1, y1] = xy(P, d.anchors[1]);
-      const out: Shape[] = [{ ...path(d, rectPts(x0, y0, x1, y1)), closed: true, ...fillOf(d), hit: 'fill' }];
+      const out: Shape[] = [
+        { ...path(d, rectPts(x0, y0, x1, y1)), closed: true, ...fillOf(d), hit: 'fill' },
+      ];
       for (const l of enabled(d.levels)) {
         if (l.value <= 0 || l.value >= 1) continue;
         const x = x0 + (x1 - x0) * l.value;
@@ -1518,9 +1776,19 @@ export const TOOLS: ToolDef[] = [
         const col = levelColor(d, l);
         out.push({ ...path(d, [x, y0, x, y1], { alpha: 0.6, hit: 'none' }), stroke: col });
         out.push({ ...path(d, [x0, y, x1, y], { alpha: 0.6, hit: 'none' }), stroke: col });
-        out.push(text(x, Math.max(y0, y1) + 4, fmtLevel(l.value), col, { align: 'center', base: 'top', size: 9, hit: false }));
+        out.push(
+          text(x, Math.max(y0, y1) + 4, fmtLevel(l.value), col, {
+            align: 'center',
+            base: 'top',
+            size: 9,
+            hit: false,
+          }),
+        );
       }
-      out.push(path(d, [x0, y0, x1, y1], { alpha: 0.5, hit: 'none' }), path(d, [x0, y1, x1, y0], { alpha: 0.5, hit: 'none' }));
+      out.push(
+        path(d, [x0, y0, x1, y1], { alpha: 0.5, hit: 'none' }),
+        path(d, [x0, y1, x1, y0], { alpha: 0.5, hit: 'none' }),
+      );
       return out;
     },
   },
@@ -1536,8 +1804,12 @@ export const TOOLS: ToolDef[] = [
       const [x1, y1] = xy(P, d.anchors[1]);
       const out: Shape[] = [{ ...path(d, rectPts(x0, y0, x1, y1)), closed: true, ...fillOf(d) }];
       for (const f of [1 / 3, 2 / 3]) {
-        out.push(path(d, [x0 + (x1 - x0) * f, y0, x0 + (x1 - x0) * f, y1], { alpha: 0.5, hit: 'none' }));
-        out.push(path(d, [x0, y0 + (y1 - y0) * f, x1, y0 + (y1 - y0) * f], { alpha: 0.5, hit: 'none' }));
+        out.push(
+          path(d, [x0 + (x1 - x0) * f, y0, x0 + (x1 - x0) * f, y1], { alpha: 0.5, hit: 'none' }),
+        );
+        out.push(
+          path(d, [x0, y0 + (y1 - y0) * f, x1, y0 + (y1 - y0) * f], { alpha: 0.5, hit: 'none' }),
+        );
       }
       const mx = (x0 + x1) / 2;
       const my = (y0 + y1) / 2;
@@ -1546,7 +1818,16 @@ export const TOOLS: ToolDef[] = [
         path(d, [x0, y1, x1, y0], { hit: 'none' }),
         path(d, [mx, y0, mx, y1], { dash: 'dotted', hit: 'none' }),
         path(d, [x0, my, x1, my], { dash: 'dotted', hit: 'none' }),
-        { k: 'ellipse', cx: mx, cy: my, rx: Math.abs(x1 - x0) / 2, ry: Math.abs(y1 - y0) / 2, ...stroke(d), alpha: d.style.opacity * 0.6, hit: 'none' },
+        {
+          k: 'ellipse',
+          cx: mx,
+          cy: my,
+          rx: Math.abs(x1 - x0) / 2,
+          ry: Math.abs(y1 - y0) / 2,
+          ...stroke(d),
+          alpha: d.style.opacity * 0.6,
+          hit: 'none',
+        },
       );
       return out;
     },
@@ -1565,7 +1846,8 @@ export const TOOLS: ToolDef[] = [
       const dy = y1 - y0;
       const step = Math.max(8, Math.abs(dx));
       const out: Shape[] = [path(d, [x0, y0, x1, y1], { width: d.style.width + 1 })];
-      const n = Math.ceil(P.plot.w / step) + Math.ceil(Math.abs((P.plot.h * dx) / (dy || 1)) / step) + 2;
+      const n =
+        Math.ceil(P.plot.w / step) + Math.ceil(Math.abs((P.plot.h * dx) / (dy || 1)) / step) + 2;
       for (let k = -n; k <= n; k++) {
         const ox = x0 + k * step;
         for (const s of [1, -1]) {
@@ -1657,21 +1939,33 @@ export const TOOLS: ToolDef[] = [
     n: 1,
     ready: true,
     screen: true,
-    defaults: { style: { text: 'Note', color: '#FFFFFF', fontSize: 13, fill: '#1A1A1A', fillOpacity: 0.9 } },
+    defaults: {
+      style: { text: 'Note', color: '#FFFFFF', fontSize: 13, fill: '#1A1A1A', fillOpacity: 0.9 },
+    },
     build: (d, P) => {
       const a = d.anchors[0]!;
       return [
-        text(P.plot.x + a.t * P.plot.w, P.plot.y + a.px * P.plot.h, d.style.text || 'Note', d.style.color, {
-          size: d.style.fontSize,
-          bg: d.style.fill || undefined,
-          bgAlpha: d.style.fillOpacity,
-          pad: 5,
-          hit: true,
-        }),
+        text(
+          P.plot.x + a.t * P.plot.w,
+          P.plot.y + a.px * P.plot.h,
+          d.style.text || 'Note',
+          d.style.color,
+          {
+            size: d.style.fontSize,
+            bg: d.style.fill || undefined,
+            bgAlpha: d.style.fillOpacity,
+            pad: 5,
+            hit: true,
+          },
+        ),
       ];
     },
     handles: (d, P) => [
-      { x: P.plot.x + d.anchors[0]!.t * P.plot.w, y: P.plot.y + d.anchors[0]!.px * P.plot.h, key: 0 },
+      {
+        x: P.plot.x + d.anchors[0]!.t * P.plot.w,
+        y: P.plot.y + d.anchors[0]!.px * P.plot.h,
+        key: 0,
+      },
     ],
     labels: () => ({ px: [], t: [] }),
   },
@@ -1712,7 +2006,9 @@ export const TOOLS: ToolDef[] = [
     defaults: { style: { text: 'Note', color: '#E8B04B' }, props: { expanded: true } },
     build: (d, P) => {
       const [x, y] = xy(P, d.anchors[0]);
-      const out: Shape[] = [{ k: 'marker', m: 'square', x, y, size: 12, color: d.style.color, alpha: d.style.opacity }];
+      const out: Shape[] = [
+        { k: 'marker', m: 'square', x, y, size: 12, color: d.style.color, alpha: d.style.opacity },
+      ];
       if (prop(d, 'expanded', true))
         out.push(
           text(x + 10, y - 6, d.style.text || 'Note', '#FFFFFF', {
@@ -1813,40 +2109,38 @@ export const TOOLS: ToolDef[] = [
     labels: pricesOnly,
   },
   // ---------------------------------------------------------- risk
-  ...(['long', 'short'] as const).map(
-    (side): ToolDef => ({
-      id: side === 'long' ? 'long-position' : 'short-position',
-      label: side === 'long' ? 'Long Position' : 'Short Position',
-      group: 'risk',
-      mode: 'click',
-      n: 1,
-      ready: true,
-      note: 'Drag entry, target, stop and the right edge',
-      defaults: { props: { qty: 1, risk: 0 }, showLabels: true },
-      init: positionInit(side),
-      build: (d, P) => positionShapes(d, P, side),
-      handles: (d, P) => {
-        const [e, tp, sl] = d.anchors as [Anchor, Anchor, Anchor];
-        if (!tp || !sl) return [];
-        const xe = P.x(e.t);
-        const xr = P.x(tp.t);
-        return [
-          { x: xe, y: P.y(e.px), key: 0 },
-          { x: xe, y: P.y(tp.px), key: 1 },
-          { x: xe, y: P.y(sl.px), key: 2 },
-          { x: xr, y: P.y(e.px), key: 3 },
-        ];
-      },
-      moveHandle: (d, key, a) => {
-        const [e, tp, sl] = d.anchors as [Anchor, Anchor, Anchor];
-        if (key === 0) d.anchors = [{ t: a.t, px: a.px }, tp, sl];
-        else if (key === 1) d.anchors = [e, { t: tp.t, px: a.px }, sl];
-        else if (key === 2) d.anchors = [e, tp, { t: sl.t, px: a.px }];
-        else d.anchors = [e, { t: a.t, px: tp.px }, { t: a.t, px: sl.px }];
-      },
-      labels: (d) => ({ px: d.anchors.map((a) => a.px), t: [] }),
-    }),
-  ),
+  ...(['long', 'short'] as const).map((side): ToolDef => ({
+    id: side === 'long' ? 'long-position' : 'short-position',
+    label: side === 'long' ? 'Long Position' : 'Short Position',
+    group: 'risk',
+    mode: 'click',
+    n: 1,
+    ready: true,
+    note: 'Drag entry, target, stop and the right edge',
+    defaults: { props: { qty: 1, risk: 0 }, showLabels: true },
+    init: positionInit(side),
+    build: (d, P) => positionShapes(d, P, side),
+    handles: (d, P) => {
+      const [e, tp, sl] = d.anchors as [Anchor, Anchor, Anchor];
+      if (!tp || !sl) return [];
+      const xe = P.x(e.t);
+      const xr = P.x(tp.t);
+      return [
+        { x: xe, y: P.y(e.px), key: 0 },
+        { x: xe, y: P.y(tp.px), key: 1 },
+        { x: xe, y: P.y(sl.px), key: 2 },
+        { x: xr, y: P.y(e.px), key: 3 },
+      ];
+    },
+    moveHandle: (d, key, a) => {
+      const [e, tp, sl] = d.anchors as [Anchor, Anchor, Anchor];
+      if (key === 0) d.anchors = [{ t: a.t, px: a.px }, tp, sl];
+      else if (key === 1) d.anchors = [e, { t: tp.t, px: a.px }, sl];
+      else if (key === 2) d.anchors = [e, tp, { t: sl.t, px: a.px }];
+      else d.anchors = [e, { t: a.t, px: tp.px }, { t: a.t, px: sl.px }];
+    },
+    labels: (d) => ({ px: d.anchors.map((a) => a.px), t: [] }),
+  })),
 ];
 
 const BY_ID = new Map<string, ToolDef>(TOOLS.map((t) => [t.id, t]));

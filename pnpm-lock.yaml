@@ -130,6 +130,15 @@ importers:
         specifier: workspace:*
         version: link:../trading
 
+  packages/drawings:
+    dependencies:
+      '@htflow/chart-engine':
+        specifier: workspace:*
+        version: link:../chart-engine
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+
   packages/footprint:
     dependencies:
       '@htflow/chart-engine':
