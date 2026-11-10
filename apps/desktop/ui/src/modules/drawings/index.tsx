@@ -13,7 +13,7 @@ import {
 import { specKey } from '@htflow/market-data';
 import { toast, type MenuEntry } from '@htflow/ui-kit';
 import { registerChartExtension, type ChartExtensionContext } from '../../charts/extensions';
-import { registerCommands, type Command } from '../../shell/commands';
+import { commands, onCommandsChange, registerCommands, type Command } from '../../shell/commands';
 import { registerModule } from '../registry';
 import {
   activateTool,
@@ -298,7 +298,27 @@ const cmds: Command[] = [
     run: () => void ctrlOf()?.redo(),
   },
 ];
-registerCommands(cmds);
+// Registered after the dashboard's own commands so drawing tools never outrank core commands
+// (layouts, instruments) for the same search term in the Command Palette.
+let busy = false;
+let unregister: (() => void) | null = null;
+const registerOnce = () => {
+  if (busy) return;
+  const ids = commands().map((c) => c.id);
+  if (!ids.includes('palette')) return;
+  const firstMine = ids.findIndex((id) => id.startsWith('draw.'));
+  let lastOther = -1;
+  ids.forEach((id, i) => {
+    if (!id.startsWith('draw.')) lastOther = i;
+  });
+  if (unregister && firstMine > lastOther) return;
+  busy = true;
+  unregister?.();
+  unregister = registerCommands(cmds);
+  busy = false;
+};
+onCommandsChange(registerOnce);
+registerOnce();
 
 // Esc / Ctrl+Z / Ctrl+Y when the chart canvas is not focused (never while typing in a field).
 window.addEventListener('keydown', (e) => {
