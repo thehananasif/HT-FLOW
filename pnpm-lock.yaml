@@ -56,6 +56,9 @@ importers:
       '@htflow/dom':
         specifier: workspace:*
         version: link:../../packages/dom
+      '@htflow/drawings':
+        specifier: workspace:*
+        version: link:../../packages/drawings
       '@htflow/footprint':
         specifier: workspace:*
         version: link:../../packages/footprint
