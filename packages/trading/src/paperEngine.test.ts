@@ -169,11 +169,23 @@ describe('PaperEngine', () => {
       return req.qty > 3 ? 'Too big' : null;
     });
     eng.preTradeChecks.push(() => undefined);
-    const big = eng.place({ accountId: 'A', instrumentId: 'X', side: 'buy', type: 'market', qty: 4 });
+    const big = eng.place({
+      accountId: 'A',
+      instrumentId: 'X',
+      side: 'buy',
+      type: 'market',
+      qty: 4,
+    });
     expect(big.status).toBe('rejected');
     expect(big.reason).toBe('Too big');
     expect(eng.fills).toHaveLength(0);
-    const ok = eng.place({ accountId: 'A', instrumentId: 'X', side: 'buy', type: 'market', qty: 2 });
+    const ok = eng.place({
+      accountId: 'A',
+      instrumentId: 'X',
+      side: 'buy',
+      type: 'market',
+      qty: 2,
+    });
     expect(ok.status).toBe('filled');
     expect(seen).toEqual([4, 2]);
   });
@@ -192,4 +204,3 @@ describe('PaperEngine', () => {
     expect(eng.position('A', 'X').qty).toBe(0);
   });
 });
-

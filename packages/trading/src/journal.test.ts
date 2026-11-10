@@ -181,10 +181,7 @@ describe('Trading Journal — acceptance: 500 deterministic paper trades', () =>
     expect(s.expectancyR).toBeCloseTo(sum(rs) / rs.length, 9);
     expect(s.avgWin).toBeCloseTo(sum(winsN) / winsN.length, 9);
     expect(s.avgLoss).toBeCloseTo(-sum(lossN) / lossN.length, 9);
-    expect(s.winLossRatio).toBeCloseTo(
-      sum(winsN) / winsN.length / (-sum(lossN) / lossN.length),
-      9,
-    );
+    expect(s.winLossRatio).toBeCloseTo(sum(winsN) / winsN.length / (-sum(lossN) / lossN.length), 9);
     // The engine's cash balance agrees with the journal's net P&L.
     expect(eng.accounts.get('P')!.balance - START).toBeCloseTo(sum(net), 6);
   });
