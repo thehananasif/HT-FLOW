@@ -50,7 +50,9 @@ test('limit order with an ATM template: drag to modify on the chart, fill, see p
 
   // ATM template + SL/TP on.
   const panel = page.getByTestId('trading-panel');
-  await panel.getByLabel('ATM template', { exact: true }).selectOption({ label: 'ATM · Three targets + BE' });
+  await panel
+    .getByLabel('ATM template', { exact: true })
+    .selectOption({ label: 'ATM · Three targets + BE' });
   await expect(page.getByTestId('atm-summary')).toContainText('TP 8/16/32T');
   await page.getByRole('switch', { name: 'SL/TP bracket' }).click();
 
@@ -69,7 +71,9 @@ test('limit order with an ATM template: drag to modify on the chart, fill, see p
   const placedPx = Number(await row.getAttribute('data-px'));
 
   // The working order line is on the chart.
-  await expect.poll(async () => (await lines(probe)).filter((l) => l.kind === 'order').length).toBe(1);
+  await expect
+    .poll(async () => (await lines(probe)).filter((l) => l.kind === 'order').length)
+    .toBe(1);
   let order = (await lines(probe)).find((l) => l.kind === 'order')!;
   expect(order.px).toBe(placedPx);
 
