@@ -78,6 +78,6 @@ test('watchlist: add a symbol; forward curve opens with Sim badge', async ({ pag
   await expect(fc.getByText('Sim', { exact: true })).toBeVisible();
   await expect(fc.getByTestId('fc-roll')).toContainText('Next roll: CL');
   await fc.getByRole('button', { name: 'BTC quarterly' }).click();
-  await expect(fc.getByText(/BTCUSDT_\d{6}/).first()).toBeVisible();
+  await expect(fc.locator('td', { hasText: /BTCUSDT_\d{6}/ }).first()).toBeVisible();
   expect(errors).toEqual([]);
 });

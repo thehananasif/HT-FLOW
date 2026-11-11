@@ -251,7 +251,9 @@ function Row({
     oi: Number.NaN,
     spark: stats?.changePct ?? Number.NaN,
   };
-  useEffect(() => onValues(id, values));
+  useEffect(() => {
+    onValues(id, values);
+  });
 
   const cell = (c: ColId) => {
     const v = values[c];
@@ -603,7 +605,9 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             }}
             onRemove={() => setList(list.symbols.filter((x) => x !== id))}
             onDrop={(from, to) => setList(moveItem(list.symbols, from, to))}
-            onValues={(k, v) => values.current.set(k, v)}
+            onValues={(k, v) => {
+              values.current.set(k, v);
+            }}
           />
         ))}
         {!ids.length && (
