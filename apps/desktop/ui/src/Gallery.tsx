@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Activity, Bell, Star } from 'lucide-react';
 import {
   applyTheme,
@@ -6,12 +6,27 @@ import {
   Button,
   Checkbox,
   Chip,
+  ColorPicker,
   ColorSwatch,
+  Combobox,
   ContextMenu,
   Dialog,
   DropdownMenu,
   EmptyState,
   Field,
+  FontPicker,
+  GradientEditor,
+  LineStylePicker,
+  MenuSlider,
+  Sheet,
+  SplitPane,
+  Table,
+  TreeView,
+  type ComboOption,
+  type GradientStop,
+  type LineStyle,
+  type SortState,
+  type TreeNode,
   IconButton,
   Input,
   Kbd,
@@ -29,6 +44,56 @@ import {
   type ThemeName,
 } from '@htflow/ui-kit';
 
+const INSTRUMENTS: ComboOption[] = [
+  { value: 'ES', label: 'ES', hint: 'E-mini S&P 500' },
+  { value: 'NQ', label: 'NQ', hint: 'E-mini Nasdaq-100' },
+  { value: 'CL', label: 'CL', hint: 'Crude Oil' },
+  { value: 'GC', label: 'GC', hint: 'Gold' },
+  { value: 'BTCUSDT', label: 'BTCUSDT', hint: 'Bybit linear' },
+  { value: 'ETHUSDT', label: 'ETHUSDT', hint: 'Bybit linear' },
+];
+
+const TREE: TreeNode[] = [
+  {
+    id: 'indicators',
+    label: 'Indicators',
+    children: [
+      { id: 'vwap', label: 'VWAP' },
+      { id: 'ema', label: 'EMA' },
+      {
+        id: 'vol',
+        label: 'Volume',
+        children: [
+          { id: 'cvd', label: 'CVD' },
+          { id: 'oi', label: 'Open interest' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'drawings',
+    label: 'Drawings',
+    children: [
+      { id: 'trend', label: 'Trend line' },
+      { id: 'fib', label: 'Fib retracement' },
+    ],
+  },
+  { id: 'alerts', label: 'Alerts' },
+];
+
+interface DemoRow {
+  id: string;
+  symbol: string;
+  price: number;
+  chg: number;
+}
+const ROWS: DemoRow[] = Array.from({ length: 2000 }, (_, i) => ({
+  id: `r${i}`,
+  symbol: `SYM${String(i).padStart(4, '0')}`,
+  price: 100 + ((i * 7919) % 5000) / 10,
+  chg: (((i * 104729) % 400) - 200) / 100,
+}));
+
 /** Dev-only UI Gallery (P02 acceptance): every ui-kit component in its states. Open with ?gallery. */
 export function Gallery() {
   const [themeName, setTheme] = useState<ThemeName>('dark');
@@ -40,6 +105,31 @@ export function Gallery() {
   const [sl, setSl] = useState(40);
   const [col, setCol] = useState('#20C77A');
   const [dlg, setDlg] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  const [fill, setFill] = useState('#20c77a80');
+  const [swatches, setSwatches] = useState<string[]>(['#20c77a', '#f04a5d']);
+  const [stops, setStops] = useState<GradientStop[]>([
+    { pos: 0, color: '#4fa3f7' },
+    { pos: 0.5, color: '#b07cf0' },
+    { pos: 1, color: '#f04a5d' },
+  ]);
+  const [inst, setInst] = useState<string | null>('ES');
+  const [font, setFont] = useState('Geist');
+  const [line, setLine] = useState<LineStyle>({ dash: 'dashed', width: 2 });
+  const [menuSl, setMenuSl] = useState(60);
+  const [sort, setSort] = useState<SortState | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [checked, setChecked] = useState<Set<string>>(new Set(['vwap']));
+  const [ratio, setRatio] = useState(0.4);
+  const rows = useMemo(() => ROWS, []);
+  const loadInstruments = (q: string) =>
+    new Promise<ComboOption[]>((res) =>
+      setTimeout(
+        () =>
+          res(INSTRUMENTS.filter((o) => o.label.toLowerCase().includes(q.trim().toLowerCase()))),
+        200,
+      ),
+    );
   const section = (title: string, children: React.ReactNode) => (
     <section className="gal-sec">
       <h3>{title}</h3>
@@ -201,6 +291,149 @@ export function Gallery() {
               Close
             </Button>
           </Dialog>
+        </>,
+      )}
+      {section(
+        'Colour picker v2 (RGBA, swatches, recent)',
+        <>
+          <ColorPicker
+            label="Fill colour"
+            value={fill}
+            onChange={setFill}
+            swatches={swatches}
+            onSwatchesChange={setSwatches}
+          />
+          <span className="mono" style={{ fontSize: 11 }}>
+            {fill}
+          </span>
+        </>,
+      )}
+      {section(
+        'Gradient editor',
+        <GradientEditor stops={stops} onChange={setStops} label="Heatmap gradient" />,
+      )}
+      {section(
+        'Combobox, font & line style',
+        <>
+          <Combobox
+            aria-label="Instrument"
+            value={inst}
+            onChange={(v) => setInst(v)}
+            options={INSTRUMENTS}
+          />
+          <Combobox
+            aria-label="Instrument (async)"
+            value={inst}
+            valueLabel={inst ?? undefined}
+            onChange={(v) => setInst(v)}
+            loadOptions={loadInstruments}
+          />
+          <div style={{ width: 260 }}>
+            <FontPicker value={font} onChange={setFont} />
+          </div>
+          <LineStylePicker value={line} onChange={setLine} />
+        </>,
+      )}
+      {section(
+        'Slider in a menu, sheet',
+        <>
+          <DropdownMenu
+            trigger={<MenuTrigger>Opacity menu</MenuTrigger>}
+            items={[
+              { id: 'i', label: 'Item' },
+              {
+                kind: 'slider',
+                id: 'op',
+                label: 'Opacity',
+                value: menuSl,
+                format: (v) => `${v}%`,
+                onChange: setMenuSl,
+              },
+            ]}
+          />
+          <div style={{ width: 200 }}>
+            <MenuSlider label="Standalone" value={menuSl} onChange={setMenuSl} />
+          </div>
+          <Button onClick={() => setSheet(true)}>Open sheet</Button>
+          <Sheet
+            open={sheet}
+            onOpenChange={setSheet}
+            title="Sheet title"
+            description="Side drawer with focus trap."
+            footer={
+              <Button variant="primary" onClick={() => setSheet(false)}>
+                Done
+              </Button>
+            }
+          >
+            <TreeView aria-label="Sheet tree" nodes={TREE} defaultExpanded={['indicators']} />
+          </Sheet>
+        </>,
+      )}
+      {section(
+        'Virtualized table (2,000 rows)',
+        <div style={{ width: 460, height: 220 }}>
+          <Table<DemoRow>
+            aria-label="Demo table"
+            rows={rows}
+            rowId={(r) => r.id}
+            sort={sort}
+            onSortChange={setSort}
+            selectionMode="multi"
+            selected={sel}
+            onSelectionChange={setSel}
+            columns={[
+              { key: 'symbol', header: 'Symbol', sortable: true },
+              {
+                key: 'price',
+                header: 'Price',
+                sortable: true,
+                numeric: true,
+                width: 90,
+                render: (r) => r.price.toFixed(2),
+              },
+              {
+                key: 'chg',
+                header: 'Chg',
+                sortable: true,
+                numeric: true,
+                width: 80,
+                render: (r) => (
+                  <span style={{ color: r.chg >= 0 ? 'var(--ht-up)' : 'var(--ht-down)' }}>
+                    {r.chg.toFixed(2)}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </div>,
+      )}
+      {section(
+        'Tree view (checkboxes) & split pane',
+        <>
+          <div style={{ width: 220, border: '1px solid var(--ht-border)', borderRadius: 10 }}>
+            <TreeView
+              aria-label="Demo tree"
+              nodes={TREE}
+              checkable
+              checked={checked}
+              onCheckedChange={setChecked}
+            />
+          </div>
+          <div
+            style={{
+              width: 420,
+              height: 120,
+              border: '1px solid var(--ht-border)',
+              borderRadius: 10,
+              overflow: 'hidden',
+            }}
+          >
+            <SplitPane defaultRatio={ratio} minA={80} minB={80} onRatioChange={setRatio}>
+              <div style={{ padding: 8 }}>Pane A ({Math.round(ratio * 100)}%)</div>
+              <div style={{ padding: 8 }}>Pane B</div>
+            </SplitPane>
+          </div>
         </>,
       )}
       {section(

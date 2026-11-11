@@ -1,0 +1,81 @@
+/* Logs window (P28). Tokens from @htflow/ui-kit. */
+.logs-win {
+  height: 100%;
+  min-height: 0;
+  background: var(--ht-surface1);
+}
+.logs-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--ht-border);
+  font-size: 12px;
+}
+.logs-view-opts {
+  padding: 4px 10px;
+  color: var(--ht-text-secondary);
+}
+.logs-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.logs-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--ht-mono);
+  padding: 4px 0;
+}
+.logs-empty {
+  padding: 16px;
+  font-family: var(--ht-font);
+}
+.logs-row {
+  display: flex;
+  gap: 8px;
+  padding: 1px 10px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.logs-row:hover {
+  background: var(--ht-hover);
+}
+.logs-row.wrap {
+  white-space: normal;
+}
+.logs-row.wrap .logs-msg {
+  word-break: break-word;
+}
+.logs-ts {
+  flex: none;
+  color: var(--ht-text-tertiary);
+}
+.logs-lv {
+  flex: none;
+  width: 44px;
+}
+.logs-src {
+  flex: none;
+  color: var(--ht-text-secondary);
+}
+.logs-msg {
+  color: var(--ht-text-soft);
+}
+.lv-debug .logs-lv {
+  color: var(--ht-text-tertiary);
+}
+.lv-info .logs-lv {
+  color: var(--ht-info);
+}
+.lv-warn .logs-lv,
+.lv-warn .logs-msg {
+  color: var(--ht-warning);
+}
+.lv-error .logs-lv,
+.lv-error .logs-msg {
+  color: var(--ht-down);
+}
