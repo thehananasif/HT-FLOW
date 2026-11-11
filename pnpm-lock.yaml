@@ -71,6 +71,9 @@ importers:
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
+      '@htflow/replay':
+        specifier: workspace:*
+        version: link:../../packages/replay
       '@htflow/trading':
         specifier: workspace:*
         version: link:../../packages/trading
@@ -163,6 +166,12 @@ importers:
   packages/i18n: {}
 
   packages/market-data: {}
+
+  packages/replay:
+    dependencies:
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
 
   packages/trading:
     dependencies:

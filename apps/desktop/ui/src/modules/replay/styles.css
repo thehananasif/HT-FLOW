@@ -1,0 +1,230 @@
+/* Replay window (P24 / P35 board 11) */
+.rp-window {
+  overflow: auto;
+  padding: 12px;
+}
+.rp-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.rp-card {
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-panel);
+  background: var(--ht-surface1);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+}
+.rp-card h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rp-sub {
+  font-size: 11px;
+  font-weight: 400;
+}
+.rp-chips {
+  flex-wrap: wrap;
+}
+.rp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-cell);
+  background: var(--ht-surface2);
+  color: var(--ht-text-primary);
+  font: inherit;
+}
+.rp-chip button {
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0;
+}
+.rp-chip--add {
+  border-style: dashed;
+  color: var(--ht-text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+.rp-info {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 8px 10px;
+  border-radius: var(--ht-r-input);
+  background: var(--ht-surface2);
+}
+.rp-info .rp-sub {
+  flex-basis: 100%;
+}
+.rp-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rp-stats .up {
+  color: var(--ht-up);
+}
+.rp-stats .down {
+  color: var(--ht-down);
+}
+.rp-tpl {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.rp-tpl-name {
+  color: var(--ht-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-running {
+  align-items: center;
+}
+
+/* Control bar overlay on replay charts */
+.rp-bar {
+  position: absolute;
+  left: 8px;
+  right: 72px;
+  bottom: 28px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-panel);
+  background: color-mix(in srgb, var(--ht-surface-sheet) 94%, transparent);
+  font-size: 12px;
+  color: var(--ht-text-soft);
+}
+.rp-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rp-tag {
+  padding: 1px 6px;
+  border-radius: var(--ht-r-cell);
+  background: color-mix(in srgb, var(--ht-special) 18%, transparent);
+  color: var(--ht-special);
+  font-weight: 600;
+  font-size: 11px;
+}
+.rp-timeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rp-track {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  cursor: pointer;
+  touch-action: none;
+}
+.rp-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ht-surface3);
+}
+.rp-fill {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ht-special);
+  pointer-events: none;
+}
+.rp-loop {
+  position: absolute;
+  top: 5px;
+  height: 8px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ht-special) 22%, transparent);
+  pointer-events: none;
+}
+.rp-thumb {
+  position: absolute;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: var(--ht-text-primary);
+  pointer-events: none;
+}
+.rp-mark {
+  position: absolute;
+  top: 14px;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: var(--ht-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.rp-mark span {
+  margin-left: 2px;
+}
+.rp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.rp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-input);
+  background: var(--ht-surface3);
+  color: var(--ht-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.rp-btn:hover {
+  background: var(--ht-hover);
+}
+.rp-play {
+  background: var(--ht-accent);
+  color: var(--ht-accent-text);
+  font-weight: 600;
+  min-width: 76px;
+  justify-content: center;
+}
+.rp-play:hover {
+  background: var(--ht-text-soft);
+}
+.rp-speeds button {
+  font-variant-numeric: tabular-nums;
+}
