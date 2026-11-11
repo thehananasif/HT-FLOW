@@ -57,7 +57,41 @@ export interface EventBatch {
   trades: Trade[];
   deltas: BookDelta[];
   snapshot?: BookSnapshot;
+  /** Derivatives statistics (funding, open interest, liquidations) from live connectors. */
+  stats?: MarketStat[];
 }
+
+/** Funding rate update (rate per funding interval: 0.0001 = 0.01 %). */
+export interface FundingStat {
+  kind: 'funding';
+  ts: number;
+  rate: number;
+  /** Next funding time (ms), 0 when unknown. */
+  nextTs: number;
+  /** Mark price in price units (NaN when unknown). */
+  markPrice: number;
+}
+
+export interface OpenInterestStat {
+  kind: 'open_interest';
+  ts: number;
+  /** Open interest in contracts / base units. */
+  oi: number;
+  /** Open interest in quote currency (NaN when unknown). */
+  value: number;
+}
+
+export interface LiquidationStat {
+  kind: 'liquidation';
+  ts: number;
+  /** Side of the liquidation order: 'sell' = a long was liquidated. */
+  side: 'buy' | 'sell';
+  /** Price in ticks. */
+  px: number;
+  qty: number;
+}
+
+export type MarketStat = FundingStat | OpenInterestStat | LiquidationStat;
 
 /** Resting depth sampled at a fixed interval — the data behind heatmaps. */
 export interface DepthColumn {

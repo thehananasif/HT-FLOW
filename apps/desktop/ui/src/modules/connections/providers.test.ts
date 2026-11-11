@@ -22,6 +22,7 @@ describe('provider catalog', () => {
     expect(names('Crypto')).toEqual([
       'Binance',
       'Binance Futures',
+      'Binance COIN-M',
       'Bitfinex',
       'Bitget',
       'BitMEX',

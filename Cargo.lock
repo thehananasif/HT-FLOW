@@ -1357,6 +1357,7 @@ name = "htflow-connector-binance"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "htflow-connector-common",
  "htflow-core-types",
  "rand 0.8.8",
  "reqwest 0.12.28",
@@ -1426,9 +1427,12 @@ name = "htflow-desktop"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "futures-util",
  "htflow-auth",
  "htflow-connector-binance",
  "htflow-connector-bybit",
+ "htflow-connector-common",
+ "htflow-connector-okx",
  "htflow-core-types",
  "htflow-tick-store",
  "keyring",

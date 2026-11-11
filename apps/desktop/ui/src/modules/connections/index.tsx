@@ -107,7 +107,7 @@ function rowFor(c: ConnectionConfig): Row {
   const live = enabled && st.feeds > 0;
   return {
     ...base,
-    subtitle: `${v === 'binance-futures' ? 'USDⓈ-M' : 'Linear perps'} · ${st.feeds} streaming${st.recording ? ` · ${st.recording} recording` : ''}`,
+    subtitle: `${p.market ?? 'Live'} · ${st.feeds} streaming${st.recording ? ` · ${st.recording} recording` : ''}`,
     status,
     label,
     latency: live ? st.latencyMs : null,

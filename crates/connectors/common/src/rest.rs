@@ -78,11 +78,16 @@ impl Rest {
     }
 
     /// A driver probe that measures the clock with [`Rest::probe_time`].
-    pub fn time_probe(&self, path: &'static str, extract: fn(&str) -> Option<i64>) -> Probe<i64> {
+    pub fn time_probe(
+        &self,
+        path: impl Into<String>,
+        extract: fn(&str) -> Option<i64>,
+    ) -> Probe<i64> {
         let me = self.clone();
-        std::sync::Arc::new(move || {
-            let me = me.clone();
-            Box::pin(async move { me.probe_time(path, extract).await })
+        let path: Arc<str> = path.into().into();
+        Arc::new(move || {
+            let (me, path) = (me.clone(), Arc::clone(&path));
+            Box::pin(async move { me.probe_time(&path, extract).await })
         })
     }
 }

@@ -1,20 +1,25 @@
 //! Live market data commands.
 //!
-//! * Venue dispatch: `binance-futures`, `bybit-linear` (one enum, one match per operation).
+//! * Venue dispatch: every connector implements `htflow_connector_common::MarketApi`; the
+//!   registry below maps a venue id (`binance-futures`, `okx-swap`, …) to its client, so adding a
+//!   venue is one line in [`Clients::default`].
 //! * Live Pipeline stage 5: every subscribed stream is teed into the recorder (when enabled).
 //! * Live Pipeline stage 6: `market_history` reads the local tick store first, backfills only
-//!   the uncovered gaps from the venue's REST API, writes the backfill to the store and
-//!   de-duplicates on trade id / timestamp at the seam.
+//!   the uncovered gaps from the venue's REST API (a time-range call where the venue has one),
+//!   writes the backfill to the store and de-duplicates on trade id / timestamp at the seam.
 //! * Live Pipeline stage 9: coalesces connector events every 16 ms into one compact batch per
-//!   window over a Tauri channel (prices already in integer ticks).
+//!   window over a Tauri channel (prices already in integer ticks). Funding / open interest /
+//!   liquidations travel in the same batch (`ex`).
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use htflow_connector_binance::{now_ns, BinanceFutures};
+use futures_util::future::BoxFuture;
+use htflow_connector_binance::{now_ns, Binance, Market};
 use htflow_connector_bybit::BybitLinear;
-use htflow_core_types::{FeedState, MarketEvent, Side, TickSize, Trade};
+use htflow_connector_common::{BookLevels, ClockSkew, ConnectorError, MarketApi, SymbolSpec};
+use htflow_core_types::{FeedState, MarketEvent, MarketStat, Side, Trade};
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::State;
@@ -23,42 +28,17 @@ use tokio::sync::{mpsc, watch};
 use crate::data_cmds::{DataState, RecMsg, RecorderService};
 use crate::error::{CmdError, CmdResult};
 
+/// A venue id known to the registry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Venue {
-    BinanceFutures,
-    BybitLinear,
-}
+pub struct Venue(&'static str);
 
 impl Venue {
-    pub fn parse(s: &str) -> CmdResult<Self> {
-        match s {
-            "binance-futures" => Ok(Venue::BinanceFutures),
-            "bybit-linear" => Ok(Venue::BybitLinear),
-            _ => Err(CmdError::new(
-                "market.venue",
-                format!("Venue '{s}' is not available yet (see docs/BLOCKERS.md)"),
-            )),
-        }
-    }
     pub fn id(self) -> &'static str {
-        match self {
-            Venue::BinanceFutures => "binance-futures",
-            Venue::BybitLinear => "bybit-linear",
-        }
-    }
-    /// REST history pages forward from a start time (Binance) vs. only the latest N trades.
-    fn history_from_start(self) -> bool {
-        matches!(self, Venue::BinanceFutures)
+        self.0
     }
 }
 
-/// Venue-neutral instrument spec.
-#[derive(Debug, Clone)]
-pub struct Spec {
-    pub symbol: String,
-    pub tick: TickSize,
-    pub qty_precision: u32,
-}
+pub type Spec = SymbolSpec;
 
 impl From<htflow_connector_bybit::ConnectorError> for CmdError {
     fn from(e: htflow_connector_bybit::ConnectorError) -> Self {
@@ -66,77 +46,140 @@ impl From<htflow_connector_bybit::ConnectorError> for CmdError {
     }
 }
 
-#[derive(Clone, Default)]
+/// Bybit's crate predates the shared framework; this adapter gives it the common API.
+struct BybitApi {
+    client: BybitLinear,
+    clock: ClockSkew,
+}
+
+fn bybit_spec(sp: &Spec) -> htflow_connector_bybit::SymbolSpec {
+    htflow_connector_bybit::SymbolSpec {
+        symbol: sp.symbol.clone(),
+        tick: sp.tick,
+        qty_precision: sp.qty_precision,
+    }
+}
+
+fn bybit_err(e: htflow_connector_bybit::ConnectorError) -> ConnectorError {
+    ConnectorError::Api(e.to_string())
+}
+
+impl MarketApi for BybitApi {
+    fn venue(&self) -> &'static str {
+        "bybit-linear"
+    }
+    fn spec<'a>(&'a self, symbol: &'a str) -> BoxFuture<'a, Result<Spec, ConnectorError>> {
+        Box::pin(async move {
+            let s = self.client.symbol_spec(symbol).await.map_err(bybit_err)?;
+            Ok(Spec::new(s.symbol, s.tick, s.qty_precision))
+        })
+    }
+    fn book<'a>(&'a self, sp: &'a Spec) -> BoxFuture<'a, Result<BookLevels, ConnectorError>> {
+        Box::pin(async move {
+            let (_, b, a) = self
+                .client
+                .depth_snapshot(&bybit_spec(sp))
+                .await
+                .map_err(bybit_err)?;
+            Ok((b, a))
+        })
+    }
+    fn trades<'a>(
+        &'a self,
+        sp: &'a Spec,
+        _from_ms: i64,
+        _to_ms: i64,
+    ) -> BoxFuture<'a, Result<Vec<Trade>, ConnectorError>> {
+        // Bybit's public REST only serves the latest 1,000 trades.
+        Box::pin(async move {
+            self.client
+                .recent_trades(&bybit_spec(sp))
+                .await
+                .map_err(bybit_err)
+        })
+    }
+    fn history_from_start(&self) -> bool {
+        false
+    }
+    fn stream(
+        &self,
+        sp: Spec,
+        tx: mpsc::Sender<MarketEvent>,
+        stop: watch::Receiver<bool>,
+    ) -> BoxFuture<'static, ()> {
+        Box::pin(htflow_connector_bybit::run_stream(
+            self.client.clone(),
+            bybit_spec(&sp),
+            tx,
+            stop,
+        ))
+    }
+    fn clock(&self) -> &ClockSkew {
+        &self.clock
+    }
+}
+
+#[derive(Clone)]
 pub struct Clients {
-    binance: BinanceFutures,
-    bybit: BybitLinear,
+    apis: HashMap<&'static str, Arc<dyn MarketApi>>,
+}
+
+impl Default for Clients {
+    fn default() -> Self {
+        let list: Vec<Arc<dyn MarketApi>> = vec![
+            Arc::new(Binance::market(Market::UsdM)),
+            Arc::new(Binance::market(Market::CoinM)),
+            Arc::new(Binance::market(Market::Spot)),
+            Arc::new(BybitApi {
+                client: BybitLinear::default(),
+                clock: ClockSkew::default(),
+            }),
+            Arc::new(htflow_connector_okx::Okx::default()),
+        ];
+        Self {
+            apis: list.into_iter().map(|a| (a.venue(), a)).collect(),
+        }
+    }
 }
 
 impl Clients {
+    pub fn parse(&self, s: &str) -> CmdResult<Venue> {
+        self.apis
+            .get_key_value(s)
+            .map(|(k, _)| Venue(k))
+            .ok_or_else(|| {
+                CmdError::new(
+                    "market.venue",
+                    format!("Venue '{s}' is not available yet (see docs/BLOCKERS.md)"),
+                )
+            })
+    }
+
+    fn api(&self, v: Venue) -> &Arc<dyn MarketApi> {
+        &self.apis[v.0]
+    }
+
     async fn spec(&self, venue: Venue, symbol: &str) -> CmdResult<Spec> {
-        Ok(match venue {
-            Venue::BinanceFutures => {
-                let s = self.binance.symbol_spec(symbol).await?;
-                Spec {
-                    symbol: s.symbol,
-                    tick: s.tick,
-                    qty_precision: s.qty_precision,
-                }
-            }
-            Venue::BybitLinear => {
-                let s = self.bybit.symbol_spec(symbol).await?;
-                Spec {
-                    symbol: s.symbol,
-                    tick: s.tick,
-                    qty_precision: s.qty_precision,
-                }
-            }
-        })
+        Ok(self.api(venue).spec(symbol).await?)
     }
 
-    fn binance_spec(sp: &Spec) -> htflow_connector_binance::SymbolSpec {
-        htflow_connector_binance::SymbolSpec {
-            symbol: sp.symbol.clone(),
-            tick: sp.tick,
-            qty_precision: sp.qty_precision,
-        }
+    /// Trades in `[from_ms, to_ms]` (best effort for venues that only serve the latest N).
+    async fn trades_range(
+        &self,
+        venue: Venue,
+        sp: &Spec,
+        from_ms: i64,
+        to_ms: i64,
+    ) -> CmdResult<Vec<Trade>> {
+        Ok(self.api(venue).trades(sp, from_ms, to_ms).await?)
     }
 
-    fn bybit_spec(sp: &Spec) -> htflow_connector_bybit::SymbolSpec {
-        htflow_connector_bybit::SymbolSpec {
-            symbol: sp.symbol.clone(),
-            tick: sp.tick,
-            qty_precision: sp.qty_precision,
-        }
+    async fn book(&self, venue: Venue, sp: &Spec) -> CmdResult<BookLevels> {
+        Ok(self.api(venue).book(sp).await?)
     }
 
-    /// Trades from `from_ms` until now (best effort: Bybit only serves the latest 1,000).
-    async fn trades_since(&self, venue: Venue, sp: &Spec, from_ms: i64) -> CmdResult<Vec<Trade>> {
-        Ok(match venue {
-            Venue::BinanceFutures => {
-                let minutes = ((now_ns() / 1_000_000 - from_ms) / 60_000 + 1).clamp(1, 24 * 60);
-                self.binance
-                    .recent_trades(&Self::binance_spec(sp), minutes as u32, 60)
-                    .await?
-            }
-            Venue::BybitLinear => self.bybit.recent_trades(&Self::bybit_spec(sp)).await?,
-        })
-    }
-
-    async fn book(&self, venue: Venue, sp: &Spec) -> CmdResult<(Vec<(i64, f64)>, Vec<(i64, f64)>)> {
-        Ok(match venue {
-            Venue::BinanceFutures => {
-                let (_, b, a) = self
-                    .binance
-                    .depth_snapshot(&Self::binance_spec(sp), 1000)
-                    .await?;
-                (b, a)
-            }
-            Venue::BybitLinear => {
-                let (_, b, a) = self.bybit.depth_snapshot(&Self::bybit_spec(sp)).await?;
-                (b, a)
-            }
-        })
+    fn history_from_start(&self, venue: Venue) -> bool {
+        self.api(venue).history_from_start()
     }
 
     fn spawn_stream(
@@ -146,24 +189,7 @@ impl Clients {
         tx: mpsc::Sender<MarketEvent>,
         stop: watch::Receiver<bool>,
     ) {
-        match venue {
-            Venue::BinanceFutures => {
-                tauri::async_runtime::spawn(htflow_connector_binance::run_stream(
-                    self.binance.clone(),
-                    Self::binance_spec(sp),
-                    tx,
-                    stop,
-                ));
-            }
-            Venue::BybitLinear => {
-                tauri::async_runtime::spawn(htflow_connector_bybit::run_stream(
-                    self.bybit.clone(),
-                    Self::bybit_spec(sp),
-                    tx,
-                    stop,
-                ));
-            }
-        }
+        tauri::async_runtime::spawn(self.api(venue).stream(sp.clone(), tx, stop));
     }
 }
 
@@ -204,13 +230,20 @@ pub struct WireBatch {
     bd: Vec<(i8, i64, f64)>,
     #[serde(skip_serializing_if = "Option::is_none")]
     snap: Option<WireBook>,
+    /// Funding / open interest / liquidations (tagged by `kind`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    ex: Vec<MarketStat>,
     #[serde(skip_serializing_if = "Option::is_none")]
     st: Option<WireStatus>,
 }
 
 impl WireBatch {
     fn is_empty(&self) -> bool {
-        self.tr.is_empty() && self.bd.is_empty() && self.snap.is_none() && self.st.is_none()
+        self.tr.is_empty()
+            && self.bd.is_empty()
+            && self.snap.is_none()
+            && self.st.is_none()
+            && self.ex.is_empty()
     }
 }
 
@@ -284,7 +317,7 @@ pub async fn market_history(
     symbol: String,
     minutes: u32,
 ) -> CmdResult<WireHistory> {
-    let venue = Venue::parse(&venue)?;
+    let venue = state.clients.parse(&venue)?;
     let sp = spec(&state, venue, &symbol).await?;
     let inst = format!("{}:{}", venue.id(), sp.symbol);
     let now = now_ns();
@@ -312,7 +345,12 @@ pub async fn market_history(
     let book_fut = state.clients.book(venue, &sp);
     let remote_fut = async {
         match gaps.first() {
-            Some(&(g0, _)) => Some(state.clients.trades_since(venue, &sp, g0 / 1_000_000).await),
+            Some(&(g0, _)) => Some(
+                state
+                    .clients
+                    .trades_range(venue, &sp, g0 / 1_000_000, now / 1_000_000)
+                    .await,
+            ),
             None => None,
         }
     };
@@ -333,7 +371,7 @@ pub async fn market_history(
             trades = all;
             // (d) write the backfill to the store and mark what it now covers.
             if let (Some(first), Some(last)) = (first_ts, last_ts) {
-                let start_ok = venue.history_from_start();
+                let start_ok = state.clients.history_from_start(venue);
                 let tick = sp.tick;
                 let inst = inst.clone();
                 let gaps = gaps.clone();
@@ -403,7 +441,7 @@ pub async fn market_test(
     venue: String,
     symbol: String,
 ) -> CmdResult<TestResult> {
-    let venue = Venue::parse(&venue)?;
+    let venue = state.clients.parse(&venue)?;
     let t0 = Instant::now();
     Ok(match state.clients.spec(venue, &symbol).await {
         Ok(s) => TestResult {
@@ -427,7 +465,7 @@ pub async fn market_subscribe(
     symbol: String,
     channel: Channel<WireBatch>,
 ) -> CmdResult<u32> {
-    let venue = Venue::parse(&venue)?;
+    let venue = state.clients.parse(&venue)?;
     let sp = spec(&state, venue, &symbol).await?;
     let id = state.next.fetch_add(1, Ordering::SeqCst) + 1;
     let (stop_tx, stop_rx) = watch::channel(false);
@@ -468,6 +506,7 @@ pub async fn market_subscribe(
                         batch.snap = Some(WireBook { bids: s.bids.clone(), asks: s.asks.clone() });
                         if recording { svc.offer(RecMsg::Snapshot(inst.clone(), tick, s)); }
                     }
+                    Some(MarketEvent::Stats(x)) => batch.ex.extend(x),
                     Some(MarketEvent::Status(s)) => {
                         if recording {
                             match s.state {
@@ -540,7 +579,16 @@ mod tests {
             vec![0, 1, 2, 3, 4]
         );
         assert_eq!(fresh.len(), 2);
-        assert_eq!(Venue::parse("bybit-linear").unwrap(), Venue::BybitLinear);
-        assert!(Venue::parse("okx-swap").is_err());
+        let c = Clients::default();
+        assert_eq!(c.parse("bybit-linear").unwrap().id(), "bybit-linear");
+        for v in [
+            "binance-futures",
+            "binance-coinm",
+            "binance-spot",
+            "okx-swap",
+        ] {
+            assert_eq!(c.parse(v).unwrap().id(), v);
+        }
+        assert!(c.parse("nope").is_err());
     }
 }

@@ -1,57 +1,80 @@
-//! Binance USDⓈ-M Futures connector — free public data, no API key (P05).
+//! Binance public market data — USDⓈ-M futures, COIN-M futures and spot (P05), free, no key.
 //!
-//! Live Pipeline stages 1–3: one task per connection (connect → subscribe → heartbeat →
-//! reconnect with exponential backoff 0.5 s → 30 s plus jitter), normalisation to ticks, and a
-//! sequence-checked local L2 book. A slow consumer never blocks the socket: when the output
-//! channel is full the connector drops deltas and re-sends a full snapshot once there is room.
+//! Live Pipeline stages 1–3 on the shared driver (`htflow-connector-common`): combined stream
+//! `<s>@aggTrade/<s>@depth@100ms` (+ `@markPrice@1s` funding and `@forceOrder` liquidations on
+//! futures), the REST depth snapshot is fetched once the stream buffers, and the local book is
+//! sequence-checked (`pu` chain on futures, `U == u + 1` on spot); any gap refetches the
+//! snapshot. Open interest is polled over REST every 10 s (Binance does not stream it).
+//! REST goes through a token bucket (2 req/s sustained, burst 10 — aggTrades/depth cost 20
+//! weight of the 2,400/min futures budget) and the server clock is measured at connect.
 
 pub mod book_sync;
 pub mod wire;
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::Arc;
+use std::time::Duration;
 
 use book_sync::{BookSync, DepthUpdate, SyncOutcome};
-use futures_util::{SinkExt, StreamExt};
-use htflow_core_types::{
-    decimals_of, Aggressor, DecimalError, FeedState, FeedStatus, MarketEvent, TickSize, Trade,
+use futures_util::future::BoxFuture;
+use htflow_connector_common::{
+    driver, Action, BookLevels, ClockSkew, MarketApi, Ping, Protocol, Rest, RestBook, StreamConfig,
+    TokenBucket,
 };
-use rand::Rng;
+use htflow_core_types::{
+    decimals_of, Aggressor, BookSnapshot, MarketEvent, MarketStat, Side, TickSize, Trade,
+};
 use tokio::sync::{mpsc, watch};
-use tokio_tungstenite::tungstenite::Message;
+
+pub use htflow_connector_common::{now_ns, ConnectorError, SymbolSpec};
 
 pub const REST_BASE: &str = "https://fapi.binance.com";
 pub const WS_BASE: &str = "wss://fstream.binance.com";
-
-#[derive(Debug, thiserror::Error)]
-pub enum ConnectorError {
-    #[error("http: {0}")]
-    Http(#[from] reqwest::Error),
-    #[error("websocket: {0}")]
-    Ws(Box<tokio_tungstenite::tungstenite::Error>),
-    #[error("decode: {0}")]
-    Json(#[from] serde_json::Error),
-    #[error("price: {0}")]
-    Decimal(#[from] DecimalError),
-    #[error("unknown symbol {0}")]
-    UnknownSymbol(String),
-    #[error("{0}")]
-    Other(String),
-}
-
-impl From<tokio_tungstenite::tungstenite::Error> for ConnectorError {
-    fn from(e: tokio_tungstenite::tungstenite::Error) -> Self {
-        ConnectorError::Ws(Box::new(e))
-    }
-}
+pub const DEPTH_LIMIT: u32 = 1000;
 
 /// `(lastUpdateId, bids, asks)` from the REST depth endpoint, prices in ticks.
 pub type DepthSnapshot = (u64, Vec<(i64, f64)>, Vec<(i64, f64)>);
 
-#[derive(Debug, Clone)]
-pub struct SymbolSpec {
-    pub symbol: String,
-    pub tick: TickSize,
-    pub qty_precision: u32,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Market {
+    /// USDⓈ-margined futures (`fapi`).
+    UsdM,
+    /// Coin-margined futures (`dapi`), sizes in contracts.
+    CoinM,
+    Spot,
+}
+
+impl Market {
+    pub fn venue(self) -> &'static str {
+        match self {
+            Market::UsdM => "binance-futures",
+            Market::CoinM => "binance-coinm",
+            Market::Spot => "binance-spot",
+        }
+    }
+    pub fn rest_base(self) -> &'static str {
+        match self {
+            Market::UsdM => REST_BASE,
+            Market::CoinM => "https://dapi.binance.com",
+            Market::Spot => "https://api.binance.com",
+        }
+    }
+    pub fn ws_base(self) -> &'static str {
+        match self {
+            Market::UsdM => WS_BASE,
+            Market::CoinM => "wss://dstream.binance.com",
+            Market::Spot => "wss://stream.binance.com:9443",
+        }
+    }
+    fn api(self) -> &'static str {
+        match self {
+            Market::UsdM => "/fapi/v1",
+            Market::CoinM => "/dapi/v1",
+            Market::Spot => "/api/v3",
+        }
+    }
+    pub fn is_futures(self) -> bool {
+        self != Market::Spot
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -69,19 +92,12 @@ impl Default for Endpoints {
     }
 }
 
-pub fn now_ns() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as i64)
-        .unwrap_or(0)
+fn parse_f64(s: &str) -> Result<f64, ConnectorError> {
+    htflow_connector_common::parse_f64(s)
 }
 
 fn parse_level(tick: &TickSize, l: &[String; 2]) -> Result<(i64, f64), ConnectorError> {
-    Ok((
-        tick.parse_ticks(&l[0])?,
-        l[1].parse::<f64>()
-            .map_err(|e| ConnectorError::Other(e.to_string()))?,
-    ))
+    Ok((tick.parse_ticks(&l[0])?, parse_f64(&l[1])?))
 }
 
 pub fn parse_depth(
@@ -91,7 +107,9 @@ pub fn parse_depth(
     Ok(DepthUpdate {
         first_id: w.first_id,
         final_id: w.final_id,
-        prev_final_id: w.prev_final_id,
+        prev_final_id: w
+            .prev_final_id
+            .unwrap_or_else(|| w.first_id.saturating_sub(1)),
         event_ms: w.event_ms,
         bids: w
             .bids
@@ -106,6 +124,14 @@ pub fn parse_depth(
     })
 }
 
+fn aggressor(buyer_is_maker: bool) -> Aggressor {
+    if buyer_is_maker {
+        Aggressor::Sell
+    } else {
+        Aggressor::Buy
+    }
+}
+
 pub fn parse_agg_trade(
     tick: &TickSize,
     t: &wire::AggTrade<'_>,
@@ -115,83 +141,71 @@ pub fn parse_agg_trade(
         exchange_ts_ns: t.trade_ms * 1_000_000,
         local_ts_ns: local_ns,
         px: tick.parse_ticks(t.price)?,
-        qty: t
-            .qty
-            .parse()
-            .map_err(|e: std::num::ParseFloatError| ConnectorError::Other(e.to_string()))?,
-        aggressor: if t.buyer_is_maker {
-            Aggressor::Sell
-        } else {
-            Aggressor::Buy
-        },
+        qty: parse_f64(t.qty)?,
+        aggressor: aggressor(t.buyer_is_maker),
         trade_id: t.id,
+    })
+}
+
+fn rest_trade(tick: &TickSize, r: &wire::AggTradeRest) -> Result<Trade, ConnectorError> {
+    Ok(Trade {
+        exchange_ts_ns: r.trade_ms * 1_000_000,
+        local_ts_ns: r.trade_ms * 1_000_000,
+        px: tick.parse_ticks(&r.price)?,
+        qty: parse_f64(&r.qty)?,
+        aggressor: aggressor(r.buyer_is_maker),
+        trade_id: r.id,
     })
 }
 
 /// REST client for metadata, snapshots and history backfill.
 #[derive(Clone)]
-pub struct BinanceFutures {
-    http: reqwest::Client,
-    pub endpoints: Endpoints,
+pub struct Binance {
+    pub market: Market,
+    rest: Rest,
+    pub ws: String,
 }
 
-impl Default for BinanceFutures {
+/// The USDⓈ-M client (kept for existing callers).
+pub type BinanceFutures = Binance;
+
+impl Default for Binance {
     fn default() -> Self {
-        Self::new(Endpoints::default())
+        Self::market(Market::UsdM)
     }
 }
 
-impl BinanceFutures {
+impl Binance {
+    pub fn market(market: Market) -> Self {
+        Self::with_endpoints(market, market.rest_base(), market.ws_base())
+    }
+
+    pub fn with_endpoints(market: Market, rest: &str, ws: &str) -> Self {
+        Self {
+            market,
+            rest: Rest::new(rest, TokenBucket::new(10, Duration::from_secs(5))),
+            ws: ws.into(),
+        }
+    }
+
+    /// USDⓈ-M client on custom endpoints.
     pub fn new(endpoints: Endpoints) -> Self {
-        let http = reqwest::Client::builder()
-            .user_agent("HTFlow/0.1")
-            .timeout(Duration::from_secs(15))
-            .build()
-            .expect("reqwest client");
-        Self { http, endpoints }
+        Self::with_endpoints(Market::UsdM, &endpoints.rest, &endpoints.ws)
+    }
+
+    fn path(&self, p: &str) -> String {
+        format!("{}{p}", self.market.api())
     }
 
     pub async fn symbol_spec(&self, symbol: &str) -> Result<SymbolSpec, ConnectorError> {
-        let url = format!("{}/fapi/v1/exchangeInfo", self.endpoints.rest);
-        let info: wire::ExchangeInfo = self
-            .http
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
-        let s = info
-            .symbols
-            .into_iter()
-            .find(|s| s.symbol.eq_ignore_ascii_case(symbol))
-            .ok_or_else(|| ConnectorError::UnknownSymbol(symbol.into()))?;
-        let mut tick = None;
-        let mut step = "1".to_string();
-        for f in &s.filters {
-            match f.get("filterType").and_then(|v| v.as_str()) {
-                Some("PRICE_FILTER") => {
-                    tick = f
-                        .get("tickSize")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string)
-                }
-                Some("LOT_SIZE") => {
-                    if let Some(v) = f.get("stepSize").and_then(|v| v.as_str()) {
-                        step = v.to_string();
-                    }
-                }
-                _ => {}
-            }
-        }
-        let tick = TickSize::parse(
-            &tick.ok_or_else(|| ConnectorError::Other("missing PRICE_FILTER".into()))?,
-        )?;
-        Ok(SymbolSpec {
-            symbol: s.symbol,
-            tick,
-            qty_precision: decimals_of(&step),
-        })
+        let sym = symbol.to_uppercase();
+        let q = if self.market == Market::Spot {
+            format!("/exchangeInfo?symbol={sym}")
+        } else {
+            "/exchangeInfo".into()
+        };
+        let info: wire::ExchangeInfo = self.rest.get(&self.path(&q)).await?;
+        spec_from_info(&sym, info)
     }
 
     pub async fn depth_snapshot(
@@ -199,17 +213,9 @@ impl BinanceFutures {
         spec: &SymbolSpec,
         limit: u32,
     ) -> Result<DepthSnapshot, ConnectorError> {
-        let url = format!(
-            "{}/fapi/v1/depth?symbol={}&limit={}",
-            self.endpoints.rest, spec.symbol, limit
-        );
         let w: wire::DepthSnapshotWire = self
-            .http
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
+            .rest
+            .get(&self.path(&format!("/depth?symbol={}&limit={limit}", spec.symbol)))
             .await?;
         let bids = w
             .bids
@@ -224,226 +230,342 @@ impl BinanceFutures {
         Ok((w.last_update_id, bids, asks))
     }
 
-    /// Recent aggregated trades (history backfill via REST pagination, Live Pipeline stage 6).
+    /// Aggregated trades in `[start_ms, end_ms]`, oldest first (Live Pipeline stage 6 backfill).
+    ///
+    /// Binance only accepts `startTime`/`endTime` windows shorter than one hour, so the first
+    /// request walks hour windows until it finds trades; after that it pages with `fromId`
+    /// (1,000 rows per page) until `end_ms` or `max_pages`.
+    pub async fn agg_trades_range(
+        &self,
+        spec: &SymbolSpec,
+        start_ms: i64,
+        end_ms: i64,
+        max_pages: u32,
+    ) -> Result<Vec<Trade>, ConnectorError> {
+        const HOUR: i64 = 3_600_000;
+        let mut out: Vec<Trade> = Vec::new();
+        let mut window = start_ms;
+        let mut from_id: Option<u64> = None;
+        for _ in 0..max_pages {
+            let q = match from_id {
+                Some(id) => format!("/aggTrades?symbol={}&fromId={id}&limit=1000", spec.symbol),
+                None => format!(
+                    "/aggTrades?symbol={}&startTime={window}&endTime={}&limit=1000",
+                    spec.symbol,
+                    (window + HOUR - 1).min(end_ms)
+                ),
+            };
+            let rows: Vec<wire::AggTradeRest> = self.rest.get(&self.path(&q)).await?;
+            let n = rows.len();
+            if n == 0 {
+                if from_id.is_some() || window + HOUR > end_ms {
+                    break;
+                }
+                window += HOUR;
+                continue;
+            }
+            let mut done = false;
+            for r in &rows {
+                if r.trade_ms > end_ms {
+                    done = true;
+                    break;
+                }
+                if r.trade_ms >= start_ms {
+                    out.push(rest_trade(&spec.tick, r)?);
+                }
+            }
+            let last = rows.last().expect("non-empty");
+            if done || last.trade_ms >= end_ms {
+                break;
+            }
+            // Continue from the next id (also when the hour window was exhausted).
+            from_id = Some(last.id + 1);
+            if n < 1000 && last.trade_ms >= now_ns() / 1_000_000 - 1_000 {
+                break;
+            }
+        }
+        out.dedup_by_key(|t| t.trade_id);
+        Ok(out)
+    }
+
+    /// Recent aggregated trades: the last `minutes` minutes.
     pub async fn recent_trades(
         &self,
         spec: &SymbolSpec,
         minutes: u32,
         max_pages: u32,
     ) -> Result<Vec<Trade>, ConnectorError> {
-        let now_ms = now_ns() / 1_000_000;
-        let start = now_ms - minutes as i64 * 60_000;
-        let mut out: Vec<Trade> = Vec::new();
-        let mut url = format!(
-            "{}/fapi/v1/aggTrades?symbol={}&startTime={}&limit=1000",
-            self.endpoints.rest, spec.symbol, start
-        );
-        for _ in 0..max_pages {
-            let rows: Vec<wire::AggTradeRest> = self
-                .http
-                .get(&url)
-                .send()
-                .await?
-                .error_for_status()?
-                .json()
-                .await?;
-            let n = rows.len();
-            for r in rows {
-                out.push(Trade {
-                    exchange_ts_ns: r.trade_ms * 1_000_000,
-                    local_ts_ns: r.trade_ms * 1_000_000,
-                    px: spec.tick.parse_ticks(&r.price)?,
-                    qty: r.qty.parse().unwrap_or(0.0),
-                    aggressor: if r.buyer_is_maker {
-                        Aggressor::Sell
-                    } else {
-                        Aggressor::Buy
-                    },
-                    trade_id: r.id,
-                });
-            }
-            let Some(last) = out.last() else { break };
-            if n < 1000 || last.exchange_ts_ns / 1_000_000 >= now_ms - 1000 {
-                break;
-            }
-            url = format!(
-                "{}/fapi/v1/aggTrades?symbol={}&fromId={}&limit=1000",
-                self.endpoints.rest,
-                spec.symbol,
-                last.trade_id + 1
-            );
+        let now = now_ns() / 1_000_000;
+        self.agg_trades_range(spec, now - i64::from(minutes) * 60_000, now, max_pages)
+            .await
+    }
+
+    /// Open interest (futures only).
+    pub async fn open_interest(&self, spec: &SymbolSpec) -> Result<MarketStat, ConnectorError> {
+        let w: wire::OpenInterest = self
+            .rest
+            .get(&self.path(&format!("/openInterest?symbol={}", spec.symbol)))
+            .await?;
+        Ok(MarketStat::OpenInterest {
+            ts_ns: if w.time > 0 {
+                w.time * 1_000_000
+            } else {
+                now_ns()
+            },
+            oi: parse_f64(&w.open_interest)?,
+            value: f64::NAN,
+        })
+    }
+
+    pub fn clock(&self) -> &ClockSkew {
+        &self.rest.clock
+    }
+
+    fn config(&self, spec: &SymbolSpec) -> StreamConfig {
+        let s = spec.symbol.to_lowercase();
+        let mut streams = format!("{s}@aggTrade/{s}@depth@100ms");
+        if self.market.is_futures() {
+            streams.push_str(&format!("/{s}@markPrice@1s/{s}@forceOrder"));
         }
-        Ok(out)
+        let mut cfg = StreamConfig::new(
+            self.market.venue(),
+            &spec.symbol,
+            format!("{}/stream?streams={streams}", self.ws),
+            Arc::clone(&self.rest.clock),
+        );
+        cfg.ping = Ping::None; // Binance pings us; the driver answers with pongs.
+        cfg.idle_timeout = Duration::from_secs(30);
+        let me = self.clone();
+        cfg.time_probe = Some(self.rest.time_probe(self.path("/time"), |t| {
+            serde_json::from_str::<wire::ServerTime>(t)
+                .ok()
+                .map(|s| s.server_time)
+        }));
+        let sp = spec.clone();
+        cfg.snapshot = Some(Arc::new(move || {
+            let (me, sp) = (me.clone(), sp.clone());
+            Box::pin(async move {
+                let (seq, bids, asks) = me.depth_snapshot(&sp, DEPTH_LIMIT).await?;
+                Ok(RestBook { seq, bids, asks })
+            })
+        }));
+        if self.market.is_futures() {
+            let (me, sp) = (self.clone(), spec.clone());
+            cfg.poll = Some((
+                Duration::from_secs(10),
+                Arc::new(move || {
+                    let (me, sp) = (me.clone(), sp.clone());
+                    Box::pin(async move { Ok(vec![me.open_interest(&sp).await?]) })
+                }),
+            ));
+        }
+        cfg
     }
 }
 
-fn status(
-    state: FeedState,
-    latency_ms: f64,
-    msgs_per_sec: f64,
-    message: Option<String>,
-) -> MarketEvent {
-    MarketEvent::Status(FeedStatus {
-        state,
-        latency_ms,
-        msgs_per_sec,
-        message,
-    })
+pub fn spec_from_info(
+    symbol: &str,
+    info: wire::ExchangeInfo,
+) -> Result<SymbolSpec, ConnectorError> {
+    let s = info
+        .symbols
+        .into_iter()
+        .find(|s| s.symbol.eq_ignore_ascii_case(symbol))
+        .ok_or_else(|| ConnectorError::UnknownSymbol(symbol.into()))?;
+    let mut tick = None;
+    let mut step = "1".to_string();
+    for f in &s.filters {
+        match f.get("filterType").and_then(|v| v.as_str()) {
+            Some("PRICE_FILTER") => {
+                tick = f
+                    .get("tickSize")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+            }
+            Some("LOT_SIZE") => {
+                if let Some(v) = f.get("stepSize").and_then(|v| v.as_str()) {
+                    step = v.to_string();
+                }
+            }
+            _ => {}
+        }
+    }
+    let tick = TickSize::parse(
+        &tick.ok_or_else(|| ConnectorError::Other("missing PRICE_FILTER".into()))?,
+    )?;
+    Ok(SymbolSpec::new(s.symbol, tick, decimals_of(&step)))
 }
 
-/// Sends without blocking the socket. Returns false if the consumer is lagging.
-fn offer(tx: &mpsc::Sender<MarketEvent>, ev: MarketEvent) -> bool {
-    match tx.try_send(ev) {
-        Ok(()) => true,
-        Err(mpsc::error::TrySendError::Full(_)) => false,
-        Err(mpsc::error::TrySendError::Closed(_)) => false,
+// ------------------------------------------------------------------ protocol
+
+pub struct BinanceProtocol {
+    spec: SymbolSpec,
+    sync: BookSync,
+    spot: bool,
+}
+
+impl BinanceProtocol {
+    pub fn new(spec: SymbolSpec, market: Market) -> Self {
+        let spot = market == Market::Spot;
+        Self {
+            spec,
+            sync: if spot {
+                BookSync::spot()
+            } else {
+                BookSync::default()
+            },
+            spot,
+        }
+    }
+
+    fn outcome(&mut self, o: SyncOutcome) -> Vec<Action> {
+        match o {
+            SyncOutcome::Applied(d) => vec![Action::Deltas(d)],
+            SyncOutcome::Synced(s) => vec![Action::Synced(s)],
+            SyncOutcome::Gap => vec![Action::Resync {
+                send: Vec::new(),
+                rest: true,
+            }],
+            SyncOutcome::Buffered => Vec::new(),
+        }
+    }
+}
+
+impl Protocol for BinanceProtocol {
+    fn on_open(&mut self) -> Vec<String> {
+        self.sync = if self.spot {
+            BookSync::spot()
+        } else {
+            BookSync::default()
+        };
+        Vec::new() // streams are in the URL
+    }
+
+    fn on_text(&mut self, text: &str, local_ns: i64) -> Result<Vec<Action>, ConnectorError> {
+        let env: wire::Envelope<'_> = serde_json::from_str(text)?;
+        let tick = self.spec.tick;
+        if env.stream.ends_with("@aggTrade") {
+            let t: wire::AggTrade<'_> = serde_json::from_str(env.data.get())?;
+            return Ok(vec![Action::Trades(vec![parse_agg_trade(
+                &tick, &t, local_ns,
+            )?])]);
+        }
+        if env.stream.contains("@depth") {
+            let w: wire::DepthUpdateWire = serde_json::from_str(env.data.get())?;
+            let o = self.sync.on_update(parse_depth(&tick, w)?);
+            return Ok(self.outcome(o));
+        }
+        if env.stream.contains("@markPrice") {
+            let m: wire::MarkPrice<'_> = serde_json::from_str(env.data.get())?;
+            if m.rate.is_empty() {
+                return Ok(Vec::new());
+            }
+            return Ok(vec![Action::Stats(vec![MarketStat::Funding {
+                ts_ns: m.event_ms * 1_000_000,
+                rate: parse_f64(m.rate)?,
+                next_ts_ns: m.next_ms * 1_000_000,
+                mark_price: parse_f64(m.mark).unwrap_or(f64::NAN),
+            }])]);
+        }
+        if env.stream.ends_with("@forceOrder") {
+            let f: wire::ForceOrder<'_> = serde_json::from_str(env.data.get())?;
+            let o = f.order;
+            let px = if o.avg_price.is_empty() || parse_f64(o.avg_price).unwrap_or(0.0) == 0.0 {
+                o.price
+            } else {
+                o.avg_price
+            };
+            let qty = if o.filled.is_empty() || parse_f64(o.filled).unwrap_or(0.0) == 0.0 {
+                o.qty
+            } else {
+                o.filled
+            };
+            return Ok(vec![Action::Stats(vec![MarketStat::Liquidation {
+                ts_ns: o.trade_ms * 1_000_000,
+                side: if o.side == "BUY" {
+                    Side::Buy
+                } else {
+                    Side::Sell
+                },
+                px: tick.parse_ticks(px)?,
+                qty: parse_f64(qty)?,
+            }])]);
+        }
+        Ok(Vec::new())
+    }
+
+    fn on_rest_snapshot(&mut self, b: RestBook, local_ns: i64) -> Vec<Action> {
+        let o = self.sync.on_snapshot(b.seq, b.bids, b.asks, local_ns);
+        self.outcome(o)
+    }
+
+    fn synced(&self) -> bool {
+        self.sync.is_synced()
+    }
+
+    fn book_snapshot(&self, ts_ns: i64) -> BookSnapshot {
+        self.sync.book.snapshot(ts_ns)
     }
 }
 
 /// Runs the live stream until `stop` flips to true, reconnecting with backoff.
 pub async fn run_stream(
-    client: BinanceFutures,
+    client: Binance,
     spec: SymbolSpec,
     tx: mpsc::Sender<MarketEvent>,
-    mut stop: watch::Receiver<bool>,
+    stop: watch::Receiver<bool>,
 ) {
-    let mut backoff = Duration::from_millis(500);
-    loop {
-        if *stop.borrow() || tx.is_closed() {
-            return;
-        }
-        let _ = tx.send(status(FeedState::Connecting, 0.0, 0.0, None)).await;
-        match session(&client, &spec, &tx, &mut stop, &mut backoff).await {
-            Ok(()) => return,
-            Err(e) => {
-                tracing::warn!(symbol = %spec.symbol, error = %e, "binance stream dropped; reconnecting");
-                let _ = tx
-                    .send(status(
-                        FeedState::Disconnected,
-                        0.0,
-                        0.0,
-                        Some(e.to_string()),
-                    ))
-                    .await;
-            }
-        }
-        let jitter = Duration::from_millis(rand::thread_rng().gen_range(0..250));
-        tokio::select! {
-            _ = tokio::time::sleep(backoff + jitter) => {}
-            _ = stop.changed() => return,
-        }
-        backoff = (backoff * 2).min(Duration::from_secs(30));
-    }
+    let cfg = client.config(&spec);
+    driver::run(cfg, BinanceProtocol::new(spec, client.market), tx, stop).await
 }
 
-async fn session(
-    client: &BinanceFutures,
-    spec: &SymbolSpec,
-    tx: &mpsc::Sender<MarketEvent>,
-    stop: &mut watch::Receiver<bool>,
-    backoff: &mut Duration,
-) -> Result<(), ConnectorError> {
-    let s = spec.symbol.to_lowercase();
-    let url = format!(
-        "{}/stream?streams={s}@aggTrade/{s}@depth@100ms",
-        client.endpoints.ws
-    );
-    let (mut ws, _) = tokio_tungstenite::connect_async(url).await?;
-    let mut sync = BookSync::default();
-    let mut snapshot_task: Option<tokio::task::JoinHandle<Result<DepthSnapshot, ConnectorError>>> =
-        None;
-    let mut need_snapshot = true;
-    let mut lagging = false;
-    let mut msgs: u64 = 0;
-    let mut latency_ewma = 0.0f64;
-    let mut tick = tokio::time::interval(Duration::from_secs(1));
-    let mut trades: Vec<Trade> = Vec::with_capacity(64);
-    let mut last_msg = tokio::time::Instant::now();
-
-    loop {
-        if need_snapshot && snapshot_task.is_none() {
-            // Give the stream a moment to buffer, then fetch the REST snapshot in the background.
-            let c = client.clone();
-            let sp = spec.clone();
-            snapshot_task = Some(tokio::spawn(async move {
-                tokio::time::sleep(Duration::from_millis(400)).await;
-                c.depth_snapshot(&sp, 1000).await
-            }));
-            need_snapshot = false;
-        }
-        tokio::select! {
-            msg = ws.next() => {
-                let Some(msg) = msg else { return Err(ConnectorError::Other("connection closed".into())) };
-                last_msg = tokio::time::Instant::now();
-                match msg? {
-                    Message::Text(text) => {
-                        msgs += 1;
-                        let local = now_ns();
-                        let env: wire::Envelope<'_> = serde_json::from_str(&text)?;
-                        if env.stream.ends_with("@aggTrade") {
-                            let t: wire::AggTrade<'_> = serde_json::from_str(env.data.get())?;
-                            let lat = (local / 1_000_000 - t.event_ms) as f64;
-                            latency_ewma = if latency_ewma == 0.0 { lat } else { latency_ewma * 0.9 + lat * 0.1 };
-                            trades.push(parse_agg_trade(&spec.tick, &t, local)?);
-                            if !offer(tx, MarketEvent::Trades(std::mem::take(&mut trades))) {
-                                lagging = true;
-                            }
-                        } else if env.stream.contains("@depth") {
-                            let w: wire::DepthUpdateWire = serde_json::from_str(env.data.get())?;
-                            match sync.on_update(parse_depth(&spec.tick, w)?) {
-                                SyncOutcome::Applied(d) => {
-                                    if lagging {
-                                        if offer(tx, MarketEvent::Snapshot(sync.book.snapshot(local))) {
-                                            lagging = false;
-                                        }
-                                    } else if !offer(tx, MarketEvent::Deltas(d)) {
-                                        lagging = true;
-                                        tracing::warn!(symbol = %spec.symbol, "consumer lagging; falling back to snapshots");
-                                    }
-                                }
-                                SyncOutcome::Gap => {
-                                    tracing::info!(symbol = %spec.symbol, "depth sequence gap; resyncing");
-                                    need_snapshot = snapshot_task.is_none();
-                                }
-                                SyncOutcome::Buffered | SyncOutcome::Synced(_) => {}
-                            }
-                        }
-                    }
-                    Message::Ping(p) => ws.send(Message::Pong(p)).await?,
-                    Message::Close(_) => return Err(ConnectorError::Other("server closed the connection".into())),
-                    _ => {}
-                }
-            }
-            res = async { snapshot_task.as_mut().expect("guarded").await }, if snapshot_task.is_some() => {
-                snapshot_task = None;
-                let (last_id, bids, asks) = res.map_err(|e| ConnectorError::Other(e.to_string()))??;
-                match sync.on_snapshot(last_id, bids, asks, now_ns()) {
-                    SyncOutcome::Synced(snap) => {
-                        *backoff = Duration::from_millis(500);
-                        let _ = tx.send(MarketEvent::Snapshot(snap)).await;
-                    }
-                    _ => need_snapshot = true,
-                }
-            }
-            _ = tick.tick() => {
-                if last_msg.elapsed() > Duration::from_secs(30) {
-                    return Err(ConnectorError::Other("no data for 30 s".into()));
-                }
-                let state = if sync.is_synced() { FeedState::Live } else { FeedState::Connecting };
-                offer(tx, status(state, latency_ewma.max(0.0), msgs as f64, None));
-                msgs = 0;
-            }
-            _ = stop.changed() => {
-                let _ = ws.close(None).await;
-                return Ok(());
-            }
-        }
+impl MarketApi for Binance {
+    fn venue(&self) -> &'static str {
+        self.market.venue()
+    }
+    fn spec<'a>(&'a self, symbol: &'a str) -> BoxFuture<'a, Result<SymbolSpec, ConnectorError>> {
+        Box::pin(self.symbol_spec(symbol))
+    }
+    fn book<'a>(
+        &'a self,
+        spec: &'a SymbolSpec,
+    ) -> BoxFuture<'a, Result<BookLevels, ConnectorError>> {
+        Box::pin(async move {
+            let (_, b, a) = self.depth_snapshot(spec, DEPTH_LIMIT).await?;
+            Ok((b, a))
+        })
+    }
+    fn trades<'a>(
+        &'a self,
+        spec: &'a SymbolSpec,
+        from_ms: i64,
+        to_ms: i64,
+    ) -> BoxFuture<'a, Result<Vec<Trade>, ConnectorError>> {
+        Box::pin(self.agg_trades_range(spec, from_ms, to_ms, 60))
+    }
+    fn history_from_start(&self) -> bool {
+        true
+    }
+    fn stream(
+        &self,
+        spec: SymbolSpec,
+        tx: mpsc::Sender<MarketEvent>,
+        stop: watch::Receiver<bool>,
+    ) -> BoxFuture<'static, ()> {
+        Box::pin(run_stream(self.clone(), spec, tx, stop))
+    }
+    fn clock(&self) -> &ClockSkew {
+        &self.rest.clock
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn spec() -> SymbolSpec {
+        SymbolSpec::new("BTCUSDT", TickSize::parse("0.10").unwrap(), 3)
+    }
 
     #[test]
     fn parses_stream_messages() {
@@ -464,5 +586,82 @@ mod tests {
         assert_eq!(u.bids, vec![(681_233, 1.5), (681_232, 0.0)]);
         assert_eq!(u.asks, vec![(681_234, 2.25)]);
         assert_eq!((u.first_id, u.final_id, u.prev_final_id), (10, 12, 9));
+        // Spot has no `pu`: prev = U - 1.
+        let s = r#"{"e":"depthUpdate","E":1,"s":"BTCUSDT","U":157,"u":160,"b":[],"a":[]}"#;
+        let u = parse_depth(&tick, serde_json::from_str(s).unwrap()).unwrap();
+        assert_eq!(u.prev_final_id, 156);
+    }
+
+    const D1: &str = r#"{"stream":"btcusdt@depth@100ms","data":{"e":"depthUpdate","E":1,"T":1,"s":"BTCUSDT","U":10,"u":12,"pu":9,"b":[["100.0","1"]],"a":[]}}"#;
+    const D2: &str = r#"{"stream":"btcusdt@depth@100ms","data":{"e":"depthUpdate","E":2,"T":2,"s":"BTCUSDT","U":13,"u":15,"pu":12,"b":[["100.0","2"]],"a":[]}}"#;
+    const D_GAP: &str = r#"{"stream":"btcusdt@depth@100ms","data":{"e":"depthUpdate","E":3,"T":3,"s":"BTCUSDT","U":20,"u":22,"pu":19,"b":[],"a":[]}}"#;
+
+    #[test]
+    fn protocol_buffers_syncs_and_resyncs() {
+        let mut p = BinanceProtocol::new(spec(), Market::UsdM);
+        assert!(p.on_open().is_empty());
+        assert!(p.on_text(D1, 0).unwrap().is_empty()); // buffered
+        let a = p.on_rest_snapshot(
+            RestBook {
+                seq: 11,
+                bids: vec![(990, 1.0)],
+                asks: vec![(1010, 1.0)],
+            },
+            0,
+        );
+        let Action::Synced(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert_eq!(s.bids, vec![(1000, 1.0), (990, 1.0)]);
+        assert!(matches!(&p.on_text(D2, 0).unwrap()[0], Action::Deltas(d) if d.len() == 1));
+        assert_eq!(
+            p.on_text(D_GAP, 0).unwrap(),
+            vec![Action::Resync {
+                send: vec![],
+                rest: true
+            }]
+        );
+        assert!(!p.synced());
+    }
+
+    #[test]
+    fn funding_liquidations_oi_and_rest() {
+        let mut p = BinanceProtocol::new(spec(), Market::UsdM);
+        let m = r#"{"stream":"btcusdt@markPrice@1s","data":{"e":"markPriceUpdate","E":1562305380000,"s":"BTCUSDT","p":"11794.15000000","i":"11784.62659091","P":"11784.25641265","r":"0.00038167","T":1562306400000}}"#;
+        let Action::Stats(s) = &p.on_text(m, 0).unwrap()[0] else {
+            panic!()
+        };
+        assert_eq!(
+            s[0],
+            MarketStat::Funding {
+                ts_ns: 1_562_305_380_000_000_000,
+                rate: 0.00038167,
+                next_ts_ns: 1_562_306_400_000_000_000,
+                mark_price: 11794.15
+            }
+        );
+        let f = r#"{"stream":"btcusdt@forceOrder","data":{"e":"forceOrder","E":1568014460893,"o":{"s":"BTCUSDT","S":"SELL","o":"LIMIT","f":"IOC","q":"0.014","p":"9910","ap":"9910","X":"FILLED","l":"0.014","z":"0.014","T":1568014460893}}}"#;
+        let Action::Stats(s) = &p.on_text(f, 0).unwrap()[0] else {
+            panic!()
+        };
+        assert_eq!(
+            s[0],
+            MarketStat::Liquidation {
+                ts_ns: 1_568_014_460_893_000_000,
+                side: Side::Sell,
+                px: 99_100,
+                qty: 0.014
+            }
+        );
+        let oi: wire::OpenInterest = serde_json::from_str(
+            r#"{"openInterest":"10659.509","symbol":"BTCUSDT","time":1589437530011}"#,
+        )
+        .unwrap();
+        assert_eq!(oi.open_interest, "10659.509");
+        let info: wire::ExchangeInfo = serde_json::from_str(r#"{"symbols":[{"symbol":"BTCUSD_PERP","contractSize":100,"filters":[{"filterType":"PRICE_FILTER","tickSize":"0.1"},{"filterType":"LOT_SIZE","stepSize":"1"}]}]}"#).unwrap();
+        let sp = spec_from_info("btcusd_perp", info).unwrap();
+        assert_eq!((sp.tick.as_f64(), sp.qty_precision), (0.1, 0));
+        assert_eq!(Market::CoinM.venue(), "binance-coinm");
+        assert_eq!(Market::Spot.api(), "/api/v3");
     }
 }
