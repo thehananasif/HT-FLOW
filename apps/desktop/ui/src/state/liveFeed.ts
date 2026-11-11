@@ -60,7 +60,11 @@ export function setVenueEnabled(venue: string, on: boolean): void {
   if (on === !disabled.has(venue)) return;
   if (on) disabled.delete(venue);
   else disabled.add(venue);
-  for (const f of feeds) if (f.venue === venue) (on ? f.resume() : f.pause());
+  for (const f of feeds) {
+    if (f.venue !== venue) continue;
+    if (on) f.resume();
+    else f.pause();
+  }
   venueListeners.forEach((l) => l());
 }
 
