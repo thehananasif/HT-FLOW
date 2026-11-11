@@ -12,8 +12,7 @@ use htflow_connector_binance::now_ns;
 use htflow_core_types::{BookDelta, BookSnapshot, TickSize, Trade};
 use htflow_tick_store::{
     day_of, day_start_ns, parse_day, top_snapshots, InstrumentSummary, Kind, Recorder,
-    RecorderConfig, RecorderStats, RetentionReport, StoreError, StoreLimits, TickStore,
-    NS_PER_DAY,
+    RecorderConfig, RecorderStats, RetentionReport, StoreError, StoreLimits, TickStore, NS_PER_DAY,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -332,7 +331,13 @@ pub async fn data_export_csv(
         std::fs::create_dir_all(&svc.exports).map_err(StoreError::Io)?;
         let safe: String = instrument
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         let name = format!(
             "{safe}_{}_{}_{}.csv",
@@ -359,6 +364,10 @@ pub async fn data_export_csv(
     .map_err(|e| CmdError::new("data.internal", e.to_string()))?
 }
 
+type Levels = Vec<(i64, f64)>;
+/// [ts_ms, bids, asks]
+type WireSnap = (f64, Levels, Levels);
+
 /// Recorded data for replay (P24): trades + 250 ms top-of-book snapshots, prices in ticks.
 #[derive(Debug, Serialize)]
 pub struct WireReplay {
@@ -367,7 +376,7 @@ pub struct WireReplay {
     /// [ts_ms, px, qty, side, id]
     trades: Vec<(f64, i64, f64, i8, u64)>,
     /// [ts_ms, bids, asks]
-    snapshots: Vec<(f64, Vec<(i64, f64)>, Vec<(i64, f64)>)>,
+    snapshots: Vec<WireSnap>,
 }
 
 #[tauri::command]

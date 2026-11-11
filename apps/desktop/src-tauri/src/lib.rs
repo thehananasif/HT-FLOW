@@ -2,6 +2,7 @@
 //! allow-list: local accounts + encrypted settings/vault (P03) and live market data (P05/P06).
 
 mod auth_cmds;
+mod data_cmds;
 mod error;
 mod market_cmds;
 mod paths;
@@ -24,6 +25,9 @@ pub fn run() {
             let root = paths::data_root(app.path().app_data_dir().ok());
             std::fs::create_dir_all(&root)?;
             tracing::info!(root = %root.display(), "HT Flow data root");
+            app.manage(data_cmds::DataState(data_cmds::RecorderService::start(
+                &root,
+            )?));
             app.manage(auth_cmds::AuthState {
                 store: Arc::new(ProfileStore::new(root, KdfParams::PRODUCTION)),
                 session: Arc::new(Mutex::new(None)),
@@ -52,6 +56,13 @@ pub fn run() {
             market_cmds::market_history,
             market_cmds::market_subscribe,
             market_cmds::market_unsubscribe,
+            market_cmds::market_test,
+            data_cmds::recorder_set,
+            data_cmds::recorder_status,
+            data_cmds::data_list,
+            data_cmds::data_delete,
+            data_cmds::data_export_csv,
+            data_cmds::data_replay,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");

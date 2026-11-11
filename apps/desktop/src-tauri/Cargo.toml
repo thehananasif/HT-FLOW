@@ -19,6 +19,8 @@ tauri-build = { version = "2", features = [] }
 base64.workspace = true
 htflow-auth.workspace = true
 htflow-connector-binance.workspace = true
+htflow-connector-bybit.workspace = true
+htflow-tick-store.workspace = true
 htflow-core-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
