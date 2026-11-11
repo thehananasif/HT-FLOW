@@ -55,6 +55,7 @@ export function ConnectionWizard({
   const [secret, setSecret] = useState({ apiKey: '', apiSecret: '', password: '' });
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
   const groups = useMemo(() => searchProviders(query), [query]);
   const errors = provider && form ? validateConnection(provider, form) : {};
   const upsert = useConnections((s) => s.upsert);
@@ -98,6 +99,7 @@ export function ConnectionWizard({
   };
 
   const connect = async () => {
+    setTried(true);
     if (!provider || !form || Object.keys(errors).length) return;
     setBusy(true);
     try {
@@ -128,7 +130,7 @@ export function ConnectionWizard({
     }
   };
 
-  const err = (k: string) => (form ? errors[k] : undefined);
+  const err = (k: string) => (form && tried ? errors[k] : undefined);
   return (
     <Dialog
       open={open}
@@ -166,160 +168,162 @@ export function ConnectionWizard({
           </div>
         </div>
         <div className="cx-form">
-          {!provider || !form ? (
-            <div className="muted pad12">
-              Pick a provider on the left. FREE = public data or built-in; YOUR ACCOUNT = needs your
-              own login / licence.
-            </div>
-          ) : (
-            <>
-              <div className="cx-head">
-                <div className="cx-avatar">{provider.name[0]}</div>
-                <div>
-                  <h3>{provider.name}</h3>
-                  <p className="muted">{provider.blurb}</p>
-                </div>
+          <div className="cx-scroll">
+            {!provider || !form ? (
+              <div className="muted pad12">
+                Pick a provider on the left. FREE = public data or built-in; YOUR ACCOUNT = needs
+                your own login / licence.
               </div>
-              <div className="cx-chips">
-                <Badge kind={provider.tag === 'FREE' ? 'free' : 'default'}>{provider.tag}</Badge>
-                {provider.caps.map((c) => (
-                  <span key={c} className="cx-chip">
-                    {c}
-                  </span>
-                ))}
-              </div>
-              {provider.blocked && (
-                <div className="cx-note cx-note--warn">
-                  Coming soon / requires SDK — {provider.blocked}. You can save the connection now;
-                  it will show as unavailable until the connector ships.
+            ) : (
+              <>
+                <div className="cx-head">
+                  <div className="cx-avatar">{provider.name[0]}</div>
+                  <div>
+                    <h3>{provider.name}</h3>
+                    <p className="muted">{provider.blurb}</p>
+                  </div>
                 </div>
-              )}
-              <Field label="Connection name" error={err('name')}>
-                <Input value={form.name} onChange={(e) => patch({ name: e.target.value })} />
-              </Field>
-              {provider.form === 'crypto' && (
-                <>
-                  <Field label="API key (optional — only for trading)">
-                    <Input
-                      value={secret.apiKey}
-                      autoComplete="off"
-                      placeholder={form.hasSecret ? 'Stored in vault — leave empty to keep' : ''}
-                      onChange={(e) => setSecret({ ...secret, apiKey: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="API secret (optional)">
-                    <Input
-                      type="password"
-                      value={secret.apiSecret}
-                      autoComplete="off"
-                      onChange={(e) => setSecret({ ...secret, apiSecret: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Environment">
-                    <Select
-                      aria-label="Environment"
-                      value={form.environment}
-                      options={[
-                        { value: 'live', label: 'Live (mainnet)' },
-                        { value: 'testnet', label: 'Testnet' },
-                      ]}
-                      onChange={(v) => patch({ environment: v })}
-                    />
-                  </Field>
-                </>
-              )}
-              {provider.form === 'broker' && (
-                <>
-                  <Field label="Server / system" error={err('server')}>
-                    <Input
-                      value={form.server ?? ''}
-                      placeholder="e.g. Paper Trading · Chicago"
-                      onChange={(e) => patch({ server: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Username" error={err('username')}>
-                    <Input
-                      value={form.username ?? ''}
-                      autoComplete="off"
-                      onChange={(e) => patch({ username: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Password">
-                    <Input
-                      type="password"
-                      value={secret.password}
-                      autoComplete="off"
-                      placeholder={form.hasSecret ? 'Stored in vault — leave empty to keep' : ''}
-                      onChange={(e) => setSecret({ ...secret, password: e.target.value })}
-                    />
-                  </Field>
-                  {provider.gateway && (
-                    <div className="row gap8">
-                      <Field label="Gateway host" error={err('gatewayHost')}>
-                        <Input
-                          value={form.gatewayHost ?? ''}
-                          onChange={(e) => patch({ gatewayHost: e.target.value })}
-                        />
-                      </Field>
-                      <Field label="Port" error={err('gatewayPort')}>
-                        <NumberInput
-                          aria-label="Gateway port"
-                          value={form.gatewayPort ?? 0}
-                          min={1}
-                          max={65_535}
-                          onChange={(v) => patch({ gatewayPort: v })}
-                        />
-                      </Field>
-                    </div>
-                  )}
-                </>
-              )}
-              {provider.form === 'simulator' && (
-                <Field label="Starting balance (USD)" error={err('startingBalance')}>
-                  <NumberInput
-                    aria-label="Starting balance"
-                    value={form.startingBalance ?? 50_000}
-                    step={1000}
-                    min={100}
-                    max={100_000_000}
-                    onChange={(v) => patch({ startingBalance: v })}
-                  />
+                <div className="cx-chips">
+                  <Badge kind={provider.tag === 'FREE' ? 'free' : 'default'}>{provider.tag}</Badge>
+                  {provider.caps.map((c) => (
+                    <span key={c} className="cx-chip">
+                      {c}
+                    </span>
+                  ))}
+                </div>
+                {provider.blocked && (
+                  <div className="cx-note cx-note--warn">
+                    Coming soon / requires SDK — {provider.blocked}. You can save the connection
+                    now; it will show as unavailable until the connector ships.
+                  </div>
+                )}
+                <Field label="Connection name" error={err('name')}>
+                  <Input value={form.name} onChange={(e) => patch({ name: e.target.value })} />
                 </Field>
-              )}
-              <div className="cx-options">
-                <Checkbox
-                  label="Use for market data"
-                  checked={form.marketData}
-                  onChange={(v) => patch({ marketData: v })}
-                />
-                <Checkbox
-                  label="Use for trading (orders go to this connection)"
-                  checked={form.trading}
-                  onChange={(v) => patch({ trading: v })}
-                />
-                <Checkbox
-                  label="Record ticks + depth to local history"
-                  checked={form.record}
-                  onChange={(v) => patch({ record: v })}
-                />
-                <Checkbox
-                  label="Connect automatically on start"
-                  checked={form.connectOnStart}
-                  onChange={(v) => patch({ connectOnStart: v })}
-                />
-                {err('options') && <span className="ht-error">{err('options')}</span>}
-              </div>
-              <div className="cx-note">
-                Credentials are stored in your encrypted vault on this PC. They are never sent
-                anywhere except to {provider.name}.
-              </div>
-              {test && (
-                <div className={`cx-test ${test.ok ? 'ok' : 'bad'}`} role="status">
-                  {test.text}
+                {provider.form === 'crypto' && (
+                  <>
+                    <Field label="API key (optional — only for trading)">
+                      <Input
+                        value={secret.apiKey}
+                        autoComplete="off"
+                        placeholder={form.hasSecret ? 'Stored in vault — leave empty to keep' : ''}
+                        onChange={(e) => setSecret({ ...secret, apiKey: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="API secret (optional)">
+                      <Input
+                        type="password"
+                        value={secret.apiSecret}
+                        autoComplete="off"
+                        onChange={(e) => setSecret({ ...secret, apiSecret: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Environment">
+                      <Select
+                        aria-label="Environment"
+                        value={form.environment}
+                        options={[
+                          { value: 'live', label: 'Live (mainnet)' },
+                          { value: 'testnet', label: 'Testnet' },
+                        ]}
+                        onChange={(v) => patch({ environment: v })}
+                      />
+                    </Field>
+                  </>
+                )}
+                {provider.form === 'broker' && (
+                  <>
+                    <Field label="Server / system" error={err('server')}>
+                      <Input
+                        value={form.server ?? ''}
+                        placeholder="e.g. Paper Trading · Chicago"
+                        onChange={(e) => patch({ server: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Username" error={err('username')}>
+                      <Input
+                        value={form.username ?? ''}
+                        autoComplete="off"
+                        onChange={(e) => patch({ username: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Password">
+                      <Input
+                        type="password"
+                        value={secret.password}
+                        autoComplete="off"
+                        placeholder={form.hasSecret ? 'Stored in vault — leave empty to keep' : ''}
+                        onChange={(e) => setSecret({ ...secret, password: e.target.value })}
+                      />
+                    </Field>
+                    {provider.gateway && (
+                      <div className="row gap8">
+                        <Field label="Gateway host" error={err('gatewayHost')}>
+                          <Input
+                            value={form.gatewayHost ?? ''}
+                            onChange={(e) => patch({ gatewayHost: e.target.value })}
+                          />
+                        </Field>
+                        <Field label="Port" error={err('gatewayPort')}>
+                          <NumberInput
+                            aria-label="Gateway port"
+                            value={form.gatewayPort ?? 0}
+                            min={1}
+                            max={65_535}
+                            onChange={(v) => patch({ gatewayPort: v })}
+                          />
+                        </Field>
+                      </div>
+                    )}
+                  </>
+                )}
+                {provider.form === 'simulator' && (
+                  <Field label="Starting balance (USD)" error={err('startingBalance')}>
+                    <NumberInput
+                      aria-label="Starting balance"
+                      value={form.startingBalance ?? 50_000}
+                      step={1000}
+                      min={100}
+                      max={100_000_000}
+                      onChange={(v) => patch({ startingBalance: v })}
+                    />
+                  </Field>
+                )}
+                <div className="cx-options">
+                  <Checkbox
+                    label="Use for market data"
+                    checked={form.marketData}
+                    onChange={(v) => patch({ marketData: v })}
+                  />
+                  <Checkbox
+                    label="Use for trading (orders go to this connection)"
+                    checked={form.trading}
+                    onChange={(v) => patch({ trading: v })}
+                  />
+                  <Checkbox
+                    label="Record ticks + depth to local history"
+                    checked={form.record}
+                    onChange={(v) => patch({ record: v })}
+                  />
+                  <Checkbox
+                    label="Connect automatically on start"
+                    checked={form.connectOnStart}
+                    onChange={(v) => patch({ connectOnStart: v })}
+                  />
+                  {err('options') && <span className="ht-error">{err('options')}</span>}
                 </div>
-              )}
-            </>
-          )}
+                <div className="cx-note">
+                  Credentials are stored in your encrypted vault on this PC. They are never sent
+                  anywhere except to {provider.name}.
+                </div>
+                {test && (
+                  <div className={`cx-test ${test.ok ? 'ok' : 'bad'}`} role="status">
+                    {test.text}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
           <div className="cx-actions">
             <Button variant="outline" disabled={!provider || busy} onClick={() => void runTest()}>
               Test connection
@@ -330,7 +334,7 @@ export function ConnectionWizard({
             </Button>
             <Button
               variant="primary"
-              disabled={!provider || busy || Object.keys(errors).length > 0}
+              disabled={!provider || busy || (tried && Object.keys(errors).length > 0)}
               onClick={() => void connect()}
             >
               {edit ? 'Save' : 'Connect'}

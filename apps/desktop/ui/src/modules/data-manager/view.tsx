@@ -181,28 +181,30 @@ export function DataManager() {
                 <td className="r">{i.trades.toLocaleString()}</td>
                 <td className="r">{i.depthRecords.toLocaleString()}</td>
                 <td className="r">{formatBytes(i.bytes)}</td>
-                <td className="r dm-actions">
-                  <button
-                    type="button"
-                    className="cx-link"
-                    onClick={() => void exp(i.instrument, 'trades')}
-                  >
-                    Export trades CSV
-                  </button>
-                  <button
-                    type="button"
-                    className="cx-link"
-                    onClick={() => void exp(i.instrument, 'depth')}
-                  >
-                    Depth CSV
-                  </button>
-                  <button
-                    type="button"
-                    className="cx-link down"
-                    onClick={() => void del(i.instrument)}
-                  >
-                    Delete
-                  </button>
+                <td className="r">
+                  <div className="dm-actions">
+                    <button
+                      type="button"
+                      className="cx-link"
+                      onClick={() => void exp(i.instrument, 'trades')}
+                    >
+                      Export trades CSV
+                    </button>
+                    <button
+                      type="button"
+                      className="cx-link"
+                      onClick={() => void exp(i.instrument, 'depth')}
+                    >
+                      Depth CSV
+                    </button>
+                    <button
+                      type="button"
+                      className="cx-link down"
+                      onClick={() => void del(i.instrument)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>,
               ...(open === i.instrument
@@ -215,21 +217,23 @@ export function DataManager() {
                       <td className="r">{d.trades.toLocaleString()}</td>
                       <td className="r">{d.depthRecords.toLocaleString()}</td>
                       <td className="r">{formatBytes(d.tradeBytes + d.depthBytes)}</td>
-                      <td className="r dm-actions">
-                        <button
-                          type="button"
-                          className="cx-link"
-                          onClick={() => void exp(i.instrument, 'trades', d.date)}
-                        >
-                          CSV
-                        </button>
-                        <button
-                          type="button"
-                          className="cx-link down"
-                          onClick={() => void del(i.instrument, d.date)}
-                        >
-                          Delete
-                        </button>
+                      <td className="r">
+                        <div className="dm-actions">
+                          <button
+                            type="button"
+                            className="cx-link"
+                            onClick={() => void exp(i.instrument, 'trades', d.date)}
+                          >
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            className="cx-link down"
+                            onClick={() => void del(i.instrument, d.date)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

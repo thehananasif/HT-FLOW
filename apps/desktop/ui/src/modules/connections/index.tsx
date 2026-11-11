@@ -194,35 +194,37 @@ function Connections({ onData }: { onData: () => void }) {
                 <td className={`r ${LAT_CLASS[latencyLevel(r.latency)]}`}>{r.latencyText}</td>
                 <td className="r">{r.msgs === null ? '—' : r.msgs.toLocaleString()}</td>
                 <td className="r">{r.accounts}</td>
-                <td className="r cx-actions-cell">
-                  {r.canToggle ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setVenueEnabled(venueOf(r.c)!, !r.connected)}
+                <td className="r">
+                  <div className="cx-actions-cell">
+                    {r.canToggle ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setVenueEnabled(venueOf(r.c)!, !r.connected)}
+                      >
+                        {r.connected ? 'Disconnect' : 'Connect'}
+                      </Button>
+                    ) : r.status === 'error' ? (
+                      <Button size="sm" variant="outline" onClick={() => setWizard({ edit: r.c })}>
+                        Retry
+                      </Button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="cx-link"
+                      onClick={() => setWizard({ edit: r.c })}
                     >
-                      {r.connected ? 'Disconnect' : 'Connect'}
-                    </Button>
-                  ) : r.status === 'error' ? (
-                    <Button size="sm" variant="outline" onClick={() => setWizard({ edit: r.c })}>
-                      Retry
-                    </Button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="cx-link"
-                    onClick={() => setWizard({ edit: r.c })}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="cx-link"
-                    aria-label={`Remove ${r.c.name}`}
-                    onClick={() => remove(r.c.id)}
-                  >
-                    ×
-                  </button>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="cx-link"
+                      aria-label={`Remove ${r.c.name}`}
+                      onClick={() => remove(r.c.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -115,7 +115,7 @@
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 16px;
-  height: min(620px, 70vh);
+  height: min(600px, 66vh);
 }
 .cx-tree {
   display: flex;
@@ -166,8 +166,14 @@
 .cx-form {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+}
+.cx-scroll {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   overflow: auto;
+  flex: 1;
   min-height: 0;
   padding-right: 4px;
 }
