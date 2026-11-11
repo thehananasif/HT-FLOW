@@ -33,6 +33,12 @@ export class MarketStore {
   /** Time of the first live event (history/live seam). */
   liveFrom = Number.NaN;
   lastTs = 0;
+  /** Set by the hub when the feed can load older history (lazy left-scroll loading). */
+  olderLoader: ((before: number, spanMs: number, anchorPx?: number) => Promise<Trade[]>) | null =
+    null;
+  loadingOlder = false;
+  /** True once the feed returned no older data. */
+  historyExhausted = false;
   private series = new Map<string, BarSeries>();
   private listeners = new Set<() => void>();
   private tradeListeners = new Set<(trades: Trade[]) => void>();
@@ -91,6 +97,44 @@ export class MarketStore {
       if (this.depth.length > this.opts.maxDepthColumns) {
         this.depth.splice(0, this.depth.length - this.opts.maxDepthColumns);
       }
+    }
+    this.bump();
+  }
+
+  /** Asks the feed for spanMs of trades before the first loaded one; resolves to the count added. */
+  async loadOlder(spanMs = 3_600_000): Promise<number> {
+    if (!this.olderLoader || this.loadingOlder || this.historyExhausted || !this.ready) return 0;
+    const first = this.trades[0];
+    const before = first ? first.ts : this.lastTs;
+    this.loadingOlder = true;
+    this.bump();
+    try {
+      const older = await this.olderLoader(before, spanMs, first?.px);
+      const n = this.prependTrades(older);
+      if (n === 0) this.historyExhausted = true;
+      return n;
+    } finally {
+      this.loadingOlder = false;
+      this.bump();
+    }
+  }
+
+  /** Prepends trades older than the first loaded trade and rebuilds every bar series. */
+  prependTrades(older: readonly Trade[]): number {
+    const first = this.trades[0]?.ts ?? Infinity;
+    const add = older.filter((t) => t.ts < first);
+    if (!add.length) return 0;
+    add.sort((a, b) => a.ts - b.ts);
+    this.trades = add.concat(this.trades);
+    this.rebuildSeries();
+    return add.length;
+  }
+
+  /** Rebuilds all shared bar series from the trade list ("Reload all historical data"). */
+  rebuildSeries(): void {
+    for (const s of this.series.values()) {
+      s.bars.length = 0;
+      s.addAll(this.trades);
     }
     this.bump();
   }
@@ -203,6 +247,8 @@ export class MarketHub {
       if (store.ready) store.ingest(b);
     });
     const u2 = feed.onStatus((s) => store.setStatus(s));
+    if (feed.historyBefore)
+      store.olderLoader = (before, span, anchor) => feed.historyBefore!(before, span, anchor);
     this.entries.set(instrumentId, {
       store,
       feed,

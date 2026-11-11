@@ -1,4 +1,5 @@
 import type { Instrument } from '@htflow/market-data';
+import type { PriceScaleMode } from './priceScale';
 
 export interface Rect {
   x: number;
@@ -77,7 +78,7 @@ export interface ChartView {
   tags: PriceTag[];
   font(size: number, weight?: number, mono?: boolean): string;
   /** Price scale mode of the main pane (log / percent / indexed …). */
-  scaleMode?: import('./priceScale').PriceScaleMode;
+  scaleMode?: PriceScaleMode;
   /** True when the price scale is inverted (high prices at the bottom). */
   inverted?: boolean;
   /** Base price (ticks) for percent / indexed labels: first visible value. */

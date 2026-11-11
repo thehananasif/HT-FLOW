@@ -41,6 +41,7 @@ export class MockFeed implements FeedSource {
   private historyDone = false;
   private lastWall = 0;
   private readonly opts: Required<MockFeedOptions>;
+  private readonly simConfig: ConstructorParameters<typeof MarketSimulator>[0];
 
   constructor(instrumentId: string, options: MockFeedOptions = {}) {
     const m = findMockInstrument(instrumentId);
@@ -55,7 +56,30 @@ export class MockFeed implements FeedSource {
       now: options.now ?? Date.now(),
     };
     const start = this.opts.now - this.opts.historyHours * 3_600_000;
-    this.sim = new MarketSimulator({ ...m.sim, seed: this.opts.seed }, start);
+    this.simConfig = { ...m.sim, seed: this.opts.seed };
+    this.sim = new MarketSimulator(this.simConfig, start);
+  }
+
+  /** Simulated older history, shifted so its last price meets `anchorPx` (lazy left-scroll). */
+  historyBefore(before: number, spanMs: number, anchorPx?: number): Promise<Trade[]> {
+    const from = before - spanMs;
+    const seed = (this.opts.seed ^ Math.floor(from / 60_000)) >>> 0;
+    const sim = new MarketSimulator({ ...this.simConfig, seed }, from);
+    const out: Trade[] = [];
+    const scratch: BookDelta[] = [];
+    while (sim.t < before) {
+      sim.step(Math.min(HIST_STEP_MS, before - sim.t), out, scratch);
+      scratch.length = 0;
+    }
+    const trades = out.filter((t) => t.ts < before);
+    const last = trades[trades.length - 1];
+    const shift = anchorPx !== undefined && last ? anchorPx - last.px : 0;
+    let id = -Math.floor(from);
+    for (const t of trades) {
+      t.px += shift;
+      t.id = id--;
+    }
+    return Promise.resolve(trades);
   }
 
   /** Runs the simulator from history start to "now" as fast as possible. */
