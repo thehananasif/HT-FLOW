@@ -55,21 +55,166 @@ describe('normal distribution', () => {
  * The 6-digit figures below come from an independent reference calculator (Python, math.erfc)
  * that reproduces every published figure above.
  */
-type Ref = [string, OptionParams, { price: number; delta: number; gamma: number; thetaYr: number; vega: number; rho: number }];
-const o = (kind: 'call' | 'put', S: number, K: number, T: number, r: number, q: number, sigma: number, model: 'bs' | 'b76' = 'bs'): OptionParams => ({ kind, S, K, T, r, q, sigma, model });
+type Ref = [
+  string,
+  OptionParams,
+  { price: number; delta: number; gamma: number; thetaYr: number; vega: number; rho: number },
+];
+const o = (
+  kind: 'call' | 'put',
+  S: number,
+  K: number,
+  T: number,
+  r: number,
+  q: number,
+  sigma: number,
+  model: 'bs' | 'b76' = 'bs',
+): OptionParams => ({ kind, S, K, T, r, q, sigma, model });
 const REFS: Ref[] = [
-  ['Hull 15.6 call', o('call', 42, 40, 0.5, 0.1, 0, 0.2), { price: 4.759422, delta: 0.779131, gamma: 0.049963, thetaYr: -4.559092, vega: 8.813415, rho: 13.982046 }],
-  ['Hull 15.6 put', o('put', 42, 40, 0.5, 0.1, 0, 0.2), { price: 0.808599, delta: -0.220869, gamma: 0.049963, thetaYr: -0.754174, vega: 8.813415, rho: -5.042543 }],
-  ['Hull Greeks call', o('call', 49, 50, 20 / 52, 0.05, 0, 0.2), { price: 2.400527, delta: 0.521605, gamma: 0.065544, thetaYr: -4.30533, vega: 12.10548, rho: 8.906962 }],
-  ['Hull Black-76 put', o('put', 20, 20, 4 / 12, 0.09, 0, 0.25, 'b76'), { price: 1.116641, delta: -0.457307, gamma: 0.133765, thetaYr: -1.571559, vega: 4.458817, rho: -0.372214 }],
-  ['Haug GBSM call', o('call', 60, 65, 0.25, 0.08, 0, 0.3), { price: 2.133368, delta: 0.372483, gamma: 0.042043, thetaYr: -8.428174, vega: 11.351544, rho: 5.0539 }],
-  ['Haug Black-76 call', o('call', 19, 19, 0.75, 0.1, 0, 0.28, 'b76'), { price: 1.701051, delta: 0.508636, gamma: 0.079745, thetaYr: -0.958383, vega: 6.045471, rho: -1.275788 }],
-  ['Haug Merton put (q=5%)', o('put', 100, 95, 0.5, 0.1, 0.05, 0.2), { price: 2.464788, delta: -0.264182, gamma: 0.02284, thetaYr: -3.000528, vega: 22.839574, rho: -14.441474 }],
-  ['Haug futures call', o('call', 105, 100, 0.5, 0.1, 0, 0.36, 'b76'), { price: 12.432845, delta: 0.594629, gamma: 0.013494, thetaYr: -8.39684, vega: 26.778123, rho: -6.216422 }],
-  ['Haug futures put', o('put', 105, 100, 0.5, 0.1, 0, 0.36, 'b76'), { price: 7.676697, delta: -0.356601, gamma: 0.013494, thetaYr: -8.872454, vega: 26.778123, rho: -3.838349 }],
-  ['Haug gamma/vega', o('call', 55, 60, 0.75, 0.1, 0, 0.3), { price: 5.392779, delta: 0.533341, gamma: 0.027821, thetaYr: -6.181255, vega: 18.935777, rho: 17.955748 }],
-  ['Haug theta put (b=2%)', o('put', 430, 405, 0.0833, 0.07, 0.05, 0.2), { price: 1.75602, delta: -0.136103, gamma: 0.008785, thetaYr: -31.192367, vega: 27.060652, rho: -5.021359 }],
-  ['Haug rho call', o('call', 72, 75, 1, 0.09, 0, 0.19), { price: 7.222752, delta: 0.638267, gamma: 0.027393, thetaYr: -6.049111, vega: 26.980899, rho: 38.732505 }],
+  [
+    'Hull 15.6 call',
+    o('call', 42, 40, 0.5, 0.1, 0, 0.2),
+    {
+      price: 4.759422,
+      delta: 0.779131,
+      gamma: 0.049963,
+      thetaYr: -4.559092,
+      vega: 8.813415,
+      rho: 13.982046,
+    },
+  ],
+  [
+    'Hull 15.6 put',
+    o('put', 42, 40, 0.5, 0.1, 0, 0.2),
+    {
+      price: 0.808599,
+      delta: -0.220869,
+      gamma: 0.049963,
+      thetaYr: -0.754174,
+      vega: 8.813415,
+      rho: -5.042543,
+    },
+  ],
+  [
+    'Hull Greeks call',
+    o('call', 49, 50, 20 / 52, 0.05, 0, 0.2),
+    {
+      price: 2.400527,
+      delta: 0.521605,
+      gamma: 0.065544,
+      thetaYr: -4.30533,
+      vega: 12.10548,
+      rho: 8.906962,
+    },
+  ],
+  [
+    'Hull Black-76 put',
+    o('put', 20, 20, 4 / 12, 0.09, 0, 0.25, 'b76'),
+    {
+      price: 1.116641,
+      delta: -0.457307,
+      gamma: 0.133765,
+      thetaYr: -1.571559,
+      vega: 4.458817,
+      rho: -0.372214,
+    },
+  ],
+  [
+    'Haug GBSM call',
+    o('call', 60, 65, 0.25, 0.08, 0, 0.3),
+    {
+      price: 2.133368,
+      delta: 0.372483,
+      gamma: 0.042043,
+      thetaYr: -8.428174,
+      vega: 11.351544,
+      rho: 5.0539,
+    },
+  ],
+  [
+    'Haug Black-76 call',
+    o('call', 19, 19, 0.75, 0.1, 0, 0.28, 'b76'),
+    {
+      price: 1.701051,
+      delta: 0.508636,
+      gamma: 0.079745,
+      thetaYr: -0.958383,
+      vega: 6.045471,
+      rho: -1.275788,
+    },
+  ],
+  [
+    'Haug Merton put (q=5%)',
+    o('put', 100, 95, 0.5, 0.1, 0.05, 0.2),
+    {
+      price: 2.464788,
+      delta: -0.264182,
+      gamma: 0.02284,
+      thetaYr: -3.000528,
+      vega: 22.839574,
+      rho: -14.441474,
+    },
+  ],
+  [
+    'Haug futures call',
+    o('call', 105, 100, 0.5, 0.1, 0, 0.36, 'b76'),
+    {
+      price: 12.432845,
+      delta: 0.594629,
+      gamma: 0.013494,
+      thetaYr: -8.39684,
+      vega: 26.778123,
+      rho: -6.216422,
+    },
+  ],
+  [
+    'Haug futures put',
+    o('put', 105, 100, 0.5, 0.1, 0, 0.36, 'b76'),
+    {
+      price: 7.676697,
+      delta: -0.356601,
+      gamma: 0.013494,
+      thetaYr: -8.872454,
+      vega: 26.778123,
+      rho: -3.838349,
+    },
+  ],
+  [
+    'Haug gamma/vega',
+    o('call', 55, 60, 0.75, 0.1, 0, 0.3),
+    {
+      price: 5.392779,
+      delta: 0.533341,
+      gamma: 0.027821,
+      thetaYr: -6.181255,
+      vega: 18.935777,
+      rho: 17.955748,
+    },
+  ],
+  [
+    'Haug theta put (b=2%)',
+    o('put', 430, 405, 0.0833, 0.07, 0.05, 0.2),
+    {
+      price: 1.75602,
+      delta: -0.136103,
+      gamma: 0.008785,
+      thetaYr: -31.192367,
+      vega: 27.060652,
+      rho: -5.021359,
+    },
+  ],
+  [
+    'Haug rho call',
+    o('call', 72, 75, 1, 0.09, 0, 0.19),
+    {
+      price: 7.222752,
+      delta: 0.638267,
+      gamma: 0.027393,
+      thetaYr: -6.049111,
+      vega: 26.980899,
+      rho: 38.732505,
+    },
+  ],
 ];
 
 describe('Black-Scholes / Black-76 price and Greeks', () => {
@@ -102,13 +247,25 @@ describe('Black-Scholes / Black-76 price and Greeks', () => {
   });
 
   it('Greeks agree with finite differences', () => {
-    const p: OptionParams = { kind: 'put', S: 6850, K: 6800, T: 0.15, r: 0.04, sigma: 0.17, model: 'b76' };
+    const p: OptionParams = {
+      kind: 'put',
+      S: 6850,
+      K: 6800,
+      T: 0.15,
+      r: 0.04,
+      sigma: 0.17,
+      model: 'b76',
+    };
     const g = greeks(p);
     const h = 0.01;
     const d = (optionPrice({ ...p, S: p.S + h }) - optionPrice({ ...p, S: p.S - h })) / (2 * h);
-    const gm = (optionPrice({ ...p, S: p.S + h }) - 2 * optionPrice(p) + optionPrice({ ...p, S: p.S - h })) / (h * h);
-    const v = optionPrice({ ...p, sigma: p.sigma + 0.005 }) - optionPrice({ ...p, sigma: p.sigma - 0.005 });
-    const th = optionPrice({ ...p, T: p.T - 0.5 / 365 }) - optionPrice({ ...p, T: p.T + 0.5 / 365 });
+    const gm =
+      (optionPrice({ ...p, S: p.S + h }) - 2 * optionPrice(p) + optionPrice({ ...p, S: p.S - h })) /
+      (h * h);
+    const v =
+      optionPrice({ ...p, sigma: p.sigma + 0.005 }) - optionPrice({ ...p, sigma: p.sigma - 0.005 });
+    const th =
+      optionPrice({ ...p, T: p.T - 0.5 / 365 }) - optionPrice({ ...p, T: p.T + 0.5 / 365 });
     const rh = optionPrice({ ...p, r: p.r + 0.005 }) - optionPrice({ ...p, r: p.r - 0.005 });
     within(g.delta, d, 0.01);
     within(g.gamma, gm, 0.1);
@@ -120,7 +277,9 @@ describe('Black-Scholes / Black-76 price and Greeks', () => {
   it('handles expiry and zero volatility', () => {
     expect(optionPrice({ kind: 'call', S: 105, K: 100, T: 0, r: 0.05, sigma: 0.2 })).toBe(5);
     expect(greeks({ kind: 'put', S: 105, K: 100, T: 0, r: 0.05, sigma: 0.2 }).delta).toBe(0);
-    expect(optionPrice({ kind: 'call', S: 100, K: 90, T: 1, r: 0, sigma: 0, model: 'b76' })).toBeCloseTo(10, 9);
+    expect(
+      optionPrice({ kind: 'call', S: 100, K: 90, T: 1, r: 0, sigma: 0, model: 'b76' }),
+    ).toBeCloseTo(10, 9);
   });
 });
 
@@ -159,10 +318,23 @@ describe('implied volatility', () => {
 const NOW = Date.UTC(2026, 10, 4, 12);
 const EXP = NOW + 30 * DAY_MS;
 const env: StrategyEnv = { model: 'b76', r: 0, multiplier: 1, now: NOW };
-const leg = (kind: 'call' | 'put', strike: number, qty: number, premium: number, expiry = EXP): Leg => ({
-  id: `${kind}${strike}${qty}`, kind, strike, expiry, qty, premium, iv: 0.3,
+const leg = (
+  kind: 'call' | 'put',
+  strike: number,
+  qty: number,
+  premium: number,
+  expiry = EXP,
+): Leg => ({
+  id: `${kind}${strike}${qty}`,
+  kind,
+  strike,
+  expiry,
+  qty,
+  premium,
+  iv: 0.3,
 });
-const payoff = (legs: Leg[], prices: number[]) => prices.map((p) => +pnlAtExpiry(legs, p, env).toFixed(6));
+const payoff = (legs: Leg[], prices: number[]) =>
+  prices.map((p) => +pnlAtExpiry(legs, p, env).toFixed(6));
 
 describe('strategies: payoff, breakevens, max profit/loss', () => {
   it('long call', () => {
@@ -210,7 +382,12 @@ describe('strategies: payoff, breakevens, max profit/loss', () => {
     expect(payoff(legs, [70, 90, 97, 100, 120])).toEqual([7, 7, 0, -3, -3]);
   });
   it('iron condor', () => {
-    const legs = [leg('put', 90, -1, 3), leg('put', 85, 1, 1.5), leg('call', 110, -1, 3), leg('call', 115, 1, 1.5)];
+    const legs = [
+      leg('put', 90, -1, 3),
+      leg('put', 85, 1, 1.5),
+      leg('call', 110, -1, 3),
+      leg('call', 115, 1, 1.5),
+    ];
     expect(payoff(legs, [70, 85, 87, 100, 113, 115, 140])).toEqual([-2, -2, 0, 3, 0, -2, -2]);
     const a = analyzeStrategy(legs, 100, env);
     expect([a.maxProfit, a.maxLoss, a.netPremium].map((v) => +v.toFixed(6))).toEqual([3, -2, 3]);
@@ -234,7 +411,15 @@ describe('strategies: payoff, breakevens, max profit/loss', () => {
     const legs = [leg('call', 100, -1, 3.4), leg('call', 100, 1, 4.8, far)];
     const a = analyzeStrategy(legs, 100, env);
     const atm = pnlAtExpiry(legs, 100, env);
-    const farValue = optionPrice({ kind: 'call', S: 100, K: 100, T: 30 / 365, r: 0, sigma: 0.3, model: 'b76' });
+    const farValue = optionPrice({
+      kind: 'call',
+      S: 100,
+      K: 100,
+      T: 30 / 365,
+      r: 0,
+      sigma: 0.3,
+      model: 'b76',
+    });
     expect(atm).toBeCloseTo(farValue - 1.4, 9);
     expect(a.maxProfit).toBeCloseTo(atm, 2);
     expect(a.maxLoss).toBeGreaterThan(-1.41);
@@ -257,7 +442,10 @@ describe('strategies: payoff, breakevens, max profit/loss', () => {
   });
   it('templates build the expected legs', () => {
     const strikes = [80, 85, 90, 95, 100, 105, 110, 115, 120];
-    const t = (id: TemplateId) => buildTemplate(id, { strikes, spot: 101, expiries: [EXP + 5, EXP] }).map((l) => `${l.qty > 0 ? '+' : ''}${l.qty}${l.kind[0]}${l.strike}`);
+    const t = (id: TemplateId) =>
+      buildTemplate(id, { strikes, spot: 101, expiries: [EXP + 5, EXP] }).map(
+        (l) => `${l.qty > 0 ? '+' : ''}${l.qty}${l.kind[0]}${l.strike}`,
+      );
     expect(t('long-straddle')).toEqual(['+1c100', '+1p100']);
     expect(t('short-strangle')).toEqual(['-1p95', '-1c105']);
     expect(t('bull-call-spread')).toEqual(['+1c100', '-1c105']);
@@ -266,20 +454,29 @@ describe('strategies: payoff, breakevens, max profit/loss', () => {
     expect(t('butterfly')).toEqual(['+1c95', '-2c100', '+1c105']);
     expect(t('ratio-spread')).toEqual(['+1c100', '-2c105']);
     const cal = buildTemplate('calendar', { strikes, spot: 101, expiries: [EXP + 5, EXP] });
-    expect(cal.map((l) => [l.qty, l.expiry])).toEqual([[-1, EXP], [1, EXP + 5]]);
+    expect(cal.map((l) => [l.qty, l.expiry])).toEqual([
+      [-1, EXP],
+      [1, EXP + 5],
+    ]);
   });
 });
 
 describe('simulated chain', () => {
   const es = SIM_UNDERLYINGS.find((u) => u.id === 'mock:ESZ6')!;
-  const chain = generateSimChain(es, { bid: 6850, ask: 6850.25, bidSize: 12, askSize: 9, last: 6850.25 }, NOW, 0.04);
+  const chain = generateSimChain(
+    es,
+    { bid: 6850, ask: 6850.25, bidSize: 12, askSize: 9, last: 6850.25 },
+    NOW,
+    0.04,
+  );
   it('is labelled Sim and lists regular, weekly and EOM series', () => {
     expect(chain.simulated).toBe(true);
     expect(chain.sourceLabel).toBe('Sim');
     const kinds = new Set(chain.expiries.map((e) => e.series));
     expect([...kinds].sort()).toEqual(['eom', 'regular', 'weekly']);
     expect(simExpiries(NOW, 'future').every((e) => e.expiry > NOW)).toBe(true);
-    for (const e of chain.expiries.filter((x) => x.series !== 'eom')) expect(new Date(e.expiry).getUTCDay()).toBe(5);
+    for (const e of chain.expiries.filter((x) => x.series !== 'eom'))
+      expect(new Date(e.expiry).getUTCDay()).toBe(5);
   });
   it('has sane quotes: bid < ask on the tick grid, IVs bracket the mark, put skew', () => {
     const e = chain.expiries.find((x) => x.series === 'regular')!;
@@ -317,17 +514,28 @@ describe('simulated chain', () => {
 });
 
 describe('analytics', () => {
-  const legs = [leg('put', 90, -1, 3), leg('put', 85, 1, 1.5), leg('call', 110, -1, 3), leg('call', 115, 1, 1.5)];
+  const legs = [
+    leg('put', 90, -1, 3),
+    leg('put', 85, 1, 1.5),
+    leg('call', 110, -1, 3),
+    leg('call', 115, 1, 1.5),
+  ];
   it('options position payoff: today converges to expiry', () => {
     const c = optionsPositionPayoff(legs, 100, env, { range: { from: 70, to: 130, steps: 61 } });
     expect(c.prices).toHaveLength(61);
     expect(c.expiry[30]).toBeCloseTo(3, 9);
     expect(c.now[30]!).toBeLessThan(3);
-    const atExp = optionsPositionPayoff(legs, 100, env, { range: { from: 70, to: 130, steps: 61 }, at: EXP });
+    const atExp = optionsPositionPayoff(legs, 100, env, {
+      range: { from: 70, to: 130, steps: 61 },
+      at: EXP,
+    });
     expect(atExp.now).toEqual(atExp.expiry);
   });
   it('risk profile spans now → expiry', () => {
-    const rp = optionsRiskProfile(legs, 100, env, { range: { from: 70, to: 130, steps: 13 }, timeSteps: 4 });
+    const rp = optionsRiskProfile(legs, 100, env, {
+      range: { from: 70, to: 130, steps: 13 },
+      timeSteps: 4,
+    });
     expect(rp.pnl).toHaveLength(4);
     expect(rp.times[0]).toBe(NOW);
     expect(rp.times[3]).toBe(EXP);
@@ -354,13 +562,29 @@ describe('Deribit provider (recorded fixtures)', () => {
   });
   it('converts BTC quotes to USD and solves IVs consistent with the venue mark IV', () => {
     const c = findContract(chain, 'BTC-27NOV26-80000-C')!;
-    const raw = (summaryFx.result as { instrument_name: string; bid_price: number | null; mark_iv: number; underlying_price: number; open_interest: number }[]).find((x) => x.instrument_name === c.name)!;
+    const raw = (
+      summaryFx.result as {
+        instrument_name: string;
+        bid_price: number | null;
+        mark_iv: number;
+        underlying_price: number;
+        open_interest: number;
+      }[]
+    ).find((x) => x.instrument_name === c.name)!;
     expect(c.quote.bid).toBeCloseTo(raw.bid_price! * raw.underlying_price, 6);
     expect(c.quote.openInterest).toBe(raw.open_interest);
     expect(c.quote.markIv).toBeCloseTo(raw.mark_iv / 100, 9);
     expect(c.quote.bidIv!).toBeLessThan(c.quote.askIv!);
     expect(Math.abs((c.quote.bidIv! + c.quote.askIv!) / 2 - c.quote.markIv!)).toBeLessThan(0.02);
-    const model = optionPrice({ kind: 'call', S: raw.underlying_price, K: 80000, T: (c.expiry - now) / YEAR_MS, r: 0, sigma: c.quote.markIv!, model: 'b76' });
+    const model = optionPrice({
+      kind: 'call',
+      S: raw.underlying_price,
+      K: 80000,
+      T: (c.expiry - now) / YEAR_MS,
+      r: 0,
+      sigma: c.quote.markIv!,
+      model: 'b76',
+    });
     within(c.quote.mark!, model, 1);
   });
   it('merges tickers: sizes, venue IVs, underlying future', () => {
@@ -372,7 +596,15 @@ describe('Deribit provider (recorded fixtures)', () => {
     expect(c.quote.bidIv).toBeCloseTo(0.3484, 9);
     expect(c.quote.askIv).toBeCloseTo(0.3586, 9);
     // Deribit's own delta is reproduced by Black-76 on its underlying price and mark IV.
-    const g = greeks({ kind: 'call', S: 80331.68, K: 80000, T: (c.expiry - 1793826254902) / YEAR_MS, r: 0, sigma: 0.352, model: 'b76' });
+    const g = greeks({
+      kind: 'call',
+      S: 80331.68,
+      K: 80000,
+      T: (c.expiry - 1793826254902) / YEAR_MS,
+      r: 0,
+      sigma: 0.352,
+      model: 'b76',
+    });
     within(g.delta, tickerCallFx.result.greeks.delta, 0.5);
     within(g.vega, tickerCallFx.result.greeks.vega, 0.5);
     within(g.theta, tickerCallFx.result.greeks.theta, 0.5);
@@ -382,18 +614,25 @@ describe('Deribit provider (recorded fixtures)', () => {
   });
   it('loads through an injected fetchText and surfaces API errors', async () => {
     const urls: string[] = [];
-    const src = new DeribitChainSource(async (url) => {
-      urls.push(url);
-      if (url.includes('kind=future')) return JSON.stringify(futuresFx);
-      if (url.includes('get_instruments')) return JSON.stringify(instrumentsFx);
-      if (url.includes('ticker')) return JSON.stringify(tickerCallFx);
-      return JSON.stringify(summaryFx);
-    }, () => now);
+    const src = new DeribitChainSource(
+      async (url) => {
+        urls.push(url);
+        if (url.includes('kind=future')) return JSON.stringify(futuresFx);
+        if (url.includes('get_instruments')) return JSON.stringify(instrumentsFx);
+        if (url.includes('ticker')) return JSON.stringify(tickerCallFx);
+        return JSON.stringify(summaryFx);
+      },
+      () => now,
+    );
     const c = await src.load('BTC');
     expect(c.expiries).toHaveLength(4);
-    expect(urls.some((u) => u.endsWith('/public/get_book_summary_by_currency?currency=BTC&kind=option'))).toBe(true);
+    expect(
+      urls.some((u) => u.endsWith('/public/get_book_summary_by_currency?currency=BTC&kind=option')),
+    ).toBe(true);
     expect(await src.enrich(c, ['BTC-27NOV26-80000-C'])).toBe(1);
-    const bad = new DeribitChainSource(async () => '{"jsonrpc":"2.0","error":{"message":"Invalid params","code":-32602}}');
+    const bad = new DeribitChainSource(
+      async () => '{"jsonrpc":"2.0","error":{"message":"Invalid params","code":-32602}}',
+    );
     await expect(bad.load('XXX')).rejects.toThrow(/Invalid params/);
   });
 });

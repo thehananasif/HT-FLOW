@@ -226,8 +226,7 @@ export function simExpiries(
     if (style === 'future' && i < 4) add(lastBusinessDay(y, m, hour), 'eom');
   }
   const daysToFri = (5 - d.getUTCDay() + 7) % 7;
-  for (let w = 0; w < 6; w++)
-    add(utc(y, m0, d.getUTCDate() + daysToFri + 7 * w, hour), 'weekly');
+  for (let w = 0; w < 6; w++) add(utc(y, m0, d.getUTCDate() + daysToFri + 7 * w, hour), 'weekly');
   const list = [...out.entries()]
     .map(([day, series]) => ({ expiry: day * DAY_MS + hour * 3_600_000, series }))
     .sort((a, b) => a.expiry - b.expiry);
@@ -249,7 +248,8 @@ export interface LiveUnderlyingQuote {
 
 const roundTo = (v: number, step: number, mode: 'floor' | 'ceil' | 'round') => {
   const x = v / step;
-  const n = mode === 'floor' ? Math.floor(x + 1e-9) : mode === 'ceil' ? Math.ceil(x - 1e-9) : Math.round(x);
+  const n =
+    mode === 'floor' ? Math.floor(x + 1e-9) : mode === 'ceil' ? Math.ceil(x - 1e-9) : Math.round(x);
   return +(n * step).toFixed(10);
 };
 

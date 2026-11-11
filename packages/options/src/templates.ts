@@ -116,7 +116,12 @@ export function buildTemplate(id: TemplateId, env: TemplateEnv): LegSpec[] {
     case 'bear-put-spread':
       return [L('put', a, 1), L('put', a - w, -1)];
     case 'iron-condor':
-      return [L('put', a - w, -1), L('put', a - 2 * w, 1), L('call', a + w, -1), L('call', a + 2 * w, 1)];
+      return [
+        L('put', a - w, -1),
+        L('put', a - 2 * w, 1),
+        L('call', a + w, -1),
+        L('call', a + 2 * w, 1),
+      ];
     case 'butterfly':
       return [L('call', a - w, 1), L('call', a, -2), L('call', a + w, 1)];
     case 'calendar':

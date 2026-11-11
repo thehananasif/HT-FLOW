@@ -1,44 +1,44 @@
 {
- "jsonrpc": "2.0",
- "result": {
-  "timestamp": 1793826255554,
-  "state": "open",
-  "stats": {
-   "high": 0.065,
-   "low": 0.0305,
-   "price_change": -41.4414,
-   "volume": 144.6,
-   "volume_usd": 404151.19
+  "jsonrpc": "2.0",
+  "result": {
+    "timestamp": 1793826255554,
+    "state": "open",
+    "stats": {
+      "high": 0.065,
+      "low": 0.0305,
+      "price_change": -41.4414,
+      "volume": 144.6,
+      "volume_usd": 404151.19
+    },
+    "greeks": {
+      "delta": -0.46373,
+      "gamma": 6e-5,
+      "vega": 79.16122,
+      "theta": -62.04609,
+      "rho": -24.53537
+    },
+    "index_price": 80106.97,
+    "instrument_name": "BTC-27NOV26-80000-P",
+    "last_price": 0.0325,
+    "settlement_price": 0.04701634,
+    "min_price": 0.0105,
+    "max_price": 0.068,
+    "open_interest": 899.7,
+    "mark_price": 0.0327,
+    "interest_rate": 0.0,
+    "estimated_delivery_price": 80106.97,
+    "best_ask_price": 0.033,
+    "best_bid_price": 0.0325,
+    "mark_iv": 35.2,
+    "bid_iv": 34.97,
+    "ask_iv": 35.48,
+    "underlying_price": 80331.75,
+    "underlying_index": "BTC-27NOV26",
+    "best_ask_amount": 10.2,
+    "best_bid_amount": 2.4
   },
-  "greeks": {
-   "delta": -0.46373,
-   "gamma": 6e-05,
-   "vega": 79.16122,
-   "theta": -62.04609,
-   "rho": -24.53537
-  },
-  "index_price": 80106.97,
-  "instrument_name": "BTC-27NOV26-80000-P",
-  "last_price": 0.0325,
-  "settlement_price": 0.04701634,
-  "min_price": 0.0105,
-  "max_price": 0.068,
-  "open_interest": 899.7,
-  "mark_price": 0.0327,
-  "interest_rate": 0.0,
-  "estimated_delivery_price": 80106.97,
-  "best_ask_price": 0.033,
-  "best_bid_price": 0.0325,
-  "mark_iv": 35.2,
-  "bid_iv": 34.97,
-  "ask_iv": 35.48,
-  "underlying_price": 80331.75,
-  "underlying_index": "BTC-27NOV26",
-  "best_ask_amount": 10.2,
-  "best_bid_amount": 2.4
- },
- "usIn": 1793826255842821,
- "usOut": 1793826255843039,
- "usDiff": 218,
- "testnet": false
+  "usIn": 1793826255842821,
+  "usOut": 1793826255843039,
+  "usDiff": 218,
+  "testnet": false
 }

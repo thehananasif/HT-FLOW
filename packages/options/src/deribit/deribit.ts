@@ -72,7 +72,10 @@ export function parseDeribitChain(
   const fut = new Map<string, Json>();
   for (const f of futures) fut.set(String(f.instrument_name), f);
 
-  const byExpiry = new Map<number, { series: SeriesType; rows: Map<number, ChainStrike>; und: Json | null }>();
+  const byExpiry = new Map<
+    number,
+    { series: SeriesType; rows: Map<number, ChainStrike>; und: Json | null }
+  >();
   let spot = 0;
   let rate = 0;
   for (const ins of instruments) {
@@ -106,7 +109,15 @@ export function parseDeribitChain(
       const T = yearFrac(now, expiry);
       const iv = (price: number | null) => {
         if (price === null || !(price > 0)) return null;
-        const v = impliedVol({ kind, S: F, K: strike, T, r: num(s.interest_rate) ?? 0, model: 'b76', price });
+        const v = impliedVol({
+          kind,
+          S: F,
+          K: strike,
+          T,
+          r: num(s.interest_rate) ?? 0,
+          model: 'b76',
+          price,
+        });
         return Number.isFinite(v) ? v : null;
       };
       quote.bidIv = iv(quote.bid);
@@ -241,7 +252,8 @@ export class DeribitChainSource implements OptionsChainSource {
     const worker = async () => {
       for (let n = queue.shift(); n !== undefined; n = queue.shift()) {
         try {
-          if (applyDeribitTicker(chain, JSON.parse(await this.fetchText(deribitUrls.ticker(n))))) done++;
+          if (applyDeribitTicker(chain, JSON.parse(await this.fetchText(deribitUrls.ticker(n)))))
+            done++;
         } catch {
           // A missing ticker only leaves sizes blank.
         }

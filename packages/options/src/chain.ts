@@ -121,8 +121,15 @@ export function expiryLongLabel(ms: number): string {
 }
 
 /** Contract name in Deribit format: ROOT-27NOV26-70000-C. */
-export function contractName(root: string, expiry: number, strike: number, kind: OptionKind): string {
-  const k = Number.isInteger(strike) ? String(strike) : String(+strike.toFixed(8)).replace('.', 'd');
+export function contractName(
+  root: string,
+  expiry: number,
+  strike: number,
+  kind: OptionKind,
+): string {
+  const k = Number.isInteger(strike)
+    ? String(strike)
+    : String(+strike.toFixed(8)).replace('.', 'd');
   return `${root}-${expiryCode(expiry)}-${k}-${kind === 'call' ? 'C' : 'P'}`;
 }
 
@@ -137,7 +144,10 @@ export function midPrice(q: OptionQuote): number | null {
 }
 
 /** The strike nearest to `price`. */
-export function nearestStrike(strikes: readonly ChainStrike[], price: number): ChainStrike | undefined {
+export function nearestStrike(
+  strikes: readonly ChainStrike[],
+  price: number,
+): ChainStrike | undefined {
   let best: ChainStrike | undefined;
   for (const s of strikes)
     if (!best || Math.abs(s.strike - price) < Math.abs(best.strike - price)) best = s;
@@ -148,7 +158,11 @@ export function nearestStrike(strikes: readonly ChainStrike[], price: number): C
  * Rows to show around the money: `n` strikes at or above the ATM strike and n − 1 below it
  * (2n − 1 rows), ascending.
  */
-export function strikesAround(strikes: readonly ChainStrike[], price: number, n: number): ChainStrike[] {
+export function strikesAround(
+  strikes: readonly ChainStrike[],
+  price: number,
+  n: number,
+): ChainStrike[] {
   const atm = nearestStrike(strikes, price);
   if (!atm) return [];
   const i = strikes.indexOf(atm);

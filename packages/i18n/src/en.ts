@@ -38,6 +38,15 @@ export const en = {
   'empty.module.title': '{name}',
   'empty.module.body':
     'This module is part of phase {phase} of the build plan. Its window, ribbon entry and command are registered; the full screen is not built yet (tracked in docs/FEATURES.md).',
+  'options.title': 'Options Strategy Analyser',
+  'options.accountSeries': 'Account and Series',
+  'options.underlyingQuotes': 'Underlying quotes',
+  'options.builder': 'Strategy builder',
+  'options.send': 'Send as paper order',
+  'options.positions': 'Options positions',
+  'options.noLegs': 'Click a bid to sell or an ask to buy, or pick a template.',
+  'options.paperNote':
+    'Options are not modelled by the paper engine: strategies are stored as local options positions and marked to model.',
 } as const;
 
 export type Strings = { [K in keyof typeof en]: string };

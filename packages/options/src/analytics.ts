@@ -30,8 +30,16 @@ function linspace(r: PriceRange): number[] {
 }
 
 /** A price window that shows every strike and breakeven with margin. */
-export function payoffRange(legs: readonly Leg[], spot: number, breakevens: readonly number[] = []): PriceRange {
-  const pts = [spot, ...breakevens, ...legs.filter((l) => l.kind !== 'underlying').map((l) => l.strike)];
+export function payoffRange(
+  legs: readonly Leg[],
+  spot: number,
+  breakevens: readonly number[] = [],
+): PriceRange {
+  const pts = [
+    spot,
+    ...breakevens,
+    ...legs.filter((l) => l.kind !== 'underlying').map((l) => l.strike),
+  ];
   const lo = Math.min(...pts);
   const hi = Math.max(...pts);
   const pad = Math.max((hi - lo) * 0.35, spot * 0.06);
@@ -147,7 +155,14 @@ export function strikeLevels(chain: OptionsChain, expiries?: readonly number[]):
   for (const e of chain.expiries) {
     if (expiries && !expiries.includes(e.expiry)) continue;
     for (const s of e.strikes) {
-      const l = m.get(s.strike) ?? { strike: s.strike, callOi: 0, putOi: 0, totalOi: 0, callVolume: 0, putVolume: 0 };
+      const l = m.get(s.strike) ?? {
+        strike: s.strike,
+        callOi: 0,
+        putOi: 0,
+        totalOi: 0,
+        callVolume: 0,
+        putVolume: 0,
+      };
       l.callOi += s.call?.quote.openInterest ?? 0;
       l.putOi += s.put?.quote.openInterest ?? 0;
       l.callVolume += s.call?.quote.volume ?? 0;
