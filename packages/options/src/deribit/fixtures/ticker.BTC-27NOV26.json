@@ -1,0 +1,32 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "timestamp": 1793826256014,
+    "state": "open",
+    "stats": {
+      "high": 81322.5,
+      "low": 76040.0,
+      "price_change": 2.8347,
+      "volume": 205.82184346,
+      "volume_usd": 16503700.0,
+      "volume_notional": 16503700.0
+    },
+    "index_price": 80106.82,
+    "instrument_name": "BTC-27NOV26",
+    "last_price": 80352.5,
+    "settlement_price": 78325.46,
+    "min_price": 79125.0,
+    "max_price": 81537.5,
+    "open_interest": 45612450,
+    "mark_price": 80331.68,
+    "estimated_delivery_price": 80106.82,
+    "best_ask_price": 80335.0,
+    "best_bid_price": 80325.0,
+    "best_ask_amount": 470.0,
+    "best_bid_amount": 8250.0
+  },
+  "usIn": 1793826256080175,
+  "usOut": 1793826256080350,
+  "usDiff": 175,
+  "testnet": false
+}

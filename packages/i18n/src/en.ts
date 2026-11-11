@@ -55,6 +55,15 @@ export const en = {
   'indicators.apply': 'Apply',
   'indicators.alertsPending':
     'Alert conditions on indicator values arrive with the Alerts module (P23). Settings here are kept per indicator.',
+  'options.title': 'Options Strategy Analyser',
+  'options.accountSeries': 'Account and Series',
+  'options.underlyingQuotes': 'Underlying quotes',
+  'options.builder': 'Strategy builder',
+  'options.send': 'Send as paper order',
+  'options.positions': 'Options positions',
+  'options.noLegs': 'Click a bid to sell or an ask to buy, or pick a template.',
+  'options.paperNote':
+    'Options are not modelled by the paper engine: strategies are stored as local options positions and marked to model.',
 } as const;
 
 export type Strings = { [K in keyof typeof en]: string };

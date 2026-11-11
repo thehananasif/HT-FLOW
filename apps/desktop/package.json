@@ -22,6 +22,7 @@
     "@htflow/indicator-sdk": "workspace:*",
     "@htflow/indicators": "workspace:*",
     "@htflow/market-data": "workspace:*",
+    "@htflow/options": "workspace:*",
     "@htflow/replay": "workspace:*",
     "@htflow/tape": "workspace:*",
     "@htflow/trading": "workspace:*",
