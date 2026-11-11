@@ -42,7 +42,7 @@ test('Web Pages: tabs, address bar, bookmarks, and claiming open-url links', asy
   await expect(win.getByLabel('Address')).toHaveValue('https://example.com/two');
 
   await win.getByRole('button', { name: 'Add bookmark' }).click();
-  await expect(win.getByRole('button', { name: 'Remove bookmark' })).toBeVisible();
+  await expect(win.getByRole('button', { name: 'Remove bookmark', exact: true })).toBeVisible();
   await expect(win.getByLabel('Bookmarks')).toContainText('example.com');
 
   // Another window (RSS / News) hands a link over via the cancelable event.
@@ -121,14 +121,20 @@ test('User Guide: search, articles, and Open this window links', async ({ page }
     .first()
     .click();
   await expect(win.getByTestId('guide-article')).toContainText('Load sample replay session');
-  await win.getByRole('button', { name: 'Open Replay' }).click();
-  await expect(page.getByText('Replay').first()).toBeVisible();
-
   await win.getByLabel('Search the guide').fill('shortcuts');
   await win.getByRole('button', { name: /^Keyboard shortcuts/ }).click();
   await expect(win.getByTestId('guide-article')).toContainText('Command palette');
   await win.getByLabel('Search the guide').fill('zzzznotaword');
   await expect(win.getByText('No articles match')).toBeVisible();
+
+  // "Open this window" links open the module in a new window.
+  await win.getByLabel('Search the guide').fill('replay');
+  await win
+    .getByRole('button', { name: /^Replay/ })
+    .first()
+    .click();
+  await win.getByRole('button', { name: 'Open Replay' }).click();
+  await expect(page.getByTestId('replay-window')).toBeVisible();
 });
 
 test('Following Manager: local list with the sharing-server banner', async ({ page }) => {
