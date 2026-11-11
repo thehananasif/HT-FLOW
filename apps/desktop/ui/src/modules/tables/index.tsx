@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Badge, Button } from '@htflow/ui-kit';
 import { formatPrice } from '@htflow/market-data';
-import { hub, paper, PAPER_ACCOUNT } from '../../state/market';
+import type { Account, Fill, Order, Position } from '@htflow/trading';
+import { hub, paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
-import { SimpleTable } from '../../components/SimpleTable';
-import { registerModule } from '../registry';
+import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
+import { registerModule, type ModuleViewProps } from '../registry';
+import { risk } from '../risk/engine';
 
+/** Re-renders on every paper-engine event (fills land in all tables in the same frame). */
 function useTicker(ms = 500) {
   const [, set] = useState(0);
   useEffect(() => {
@@ -23,169 +25,492 @@ const px = (instrumentId: string, v: number | undefined) => {
   return v === undefined || !i ? '—' : formatPrice(v, i);
 };
 const sym = (id: string) => instrumentById(id)?.symbol ?? id;
-const time = (t: number) =>
+const accName = (id: string) => paper.accounts.get(id)?.name ?? id;
+/** Account ids are never shown in full. */
+const masked = (a: Account) =>
+  a.name.includes('••••') ? a.name : `${a.name} ••••${a.id.replace(/\W/g, '').slice(-4)}`;
+const time = (t: number, ms = false) =>
   new Date(t).toLocaleTimeString('en-GB', { hour12: false }) +
-  '.' +
-  String(Math.floor(t % 1000)).padStart(3, '0');
-const sidePill = (s: string) => (
-  <span className={s === 'buy' ? 'up' : 'down'}>{s.toUpperCase()}</span>
+  (ms ? '.' + String(Math.floor(t % 1000)).padStart(3, '0') : '');
+const money = (v: number) =>
+  (v < 0 ? '−' : '') +
+  '$' +
+  Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pnl = (v: number) => (
+  <span className={v > 0 ? 'up' : v < 0 ? 'down' : 'muted'}>
+    {v > 0 ? '+' : ''}
+    {money(v)}
+  </span>
 );
+const sidePill = (s: 'buy' | 'sell') => (
+  <Pill tone={s === 'buy' ? 'up' : 'down'}>{s.toUpperCase()}</Pill>
+);
+const mark = (id: string) => hub.peek(id)?.lastTrade?.px;
 
-function Accounts() {
+function openPnl(accountId: string): number {
+  let open = 0;
+  for (const p of paper.allPositions(accountId)) {
+    const m = mark(p.instrumentId);
+    if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
+  }
+  return open;
+}
+
+/* ------------------------------------------------------------------ Accounts */
+
+const accountCols: DataColumn<Account>[] = [
+  { id: 'account', header: 'Account', width: 1.4, mono: true, value: (a) => masked(a) },
+  {
+    id: 'connection',
+    header: 'Connection',
+    width: 1.1,
+    value: (a) => (a.kind === 'paper' ? 'HT Sim' : a.kind === 'replay' ? 'Replay' : 'Broker'),
+    render: (a) => (
+      <span className="muted">
+        {a.kind === 'paper' ? 'HT Sim' : a.kind === 'replay' ? 'Replay' : 'Broker'}
+      </span>
+    ),
+  },
+  {
+    id: 'balance',
+    header: 'Balance',
+    align: 'right',
+    value: (a) => a.balance,
+    render: (a) => money(a.balance),
+  },
+  {
+    id: 'equity',
+    header: 'Equity',
+    align: 'right',
+    value: (a) => a.balance + openPnl(a.id),
+    render: (a) => money(a.balance + openPnl(a.id)),
+  },
+  {
+    id: 'open',
+    header: 'Open P&L',
+    width: 0.9,
+    align: 'right',
+    value: (a) => openPnl(a.id),
+    render: (a) => pnl(openPnl(a.id)),
+  },
+  {
+    id: 'day',
+    header: 'Day P&L',
+    width: 0.9,
+    align: 'right',
+    value: (a) => risk.status(a.id).dayPnl,
+    render: (a) => pnl(risk.status(a.id).dayPnl),
+  },
+  {
+    id: 'risk',
+    header: 'Risk',
+    width: 0.9,
+    align: 'right',
+    value: (a) => {
+      const s = risk.status(a.id);
+      return s.locked
+        ? 'Locked'
+        : s.usage >= 0.25
+          ? `${Math.round(s.usage * 100)}% of limit`
+          : 'OK';
+    },
+    render: (a) => {
+      const s = risk.status(a.id);
+      if (s.locked) return <Pill tone="down">Locked</Pill>;
+      if (s.usage >= 0.25)
+        return (
+          <Pill tone={s.usage >= 0.8 ? 'down' : 'warning'}>
+            {Math.round(s.usage * 100)}% of limit
+          </Pill>
+        );
+      return <Pill tone="up">OK</Pill>;
+    },
+  },
+  {
+    id: 'currency',
+    header: 'Currency',
+    width: 0.6,
+    defaultHidden: true,
+    value: (a) => a.currency,
+  },
+];
+
+function Accounts({ state, setParams }: ModuleViewProps) {
   useTicker();
-  const rows = [...paper.accounts.values()].map((a) => {
-    let open = 0;
-    for (const p of paper.allPositions(a.id)) {
-      const m = hub.peek(p.instrumentId)?.lastTrade?.px;
-      if (m !== undefined) open += paper.unrealized(a.id, p.instrumentId, m);
-    }
-    return [
-      a.name,
-      'HT Sim (paper)',
-      a.balance.toFixed(2),
-      (a.balance + open).toFixed(2),
-      <span className={open >= 0 ? 'up' : 'down'}>{open.toFixed(2)}</span>,
-      <span className={a.balance - a.startingBalance >= 0 ? 'up' : 'down'}>
-        {(a.balance - a.startingBalance).toFixed(2)}
-      </span>,
-      a.locked ? <Badge kind="error">Locked</Badge> : <Badge kind="live">OK</Badge>,
-    ];
-  });
+  const rows = [...paper.accounts.values()];
+  const total = rows.reduce((s, a) => s + a.balance + openPnl(a.id), 0);
   return (
-    <SimpleTable
-      head={['Account', 'Connection', 'Balance', 'Equity', 'Open P&L', 'Day P&L', 'Risk']}
+    <DataTable
+      testId="accounts-table"
+      title="Accounts"
+      subtitle={`${rows.length} account${rows.length === 1 ? '' : 's'}`}
       rows={rows}
+      columns={accountCols}
+      rowKey={(a) => a.id}
       empty="No accounts"
+      footer={<span>Total equity {money(total)}</span>}
+      {...tableParams(state.params, setParams, accountCols)}
     />
   );
 }
 
-function Positions() {
-  useTicker();
-  const rows = paper.allPositions(PAPER_ACCOUNT).map((p) => {
-    const m = hub.peek(p.instrumentId)?.lastTrade?.px;
-    const u = m !== undefined ? paper.unrealized(PAPER_ACCOUNT, p.instrumentId, m) : 0;
-    return [
-      sym(p.instrumentId),
-      'Paper',
-      sidePill(p.qty > 0 ? 'buy' : 'sell'),
-      Math.abs(p.qty),
-      px(p.instrumentId, p.avgPx),
-      px(p.instrumentId, m),
-      <span className={u >= 0 ? 'up' : 'down'}>{u.toFixed(2)}</span>,
-      <span className="row gap6">
-        <Button size="xs" onClick={() => paper.flatten(PAPER_ACCOUNT, p.instrumentId)}>
+/* ------------------------------------------------------------------ Positions */
+
+type PosRow = Position & { accountId: string };
+const upnl = (p: PosRow) => {
+  const m = mark(p.instrumentId);
+  return m !== undefined ? paper.unrealized(p.accountId, p.instrumentId, m) : 0;
+};
+
+const positionCols: DataColumn<PosRow>[] = [
+  {
+    id: 'instrument',
+    header: 'Instrument',
+    width: 1.1,
+    mono: true,
+    value: (p) => sym(p.instrumentId),
+  },
+  {
+    id: 'account',
+    header: 'Account',
+    width: 1.2,
+    value: (p) => accName(p.accountId),
+    render: (p) => <span className="muted">{accName(p.accountId)}</span>,
+  },
+  {
+    id: 'side',
+    header: 'Side',
+    width: 0.7,
+    value: (p) => (p.qty > 0 ? 'LONG' : 'SHORT'),
+    render: (p) => <Pill tone={p.qty > 0 ? 'up' : 'down'}>{p.qty > 0 ? 'LONG' : 'SHORT'}</Pill>,
+  },
+  { id: 'qty', header: 'Qty', width: 0.6, align: 'right', value: (p) => Math.abs(p.qty) },
+  {
+    id: 'avg',
+    header: 'Avg price',
+    align: 'right',
+    value: (p) => p.avgPx,
+    render: (p) => px(p.instrumentId, p.avgPx),
+  },
+  {
+    id: 'mark',
+    header: 'Mark',
+    align: 'right',
+    value: (p) => mark(p.instrumentId),
+    render: (p) => px(p.instrumentId, mark(p.instrumentId)),
+  },
+  {
+    id: 'open',
+    header: 'Open P&L',
+    align: 'right',
+    value: (p) => upnl(p),
+    render: (p) => <b>{pnl(upnl(p))}</b>,
+  },
+  {
+    id: 'actions',
+    header: '',
+    width: 1.5,
+    align: 'right',
+    action: true,
+    value: () => '',
+    render: (p) => (
+      <>
+        <button className="dt-cell-btn" onClick={() => paper.flatten(p.accountId, p.instrumentId)}>
           Close
-        </Button>
-        <Button size="xs" onClick={() => paper.reverse(PAPER_ACCOUNT, p.instrumentId)}>
+        </button>
+        <button className="dt-cell-btn" onClick={() => paper.reverse(p.accountId, p.instrumentId)}>
           Reverse
-        </Button>
-      </span>,
-    ];
-  });
-  return (
-    <div className="col fill">
-      <SimpleTable
-        head={['Instrument', 'Account', 'Side', 'Qty', 'Avg price', 'Mark', 'Open P&L', '']}
-        rows={rows}
-        empty="No open positions"
-      />
-      <div className="tbl-foot">
-        <Button size="sm" onClick={() => paper.flattenAll(PAPER_ACCOUNT)}>
-          Flatten all
-        </Button>
-      </div>
-    </div>
-  );
-}
+        </button>
+      </>
+    ),
+  },
+];
 
-function Orders() {
+function Positions({ state, setParams }: ModuleViewProps) {
   useTicker();
-  const rows = [...paper.orders.values()]
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, 300)
-    .map((o) => [
-      time(o.createdAt),
-      sym(o.instrumentId),
-      sidePill(o.side),
-      `${o.type}${o.role && o.role !== 'entry' ? ` (${o.role.toUpperCase()})` : ''}`,
-      `${o.filled}/${o.qty}`,
-      px(o.instrumentId, o.px ?? o.stopPx),
-      o.tif,
-      <Badge
-        kind={
-          o.status === 'filled'
-            ? 'live'
-            : o.status === 'rejected'
-              ? 'error'
-              : o.status === 'cancelled'
-                ? 'default'
-                : 'delayed'
-        }
-      >
-        {o.status}
-        {o.reason ? `: ${o.reason}` : ''}
-      </Badge>,
-      o.status === 'working' || o.status === 'partial' ? (
-        <Button size="xs" onClick={() => paper.cancel(o.id)}>
-          ×
-        </Button>
-      ) : null,
-    ]);
+  const rows = paper.allPositions();
+  const net = rows.reduce((s, p) => s + upnl(p), 0);
   return (
-    <div className="col fill">
-      <SimpleTable
-        head={['Time', 'Instrument', 'Side', 'Type', 'Filled', 'Price', 'TIF', 'Status', '']}
-        rows={rows}
-        empty="No orders yet"
-      />
-      <div className="tbl-foot">
-        <Button size="sm" onClick={() => paper.cancelAll(PAPER_ACCOUNT)}>
-          Cancel all
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function Trades() {
-  useTicker();
-  const rows = [...paper.fills]
-    .reverse()
-    .slice(0, 500)
-    .map((f) => [
-      time(f.ts),
-      sym(f.instrumentId),
-      sidePill(f.side),
-      f.qty,
-      px(f.instrumentId, f.px),
-      f.commission.toFixed(2),
-      f.realized.toFixed(2),
-      f.liquidity,
-    ]);
-  return (
-    <SimpleTable
-      head={[
-        'Time',
-        'Instrument',
-        'Side',
-        'Qty',
-        'Price',
-        'Commission',
-        'Realized P&L',
-        'Liquidity',
-      ]}
+    <DataTable
+      testId="positions-table"
+      title="Positions"
+      subtitle={`${rows.length} open`}
       rows={rows}
-      empty="No fills yet"
+      columns={positionCols}
+      rowKey={(p) => `${p.accountId}|${p.instrumentId}`}
+      empty="No open positions"
+      actions={
+        <button
+          className="dt-btn dt-btn--primary"
+          onClick={() => [...paper.accounts.keys()].forEach((a) => paper.flattenAll(a))}
+        >
+          Flatten all
+        </button>
+      }
+      footer={
+        <span>
+          Net open P&amp;L {pnl(net)} · Breakeven = H · Flatten all from the command palette
+        </span>
+      }
+      {...tableParams(state.params, setParams, positionCols)}
     />
   );
 }
 
-const wrap = (C: () => JSX.Element) =>
-  function ModuleTable() {
+/* ------------------------------------------------------------------ Orders */
+
+const typeLabel = (o: Order) => {
+  const t = o.type === 'stop-limit' ? 'Stop limit' : o.type[0]!.toUpperCase() + o.type.slice(1);
+  return o.role && o.role !== 'entry' ? `${t} (${o.role.toUpperCase()})` : t;
+};
+const isWorking = (o: Order) => o.status === 'working' || o.status === 'partial';
+const statusTone = (o: Order) =>
+  o.status === 'filled'
+    ? 'up'
+    : o.status === 'rejected'
+      ? 'down'
+      : o.status === 'cancelled'
+        ? 'muted'
+        : 'info';
+
+function modify(o: Order) {
+  const i = instrumentById(o.instrumentId);
+  if (!i) return;
+  const isStop = o.type === 'stop' || (o.type === 'stop-limit' && o.px === undefined);
+  const cur = isStop ? o.stopPx : o.px;
+  const v = window.prompt(
+    `New ${isStop ? 'stop' : 'limit'} price for ${i.symbol}`,
+    cur === undefined ? '' : formatPrice(cur, i),
+  );
+  if (v === null) return;
+  const p = parseFloat(v);
+  if (!Number.isFinite(p) || p <= 0) return;
+  const ticks = Math.round(p / i.tickSize);
+  paper.modify(o.id, isStop ? { stopPx: ticks } : { px: ticks });
+}
+
+const orderCols: DataColumn<Order>[] = [
+  {
+    id: 'time',
+    header: 'Time',
+    width: 0.9,
+    value: (o) => o.createdAt,
+    render: (o) => <span className="muted">{time(o.createdAt)}</span>,
+  },
+  {
+    id: 'instrument',
+    header: 'Instrument',
+    width: 1.1,
+    mono: true,
+    value: (o) => sym(o.instrumentId),
+  },
+  { id: 'side', header: 'Side', width: 0.6, value: (o) => o.side, render: (o) => sidePill(o.side) },
+  {
+    id: 'type',
+    header: 'Type',
+    width: 0.9,
+    value: typeLabel,
+    render: (o) => (
+      <>
+        {o.oco && <span title={`OCO group ${o.oco}`}>⧉ </span>}
+        {typeLabel(o)}
+      </>
+    ),
+  },
+  {
+    id: 'qty',
+    header: 'Qty',
+    width: 0.7,
+    align: 'right',
+    value: (o) => o.qty,
+    render: (o) => (o.filled && o.filled < o.qty ? `${o.filled}/${o.qty}` : o.qty),
+  },
+  {
+    id: 'price',
+    header: 'Price',
+    width: 0.9,
+    align: 'right',
+    value: (o) => o.px ?? o.stopPx ?? o.avgFillPx,
+    render: (o) =>
+      px(o.instrumentId, o.px ?? o.stopPx ?? (o.status === 'filled' ? o.avgFillPx : undefined)),
+  },
+  {
+    id: 'tif',
+    header: 'TIF',
+    width: 0.5,
+    value: (o) => o.tif,
+    render: (o) => <span className="muted">{o.tif}</span>,
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    width: 1.1,
+    value: (o) => o.status,
+    render: (o) => (
+      <span title={o.reason}>
+        <Pill tone={statusTone(o)}>
+          {o.status === 'partial' ? 'Partial' : o.status[0]!.toUpperCase() + o.status.slice(1)}
+        </Pill>
+        {o.reason ? <span className="muted"> {o.reason}</span> : null}
+      </span>
+    ),
+  },
+  {
+    id: 'oco',
+    header: 'OCO group',
+    width: 0.9,
+    mono: true,
+    defaultHidden: true,
+    value: (o) => o.oco ?? '',
+  },
+  {
+    id: 'account',
+    header: 'Account',
+    defaultHidden: true,
+    value: (o) => accName(o.accountId),
+  },
+  { id: 'id', header: 'Order ID', mono: true, defaultHidden: true, value: (o) => o.id },
+  {
+    id: 'actions',
+    header: '',
+    width: 1.1,
+    align: 'right',
+    action: true,
+    value: () => '',
+    render: (o) =>
+      isWorking(o) ? (
+        <>
+          <button className="dt-cell-btn" onClick={() => modify(o)}>
+            Modify
+          </button>
+          <button
+            className="dt-cell-btn"
+            aria-label="Cancel order"
+            onClick={() => paper.cancel(o.id)}
+          >
+            ✕
+          </button>
+        </>
+      ) : null,
+  },
+];
+
+function Orders({ state, setParams }: ModuleViewProps) {
+  useTicker();
+  const rows = [...paper.orders.values()].sort(
+    (a, b) => Number(isWorking(b)) - Number(isWorking(a)) || b.createdAt - a.createdAt,
+  );
+  const working = rows.filter(isWorking).length;
+  return (
+    <DataTable
+      testId="orders-table"
+      title="Orders"
+      subtitle={`working ${working} · history`}
+      rows={rows}
+      columns={orderCols}
+      rowKey={(o) => o.id}
+      empty="No orders yet"
+      actions={
+        <button
+          className="dt-btn dt-btn--primary"
+          onClick={() => [...paper.accounts.keys()].forEach((a) => paper.cancelAll(a))}
+        >
+          Cancel all
+        </button>
+      }
+      footer={
+        <span>OCO groups shown with ⧉ (☰ → Group by → OCO group) · drag on chart to modify</span>
+      }
+      {...tableParams(state.params, setParams, orderCols)}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ Trades */
+
+const tradeCols: DataColumn<Fill>[] = [
+  {
+    id: 'time',
+    header: 'Time',
+    width: 1,
+    value: (f) => f.ts,
+    render: (f) => <span className="muted">{time(f.ts, true)}</span>,
+  },
+  {
+    id: 'instrument',
+    header: 'Instrument',
+    width: 1.1,
+    mono: true,
+    value: (f) => sym(f.instrumentId),
+  },
+  { id: 'side', header: 'Side', width: 0.6, value: (f) => f.side, render: (f) => sidePill(f.side) },
+  { id: 'qty', header: 'Qty', width: 0.5, align: 'right', value: (f) => f.qty },
+  {
+    id: 'price',
+    header: 'Price',
+    width: 0.9,
+    align: 'right',
+    value: (f) => f.px,
+    render: (f) => px(f.instrumentId, f.px),
+  },
+  {
+    id: 'commission',
+    header: 'Commission',
+    width: 0.8,
+    align: 'right',
+    value: (f) => f.commission,
+    render: (f) => <span className="muted">{money(-f.commission)}</span>,
+  },
+  {
+    id: 'realized',
+    header: 'Realized P&L',
+    width: 0.9,
+    align: 'right',
+    value: (f) => f.realized,
+    render: (f) => (f.realized === 0 ? <span className="muted">—</span> : <b>{pnl(f.realized)}</b>),
+  },
+  {
+    id: 'order',
+    header: 'Order ID',
+    width: 1,
+    mono: true,
+    value: (f) => f.orderId,
+    render: (f) => <span className="muted">{f.orderId}</span>,
+  },
+  {
+    id: 'liquidity',
+    header: 'Liquidity',
+    width: 0.6,
+    defaultHidden: true,
+    value: (f) => f.liquidity,
+  },
+  { id: 'account', header: 'Account', defaultHidden: true, value: (f) => accName(f.accountId) },
+];
+
+function Trades({ state, setParams }: ModuleViewProps) {
+  useTicker();
+  const rows = [...paper.fills].reverse();
+  return (
+    <DataTable
+      testId="trades-table"
+      title="Trades"
+      subtitle={`${rows.length} fill${rows.length === 1 ? '' : 's'}`}
+      rows={rows}
+      columns={tradeCols}
+      rowKey={(f) => f.id}
+      empty="No fills yet"
+      exportName="htflow-trades"
+      footer={<span>Commission per account (paper: per-unit + taker fee) · ☰ → Export CSV</span>}
+      {...tableParams(state.params, setParams, tradeCols)}
+    />
+  );
+}
+
+const wrap = (C: (p: ModuleViewProps) => JSX.Element) =>
+  function ModuleTable(p: ModuleViewProps) {
     return (
       <div className="module-window">
-        <C />
+        <C {...p} />
       </div>
     );
   };

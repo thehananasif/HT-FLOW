@@ -133,8 +133,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P12 — Drawing tools
 
-- [~] Side-tool groups list every tool with its shortcut (Lines, Shapes, Volume Analysis, Fibonacci, Measurement, Elliott, Markers, Text, Positions, Gann & Pitchfork, Objects) — **tools are disabled until P12**
-- [ ] Every drawing tool, anchors, magnet, lock / hide / clone, styles, extend, per-timeframe visibility, sync across charts, alerts on cross, Objects List, Undo / Redo
+- [x] Side-tool groups list every tool with its shortcut (Lines, Shapes, Volume Analysis, Fibonacci, Measurement, Elliott, Markers, Text, Positions, Gann & Pitchfork, Objects); tools are live
+- [x] 67 drawing tools on a shared `@htflow/drawings` package (model, time axis, geometry, controller, history) attached to every chart as a chart extension; drawings persist per window and across layout tabs
+- [x] Anchors with drag editing, magnet (off / weak / strong presets), lock / hide / clone / delete, style toolbar (colour, width, dash, fill, text), extend left / right, per-timeframe visibility, sync across linked charts, Objects List window, Undo / Redo history, hotkeys
+- [~] Alert on cross: logic for horizontal line / ray only, no UI toggle yet; emoji marker has no picker; regression σ and anchored-VWAP band multipliers have no dialog field; magnet sensitivity is presets, not a slider; single selection only
+- [ ] ZigZag volume profile, CVD correlation, Magnifier, Remove indicators tools; Ctrl+Z / Ctrl+Y as registry shortcuts; drawings on both panes of Order Flow (Dark) (left pane only); Objects List ribbon button; i18n of drawing strings
 
 ## P13 — Indicator framework
 
@@ -179,8 +182,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P20 — Tables group
 
-- [~] Accounts, Positions (Close / Reverse / Flatten all), Orders (cancel / cancel all), Trades (fills) tables from the paper engine — virtualisation, column chooser, filters, grouping, CSV / XLSX export, saved views pending
-- [ ] Trading Activity, Trading Journal (stats engine exists in `@htflow/trading`: FIFO round trips, win rate, profit factor, expectancy, max DD), Trading Strategies
+- [x] Accounts (masked ids, risk pill, total equity), Positions (Close / Reverse / Flatten all), Orders (OCO marker and group, Modify, cancel / cancel all), Trades (ms time, commission, realized) on a shared virtualised DataTable: column chooser, sort, per-column filters (text and `>` / `<=` / `=`), grouping, saved views, CSV export
+- [ ] XLSX export; inline order modify (price prompt today); Connect account button (no broker connector yet)
+- [x] Trading Activity: fills, brackets, cancels, rejections, locks / unlocks, risk warnings, alert firings, connection errors; 90-day / 5,000-event rolling log per user; `activityLog.add()` API
+- [x] Trading Journal (P36): R multiple, expectancy ($ and R), long / short win rate, break-evens, commission, max DD ($, %, date), best setup, equity curve with drawdown, calendar heatmap, MAE / MFE from the tape, tags / notes / rating / image attachments, manual entries, CSV export; validated against 500 paper trades
+- [ ] Automatic chart snapshots at entry / exit; Trading Strategies
 
 ## P21 — Market analytics tools
 
@@ -192,12 +198,15 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P23 — Alerts & Risk Management
 
-- [~] Daily-risk meter in the title bar (paper account loss vs limit)
-- [ ] Alerts engine and manager; risk rules, prop-firm presets, auto-flatten and lock
+- [x] Risk engine (P41): daily loss (flatten + lock to next day), trailing drawdown, max position per instrument, orders per minute, trades per day, trading hours with time zone, profit target; 80% warnings; prop-firm / conservative presets; hashed override password; locks survive restart; title-bar meter shows Locked
+- [x] Alerts (`@htflow/alerts`): price cross, big trade, bar delta, DOM level within N ticks, connection lost; count / expiry / cooldown; popup, beep, desktop notification, activity log; Alerts window; chart right-click "Set alert" and alert lines
+- [ ] Indicator / drawing / liquidation / funding alert conditions, Telegram / Discord, flash window, custom sound; news-flatten has a hook but no calendar feed; risk covers paper accounts only
 
 ## P24 — Replay
 
-- [ ] Tick + depth replay through the same bus, speed 0.25×–1000×, step, replay account
+- [x] `@htflow/replay`: deterministic engine (trades, book snapshots / deltas, keyframes), 0.25×–1000×, step tick / bar / back bar, jump to time, loop, bookmarks, multi-instrument synced groups; sources: simulator history, in-memory store history, pluggable `registerReplaySource()` for the tick store
+- [x] `replay:` feed provider (purple Replay badge / status pill), Replay window (setup, templates, replay paper account with tag routing), chart control bar (P35) with timeline, speeds, Go to time, bookmarks, Sync, Loop; Space / arrows / 1–7 hotkeys
+- [ ] Ghost future bars (hide-future is always on), fills stamped in replay time, B/S fill tags, economic-event markers, missing-data download, persisted bookmarks; Replay window opens as a tab over the chart
 
 ## P25 — Workspaces, layouts, linking
 
@@ -247,7 +256,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [~] P32 Connections window — see P05
 - [~] P33 Chart types — 4 of 12 renderers (+ bars / line / area / transparent)
 - [ ] P34 Chart settings window
-- [ ] P35 Chart Replay control · [ ] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [ ] P38 Market analytics windows · [ ] P39 RSS / News / Calendar · [~] P40 tables (see P20) · [ ] P41 Watchlist / Alerts / Risk / Forward curve · [ ] P42 Strategies + VPS runner · [ ] P43 Common settings (hot keys, sounds, time zones, commission, languages, custom modules)
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [ ] P38 Market analytics windows · [ ] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [~] P41 Alerts / Risk done, Watchlist / Forward curve · [ ] P42 Strategies + VPS runner · [ ] P43 Common settings (hot keys, sounds, time zones, commission, languages, custom modules)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 
