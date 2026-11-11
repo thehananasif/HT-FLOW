@@ -71,10 +71,16 @@ async fn fetch(url: reqwest::Url, client: reqwest::Client) -> CmdResult<String> 
     let mut resp = client.get(url).send().await.map_err(net)?;
     let status = resp.status();
     if !status.is_success() {
-        return Err(CmdError::new("net.http", format!("HTTP {}", status.as_u16())));
+        return Err(CmdError::new(
+            "net.http",
+            format!("HTTP {}", status.as_u16()),
+        ));
     }
     if resp.content_length().is_some_and(|l| l > MAX_BYTES as u64) {
-        return Err(CmdError::new("net.too_large", "Response is larger than 5 MB"));
+        return Err(CmdError::new(
+            "net.too_large",
+            "Response is larger than 5 MB",
+        ));
     }
     let ct = resp
         .headers()
@@ -84,7 +90,10 @@ async fn fetch(url: reqwest::Url, client: reqwest::Client) -> CmdResult<String> 
     let mut buf: Vec<u8> = Vec::new();
     while let Some(chunk) = resp.chunk().await.map_err(net)? {
         if buf.len() + chunk.len() > MAX_BYTES {
-            return Err(CmdError::new("net.too_large", "Response is larger than 5 MB"));
+            return Err(CmdError::new(
+                "net.too_large",
+                "Response is larger than 5 MB",
+            ));
         }
         buf.extend_from_slice(&chunk);
     }
@@ -119,19 +128,34 @@ mod tests {
     fn only_http_urls() {
         assert!(validate_url("https://example.com/rss.xml").is_ok());
         assert!(validate_url(" http://example.com ").is_ok());
-        for bad in ["file:///etc/passwd", "ftp://x.com/a", "javascript:alert(1)", "rss", ""] {
+        for bad in [
+            "file:///etc/passwd",
+            "ftp://x.com/a",
+            "javascript:alert(1)",
+            "rss",
+            "",
+        ] {
             assert_eq!(validate_url(bad).unwrap_err().code, "net.bad_url", "{bad}");
         }
     }
 
     #[test]
     fn charsets() {
-        assert_eq!(detect_charset(Some("text/xml; charset=\"ISO-8859-1\""), b""), "iso-8859-1");
         assert_eq!(
-            detect_charset(None, b"<?xml version=\"1.0\" encoding='windows-1252'?><rss/>"),
+            detect_charset(Some("text/xml; charset=\"ISO-8859-1\""), b""),
+            "iso-8859-1"
+        );
+        assert_eq!(
+            detect_charset(
+                None,
+                b"<?xml version=\"1.0\" encoding='windows-1252'?><rss/>"
+            ),
             "windows-1252"
         );
-        assert_eq!(detect_charset(Some("application/rss+xml"), b"<rss/>"), "utf-8");
+        assert_eq!(
+            detect_charset(Some("application/rss+xml"), b"<rss/>"),
+            "utf-8"
+        );
         assert_eq!(decode(&[0xEF, 0xBB, 0xBF, b'a'], "utf-8"), "a");
         assert_eq!(decode(&[b'c', 0xE9], "iso-8859-1"), "c\u{e9}");
     }
@@ -165,8 +189,13 @@ mod tests {
         assert_eq!(t, "<rss>ok \u{2713}</rss>");
 
         let url = serve("404 Not Found", b"nope".to_vec());
-        let e = fetch(validate_url(&url).unwrap(), c.clone()).await.unwrap_err();
-        assert_eq!((e.code.as_str(), e.message.as_str()), ("net.http", "HTTP 404"));
+        let e = fetch(validate_url(&url).unwrap(), c.clone())
+            .await
+            .unwrap_err();
+        assert_eq!(
+            (e.code.as_str(), e.message.as_str()),
+            ("net.http", "HTTP 404")
+        );
 
         let url = serve("200 OK", vec![b'x'; MAX_BYTES + 1]);
         let e = fetch(validate_url(&url).unwrap(), c).await.unwrap_err();
