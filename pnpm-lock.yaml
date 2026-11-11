@@ -115,6 +115,15 @@ importers:
         specifier: ^7.1.7
         version: 7.3.7(@types/node@22.20.5)
 
+  packages/analytics:
+    dependencies:
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+      '@htflow/tape':
+        specifier: workspace:*
+        version: link:../tape
+
   packages/chart-engine:
     dependencies:
       '@htflow/market-data':

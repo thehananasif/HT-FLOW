@@ -230,13 +230,14 @@ export class TradeCursor {
     this.lastTs = this.idx > 0 ? trades[this.idx - 1]!.ts : Number.NEGATIVE_INFINITY;
   }
 
-  next(trades: readonly Trade[]): [number, number] {
+  /** Index range [from, to) of unconsumed trades (at most `max` of them) and marks it consumed. */
+  next(trades: readonly Trade[], max = Number.POSITIVE_INFINITY): [number, number] {
     if (trades !== this.arr) {
       this.arr = trades;
       this.idx = lowerBoundTs(trades, this.lastTs + 1e-9);
     }
     const from = Math.min(this.idx, trades.length);
-    const to = trades.length;
+    const to = Math.min(trades.length, from + max);
     this.idx = to;
     if (to > from) this.lastTs = trades[to - 1]!.ts;
     return [from, to];
