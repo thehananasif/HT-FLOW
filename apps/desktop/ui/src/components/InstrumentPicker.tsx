@@ -231,6 +231,7 @@ export function InstrumentPicker({
       role="dialog"
       aria-label="Instrument picker"
       style={{ left: pos.left, top: pos.top }}
+      tabIndex={-1}
       onKeyDown={onKey}
       data-testid="instrument-picker-popover"
     >
