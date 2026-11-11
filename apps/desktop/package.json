@@ -21,6 +21,7 @@
     "@htflow/i18n": "workspace:*",
     "@htflow/indicator-sdk": "workspace:*",
     "@htflow/indicators": "workspace:*",
+    "@htflow/info": "workspace:*",
     "@htflow/market-data": "workspace:*",
     "@htflow/options": "workspace:*",
     "@htflow/replay": "workspace:*",
