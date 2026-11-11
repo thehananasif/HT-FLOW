@@ -95,7 +95,7 @@ registerCommands([
     id: `settings.${s.id}`,
     label: `Settings: ${s.label}`,
     group: 'Platform' as const,
-    keywords: 'preferences ' + s.description,
+    keywords: 'preferences',
     run: () => openSettings(s.id),
   })),
   {
