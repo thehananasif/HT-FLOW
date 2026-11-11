@@ -1,5 +1,6 @@
 import {
   Activity,
+  Database,
   AlarmClock,
   BarChart3,
   BookOpen,
@@ -47,6 +48,7 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   heatmap: Flame,
   'forward-curve': LineChart,
   connections: Network,
+  'data-manager': Database,
   workspaces: LayoutGrid,
   'layout-settings': LayoutTemplate,
   alerts: AlarmClock,
