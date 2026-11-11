@@ -678,14 +678,34 @@ const toastListeners = new Set<(t: ToastMsg[]) => void>();
 let toasts: ToastMsg[] = [];
 let toastId = 1;
 
-export function toast(kind: ToastMsg['kind'], title: string, body?: string, ms = 4000): void {
+/** Notification behaviour (Settings → Common → Notifications). */
+export interface ToastConfig {
+  /** False hides every notification except errors. */
+  show: boolean;
+  /** Default on-screen time when the caller passes none. */
+  durationMs: number;
+  /** Most notifications on screen at once. */
+  max: number;
+}
+let toastConfig: ToastConfig = { show: true, durationMs: 4000, max: 5 };
+
+export function configureToasts(c: Partial<ToastConfig>): void {
+  toastConfig = { ...toastConfig, ...c };
+  if (toasts.length > toastConfig.max) {
+    toasts = toasts.slice(-toastConfig.max);
+    toastListeners.forEach((l) => l(toasts));
+  }
+}
+
+export function toast(kind: ToastMsg['kind'], title: string, body?: string, ms?: number): void {
+  if (!toastConfig.show && kind !== 'error') return;
   const t: ToastMsg = { id: toastId++, kind, title, body };
-  toasts = [...toasts, t].slice(-5);
+  toasts = [...toasts, t].slice(-toastConfig.max);
   toastListeners.forEach((l) => l(toasts));
   setTimeout(() => {
     toasts = toasts.filter((x) => x.id !== t.id);
     toastListeners.forEach((l) => l(toasts));
-  }, ms);
+  }, ms ?? toastConfig.durationMs);
 }
 
 export function Toaster() {

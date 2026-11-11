@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { registerCommands } from '../../shell/commands';
 import {
   SECTIONS,
@@ -10,12 +11,21 @@ import {
 import { registerModule, type ModuleViewProps } from '../registry';
 import { installSettingsEffects } from './effects';
 import { installFpsOverlay } from './fpsOverlay';
+import { ConfirmHost } from './ConfirmHost';
 import { SettingsView } from './SettingsView';
 import './styles.css';
 
 installSettingsSync();
 installSettingsEffects();
 installFpsOverlay();
+
+// Confirmation dialogs (state/confirm.ts) render here, independent of any window.
+if (typeof document !== 'undefined' && !document.getElementById('ht-confirm-host')) {
+  const host = document.createElement('div');
+  host.id = 'ht-confirm-host';
+  document.body.appendChild(host);
+  createRoot(host).render(<ConfirmHost />);
+}
 
 /** Section requested by the last "Settings: …" command (read when the window mounts). */
 let pendingSection: SectionId | null = null;

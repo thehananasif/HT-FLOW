@@ -10,7 +10,8 @@ import {
   type DivergenceSignal,
 } from '@htflow/analytics';
 import { registerModule, type ModuleViewProps } from '../registry';
-import { beep, fmtTime } from '../smart-tape/shared';
+import { beep } from '../smart-tape/shared';
+import { fmtClock } from '../../state/format';
 import {
   CommonSettings,
   ScannerFrame,
@@ -122,7 +123,7 @@ function DeltaDivergence({ state, setParams }: ModuleViewProps) {
       id: 'time',
       label: 'Time',
       sort: (r) => r.s.t,
-      cell: (r) => <span className="muted">{fmtTime(r.s.t, false).slice(0, 5)}</span>,
+      cell: (r) => <span className="muted">{fmtClock(r.s.t, { seconds: false })}</span>,
       width: '0.6fr',
     },
   ];

@@ -29,13 +29,26 @@ import {
 export type SectionId =
   | 'general'
   | 'appearance'
+  | 'chart'
+  | 'footprint'
+  | 'heatmap'
+  | 'dom'
+  | 'tape'
+  | 'trading'
+  | 'data'
+  | 'alerts'
   | 'hotkeys'
   | 'sounds'
+  | 'risk'
+  | 'privacy'
   | 'timezones'
   | 'commission'
   | 'dataDelays'
   | 'performance'
-  | 'common';
+  | 'logs'
+  | 'common'
+  | 'modules'
+  | 'about';
 
 export const SECTIONS: { id: SectionId; label: string; description: string }[] = [
   {
@@ -49,6 +62,49 @@ export const SECTIONS: { id: SectionId; label: string; description: string }[] =
     description: 'Theme, every colour token, UI scale, font size and ribbon.',
   },
   {
+    id: 'chart',
+    label: 'Chart',
+    description:
+      'Defaults for every chart: mode, candle colours, background, grid, axes, crosshair, legend.',
+  },
+  {
+    id: 'footprint',
+    label: 'Footprint',
+    description:
+      'Cell mode, imbalance rules, POC / value area, rows and fonts of footprint charts.',
+  },
+  {
+    id: 'heatmap',
+    label: 'Heatmap',
+    description: 'Liquidity-map palette, contrast, trade bubbles and history window.',
+  },
+  {
+    id: 'dom',
+    label: 'DOM',
+    description: 'Depth-of-market ladder: row size, centring, big-lot highlight and levels.',
+  },
+  {
+    id: 'tape',
+    label: 'Tape',
+    description: 'Time & sales: rows kept, size filter, big-trade threshold and colouring.',
+  },
+  {
+    id: 'trading',
+    label: 'Trading',
+    description: 'Default quantity, order type, slippage, brackets, one-click and confirmations.',
+  },
+  {
+    id: 'data',
+    label: 'Data',
+    description: 'Provider priority, recorder, cache size, history days and reconnects.',
+  },
+  {
+    id: 'alerts',
+    label: 'Alerts',
+    description:
+      'How alerts notify you, default expiry and limits. Sounds live on the Sounds page.',
+  },
+  {
     id: 'hotkeys',
     label: 'Hot keys',
     description: 'Every command is rebindable. Click a shortcut to record a new one.',
@@ -57,6 +113,16 @@ export const SECTIONS: { id: SectionId; label: string; description: string }[] =
     id: 'sounds',
     label: 'Sounds',
     description: 'A sound per event, built-in or your own .wav / .mp3.',
+  },
+  {
+    id: 'risk',
+    label: 'Risk',
+    description: 'Default risk limits applied to new accounts and the pre-trade checks.',
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy & security',
+    description: 'Auto-lock, telemetry (always off, local only) and clearing local data.',
   },
   {
     id: 'timezones',
@@ -79,9 +145,24 @@ export const SECTIONS: { id: SectionId; label: string; description: string }[] =
     description: 'Rendering, FPS cap, debug overlay and worker threads.',
   },
   {
+    id: 'logs',
+    label: 'Logs',
+    description: 'Log level, retention and where the log files live.',
+  },
+  {
     id: 'common',
     label: 'Common settings',
     description: 'Applies to the whole app and every window.',
+  },
+  {
+    id: 'modules',
+    label: 'Custom modules',
+    description: 'Installed modules with enable / disable, and folders to load modules from.',
+  },
+  {
+    id: 'about',
+    label: 'About & updates',
+    description: 'Version, open-source licences, links and update preferences.',
   },
 ];
 
@@ -130,6 +211,10 @@ export interface StringDef extends BaseDef<string> {
   patternHint?: string;
   placeholder?: string;
 }
+/** "" = follow the theme, otherwise #RRGGBB. */
+export interface ColorDef extends BaseDef<string> {
+  type: 'color';
+}
 export interface TimezoneDef extends BaseDef<string> {
   type: 'timezone';
   /** Non-IANA values accepted besides IANA zones (e.g. "app", "exchange"). */
@@ -138,7 +223,16 @@ export interface TimezoneDef extends BaseDef<string> {
 export interface CustomDef<T> extends BaseDef<T> {
   type: 'custom';
   /** Which editor renders it (tokens, bindings, sounds, rules, clocks). */
-  editor: 'tokens' | 'hotkeys' | 'soundEvents' | 'customSounds' | 'commissionRules' | 'clocks';
+  editor:
+    | 'tokens'
+    | 'hotkeys'
+    | 'soundEvents'
+    | 'customSounds'
+    | 'commissionRules'
+    | 'clocks'
+    | 'providers'
+    | 'moduleToggles'
+    | 'moduleFolders';
   /** Returns the cleaned value, or undefined when invalid. */
   validate(v: unknown): T | undefined;
 }
@@ -148,6 +242,7 @@ export type SettingDef =
   | BooleanDef
   | EnumDef
   | StringDef
+  | ColorDef
   | TimezoneDef
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   | CustomDef<any>;
@@ -159,6 +254,11 @@ const oneOf = <T extends string>(d: Omit<EnumDef<T>, 'type'>): EnumDef<T> => ({
   ...d,
 });
 const str = (d: Omit<StringDef, 'type'>): StringDef => ({ type: 'string', ...d });
+const color = (d: Omit<ColorDef, 'type' | 'default'>): ColorDef => ({
+  type: 'color',
+  default: '',
+  ...d,
+});
 const tz = (d: Omit<TimezoneDef, 'type'>): TimezoneDef => ({ type: 'timezone', ...d });
 const custom = <T>(d: Omit<CustomDef<T>, 'type'>): CustomDef<T> => ({ type: 'custom', ...d });
 
@@ -318,8 +418,38 @@ function validateClocks(v: unknown): string[] | undefined {
   return [...new Set(v as string[])];
 }
 
+const KNOWN_PROVIDERS = ['binance-futures', 'bybit-linear', 'replay', 'mock'];
+
+function validateIdList(v: unknown): string[] | undefined {
+  if (!Array.isArray(v) || v.length > 200) return undefined;
+  if (!v.every((x) => typeof x === 'string' && /^[a-z0-9._-]{1,64}$/i.test(x))) return undefined;
+  return [...new Set(v as string[])];
+}
+
+/** Provider ids, first = highest priority; every known provider stays in the list. */
+function validateProviders(v: unknown): string[] | undefined {
+  const ids = validateIdList(v);
+  if (!ids || ids.length > 20) return undefined;
+  return [...ids, ...KNOWN_PROVIDERS.filter((p) => !ids.includes(p))];
+}
+
+function validateFolders(v: unknown): string[] | undefined {
+  if (!Array.isArray(v) || v.length > 20) return undefined;
+  const out: string[] = [];
+  for (const x of v) {
+    if (typeof x !== 'string') return undefined;
+    const s = x.trim();
+    if (!s || s.length > 260 || /[<>"|?*\0]/.test(s)) return undefined;
+    if (!out.includes(s)) out.push(s);
+  }
+  return out;
+}
+
+/** Languages written right-to-left: the layout mirrors, charts and numbers never do. */
+export const RTL_LANGUAGES: string[] = ['ur', 'ar'];
+
 const LANGUAGES: EnumOption<'en' | 'ur' | 'hi' | 'ar' | 'es' | 'ru' | 'tr' | 'zh'>[] = [
-  { value: 'en', label: 'English' },
+  { value: 'en', label: 'English — 100%' },
   { value: 'ur', label: 'اردو Urdu (RTL) — coming', disabled: true },
   { value: 'hi', label: 'हिन्दी Hindi — coming', disabled: true },
   { value: 'ar', label: 'العربية Arabic (RTL) — coming', disabled: true },
@@ -355,6 +485,34 @@ export const SCHEMA = {
     options: LANGUAGES,
     keywords: 'locale translation urdu hindi arabic spanish russian turkish chinese',
   }),
+  'general.rtl': oneOf({
+    section: 'general',
+    group: 'Language & region',
+    label: 'Layout direction (RTL preview)',
+    help: 'Automatic follows the language (always left-to-right until Urdu / Arabic ship). "Right to left" previews the mirrored layout now: panels and menus mirror; charts, price ladders and numbers never do.',
+    default: 'auto',
+    options: [
+      { value: 'auto', label: 'Automatic (by language)' },
+      { value: 'ltr', label: 'Left to right' },
+      { value: 'rtl', label: 'Right to left (preview)' },
+    ],
+    keywords: 'rtl urdu arabic mirror direction dir',
+  }),
+  'general.numberFormat': oneOf({
+    section: 'general',
+    group: 'Language & region',
+    label: 'Number format',
+    help: 'Decimal and thousands separators of numbers in tables and the journal.',
+    default: 'en-US',
+    options: [
+      { value: 'en-US', label: '1,234.56' },
+      { value: 'de-DE', label: '1.234,56' },
+      { value: 'fr-FR', label: '1 234,56' },
+      { value: 'en-IN', label: '1,23,456.78' },
+    ],
+    keywords: 'decimal separator thousands locale',
+    wired: false,
+  }),
   'general.dateFormat': oneOf({
     section: 'general',
     group: 'Language & region',
@@ -367,7 +525,6 @@ export const SCHEMA = {
       { value: 'DD/MM/YYYY', label: '31/03/2026' },
       { value: 'MM/DD/YYYY', label: '03/31/2026' },
     ],
-    wired: false,
   }),
   'general.firstDayOfWeek': oneOf({
     section: 'general',
@@ -380,7 +537,6 @@ export const SCHEMA = {
       { value: 'sunday', label: 'Sunday' },
       { value: 'saturday', label: 'Saturday' },
     ],
-    wired: false,
   }),
   'general.clock24h': bool({
     section: 'general',
@@ -400,7 +556,6 @@ export const SCHEMA = {
       { value: 'last', label: 'Last used workspace' },
       { value: 'default', label: 'Default layout (DOM + Footprint)' },
     ],
-    wired: false,
   }),
   'general.autosaveSec': num({
     section: 'general',
@@ -412,10 +567,10 @@ export const SCHEMA = {
     max: 600,
     step: 5,
     unit: 's',
-    wired: false,
   }),
   'general.confirmOrders': bool({
     section: 'general',
+    alsoIn: ['trading'],
     group: 'Confirmations',
     label: 'Confirm before sending orders',
     help: 'Ask before every order from the Trading panel, DOM or chart.',
@@ -424,11 +579,11 @@ export const SCHEMA = {
   }),
   'general.confirmFlatten': bool({
     section: 'general',
+    alsoIn: ['trading'],
     group: 'Confirmations',
     label: 'Confirm Flatten all / Cancel all',
     help: 'Ask before closing every position or cancelling every order.',
     default: true,
-    wired: false,
   }),
   'general.confirmCloseWindow': bool({
     section: 'general',
@@ -436,7 +591,6 @@ export const SCHEMA = {
     label: 'Confirm before closing a window',
     help: 'Ask before a chart / DOM / module window is closed.',
     default: false,
-    wired: false,
   }),
   'general.confirmExit': bool({
     section: 'general',
@@ -444,10 +598,10 @@ export const SCHEMA = {
     label: 'Confirm on exit',
     help: 'Ask before HT Flow is closed while positions or orders are open.',
     default: true,
-    wired: false,
   }),
   'general.autoLockMin': num({
     section: 'general',
+    alsoIn: ['privacy'],
     group: 'Security',
     label: 'Auto-lock after',
     help: 'Lock HT Flow after this many minutes without mouse or keyboard activity. 0 = never.',
@@ -538,6 +692,7 @@ export const SCHEMA = {
   // ---------------------------------------------------------------- Sounds
   'sounds.muteAll': bool({
     section: 'sounds',
+    alsoIn: ['alerts'],
     group: 'Master',
     label: 'Mute all sounds',
     help: 'Silence every sound without changing the per-event settings.',
@@ -546,6 +701,7 @@ export const SCHEMA = {
   }),
   'sounds.master': num({
     section: 'sounds',
+    alsoIn: ['alerts'],
     group: 'Master',
     label: 'Master volume',
     help: 'Multiplies every event volume.',
@@ -810,6 +966,7 @@ export const SCHEMA = {
   // ---------------------------------------------------------------- Common settings (board 19)
   'common.vaPercent': num({
     section: 'common',
+    alsoIn: ['footprint'],
     group: 'Value Area',
     label: 'Value Area percent',
     help: 'Share of volume inside the value area of every volume profile.',
@@ -822,6 +979,7 @@ export const SCHEMA = {
   }),
   'common.vaLevelsAtTime': num({
     section: 'common',
+    alsoIn: ['footprint'],
     group: 'Value Area',
     label: 'Levels at a time',
     help: 'Price levels added per step when the value area is grown around the POC.',
@@ -865,6 +1023,7 @@ export const SCHEMA = {
   }),
   'common.maxCandlesPerChart': num({
     section: 'common',
+    alsoIn: ['chart', 'data'],
     group: 'Common',
     label: 'Max candles per chart',
     help: 'Older bars are dropped beyond this count to keep memory bounded.',
@@ -876,6 +1035,7 @@ export const SCHEMA = {
   }),
   'common.defaultLoadDays': num({
     section: 'common',
+    alsoIn: ['chart', 'data'],
     group: 'Common',
     label: 'Default load days',
     help: 'History loaded when a chart opens.',
@@ -940,6 +1100,7 @@ export const SCHEMA = {
   }),
   'common.heatmapAdapter': oneOf({
     section: 'common',
+    alsoIn: ['heatmap'],
     group: 'Heatmap rendering',
     label: 'Video adapter',
     help: 'GPU used by the heatmap / liquidity map renderer.',
@@ -953,6 +1114,7 @@ export const SCHEMA = {
   }),
   'common.heatmapFpsMode': oneOf({
     section: 'common',
+    alsoIn: ['heatmap'],
     group: 'Heatmap rendering',
     label: 'FPS cap mode',
     help: 'Auto follows the display; Manual uses the cap below.',
@@ -965,6 +1127,7 @@ export const SCHEMA = {
   }),
   'common.heatmapFpsCap': num({
     section: 'common',
+    alsoIn: ['heatmap'],
     group: 'Heatmap rendering',
     label: 'Manual FPS cap',
     help: 'Heatmap frames per second when the cap mode is Manual.',
@@ -977,6 +1140,7 @@ export const SCHEMA = {
   }),
   'common.heatmapStartupLevels': num({
     section: 'common',
+    alsoIn: ['heatmap'],
     group: 'Heatmap rendering',
     label: 'Startup levels (+/−)',
     help: 'Price levels above and below the last price shown when a heatmap opens.',
@@ -988,6 +1152,7 @@ export const SCHEMA = {
   }),
   'common.backupDays': num({
     section: 'common',
+    alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Backup period',
     help: 'How often the local database is backed up.',
@@ -1000,6 +1165,7 @@ export const SCHEMA = {
   }),
   'common.maxBackups': num({
     section: 'common',
+    alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Maximum store backups',
     help: 'Older backups are deleted.',
@@ -1011,6 +1177,7 @@ export const SCHEMA = {
   }),
   'common.recorderMaxGb': num({
     section: 'common',
+    alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Recorder max disk',
     help: 'Disk budget of the tick / depth recorder.',
@@ -1023,6 +1190,7 @@ export const SCHEMA = {
   }),
   'common.tickRetentionDays': num({
     section: 'common',
+    alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Tick history retention',
     help: 'Recorded ticks older than this are pruned.',
@@ -1035,6 +1203,7 @@ export const SCHEMA = {
   }),
   'common.domLevels': num({
     section: 'common',
+    alsoIn: ['dom'],
     group: 'Depth of market',
     label: 'Levels count (0 = all)',
     help: 'Book levels kept per side for DOM windows.',
@@ -1042,10 +1211,10 @@ export const SCHEMA = {
     min: 0,
     max: 1000,
     step: 1,
-    wired: false,
   }),
   'common.domHeatmapLevels': num({
     section: 'common',
+    alsoIn: ['heatmap', 'dom'],
     group: 'Depth of market',
     label: 'Heatmap levels count (0 = all)',
     help: 'Book levels kept per side for heatmaps.',
@@ -1069,11 +1238,11 @@ export const SCHEMA = {
   }),
   'common.notifyShow': bool({
     section: 'common',
+    alsoIn: ['alerts'],
     group: 'Notifications',
     label: 'Show notification',
     help: 'Show pop-up notifications (fills, alerts, connection changes).',
     default: true,
-    wired: false,
   }),
   'common.notifyDurationMs': num({
     section: 'common',
@@ -1085,7 +1254,6 @@ export const SCHEMA = {
     max: 60_000,
     step: 500,
     unit: 'ms',
-    wired: false,
   }),
   'common.notifyMax': num({
     section: 'common',
@@ -1096,7 +1264,6 @@ export const SCHEMA = {
     min: 1,
     max: 50,
     step: 1,
-    wired: false,
   }),
   'common.notifyPosition': oneOf({
     section: 'common',
@@ -1113,6 +1280,7 @@ export const SCHEMA = {
   }),
   'common.tradingNoWarnings': bool({
     section: 'common',
+    alsoIn: ['trading'],
     group: 'Trading',
     label: 'Do not show warnings',
     help: 'Hide non-blocking trading warnings (e.g. order far from market).',
@@ -1121,14 +1289,15 @@ export const SCHEMA = {
   }),
   'common.skipTableConfirmations': bool({
     section: 'common',
+    alsoIn: ['trading'],
     group: 'Trading',
     label: 'Skip confirmations in tables',
     help: 'Cancel / close from the Orders and Positions tables without asking.',
     default: false,
-    wired: false,
   }),
   'common.crossTrading': bool({
     section: 'common',
+    alsoIn: ['trading'],
     group: 'Trading',
     label: 'Enable cross-trading',
     help: 'Allow opposite orders on the same instrument from different accounts.',
@@ -1137,6 +1306,7 @@ export const SCHEMA = {
   }),
   'common.bestPricesIndicator': bool({
     section: 'common',
+    alsoIn: ['trading'],
     group: 'Trading',
     label: 'Auto add/remove best prices indicator',
     help: 'Add the best bid/ask indicator to charts when trading from them.',
@@ -1149,7 +1319,6 @@ export const SCHEMA = {
     label: "Don't ask again",
     help: 'Close module windows without a confirmation.',
     default: true,
-    wired: false,
   }),
   'common.closeDontAskToday': bool({
     section: 'common',
@@ -1157,6 +1326,1269 @@ export const SCHEMA = {
     label: "Don't ask today",
     help: 'Skip close confirmations until midnight.',
     default: false,
+    wired: false,
+  }),
+  // ---------------------------------------------------------------- Chart (P27)
+  // Read by the chart code (ui/src/charts, packages/chart-engine). `wired: false` until it does.
+  'chart.defaultMode': oneOf({
+    section: 'chart',
+    group: 'Defaults',
+    label: 'Default chart mode',
+    help: 'Price representation of newly opened charts.',
+    default: 'candles',
+    options: [
+      { value: 'candles', label: 'Candlesticks' },
+      { value: 'hollow', label: 'Hollow candles' },
+      { value: 'bars', label: 'OHLC bars' },
+      { value: 'heikin-ashi', label: 'Heikin-Ashi' },
+      { value: 'line', label: 'Line' },
+      { value: 'area', label: 'Area' },
+    ],
+    keywords: 'candlestick bars heikin line area style',
+    wired: false,
+  }),
+  'chart.defaultTimeframe': oneOf({
+    section: 'chart',
+    group: 'Defaults',
+    label: 'Default timeframe',
+    help: 'Timeframe of newly opened time-based charts.',
+    default: '5m',
+    options: ['15s', '30s', '1m', '2m', '5m', '15m', '30m', '1h', '4h', '1d'].map((v) => ({
+      value: v,
+      label: v,
+    })),
+    wired: false,
+  }),
+  'chart.autoScroll': bool({
+    section: 'chart',
+    group: 'Defaults',
+    label: 'Auto-scroll to the latest bar',
+    help: 'Keep the newest bar in view while the chart is not panned away.',
+    default: true,
+    wired: false,
+  }),
+  'chart.barSpacing': num({
+    section: 'chart',
+    group: 'Defaults',
+    label: 'Bar spacing',
+    help: 'Initial width of one bar, in pixels.',
+    default: 10,
+    min: 2,
+    max: 80,
+    step: 1,
+    unit: 'px',
+    wired: false,
+  }),
+  'chart.rightMarginBars': num({
+    section: 'chart',
+    group: 'Defaults',
+    label: 'Right margin',
+    help: 'Empty bars kept free on the right of the latest bar.',
+    default: 8,
+    min: 0,
+    max: 100,
+    step: 1,
+    unit: 'bars',
+    wired: false,
+  }),
+  'chart.candleUp': color({
+    section: 'chart',
+    group: 'Candle colours',
+    label: 'Up candle body',
+    help: 'Body colour of rising candles. Empty follows the theme "up" colour.',
+    keywords: 'colour color bullish green',
+    wired: false,
+  }),
+  'chart.candleDown': color({
+    section: 'chart',
+    group: 'Candle colours',
+    label: 'Down candle body',
+    help: 'Body colour of falling candles. Empty follows the theme "down" colour.',
+    keywords: 'colour color bearish red',
+    wired: false,
+  }),
+  'chart.wickUp': color({
+    section: 'chart',
+    group: 'Candle colours',
+    label: 'Up wick',
+    help: 'Wick colour of rising candles. Empty follows the body colour.',
+    wired: false,
+  }),
+  'chart.wickDown': color({
+    section: 'chart',
+    group: 'Candle colours',
+    label: 'Down wick',
+    help: 'Wick colour of falling candles. Empty follows the body colour.',
+    wired: false,
+  }),
+  'chart.borderUp': color({
+    section: 'chart',
+    group: 'Candle colours',
+    label: 'Up border',
+    help: 'Border colour of rising candles. Empty follows the body colour.',
+    wired: false,
+  }),
+  'chart.borderDown': color({
+    section: 'chart',
+    group: 'Candle colours',
+    label: 'Down border',
+    help: 'Border colour of falling candles. Empty follows the body colour.',
+    wired: false,
+  }),
+  'chart.bgMode': oneOf({
+    section: 'chart',
+    group: 'Background',
+    label: 'Background',
+    help: 'Solid colour or a vertical gradient behind the price pane.',
+    default: 'solid',
+    options: [
+      { value: 'solid', label: 'Solid' },
+      { value: 'gradient', label: 'Gradient' },
+    ],
+    wired: false,
+  }),
+  'chart.bgColor': color({
+    section: 'chart',
+    group: 'Background',
+    label: 'Background colour',
+    help: 'Solid background. Empty follows the theme chart background.',
+    wired: false,
+  }),
+  'chart.bgGradientTop': color({
+    section: 'chart',
+    group: 'Background',
+    label: 'Gradient top',
+    help: 'Top colour when the background is a gradient.',
+    wired: false,
+  }),
+  'chart.bgGradientBottom': color({
+    section: 'chart',
+    group: 'Background',
+    label: 'Gradient bottom',
+    help: 'Bottom colour when the background is a gradient.',
+    wired: false,
+  }),
+  'chart.gridVisible': bool({
+    section: 'chart',
+    group: 'Grid',
+    label: 'Show grid',
+    help: 'Draw the horizontal and vertical grid lines.',
+    default: true,
+    wired: false,
+  }),
+  'chart.gridStyle': oneOf({
+    section: 'chart',
+    group: 'Grid',
+    label: 'Grid style',
+    help: 'Line style of the grid.',
+    default: 'solid',
+    options: [
+      { value: 'solid', label: 'Solid' },
+      { value: 'dashed', label: 'Dashed' },
+      { value: 'dotted', label: 'Dotted' },
+    ],
+    wired: false,
+  }),
+  'chart.gridColor': color({
+    section: 'chart',
+    group: 'Grid',
+    label: 'Grid colour',
+    help: 'Empty follows the theme divider colour.',
+    wired: false,
+  }),
+  'chart.gridOpacity': num({
+    section: 'chart',
+    group: 'Grid',
+    label: 'Grid opacity',
+    help: 'Opacity of the grid lines.',
+    default: 40,
+    min: 0,
+    max: 100,
+    step: 5,
+    unit: '%',
+    wired: false,
+  }),
+  'chart.axisSide': oneOf({
+    section: 'chart',
+    group: 'Axes & scales',
+    label: 'Price axis side',
+    help: 'Which side of the chart carries the price scale.',
+    default: 'right',
+    options: [
+      { value: 'right', label: 'Right' },
+      { value: 'left', label: 'Left' },
+    ],
+    wired: false,
+  }),
+  'chart.priceScaleMode': oneOf({
+    section: 'chart',
+    group: 'Axes & scales',
+    label: 'Price scale',
+    help: 'Scale type of the price axis.',
+    default: 'normal',
+    options: [
+      { value: 'normal', label: 'Normal' },
+      { value: 'log', label: 'Logarithmic' },
+      { value: 'percent', label: 'Percentage' },
+    ],
+    wired: false,
+  }),
+  'chart.autoScale': bool({
+    section: 'chart',
+    group: 'Axes & scales',
+    label: 'Auto-scale price axis',
+    help: 'Fit the price axis to the visible bars.',
+    default: true,
+    wired: false,
+  }),
+  'chart.scaleMarginPct': num({
+    section: 'chart',
+    group: 'Axes & scales',
+    label: 'Scale margins (top / bottom)',
+    help: 'Free space above and below the visible price range when auto-scaling.',
+    default: 8,
+    min: 0,
+    max: 40,
+    step: 1,
+    unit: '%',
+    wired: false,
+  }),
+  'chart.lastPriceLine': bool({
+    section: 'chart',
+    group: 'Axes & scales',
+    label: 'Last price line and label',
+    help: 'Draw a line and an axis label at the last traded price.',
+    default: true,
+    wired: false,
+  }),
+  'chart.sessionBreaks': bool({
+    section: 'chart',
+    group: 'Axes & scales',
+    label: 'Session separators',
+    help: 'Draw a vertical line where a trading session starts.',
+    default: true,
+    wired: false,
+  }),
+  'chart.crosshairStyle': oneOf({
+    section: 'chart',
+    group: 'Crosshair',
+    label: 'Crosshair style',
+    help: 'Shape of the crosshair that follows the pointer.',
+    default: 'dashed',
+    options: [
+      { value: 'full', label: 'Full lines' },
+      { value: 'dashed', label: 'Dashed lines' },
+      { value: 'dotted', label: 'Dotted lines' },
+      { value: 'dot', label: 'Dot only' },
+    ],
+    wired: false,
+  }),
+  'chart.crosshairColor': color({
+    section: 'chart',
+    group: 'Crosshair',
+    label: 'Crosshair colour',
+    help: 'Empty follows the theme text colour.',
+    wired: false,
+  }),
+  'chart.crosshairLabels': bool({
+    section: 'chart',
+    group: 'Crosshair',
+    label: 'Axis labels at the crosshair',
+    help: 'Show the price and time under the pointer on the axes.',
+    default: true,
+    wired: false,
+  }),
+  'chart.magnet': oneOf({
+    section: 'chart',
+    group: 'Crosshair',
+    label: 'Magnet to OHLC',
+    help: 'Snap the crosshair and drawing anchors to the nearest open / high / low / close.',
+    default: 'off',
+    options: [
+      { value: 'off', label: 'Off' },
+      { value: 'weak', label: 'Weak' },
+      { value: 'strong', label: 'Strong' },
+    ],
+    wired: false,
+  }),
+  'chart.legend': bool({
+    section: 'chart',
+    group: 'Legend & status line',
+    label: 'Show legend',
+    help: 'Symbol, timeframe and OHLC values in the top-left corner.',
+    default: true,
+    wired: false,
+  }),
+  'chart.statusLine': bool({
+    section: 'chart',
+    group: 'Legend & status line',
+    label: 'Show status line',
+    help: 'Indicator values and data status under the legend.',
+    default: true,
+    wired: false,
+  }),
+  'chart.watermark': bool({
+    section: 'chart',
+    group: 'Legend & status line',
+    label: 'Show symbol watermark',
+    help: 'Large faint symbol name behind the bars.',
+    default: false,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Footprint (P27)
+  'footprint.cellMode': oneOf({
+    section: 'footprint',
+    group: 'Cells',
+    label: 'Cell content',
+    help: 'What each footprint cell shows.',
+    default: 'bidAsk',
+    options: [
+      { value: 'bidAsk', label: 'Bid x Ask' },
+      { value: 'delta', label: 'Delta' },
+      { value: 'volume', label: 'Volume' },
+      { value: 'volumeDelta', label: 'Volume + delta' },
+    ],
+    wired: false,
+  }),
+  'footprint.colorMode': oneOf({
+    section: 'footprint',
+    group: 'Cells',
+    label: 'Cell colouring',
+    help: 'What the cell background intensity follows.',
+    default: 'volume',
+    options: [
+      { value: 'volume', label: 'Volume' },
+      { value: 'delta', label: 'Delta' },
+      { value: 'none', label: 'None' },
+    ],
+    wired: false,
+  }),
+  'footprint.cellOpacity': num({
+    section: 'footprint',
+    group: 'Cells',
+    label: 'Cell background opacity',
+    help: 'Strength of the cell background colouring.',
+    default: 60,
+    min: 0,
+    max: 100,
+    step: 5,
+    unit: '%',
+    wired: false,
+  }),
+  'footprint.fontSize': num({
+    section: 'footprint',
+    group: 'Cells',
+    label: 'Cell font size',
+    help: 'Text size inside footprint cells.',
+    default: 11,
+    min: 8,
+    max: 18,
+    step: 1,
+    unit: 'px',
+    wired: false,
+  }),
+  'footprint.minCellHeight': num({
+    section: 'footprint',
+    group: 'Cells',
+    label: 'Minimum cell height',
+    help: 'Cells are hidden (bars switch to candles) when a price row would be thinner than this.',
+    default: 12,
+    min: 6,
+    max: 40,
+    step: 1,
+    unit: 'px',
+    wired: false,
+  }),
+  'footprint.imbalanceRatio': num({
+    section: 'footprint',
+    group: 'Imbalance',
+    label: 'Imbalance ratio',
+    help: 'A diagonal imbalance is flagged when one side is at least this many percent of the other.',
+    default: 300,
+    min: 110,
+    max: 1000,
+    step: 10,
+    unit: '%',
+    keywords: 'diagonal imbalance ratio',
+    wired: false,
+  }),
+  'footprint.imbalanceMinVolume': num({
+    section: 'footprint',
+    group: 'Imbalance',
+    label: 'Imbalance minimum volume',
+    help: 'Ignore imbalances where the larger side is below this volume.',
+    default: 0,
+    min: 0,
+    max: 100_000,
+    step: 1,
+    wired: false,
+  }),
+  'footprint.stackedImbalance': num({
+    section: 'footprint',
+    group: 'Imbalance',
+    label: 'Stacked imbalance levels',
+    help: 'Consecutive imbalanced levels needed to draw a stacked-imbalance marker.',
+    default: 3,
+    min: 2,
+    max: 10,
+    step: 1,
+    wired: false,
+  }),
+  'footprint.imbalanceBuyColor': color({
+    section: 'footprint',
+    group: 'Imbalance',
+    label: 'Buy imbalance colour',
+    help: 'Empty follows the theme "up" colour.',
+    wired: false,
+  }),
+  'footprint.imbalanceSellColor': color({
+    section: 'footprint',
+    group: 'Imbalance',
+    label: 'Sell imbalance colour',
+    help: 'Empty follows the theme "down" colour.',
+    wired: false,
+  }),
+  'footprint.showPoc': bool({
+    section: 'footprint',
+    group: 'Profile marks',
+    label: 'Mark the point of control',
+    help: 'Highlight the highest-volume price of every bar.',
+    default: true,
+    wired: false,
+  }),
+  'footprint.pocColor': color({
+    section: 'footprint',
+    group: 'Profile marks',
+    label: 'POC colour',
+    help: 'Empty follows the theme warning colour.',
+    wired: false,
+  }),
+  'footprint.showValueArea': bool({
+    section: 'footprint',
+    group: 'Profile marks',
+    label: 'Mark the value area',
+    help: 'Outline the value area of every bar (percentage under Common settings).',
+    default: false,
+    wired: false,
+  }),
+  'footprint.absorptionMarkers': bool({
+    section: 'footprint',
+    group: 'Profile marks',
+    label: 'Absorption markers',
+    help: 'Mark levels with large volume and no price progress.',
+    default: false,
+    wired: false,
+  }),
+  'footprint.showDeltaRow': bool({
+    section: 'footprint',
+    group: 'Summary rows',
+    label: 'Delta row',
+    help: 'Show the bar delta under every footprint bar.',
+    default: true,
+    wired: false,
+  }),
+  'footprint.showVolumeRow': bool({
+    section: 'footprint',
+    group: 'Summary rows',
+    label: 'Volume row',
+    help: 'Show the bar volume under every footprint bar.',
+    default: true,
+    wired: false,
+  }),
+  'footprint.showCumDelta': bool({
+    section: 'footprint',
+    group: 'Summary rows',
+    label: 'Cumulative delta row',
+    help: 'Show the session cumulative delta under every footprint bar.',
+    default: false,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Heatmap (P27)
+  'heatmap.palette': oneOf({
+    section: 'heatmap',
+    group: 'Colours',
+    label: 'Colour palette',
+    help: 'Colour ramp of resting liquidity.',
+    default: 'thermal',
+    options: [
+      { value: 'thermal', label: 'Thermal' },
+      { value: 'mono', label: 'Monochrome' },
+      { value: 'blue-red', label: 'Blue to red' },
+      { value: 'viridis', label: 'Viridis' },
+    ],
+    wired: false,
+  }),
+  'heatmap.contrast': num({
+    section: 'heatmap',
+    group: 'Colours',
+    label: 'Contrast',
+    help: 'Stretches the ramp so small resting orders stand out.',
+    default: 50,
+    min: 0,
+    max: 100,
+    step: 5,
+    unit: '%',
+    wired: false,
+  }),
+  'heatmap.opacity': num({
+    section: 'heatmap',
+    group: 'Colours',
+    label: 'Opacity',
+    help: 'Opacity of the liquidity layer over the chart background.',
+    default: 100,
+    min: 10,
+    max: 100,
+    step: 5,
+    unit: '%',
+    wired: false,
+  }),
+  'heatmap.normalization': oneOf({
+    section: 'heatmap',
+    group: 'Scaling',
+    label: 'Normalisation',
+    help: 'Whether colour intensity is scaled to the visible window or the whole session.',
+    default: 'visible',
+    options: [
+      { value: 'visible', label: 'Visible window' },
+      { value: 'session', label: 'Whole session' },
+    ],
+    wired: false,
+  }),
+  'heatmap.minSize': num({
+    section: 'heatmap',
+    group: 'Scaling',
+    label: 'Minimum order size',
+    help: 'Resting orders smaller than this are not drawn. 0 = draw everything.',
+    default: 0,
+    min: 0,
+    max: 1_000_000,
+    step: 1,
+    wired: false,
+  }),
+  'heatmap.smoothing': bool({
+    section: 'heatmap',
+    group: 'Scaling',
+    label: 'Smooth between snapshots',
+    help: 'Interpolate colours between depth snapshots instead of drawing hard steps.',
+    default: false,
+    wired: false,
+  }),
+  'heatmap.historyMinutes': num({
+    section: 'heatmap',
+    group: 'History',
+    label: 'Depth history',
+    help: 'Minutes of order-book history kept for the heatmap.',
+    default: 60,
+    min: 5,
+    max: 1440,
+    step: 5,
+    unit: 'min',
+    wired: false,
+  }),
+  'heatmap.showBestBidAsk': bool({
+    section: 'heatmap',
+    group: 'Overlays',
+    label: 'Best bid / ask lines',
+    help: 'Draw the best bid and best ask over the heatmap.',
+    default: true,
+    wired: false,
+  }),
+  'heatmap.showTradeBubbles': bool({
+    section: 'heatmap',
+    group: 'Overlays',
+    label: 'Trade bubbles',
+    help: 'Draw executed trades as bubbles sized by volume.',
+    default: true,
+    wired: false,
+  }),
+  'heatmap.bubbleScale': num({
+    section: 'heatmap',
+    group: 'Overlays',
+    label: 'Bubble size',
+    help: 'Scales the radius of trade bubbles.',
+    default: 100,
+    min: 25,
+    max: 400,
+    step: 5,
+    unit: '%',
+    wired: false,
+  }),
+  'heatmap.bubbleMinSize': num({
+    section: 'heatmap',
+    group: 'Overlays',
+    label: 'Smallest bubble',
+    help: 'Trades below this volume get no bubble.',
+    default: 1,
+    min: 0,
+    max: 1_000_000,
+    step: 1,
+    wired: false,
+  }),
+  'heatmap.showVolumeProfile': bool({
+    section: 'heatmap',
+    group: 'Overlays',
+    label: 'Volume profile on the right',
+    help: 'Show the visible-range volume profile next to the price axis.',
+    default: true,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- DOM (P27)
+  'dom.rowHeight': num({
+    section: 'dom',
+    group: 'Ladder',
+    label: 'Row height',
+    help: 'Height of one price row in the DOM ladder.',
+    default: 22,
+    min: 14,
+    max: 40,
+    step: 1,
+    unit: 'px',
+  }),
+  'dom.fontSize': num({
+    section: 'dom',
+    group: 'Ladder',
+    label: 'Font size',
+    help: 'Text size of the ladder.',
+    default: 12,
+    min: 9,
+    max: 18,
+    step: 1,
+    unit: 'px',
+    wired: false,
+  }),
+  'dom.autoCenter': bool({
+    section: 'dom',
+    group: 'Ladder',
+    label: 'Auto-centre on price',
+    help: 'Re-centre the ladder when the price leaves the middle band. Off keeps your scroll position.',
+    default: true,
+  }),
+  'dom.defaultGrouping': oneOf({
+    section: 'dom',
+    group: 'Ladder',
+    label: 'Default price grouping',
+    help: 'Ticks per row of a newly opened DOM.',
+    default: '1',
+    options: ['1', '2', '5', '10', '20', '50'].map((v) => ({ value: v, label: `${v} tick` })),
+    wired: false,
+  }),
+  'dom.bigLotThreshold': num({
+    section: 'dom',
+    group: 'Highlights',
+    label: 'Big-lot threshold',
+    help: 'Book sizes at or above this are highlighted. 0 = off.',
+    default: 0,
+    min: 0,
+    max: 1_000_000,
+    step: 1,
+  }),
+  'dom.recentWindowSec': num({
+    section: 'dom',
+    group: 'Highlights',
+    label: 'Recent buys / sells window',
+    help: 'Seconds of trades summed in the Buys / Sells columns.',
+    default: 30,
+    min: 1,
+    max: 600,
+    step: 1,
+    unit: 's',
+    wired: false,
+  }),
+  'dom.invertClicks': bool({
+    section: 'dom',
+    group: 'Clicking',
+    label: 'Swap left / right click',
+    help: 'Left click sells and right click buys (default: left buys, right sells).',
+    default: false,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Tape (P27)
+  'tape.maxRows': num({
+    section: 'tape',
+    group: 'Rows',
+    label: 'Rows kept',
+    help: 'Trades kept in the tape before the oldest are dropped.',
+    default: 5000,
+    min: 100,
+    max: 100_000,
+    step: 100,
+    wired: false,
+  }),
+  'tape.minSize': num({
+    section: 'tape',
+    group: 'Rows',
+    label: 'Minimum trade size',
+    help: 'Hide trades smaller than this. 0 = show all.',
+    default: 0,
+    min: 0,
+    max: 1_000_000,
+    step: 1,
+    wired: false,
+  }),
+  'tape.autoScroll': bool({
+    section: 'tape',
+    group: 'Rows',
+    label: 'Follow new trades',
+    help: 'Keep the newest trade in view.',
+    default: true,
+    wired: false,
+  }),
+  'tape.showMs': bool({
+    section: 'tape',
+    group: 'Time',
+    label: 'Show milliseconds',
+    help: 'Show .mmm after the seconds of every trade time.',
+    default: true,
+  }),
+  'tape.bigTradeThreshold': num({
+    section: 'tape',
+    group: 'Highlights',
+    label: 'Big-trade threshold',
+    help: 'Trades at or above this size are highlighted and can sound. 0 = automatic.',
+    default: 0,
+    min: 0,
+    max: 1_000_000,
+    step: 1,
+    wired: false,
+  }),
+  'tape.colorBySide': bool({
+    section: 'tape',
+    group: 'Highlights',
+    label: 'Colour by aggressor side',
+    help: 'Green for buyer-initiated, red for seller-initiated trades.',
+    default: true,
+    wired: false,
+  }),
+  'tape.beepOnBig': bool({
+    section: 'tape',
+    group: 'Highlights',
+    label: 'Beep on big trades',
+    help: 'Play the "big trade" sound for trades above the threshold.',
+    default: false,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Trading (P27)
+  // Read by the trading panel, DOM and chart trading (ui/src/trading, packages/trading).
+  'trading.defaultQty': num({
+    section: 'trading',
+    group: 'Orders',
+    label: 'Default quantity',
+    help: 'Quantity prefilled in the Trading panel and DOM.',
+    default: 1,
+    min: 0.0001,
+    max: 1_000_000,
+    step: 0.0001,
+    wired: false,
+  }),
+  'trading.qtyPresets': str({
+    section: 'trading',
+    group: 'Orders',
+    label: 'Quantity presets',
+    help: 'Comma-separated quantities for the quick-size buttons, e.g. 1,2,5,10.',
+    default: '1,2,5,10',
+    maxLength: 80,
+    pattern: /^\d+(\.\d+)?(,\d+(\.\d+)?){0,11}$/,
+    patternHint: 'Up to 12 positive numbers separated by commas, e.g. 1,2,5,10',
+    wired: false,
+  }),
+  'trading.defaultOrderType': oneOf({
+    section: 'trading',
+    group: 'Orders',
+    label: 'Default order type',
+    help: 'Order type preselected in the Trading panel.',
+    default: 'limit',
+    options: [
+      { value: 'market', label: 'Market' },
+      { value: 'limit', label: 'Limit' },
+      { value: 'stop', label: 'Stop' },
+    ],
+    wired: false,
+  }),
+  'trading.defaultTif': oneOf({
+    section: 'trading',
+    group: 'Orders',
+    label: 'Time in force',
+    help: 'How long new orders stay working.',
+    default: 'gtc',
+    options: [
+      { value: 'gtc', label: 'Good till cancelled' },
+      { value: 'day', label: 'Day' },
+      { value: 'ioc', label: 'Immediate or cancel' },
+      { value: 'fok', label: 'Fill or kill' },
+    ],
+    wired: false,
+  }),
+  'trading.oneClick': bool({
+    section: 'trading',
+    group: 'Orders',
+    label: 'One-click trading',
+    help: 'Clicking the DOM or chart sends the order immediately.',
+    default: true,
+    keywords: 'dom click',
+    wired: false,
+  }),
+  'trading.orderHotkeys': bool({
+    section: 'trading',
+    group: 'Orders',
+    label: 'Order hot keys enabled',
+    help: 'Allow the buy / sell / flatten hot keys. Bindings are on the Hot keys page.',
+    default: true,
+    wired: false,
+  }),
+  'trading.slippageTicks': num({
+    section: 'trading',
+    group: 'Protection',
+    label: 'Slippage tolerance',
+    help: 'Market orders are rejected when the fill would be worse than this many ticks from the quote.',
+    default: 5,
+    min: 0,
+    max: 1000,
+    step: 1,
+    unit: 'ticks',
+    wired: false,
+  }),
+  'trading.autoBracket': bool({
+    section: 'trading',
+    group: 'Brackets',
+    label: 'Attach stop and target automatically',
+    help: 'Every entry gets an OCO stop-loss and take-profit with the distances below.',
+    default: false,
+    wired: false,
+  }),
+  'trading.stopTicks': num({
+    section: 'trading',
+    group: 'Brackets',
+    label: 'Default stop distance',
+    help: 'Stop-loss distance from the entry price.',
+    default: 20,
+    min: 1,
+    max: 10_000,
+    step: 1,
+    unit: 'ticks',
+    wired: false,
+  }),
+  'trading.targetTicks': num({
+    section: 'trading',
+    group: 'Brackets',
+    label: 'Default target distance',
+    help: 'Take-profit distance from the entry price.',
+    default: 40,
+    min: 1,
+    max: 10_000,
+    step: 1,
+    unit: 'ticks',
+    wired: false,
+  }),
+  'trading.showOrderLines': bool({
+    section: 'trading',
+    group: 'On chart',
+    label: 'Order lines on charts',
+    help: 'Draw working orders as horizontal lines you can drag.',
+    default: true,
+    wired: false,
+  }),
+  'trading.showPositionLine': bool({
+    section: 'trading',
+    group: 'On chart',
+    label: 'Position line on charts',
+    help: 'Draw the average entry price and open P&L of the position.',
+    default: true,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Data (P27)
+  'data.providerPriority': custom<string[]>({
+    section: 'data',
+    group: 'Providers',
+    label: 'Provider priority',
+    help: 'When an instrument is offered by several providers, the first one in this list that is connected wins.',
+    default: [...KNOWN_PROVIDERS],
+    editor: 'providers',
+    validate: validateProviders,
+    keywords: 'connector feed source order priority',
+    wired: false,
+  }),
+  'data.autoReconnect': bool({
+    section: 'data',
+    group: 'Connections',
+    label: 'Reconnect automatically',
+    help: 'Reconnect a dropped live feed with back-off.',
+    default: true,
+    wired: false,
+  }),
+  'data.reconnectMaxSec': num({
+    section: 'data',
+    group: 'Connections',
+    label: 'Longest reconnect wait',
+    help: 'Upper bound of the exponential back-off between reconnect attempts.',
+    default: 30,
+    min: 1,
+    max: 600,
+    step: 1,
+    unit: 's',
+    wired: false,
+  }),
+  'data.timestampSource': oneOf({
+    section: 'data',
+    group: 'Connections',
+    label: 'Timestamp source',
+    help: 'Use exchange timestamps, or the local receive time (more consistent across venues).',
+    default: 'exchange',
+    options: [
+      { value: 'exchange', label: 'Exchange time' },
+      { value: 'local', label: 'Local receive time' },
+    ],
+    wired: false,
+  }),
+  'data.conflateMs': num({
+    section: 'data',
+    group: 'Connections',
+    label: 'Depth conflation',
+    help: 'Merge order-book updates arriving within this window. 0 = every update.',
+    default: 0,
+    min: 0,
+    max: 1000,
+    step: 10,
+    unit: 'ms',
+    wired: false,
+  }),
+  'data.recorderEnabled': bool({
+    section: 'data',
+    group: 'Recorder & cache',
+    label: 'Record live ticks and depth',
+    help: 'Write live data to the local tick store so it can be replayed. Disk budget and retention are under Common settings.',
+    default: false,
+    wired: false,
+  }),
+  'data.cacheSizeMb': num({
+    section: 'data',
+    group: 'Recorder & cache',
+    label: 'Cache size',
+    help: 'Disk space for downloaded history and derived bars.',
+    default: 512,
+    min: 64,
+    max: 65_536,
+    step: 64,
+    unit: 'MB',
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Alerts (P27)
+  'alerts.enabled': bool({
+    section: 'alerts',
+    group: 'Delivery',
+    label: 'Alerts enabled',
+    help: 'Master switch. Off keeps your alerts but stops them from triggering.',
+    default: true,
+    wired: false,
+  }),
+  'alerts.toast': bool({
+    section: 'alerts',
+    group: 'Delivery',
+    label: 'Pop-up notification',
+    help: 'Show a notification when an alert triggers.',
+    default: true,
+    wired: false,
+  }),
+  'alerts.flashTitle': bool({
+    section: 'alerts',
+    group: 'Delivery',
+    label: 'Flash the window title',
+    help: 'Flash the title bar when an alert triggers while HT Flow is in the background.',
+    default: false,
+    wired: false,
+  }),
+  'alerts.defaultRepeat': oneOf({
+    section: 'alerts',
+    group: 'New alerts',
+    label: 'Default repeat',
+    help: 'How often a new alert may trigger.',
+    default: 'once',
+    options: [
+      { value: 'once', label: 'Only once' },
+      { value: 'every', label: 'Every time' },
+      { value: 'bar', label: 'Once per bar' },
+    ],
+    wired: false,
+  }),
+  'alerts.defaultExpiryDays': num({
+    section: 'alerts',
+    group: 'New alerts',
+    label: 'Default expiry',
+    help: 'New alerts expire after this many days. 0 = never.',
+    default: 0,
+    min: 0,
+    max: 365,
+    step: 1,
+    unit: 'days',
+    wired: false,
+  }),
+  'alerts.cooldownSec': num({
+    section: 'alerts',
+    group: 'New alerts',
+    label: 'Cool-down',
+    help: 'Minimum seconds between two triggers of the same repeating alert.',
+    default: 10,
+    min: 0,
+    max: 86_400,
+    step: 1,
+    unit: 's',
+    wired: false,
+  }),
+  'alerts.maxActive': num({
+    section: 'alerts',
+    group: 'Limits',
+    label: 'Maximum active alerts',
+    help: 'Creating more alerts than this is refused.',
+    default: 200,
+    min: 1,
+    max: 5000,
+    step: 1,
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Risk (P27)
+  // Defaults for the Risk module (modules/risk) and the paper engine pre-trade checks.
+  'risk.maxDailyLoss': num({
+    section: 'risk',
+    group: 'Limits',
+    label: 'Max daily loss',
+    help: 'Account currency. Reaching it triggers the breach action. 0 = off.',
+    default: 0,
+    min: 0,
+    max: 100_000_000,
+    step: 10,
+    unit: 'USD',
+    wired: false,
+  }),
+  'risk.maxPositionSize': num({
+    section: 'risk',
+    group: 'Limits',
+    label: 'Max position size',
+    help: 'Largest net position per instrument. 0 = off.',
+    default: 0,
+    min: 0,
+    max: 10_000_000,
+    step: 1,
+    wired: false,
+  }),
+  'risk.maxOrderSize': num({
+    section: 'risk',
+    group: 'Limits',
+    label: 'Max order size',
+    help: 'Orders larger than this are rejected before they are sent. 0 = off.',
+    default: 0,
+    min: 0,
+    max: 10_000_000,
+    step: 1,
+    wired: false,
+  }),
+  'risk.maxTradesPerDay': num({
+    section: 'risk',
+    group: 'Limits',
+    label: 'Max trades per day',
+    help: 'Number of round trips allowed per day. 0 = off.',
+    default: 0,
+    min: 0,
+    max: 10_000,
+    step: 1,
+    wired: false,
+  }),
+  'risk.priceCollarTicks': num({
+    section: 'risk',
+    group: 'Limits',
+    label: 'Price collar',
+    help: 'Limit orders further than this from the market are rejected as fat-finger. 0 = off.',
+    default: 0,
+    min: 0,
+    max: 100_000,
+    step: 1,
+    unit: 'ticks',
+    wired: false,
+  }),
+  'risk.warnAtPct': num({
+    section: 'risk',
+    group: 'Breach handling',
+    label: 'Warn at',
+    help: 'Raise a warning when a limit is this far used.',
+    default: 80,
+    min: 10,
+    max: 100,
+    step: 5,
+    unit: '%',
+    wired: false,
+  }),
+  'risk.onBreach': oneOf({
+    section: 'risk',
+    group: 'Breach handling',
+    label: 'On breach',
+    help: 'What happens when a hard limit is reached.',
+    default: 'block',
+    options: [
+      { value: 'warn', label: 'Warn only' },
+      { value: 'block', label: 'Block new orders' },
+      { value: 'flatten', label: 'Flatten and block' },
+    ],
+    wired: false,
+  }),
+  'risk.lockUntil': oneOf({
+    section: 'risk',
+    group: 'Breach handling',
+    label: 'Lock duration',
+    help: 'How long trading stays locked after a breach.',
+    default: 'tomorrow',
+    options: [
+      { value: 'hour', label: '1 hour' },
+      { value: 'tomorrow', label: 'Until tomorrow' },
+      { value: 'manual', label: 'Until I unlock' },
+    ],
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Privacy & security
+  'privacy.telemetry': oneOf({
+    section: 'privacy',
+    group: 'Telemetry',
+    label: 'Telemetry',
+    help: 'HT Flow never sends usage data anywhere. This is fixed off and cannot be switched on.',
+    default: 'off',
+    options: [
+      { value: 'off', label: 'Off — nothing leaves this PC' },
+      { value: 'on', label: 'On — not available', disabled: true },
+    ],
+    keywords: 'analytics tracking usage data',
+  }),
+  'privacy.crashReports': oneOf({
+    section: 'privacy',
+    group: 'Telemetry',
+    label: 'Crash reports',
+    help: 'Crashes are written to the local log folder only. Nothing is uploaded.',
+    default: 'local',
+    options: [
+      { value: 'local', label: 'Save locally only' },
+      { value: 'upload', label: 'Upload — not available', disabled: true },
+    ],
+  }),
+  'privacy.maskAccounts': bool({
+    section: 'privacy',
+    group: 'Display',
+    label: 'Mask account numbers',
+    help: 'Show only the last four characters of account ids in tables and the journal.',
+    default: true,
+    wired: false,
+  }),
+  'privacy.hideBalances': bool({
+    section: 'privacy',
+    group: 'Display',
+    label: 'Hide balances',
+    help: 'Replace account balances and P&L totals with dots (streaming / screen sharing).',
+    default: false,
+    wired: false,
+  }),
+  'privacy.clearOnLogout': bool({
+    section: 'privacy',
+    group: 'Local data',
+    label: 'Clear caches on log-out',
+    help: 'Delete the session and market-data caches whenever you log out. Settings, journal and layouts are kept.',
+    default: false,
+  }),
+
+  // ---------------------------------------------------------------- Logs
+  'logs.level': oneOf({
+    section: 'logs',
+    group: 'Logging',
+    label: 'Log level',
+    help: 'Messages below this level are not recorded.',
+    default: 'info',
+    options: [
+      { value: 'error', label: 'Errors only' },
+      { value: 'warn', label: 'Warnings and errors' },
+      { value: 'info', label: 'Info' },
+      { value: 'debug', label: 'Debug (verbose)' },
+    ],
+    keywords: 'verbosity debug trace',
+  }),
+  'logs.bufferSize': num({
+    section: 'logs',
+    group: 'Logging',
+    label: 'In-memory entries',
+    help: 'Most recent log entries kept in memory for the Logs window.',
+    default: 2000,
+    min: 100,
+    max: 100_000,
+    step: 100,
+  }),
+  'logs.keepDays': num({
+    section: 'logs',
+    group: 'Files',
+    label: 'Keep log files',
+    help: 'Log files older than this are deleted at start-up.',
+    default: 14,
+    min: 1,
+    max: 365,
+    step: 1,
+    unit: 'days',
+    wired: false,
+  }),
+  'logs.folder': str({
+    section: 'logs',
+    group: 'Files',
+    label: 'Log folder',
+    help: 'Where log files are written. Applied on the next start; opening the folder needs the native shell.',
+    default: '%APPDATA%\\HTFlow\\logs',
+    maxLength: 260,
+    pattern: /^[^<>"|?*\0]+$/,
+    patternHint: 'A folder path without < > " | ? *',
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- Custom modules (P43)
+  'modules.disabled': custom<string[]>({
+    section: 'modules',
+    group: 'Installed modules',
+    label: 'Disabled modules',
+    help: 'A module switched off here shows a "disabled" placeholder instead of its window (ribbon, command palette and saved workspaces alike). Settings itself cannot be disabled.',
+    default: [],
+    editor: 'moduleToggles',
+    validate: validateIdList,
+    keywords: 'plugin extension indicator strategy connector panel enable disable remove',
+  }),
+  'modules.folders': custom<string[]>({
+    section: 'modules',
+    group: 'Module folders',
+    label: 'Module folders',
+    help: 'Extra folders scanned for modules. Loading them (sandboxed) arrives with the native core; the list is stored now.',
+    default: [],
+    editor: 'moduleFolders',
+    validate: validateFolders,
+    keywords: 'install from file path directory',
+    wired: false,
+  }),
+
+  // ---------------------------------------------------------------- About & updates
+  'about.checkUpdates': bool({
+    section: 'about',
+    group: 'Updates',
+    label: 'Check for updates',
+    help: 'Look for a newer HT Flow release at start-up. Off by default (no network call is made); the updater arrives with the installer.',
+    default: false,
+    wired: false,
+  }),
+  'about.updateChannel': oneOf({
+    section: 'about',
+    group: 'Updates',
+    label: 'Update channel',
+    help: 'Which releases the updater offers.',
+    default: 'stable',
+    options: [
+      { value: 'stable', label: 'Stable' },
+      { value: 'beta', label: 'Beta — coming', disabled: true },
+    ],
     wired: false,
   }),
 } satisfies Record<string, SettingDef>;
@@ -1233,6 +2665,11 @@ export function validateSetting<K extends SettingKey>(
       if (s.length > d.maxLength) return fail(`At most ${d.maxLength} characters`);
       if (d.pattern && !d.pattern.test(s)) return fail(d.patternHint ?? 'Invalid format');
       return ok(s);
+    }
+    case 'color': {
+      if (raw === '') return ok('');
+      const hex = normalizeHex(raw);
+      return hex ? ok(hex) : fail('Use #RRGGBB, or leave empty to follow the theme');
     }
     case 'timezone': {
       if (typeof raw !== 'string') return fail('Must be a time zone');
@@ -1312,6 +2749,24 @@ export const useSettingsStore = create<SettingsStore>(() => ({
   profileId: null,
   loaded: false,
 }));
+
+/**
+ * Resolves once the logged-in profile's settings were read (or after `timeoutMs`, so a failed
+ * load never blocks start-up). Resolves immediately when they are already loaded.
+ */
+export function settingsReady(timeoutMs = 2500): Promise<void> {
+  return new Promise((resolve) => {
+    if (useSettingsStore.getState().loaded) return resolve();
+    let un = () => {};
+    const done = () => {
+      clearTimeout(timer);
+      un();
+      resolve();
+    };
+    const timer = setTimeout(done, timeoutMs);
+    un = useSettingsStore.subscribe((s) => s.loaded && done());
+  });
+}
 
 /** React selector: re-renders when this setting changes. */
 export function useSetting<K extends SettingKey>(key: K): SettingsValues[K] {

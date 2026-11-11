@@ -7,6 +7,7 @@ import type { DomWindowState } from '@htflow/workspace';
 import { useWindows } from '../state/windows';
 import { paper, PAPER_ACCOUNT, pnlTick } from '../state/market';
 import { useMarketStore } from '../charts/useMarket';
+import { getSettings, useSettingsStore } from '../state/settings';
 
 function domPalette() {
   const t = theme();
@@ -53,13 +54,26 @@ function Ladder({
     if (columns)
       l.columns = DEFAULT_COLUMNS.map((d) => ({ ...d, visible: columns.includes(d.id) }));
     ladder.current = l;
+    // Settings → DOM (+ Common → Depth of market): row height, centring, big lots, levels per side.
+    let dirty = true;
+    const applySettings = () => {
+      const v = getSettings();
+      l.rowHeight = v['dom.rowHeight'];
+      l.autoCenter = v['dom.autoCenter'];
+      l.maxLevels = v['common.domLevels'];
+      l.bigSize = v['dom.bigLotThreshold'] > 0 ? v['dom.bigLotThreshold'] : Infinity;
+      dirty = true;
+    };
+    applySettings();
+    const unSettings = useSettingsStore.subscribe((st, prev) => {
+      if (st.values !== prev.values) applySettings();
+    });
     const ro = new ResizeObserver(() => {
       const r = c.parentElement!.getBoundingClientRect();
       l.resize(r.width, r.height);
     });
     ro.observe(c.parentElement!);
     let raf = 0;
-    let dirty = true;
     const unsub = store.subscribe(() => (dirty = true));
     const unsubPaper = paper.subscribe(() => (dirty = true));
     const frame = () => {
@@ -82,6 +96,7 @@ function Ladder({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      unSettings();
       unsub();
       unsubPaper();
     };
