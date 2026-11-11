@@ -71,7 +71,10 @@ export function navigate(
   if (!cur) return same;
   switch (key) {
     case 'ArrowDown':
-      return { focusId: rows[Math.min(rows.length - 1, idx + 1)]!.node.id, expanded: same.expanded };
+      return {
+        focusId: rows[Math.min(rows.length - 1, idx + 1)]!.node.id,
+        expanded: same.expanded,
+      };
     case 'ArrowUp':
       return { focusId: rows[Math.max(0, idx - 1)]!.node.id, expanded: same.expanded };
     case 'Home':

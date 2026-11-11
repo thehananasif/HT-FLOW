@@ -98,7 +98,13 @@ export function TreeView({
   };
 
   return (
-    <ul ref={root} className={`ht-tree ${className ?? ''}`} role="tree" aria-label={ariaLabel} aria-multiselectable={checkable || undefined}>
+    <ul
+      ref={root}
+      className={`ht-tree ${className ?? ''}`}
+      role="tree"
+      aria-label={ariaLabel}
+      aria-multiselectable={checkable || undefined}
+    >
       {rows.map((r, i) => {
         const id = r.node.id;
         const cs = checkable ? checkState(r.node, checked) : null;
@@ -155,7 +161,9 @@ export function TreeView({
                 onChange={() => setChecked(toggleChecked(r.node, checked))}
               />
             )}
-            <span className="ht-tree-label">{renderLabel ? renderLabel(r.node) : r.node.label}</span>
+            <span className="ht-tree-label">
+              {renderLabel ? renderLabel(r.node) : r.node.label}
+            </span>
           </li>
         );
       })}

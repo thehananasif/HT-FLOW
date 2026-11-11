@@ -32,7 +32,11 @@ export const SYSTEM_FONTS: FontEntry[] = [
   'monospace',
   'sans-serif',
   'serif',
-].map((family) => ({ family, stack: family.includes(' ') ? `'${family}'` : family, group: 'System' as const }));
+].map((family) => ({
+  family,
+  stack: family.includes(' ') ? `'${family}'` : family,
+  group: 'System' as const,
+}));
 
 export interface FontPickerProps {
   value: string;
@@ -68,7 +72,13 @@ export function FontPicker({
   const current = fonts.find((f) => f.family === value);
   return (
     <div className={className}>
-      <Combobox value={value} onChange={(v) => onChange(v)} options={options} aria-label={ariaLabel} allowCustom />
+      <Combobox
+        value={value}
+        onChange={(v) => onChange(v)}
+        options={options}
+        aria-label={ariaLabel}
+        allowCustom
+      />
       <div
         className="ht-font-preview"
         data-testid="font-preview"

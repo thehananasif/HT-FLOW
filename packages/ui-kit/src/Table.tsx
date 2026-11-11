@@ -114,7 +114,13 @@ export function Table<T>({
     const id = ids[i];
     if (id === undefined) return;
     setSel(
-      selectRow(ids, { selected: new Set(selected), anchor: anchor.current }, id, mods, selectionMode === 'multi'),
+      selectRow(
+        ids,
+        { selected: new Set(selected), anchor: anchor.current },
+        id,
+        mods,
+        selectionMode === 'multi',
+      ),
     );
   };
   const moveCursor = (i: number) => {
@@ -149,7 +155,11 @@ export function Table<T>({
     } else if (e.key === 'Enter' && sorted[cursor]) {
       e.preventDefault();
       onRowActivate?.(sorted[cursor]!);
-    } else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey) && selectionMode === 'multi') {
+    } else if (
+      (e.key === 'a' || e.key === 'A') &&
+      (e.ctrlKey || e.metaKey) &&
+      selectionMode === 'multi'
+    ) {
       e.preventDefault();
       setSel({ selected: new Set(ids), anchor: ids[0] ?? null });
     }
@@ -237,7 +247,9 @@ export function Table<T>({
                         className={c.numeric ? 'ht-table-td tnum' : 'ht-table-td'}
                         data-align={c.align ?? (c.numeric ? 'right' : undefined)}
                       >
-                        {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? '')}
+                        {c.render
+                          ? c.render(row)
+                          : String((row as Record<string, unknown>)[c.key] ?? '')}
                       </div>
                     ))}
                   </div>

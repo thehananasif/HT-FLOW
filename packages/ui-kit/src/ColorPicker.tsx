@@ -404,13 +404,16 @@ export function GradientEditor({
               e.currentTarget.setPointerCapture(e.pointerId);
             }}
             onPointerMove={(e) => {
-              if (e.buttons === 1) onChange(updateStop(stops, i, { pos: posFromPointer(e.clientX) }));
+              if (e.buttons === 1)
+                onChange(updateStop(stops, i, { pos: posFromPointer(e.clientX) }));
             }}
             onKeyDown={(e) => {
               const step = e.shiftKey ? 0.1 : 0.01;
               if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                 e.preventDefault();
-                onChange(updateStop(stops, i, { pos: s.pos + (e.key === 'ArrowLeft' ? -step : step) }));
+                onChange(
+                  updateStop(stops, i, { pos: s.pos + (e.key === 'ArrowLeft' ? -step : step) }),
+                );
               } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 e.preventDefault();
                 onChange(removeStop(stops, i));

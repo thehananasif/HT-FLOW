@@ -37,7 +37,10 @@ export function Sheet({
               <X size={14} />
             </RxDialog.Close>
           </header>
-          <RxDialog.Description className={description ? 'ht-dialog-desc ht-sheet-desc' : undefined} style={description ? undefined : { display: 'none' }}>
+          <RxDialog.Description
+            className={description ? 'ht-dialog-desc ht-sheet-desc' : undefined}
+            style={description ? undefined : { display: 'none' }}
+          >
             {description ?? title}
           </RxDialog.Description>
           <div className="ht-sheet-body">{children}</div>

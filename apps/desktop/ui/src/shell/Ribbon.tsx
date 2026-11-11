@@ -1,35 +1,73 @@
 import { Fragment } from 'react';
-import { RibbonButton } from '@htflow/ui-kit';
+import { ContextMenu, RibbonButton } from '@htflow/ui-kit';
 import { MODULES } from './modules';
 import { MODULE_ICONS } from './icons';
 import { runCommand } from './commands';
+import { RibbonCustomize } from './RibbonCustomize';
+import { groupIds, ribbonStore, RIBBON_GROUPS, useRibbonState } from './ribbonStore';
 
-/** Top ribbon: grouped icon-over-label buttons (P02 / P44). Groups scroll horizontally. */
+/**
+ * Top ribbon: grouped icon-over-label buttons (P02 / P44). Groups scroll horizontally.
+ * Right-click (or Shift+F10) a button to hide it or open "Customize ribbon…".
+ */
 export function Ribbon({ compact }: { compact?: boolean }) {
-  const groups = [...new Set(MODULES.map((m) => m.group))];
+  const { hidden, order } = useRibbonState();
+  const byId = new Map(MODULES.map((m) => [m.id, m]));
+  const groups = RIBBON_GROUPS.map((g) => ({
+    group: g,
+    items: groupIds(g, order)
+      .filter((id) => !hidden.includes(id))
+      .map((id) => byId.get(id)!),
+  })).filter((g) => g.items.length > 0);
   return (
     <nav className="ribbon" aria-label="Ribbon">
-      {groups.map((g, gi) => (
-        <Fragment key={g}>
+      {groups.map(({ group, items }, gi) => (
+        <Fragment key={group}>
           {gi > 0 && <div className="ribbon-sep" />}
-          <div className="ribbon-group" role="group" aria-label={g}>
-            {MODULES.filter((m) => m.group === g).map((m) => {
+          <div className="ribbon-group" role="group" aria-label={group}>
+            {items.map((m) => {
               const Icon = MODULE_ICONS[m.id] ?? MODULE_ICONS.chart!;
               return (
-                <RibbonButton
+                <ContextMenu
                   key={m.id}
-                  icon={<Icon />}
-                  label={m.label}
-                  hasMenu={m.hasMenu}
-                  compact={compact}
-                  data-testid={`ribbon-${m.id}`}
-                  onClick={() => runCommand(`open.${m.id}`)}
-                />
+                  items={[
+                    {
+                      id: 'hide',
+                      label: 'Hide button',
+                      onSelect: () => ribbonStore.hide(m.id),
+                    },
+                    {
+                      id: 'customize',
+                      label: 'Customize ribbon…',
+                      onSelect: () => ribbonStore.openCustomize(true),
+                    },
+                  ]}
+                >
+                  <RibbonButton
+                    icon={<Icon />}
+                    label={m.label}
+                    hasMenu={m.hasMenu}
+                    compact={compact}
+                    data-testid={`ribbon-${m.id}`}
+                    onClick={() => runCommand(`open.${m.id}`)}
+                  />
+                </ContextMenu>
               );
             })}
           </div>
         </Fragment>
       ))}
+      {groups.length === 0 && (
+        <button
+          type="button"
+          className="ht-btn ht-btn--sm"
+          data-testid="ribbon-restore"
+          onClick={() => ribbonStore.openCustomize(true)}
+        >
+          Customize ribbon…
+        </button>
+      )}
+      <RibbonCustomize />
     </nav>
   );
 }

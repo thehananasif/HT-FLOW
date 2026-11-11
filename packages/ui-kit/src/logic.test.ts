@@ -54,7 +54,15 @@ describe('colour conversion', () => {
     expect(toRgbString({ r: 1, g: 2, b: 3, a: 0.25 })).toBe('rgba(1, 2, 3, 0.25)');
   });
   it('round-trips through HSV', () => {
-    for (const hex of ['#ff0000', '#20c77a', '#4fa3f7', '#b07cf0', '#808080', '#000000', '#ffffff']) {
+    for (const hex of [
+      '#ff0000',
+      '#20c77a',
+      '#4fa3f7',
+      '#b07cf0',
+      '#808080',
+      '#000000',
+      '#ffffff',
+    ]) {
       const c = parseColor(hex)!;
       expect(toHex(hsvToRgb(rgbToHsv(c)))).toBe(hex);
     }
@@ -74,7 +82,8 @@ describe('colour conversion', () => {
     expect(r).toEqual(['#ff0000', '#00ff00']);
     expect(pushRecent(r, 'junk')).toEqual(r);
     let big: string[] = [];
-    for (let i = 0; i < 20; i++) big = pushRecent(big, `#0000${i.toString(16).padStart(2, '0')}`, 5);
+    for (let i = 0; i < 20; i++)
+      big = pushRecent(big, `#0000${i.toString(16).padStart(2, '0')}`, 5);
     expect(big).toHaveLength(5);
   });
 });
@@ -185,13 +194,33 @@ describe('table logic', () => {
     expect(nextSort(a, 's')).toEqual({ key: 's', dir: 'asc' });
   });
   it('sorts stably with nulls last in both directions', () => {
-    expect(sortRows(rows, { key: 'n', dir: 'asc' }, get).map((r) => r.id)).toEqual(['r2', 'r4', 'r1', 'r3']);
-    expect(sortRows(rows, { key: 'n', dir: 'desc' }, get).map((r) => r.id)).toEqual(['r1', 'r2', 'r4', 'r3']);
-    expect(sortRows(rows, { key: 's', dir: 'asc' }, get).map((r) => r.id)).toEqual(['r2', 'r1', 'r4', 'r3']);
+    expect(sortRows(rows, { key: 'n', dir: 'asc' }, get).map((r) => r.id)).toEqual([
+      'r2',
+      'r4',
+      'r1',
+      'r3',
+    ]);
+    expect(sortRows(rows, { key: 'n', dir: 'desc' }, get).map((r) => r.id)).toEqual([
+      'r1',
+      'r2',
+      'r4',
+      'r3',
+    ]);
+    expect(sortRows(rows, { key: 's', dir: 'asc' }, get).map((r) => r.id)).toEqual([
+      'r2',
+      'r1',
+      'r4',
+      'r3',
+    ]);
     expect(sortRows(rows, null, get)).toEqual(rows);
   });
   it('computes the virtual window', () => {
-    expect(virtualRange(1000, 20, 0, 200, 2)).toEqual({ start: 0, end: 12, offsetTop: 0, totalHeight: 20000 });
+    expect(virtualRange(1000, 20, 0, 200, 2)).toEqual({
+      start: 0,
+      end: 12,
+      offsetTop: 0,
+      totalHeight: 20000,
+    });
     const v = virtualRange(1000, 20, 2000, 200, 2);
     expect(v.start).toBe(98);
     expect(v.end).toBe(112);
@@ -229,7 +258,10 @@ describe('split + ribbon layout', () => {
   });
   it('sanitizes, orders and moves', () => {
     const known = ['a', 'b', 'c'];
-    expect(sanitizeRibbon({ hidden: ['a', 'zzz', 'a', 3], order: ['c'] }, known)).toEqual({ hidden: ['a'], order: ['c'] });
+    expect(sanitizeRibbon({ hidden: ['a', 'zzz', 'a', 3], order: ['c'] }, known)).toEqual({
+      hidden: ['a'],
+      order: ['c'],
+    });
     expect(sanitizeRibbon(null, known)).toEqual({ hidden: [], order: [] });
     expect(applyOrder(known, ['c', 'x', 'a'])).toEqual(['c', 'a', 'b']);
     expect(moveItem(known, 0, 2)).toEqual(['b', 'c', 'a']);
