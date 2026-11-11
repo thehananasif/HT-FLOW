@@ -123,7 +123,8 @@ function FeedDialog({
 function RssReader({ state: win, setParams }: ModuleViewProps) {
   const s = useStore(reader);
   const tz = userTimezone();
-  const sel = (win.params?.sel as Sel | undefined) ?? { kind: 'all' };
+  const rawSel = win.params?.sel as Sel | undefined;
+  const sel = useMemo<Sel>(() => rawSel ?? { kind: 'all' }, [rawSel]);
   const setSel = (v: Sel) => setParams({ sel: v });
   const [selected, setSelected] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ open: boolean; feed: FeedSub | null }>({ open: false, feed: null });
