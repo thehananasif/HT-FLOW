@@ -317,7 +317,7 @@ export function generateSimChain(
         const theo = optionPrice({ ...p, sigma: vol });
         const sv = u.spreadVol * (1 + 0.35 * x);
         let bid: number | null = roundTo(optionPrice({ ...p, sigma: vol - sv }), tick, 'floor');
-        let ask = Math.max(tick, roundTo(optionPrice({ ...p, sigma: vol + sv }), tick, 'ceil'));
+        const ask = Math.max(tick, roundTo(optionPrice({ ...p, sigma: vol + sv }), tick, 'ceil'));
         if (bid >= ask) bid = ask - tick;
         if (bid < tick) bid = null;
         const stat = rng(`${u.root}|${expiry}|${K}|${kind}`);
