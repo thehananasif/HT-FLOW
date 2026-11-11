@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — round 2
+
+### Added
+
+- Extension points for parallel work: module registry (`modules/<name>/index.tsx`), feed-provider registry, chart extensions (layers, pointer handlers, overlays, menu items) and chart-header items; `docs/AGENT_GUIDE.md`.
+- ChartCore: pointer / keyboard handlers for extensions; each layer with a bottom pane gets its own stacked rect.
+- `MarketHub` ensure / retain / release with a 3 s grace period; per-store trade listeners.
+- Drawing tools (P12): `@htflow/drawings` with 67 tools, anchors, magnet, lock / hide / clone, style toolbar, per-timeframe visibility, linked-chart sync, Objects List, Undo / Redo, hotkeys; side-tool drawing groups are live.
+
 ## 0.1.0 — 2026-11-04 (fast-track foundation)
 
 ### Added
