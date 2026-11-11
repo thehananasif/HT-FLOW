@@ -1,0 +1,23 @@
+.dm-root .dm-rec {
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.dm-table td,
+.dm-table th {
+  white-space: nowrap;
+}
+.dm-day td {
+  color: var(--ht-text-secondary);
+}
+.dm-indent {
+  padding-left: 28px !important;
+}
+.dm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.dm-root-path {
+  font-size: 11px;
+}

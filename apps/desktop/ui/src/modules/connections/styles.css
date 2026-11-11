@@ -1,0 +1,238 @@
+.cx-tabs {
+  padding: 8px 12px 0;
+}
+.cx-toolbar {
+  align-items: center;
+}
+.cx-table td,
+.cx-table th {
+  white-space: nowrap;
+}
+.cx-table .r {
+  text-align: right;
+}
+.cx-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cx-sub {
+  font-size: 11px;
+}
+.cx-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--ht-text-primary);
+  color: var(--ht-bg);
+  font-weight: 600;
+  flex: none;
+}
+.cx-avatar.sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--ht-surface3);
+  color: var(--ht-text-primary);
+}
+.cx-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cx-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ht-text-tertiary);
+}
+.cx-status--connected {
+  color: var(--ht-up);
+}
+.cx-status--connected i {
+  background: var(--ht-up);
+}
+.cx-status--delayed,
+.cx-status--connecting {
+  color: var(--ht-warning);
+}
+.cx-status--delayed i,
+.cx-status--connecting i {
+  background: var(--ht-warning);
+}
+.cx-status--error {
+  color: var(--ht-down);
+}
+.cx-status--error i {
+  background: var(--ht-down);
+}
+.cx-status--disconnected {
+  color: var(--ht-text-secondary);
+}
+.cx-table .up {
+  color: var(--ht-up);
+}
+.cx-table .warn,
+.cx-cards .warn {
+  color: var(--ht-warning);
+}
+.cx-table .down,
+.cx-cards .down,
+.dm-actions .down {
+  color: var(--ht-down);
+}
+.cx-cards .up {
+  color: var(--ht-up);
+}
+.cx-actions-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.cx-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+  font: inherit;
+}
+.cx-link:hover {
+  color: var(--ht-text-primary);
+}
+.cx-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* Wizard */
+.cx-wizard {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  height: min(600px, 66vh);
+}
+.cx-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.cx-tree-list {
+  overflow: auto;
+  flex: 1;
+}
+.cx-group {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--ht-text-tertiary);
+  padding: 8px 6px 4px;
+}
+.cx-prov {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ht-text-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.cx-prov:hover {
+  background: var(--ht-hover);
+}
+.cx-prov[data-active] {
+  background: var(--ht-text-primary);
+  color: var(--ht-bg);
+}
+.cx-tag {
+  font-size: 9px;
+  color: var(--ht-text-tertiary);
+  letter-spacing: 0.03em;
+}
+.cx-prov[data-active] .cx-tag {
+  color: var(--ht-bg);
+}
+.cx-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.cx-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+}
+.cx-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.cx-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.cx-head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+.cx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.cx-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  color: var(--ht-text-secondary);
+}
+.cx-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--ht-surface2);
+}
+.cx-note {
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ht-border);
+  color: var(--ht-info);
+}
+.cx-note--warn {
+  color: var(--ht-warning);
+}
+.cx-test {
+  font-size: 12px;
+}
+.cx-test.ok {
+  color: var(--ht-up);
+}
+.cx-test.bad {
+  color: var(--ht-down);
+}
+.cx-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
