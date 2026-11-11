@@ -1,0 +1,82 @@
+.ap-head,
+.ap-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.6fr 0.9fr 0.9fr 0.9fr 0.7fr 0.9fr 1fr;
+  font-size: 12px;
+}
+.ap-head {
+  flex: none;
+  border-bottom: 1px solid var(--ht-border);
+  background: var(--ht-surface1);
+}
+.ap-head .ap-c {
+  background: none;
+  border: 0;
+  color: var(--ht-text-secondary);
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 5px 8px;
+  text-align: right;
+}
+.ap-head .ap-c[data-sorted] {
+  color: var(--ht-text-primary);
+}
+.ap-head .ap-px {
+  text-align: left;
+}
+.ap-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.ap-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+  align-items: center;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.ap-row:hover {
+  background: var(--ht-surface2);
+}
+.ap-row[data-poc] {
+  background: var(--ht-surface3);
+  font-weight: 600;
+}
+.ap-row[data-poc] .ap-px {
+  color: var(--ht-text-primary);
+}
+.ap-row[data-last] .ap-px {
+  box-shadow: inset 2px 0 0 var(--ht-text-primary);
+}
+.ap-row .ap-c {
+  padding: 0 8px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  height: 100%;
+  line-height: 22px;
+}
+.ap-row .ap-px {
+  text-align: left;
+  color: var(--ht-text-soft);
+}
+.ap-row .ap-volume {
+  position: relative;
+}
+.ap-volume i {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 2px;
+  max-width: calc(100% - 8px);
+}
+.ap-volume b {
+  position: relative;
+  font-weight: inherit;
+  color: var(--ht-text-primary);
+}

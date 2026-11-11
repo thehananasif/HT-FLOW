@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@htflow/alerts": "workspace:*",
+    "@htflow/analytics": "workspace:*",
     "@htflow/chart-engine": "workspace:*",
     "@htflow/dom": "workspace:*",
     "@htflow/drawings": "workspace:*",
@@ -22,6 +23,7 @@
     "@htflow/indicators": "workspace:*",
     "@htflow/market-data": "workspace:*",
     "@htflow/replay": "workspace:*",
+    "@htflow/tape": "workspace:*",
     "@htflow/trading": "workspace:*",
     "@htflow/ui-kit": "workspace:*",
     "@htflow/workspace": "workspace:*",
