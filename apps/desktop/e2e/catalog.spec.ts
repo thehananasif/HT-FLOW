@@ -48,7 +48,7 @@ test('picker: search "crude", open CL (Sim); no-feed futures offer Connections',
   await zc.dblclick();
   await expect(picker.getByRole('alert')).toContainText('has no feed');
   await picker.getByRole('button', { name: 'Open Connections' }).click();
-  await expect(page.getByText('Providers')).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Add connection' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
