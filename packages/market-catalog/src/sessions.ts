@@ -44,9 +44,7 @@ export function inSession(s: SessionSpec, ts: number): boolean {
   const prev = (weekday + 6) % 7;
   let open: boolean;
   if (c > o) open = s.days.includes(weekday) && minutes >= o && minutes < c;
-  else
-    open =
-      (s.days.includes(weekday) && minutes >= o) || (s.days.includes(prev) && minutes < c);
+  else open = (s.days.includes(weekday) && minutes >= o) || (s.days.includes(prev) && minutes < c);
   if (!open) return false;
   for (const b of s.breaks ?? []) {
     if (minutes >= hhmm(b.from) && minutes < hhmm(b.to)) return false;

@@ -120,6 +120,11 @@ export const SPEC_LANDING: Record<string, string> = {
   NYSE: 'https://www.nyse.com/listings_directory/stock',
   NASDAQ: 'https://www.nasdaq.com/market-activity/stocks/screener',
   MOEX: 'https://www.moex.com/en/',
+  // TODO(verify): the single-stock futures venue is not known; points at a broker product list.
+  SSF: 'https://www.interactivebrokers.com/en/trading/products-exchanges.php',
+  XETRA: 'https://www.xetra.com/xetra-en/',
+  Euronext: 'https://live.euronext.com/en',
+  SIX: 'https://www.six-group.com/en/market-data/shares.html',
 };
 
 export const cmeUrl = (path: string) =>

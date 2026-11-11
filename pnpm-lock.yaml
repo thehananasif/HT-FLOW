@@ -194,6 +194,8 @@ importers:
         specifier: workspace:*
         version: link:../market-data
 
+  packages/market-catalog: {}
+
   packages/market-data: {}
 
   packages/replay:
