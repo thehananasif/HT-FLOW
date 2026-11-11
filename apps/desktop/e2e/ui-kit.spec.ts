@@ -96,7 +96,7 @@ test('ui gallery shows the new P02 components', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'UI Gallery' })).toBeVisible();
 
   // Combobox keyboard navigation.
-  const combo = page.getByRole('combobox', { name: 'Instrument' });
+  const combo = page.getByRole('combobox', { name: 'Instrument', exact: true });
   await combo.click();
   await combo.fill('nq');
   await page.keyboard.press('ArrowDown');
