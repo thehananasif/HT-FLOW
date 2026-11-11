@@ -38,6 +38,23 @@ export const en = {
   'empty.module.title': '{name}',
   'empty.module.body':
     'This module is part of phase {phase} of the build plan. Its window, ribbon entry and command are registered; the full screen is not built yet (tracked in docs/FEATURES.md).',
+  'indicators.title': 'Indicators',
+  'indicators.button': 'Indicators',
+  'indicators.command': 'Indicators…',
+  'indicators.search': 'Search indicators…',
+  'indicators.favourites': 'Favourites',
+  'indicators.onChart': 'On this chart ({n})',
+  'indicators.available': '{n} available',
+  'indicators.empty': 'Add an indicator from the list on the left.',
+  'indicators.noBars': 'Indicators need a bar-based chart (not the Liquidity Map).',
+  'indicators.pending': 'pending',
+  'indicators.reset': 'Reset to default',
+  'indicators.savePreset': 'Save preset',
+  'indicators.applyAll': 'Apply to all charts',
+  'indicators.cancel': 'Cancel',
+  'indicators.apply': 'Apply',
+  'indicators.alertsPending':
+    'Alert conditions on indicator values arrive with the Alerts module (P23). Settings here are kept per indicator.',
 } as const;
 
 export type Strings = { [K in keyof typeof en]: string };
