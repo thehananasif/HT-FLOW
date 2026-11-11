@@ -17,6 +17,15 @@ export interface PaperEngineDeps {
 
 type Listener = () => void;
 
+/**
+ * Routes an (account, instrument) pair to the account that really trades it, e.g. every order on a
+ * `replay:` instrument goes to the replay account with the journal tag 'replay'.
+ */
+export type AccountRouter = (
+  accountId: string,
+  instrumentId: string,
+) => { accountId: string; tag?: string } | undefined;
+
 let seq = 0;
 const nextId = (p: string) => `${p}${Date.now().toString(36)}${(++seq).toString(36)}`;
 
@@ -35,8 +44,18 @@ export class PaperEngine {
   >();
   private listeners = new Set<Listener>();
   version = 0;
+  private router: AccountRouter | null = null;
 
   constructor(private deps: PaperEngineDeps) {}
+
+  setAccountRouter(r: AccountRouter | null): void {
+    this.router = r;
+  }
+
+  /** The account that trades `instrumentId` when `accountId` is requested. */
+  route(accountId: string, instrumentId: string): string {
+    return this.router?.(accountId, instrumentId)?.accountId ?? accountId;
+  }
 
   private now(): number {
     return this.deps.now?.() ?? Date.now();
@@ -88,6 +107,7 @@ export class PaperEngine {
   }
 
   position(accountId: string, instrumentId: string): Position {
+    accountId = this.route(accountId, instrumentId);
     const k = `${accountId}|${instrumentId}`;
     let p = this.positions.get(k);
     if (!p) {
@@ -107,6 +127,7 @@ export class PaperEngine {
   }
 
   workingOrders(accountId?: string, instrumentId?: string): Order[] {
+    if (accountId && instrumentId) accountId = this.route(accountId, instrumentId);
     return [...this.orders.values()].filter(
       (o) =>
         (o.status === 'working' || o.status === 'partial') &&
@@ -123,6 +144,8 @@ export class PaperEngine {
   }
 
   place(req: OrderRequest): Order {
+    const r = this.router?.(req.accountId, req.instrumentId);
+    if (r) req = { ...req, accountId: r.accountId, tag: req.tag ?? r.tag };
     const acc = this.accounts.get(req.accountId);
     const t = this.now();
     const order: Order = {
@@ -142,6 +165,7 @@ export class PaperEngine {
       createdAt: t,
       updatedAt: t,
       role: req.bracket ? 'entry' : undefined,
+      tag: req.tag,
     };
     const reject = (reason: string) => {
       order.status = 'rejected';
@@ -192,6 +216,7 @@ export class PaperEngine {
   }
 
   cancelAll(accountId: string, instrumentId?: string, side?: Side): number {
+    if (instrumentId) accountId = this.route(accountId, instrumentId);
     let n = 0;
     for (const o of this.workingOrders(accountId, instrumentId)) {
       if (side && o.side !== side) continue;
@@ -213,6 +238,7 @@ export class PaperEngine {
   }
 
   flatten(accountId: string, instrumentId: string): void {
+    accountId = this.route(accountId, instrumentId);
     this.cancelAll(accountId, instrumentId);
     const p = this.position(accountId, instrumentId);
     if (p.qty !== 0) {
@@ -232,6 +258,7 @@ export class PaperEngine {
   }
 
   reverse(accountId: string, instrumentId: string): void {
+    accountId = this.route(accountId, instrumentId);
     const p = this.position(accountId, instrumentId);
     if (p.qty === 0) return;
     this.cancelAll(accountId, instrumentId);
@@ -246,6 +273,7 @@ export class PaperEngine {
 
   /** Breakeven (H): moves protective stops to the average entry, or creates one. */
   breakeven(accountId: string, instrumentId: string): void {
+    accountId = this.route(accountId, instrumentId);
     const p = this.position(accountId, instrumentId);
     if (p.qty === 0) return;
     const be = p.qty > 0 ? Math.ceil(p.avgPx) : Math.floor(p.avgPx);
@@ -362,6 +390,7 @@ export class PaperEngine {
       commission,
       liquidity,
       realized,
+      tag: o.tag,
     });
     if (o.status === 'filled') {
       if (o.oco)
@@ -417,6 +446,7 @@ export class PaperEngine {
       updatedAt: t,
       oco: group,
       parentId: entry.id,
+      tag: entry.tag,
       ...o,
     });
     if (spec.slTicks) {
