@@ -6,9 +6,12 @@ import { instrumentById } from '../../state/instruments';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { risk } from '../risk/engine';
+import { fmtClock, useTimeFormat } from '../../state/format';
+import { confirmAction } from '../../state/confirm';
 
 /** Re-renders on every paper-engine event (fills land in all tables in the same frame). */
 function useTicker(ms = 500) {
+  useTimeFormat(); // times follow Settings → General / Time zones
   const [, set] = useState(0);
   useEffect(() => {
     const u = paper.subscribe(() => set((x) => x + 1));
@@ -29,9 +32,7 @@ const accName = (id: string) => paper.accounts.get(id)?.name ?? id;
 /** Account ids are never shown in full. */
 const masked = (a: Account) =>
   a.name.includes('••••') ? a.name : `${a.name} ••••${a.id.replace(/\W/g, '').slice(-4)}`;
-const time = (t: number, ms = false) =>
-  new Date(t).toLocaleTimeString('en-GB', { hour12: false }) +
-  (ms ? '.' + String(Math.floor(t % 1000)).padStart(3, '0') : '');
+const time = (t: number, ms = false) => fmtClock(t, { ms });
 const money = (v: number) =>
   (v < 0 ? '−' : '') +
   '$' +
@@ -215,10 +216,37 @@ const positionCols: DataColumn<PosRow>[] = [
     value: () => '',
     render: (p) => (
       <>
-        <button className="dt-cell-btn" onClick={() => paper.flatten(p.accountId, p.instrumentId)}>
+        <button
+          className="dt-cell-btn"
+          onClick={() =>
+            void confirmAction(
+              'tableAction',
+              {
+                title: 'Close position',
+                body: `Close the ${sym(p.instrumentId)} position of ${accName(p.accountId)} at market?`,
+                confirmLabel: 'Close position',
+                danger: true,
+              },
+              { fromTable: true },
+            ).then((ok) => ok && paper.flatten(p.accountId, p.instrumentId))
+          }
+        >
           Close
         </button>
-        <button className="dt-cell-btn" onClick={() => paper.reverse(p.accountId, p.instrumentId)}>
+        <button
+          className="dt-cell-btn"
+          onClick={() =>
+            void confirmAction(
+              'tableAction',
+              {
+                title: 'Reverse position',
+                body: `Reverse the ${sym(p.instrumentId)} position of ${accName(p.accountId)} at market?`,
+                confirmLabel: 'Reverse',
+              },
+              { fromTable: true },
+            ).then((ok) => ok && paper.reverse(p.accountId, p.instrumentId))
+          }
+        >
           Reverse
         </button>
       </>
@@ -242,7 +270,18 @@ function Positions({ state, setParams }: ModuleViewProps) {
       actions={
         <button
           className="dt-btn dt-btn--primary"
-          onClick={() => [...paper.accounts.keys()].forEach((a) => paper.flattenAll(a))}
+          onClick={() =>
+            void confirmAction(
+              'flatten',
+              {
+                title: 'Flatten all',
+                body: 'Close every open position of every account at market and cancel their working orders?',
+                confirmLabel: 'Flatten all',
+                danger: true,
+              },
+              { fromTable: true },
+            ).then((ok) => ok && [...paper.accounts.keys()].forEach((a) => paper.flattenAll(a)))
+          }
         >
           Flatten all
         </button>
@@ -386,7 +425,17 @@ const orderCols: DataColumn<Order>[] = [
           <button
             className="dt-cell-btn"
             aria-label="Cancel order"
-            onClick={() => paper.cancel(o.id)}
+            onClick={() =>
+              void confirmAction(
+                'tableAction',
+                {
+                  title: 'Cancel order',
+                  body: `Cancel the working ${o.side} order on ${sym(o.instrumentId)}?`,
+                  confirmLabel: 'Cancel order',
+                },
+                { fromTable: true },
+              ).then((ok) => ok && paper.cancel(o.id))
+            }
           >
             ✕
           </button>
@@ -413,7 +462,18 @@ function Orders({ state, setParams }: ModuleViewProps) {
       actions={
         <button
           className="dt-btn dt-btn--primary"
-          onClick={() => [...paper.accounts.keys()].forEach((a) => paper.cancelAll(a))}
+          onClick={() =>
+            void confirmAction(
+              'flatten',
+              {
+                title: 'Cancel all orders',
+                body: 'Cancel every working order of every account?',
+                confirmLabel: 'Cancel all',
+                danger: true,
+              },
+              { fromTable: true },
+            ).then((ok) => ok && [...paper.accounts.keys()].forEach((a) => paper.cancelAll(a)))
+          }
         >
           Cancel all
         </button>

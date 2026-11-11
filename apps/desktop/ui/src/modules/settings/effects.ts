@@ -1,16 +1,20 @@
 /**
  * Applies settings to the running app: theme + tokens, UI scale / font size, ribbon mode,
- * notification position, hotkey overrides, paper-engine commissions and sound triggers.
+ * notifications (position, show, duration, max), layout direction (RTL flag), hotkey overrides,
+ * paper-engine commissions, sound triggers, log capture and clear-on-logout.
  */
-import { applyTheme, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
+import { applyTheme, configureToasts, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
 import type { Trade } from '@htflow/market-data';
 import { setHotkeyOverrides } from '../../shell/commands';
 import {
+  RTL_LANGUAGES,
   getSetting,
   getSettings,
   useSettingsStore,
   type SettingsValues,
 } from '../../state/settings';
+import { useSession } from '../../state/session';
+import { installLogCapture, logBuffer, type LogLevel } from '../../state/log';
 import { hub, paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { playSound } from '../../sound';
@@ -39,6 +43,24 @@ export function applyAppearance(v: AppearanceValues): void {
     'ht-ribbon-icons-only',
     v['appearance.ribbonIconsOnly'],
   );
+}
+
+/** Layout direction: the RTL flag, or the language when it is right-to-left. */
+export function layoutDirection(v: Pick<SettingsValues, 'general.rtl' | 'general.language'>) {
+  const rtl =
+    v['general.rtl'] === 'rtl' ||
+    (v['general.rtl'] === 'auto' && RTL_LANGUAGES.includes(v['general.language']));
+  return rtl ? 'rtl' : 'ltr';
+}
+
+/** Deletes the session and Cache API data (Settings → Privacy → clear caches). */
+export function clearLocalCaches(): void {
+  try {
+    sessionStorage.clear();
+    void caches?.keys().then((ks) => ks.forEach((k) => void caches.delete(k)));
+  } catch {
+    /* storage or Cache API unavailable */
+  }
 }
 
 function commissionFor(accountId: string, instrumentId: string) {
@@ -82,7 +104,38 @@ export function installSettingsEffects(): void {
     if (changed('hotkeys.bindings')) setHotkeyOverrides(v['hotkeys.bindings']);
     if (changed('common.notifyPosition') && typeof document !== 'undefined')
       document.documentElement.dataset.toastPos = v['common.notifyPosition'];
+    if (
+      changed('common.notifyShow') ||
+      changed('common.notifyDurationMs') ||
+      changed('common.notifyMax')
+    )
+      configureToasts({
+        show: v['common.notifyShow'],
+        durationMs: v['common.notifyDurationMs'],
+        max: v['common.notifyMax'],
+      });
+    if (
+      (changed('general.rtl') || changed('general.language')) &&
+      typeof document !== 'undefined'
+    ) {
+      const el = document.documentElement;
+      el.dir = layoutDirection(v);
+      el.lang = v['general.language'];
+    }
+    if (changed('logs.level') || changed('logs.bufferSize'))
+      logBuffer.configure({
+        minLevel: v['logs.level'] as LogLevel,
+        capacity: v['logs.bufferSize'],
+      });
   };
+  installLogCapture();
+  // Privacy: optionally drop caches when the user logs out.
+  let wasIn = !!useSession.getState().session;
+  useSession.subscribe((st) => {
+    const isIn = !!st.session;
+    if (wasIn && !isIn && getSetting('privacy.clearOnLogout')) clearLocalCaches();
+    wasIn = isIn;
+  });
   // Settings load after login (session.setSession applies the account theme first).
   useSettingsStore.subscribe((s, p) => {
     if (s.values !== p.values) apply(s.values, p.values);
