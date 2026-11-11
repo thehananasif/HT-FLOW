@@ -30,6 +30,7 @@ export const MODULES: ModuleDef[] = [
   { id: 'heatmap', label: 'Heatmap', group: 'Analysis', phase: 'P11' },
   { id: 'forward-curve', label: 'Forward curve', group: 'Analysis', phase: 'P19 / P41' },
   { id: 'connections', label: 'Connections', group: 'Platform', phase: 'P32' },
+  { id: 'data-manager', label: 'Data manager', group: 'Platform', phase: 'P06' },
   { id: 'workspaces', label: 'Workspaces', group: 'Platform', phase: 'P25 / P37', hasMenu: true },
   { id: 'layout-settings', label: 'Layout Settings', group: 'Platform', phase: 'P37' },
   { id: 'alerts', label: 'Alerts', group: 'Platform', phase: 'P23 / P41', hasMenu: true },

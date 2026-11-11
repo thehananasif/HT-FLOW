@@ -9,6 +9,7 @@
 
 ### Added
 
+- Data layer (P05 / P06 / P32): `crates/tick-store` recorder and reader, history merge with gap backfill, Bybit linear connector, tick-store replay source, new Connections window with add-connection wizard, Data manager.
 - Market catalog (P04): `@htflow/market-catalog` with Appendix A seed, sessions, expiry / roll rules; new Instrument Picker; Watchlist; Forward Curve (P19, simulated prices).
 - Options (P18): `@htflow/options` pricing, Greeks, IV, strategies, simulated chains and Deribit provider; Options Strategy Analyser window.
 - Info group (P22 / P39): `@htflow/info`; RSS Reader, News, Economic Calendar (with chart lines), TradersTalk; Rust `net_fetch_text` command.
