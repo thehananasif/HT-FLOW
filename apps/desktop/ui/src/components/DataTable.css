@@ -1,0 +1,159 @@
+.dt {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: 12px;
+}
+.dt-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  flex: none;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.dt-filtered {
+  font-size: 10px;
+  color: var(--ht-warning);
+}
+.dt-menu {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+}
+.dt-head,
+.dt-filters,
+.dt-row {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+.dt-head {
+  height: 26px;
+  flex: none;
+  border-bottom: 1px solid var(--ht-divider);
+  font-size: 10px;
+  color: var(--ht-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.dt-head > span,
+.dt-filters > span,
+.dt-row > span {
+  min-width: 0;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dt-sortable {
+  cursor: pointer;
+}
+.dt-filters {
+  height: 26px;
+  flex: none;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.dt-filters input {
+  width: 100%;
+  height: 20px;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: var(--ht-bg);
+  color: var(--ht-text-primary);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.dt-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.dt-row {
+  border-bottom: 1px solid var(--ht-divider);
+  color: var(--ht-text-soft);
+}
+.dt-row:hover,
+.dt-row[aria-selected='true'] {
+  background: var(--ht-surface2);
+}
+.dt-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  cursor: pointer;
+  font-weight: 600;
+  background: var(--ht-surface1);
+  border-bottom: 1px solid var(--ht-divider);
+}
+.dt-foot {
+  flex: none;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  border-top: 1px solid var(--ht-divider);
+  color: var(--ht-text-secondary);
+  font-size: 11px;
+}
+.dt-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--ht-text-secondary);
+  background: var(--ht-surface3);
+}
+.dt-pill--up {
+  color: var(--ht-up);
+  background: color-mix(in srgb, var(--ht-up) 14%, transparent);
+}
+.dt-pill--down {
+  color: var(--ht-down);
+  background: color-mix(in srgb, var(--ht-down) 14%, transparent);
+}
+.dt-pill--warning {
+  color: var(--ht-warning);
+  background: color-mix(in srgb, var(--ht-warning) 14%, transparent);
+}
+.dt-pill--info {
+  color: var(--ht-info);
+}
+.dt-btn {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--ht-muted);
+  background: transparent;
+  color: var(--ht-text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dt-btn--primary {
+  background: var(--ht-accent);
+  border-color: var(--ht-accent);
+  color: var(--ht-accent-text);
+}
+.dt-cell-btn {
+  border: 0;
+  border-radius: 5px;
+  padding: 2px 8px;
+  margin-left: 4px;
+  background: var(--ht-surface3);
+  color: var(--ht-text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.dt-cell-btn:hover {
+  background: var(--ht-hover);
+}

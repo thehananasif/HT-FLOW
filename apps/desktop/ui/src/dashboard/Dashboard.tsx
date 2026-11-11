@@ -58,6 +58,7 @@ import { ChartWindow } from '../charts/ChartWindow';
 import { DomWindow } from '../trading/DomView';
 import { TradingPanel } from '../trading/TradingPanel';
 import { ModuleWindow } from './ModuleWindow';
+import { risk, riskStore } from '../modules/risk/engine';
 import { WindowHeader } from './WindowHeader';
 
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
@@ -615,17 +616,32 @@ export function Dashboard({ version }: { version: string }) {
   );
 }
 
-/** Daily risk meter in the title bar (full Risk Management in P23/P41). */
+/** Daily risk meter in the title bar, driven by the risk engine (P23 / P41). */
 function RiskMeter() {
   const [, set] = useState(0);
-  useEffect(() => paper.subscribe(() => set((x) => x + 1)), []);
-  const acc = paper.accounts.get(PAPER_ACCOUNT)!;
-  const limit = 1000;
-  const loss = Math.max(0, acc.startingBalance - acc.balance);
-  const pct = Math.min(1, loss / limit);
+  useEffect(() => {
+    const bump = () => set((x) => x + 1);
+    const a = paper.subscribe(bump);
+    const b = riskStore.subscribe(bump);
+    const i = setInterval(bump, 1000);
+    return () => {
+      a();
+      b();
+      clearInterval(i);
+    };
+  }, []);
+  const st = risk.status(PAPER_ACCOUNT);
+  const rule = risk.rules(PAPER_ACCOUNT).dailyLossLimit;
+  const pct = st.locked ? 1 : Math.min(1, st.dailyLossUsed);
+  const loss = Math.max(0, -st.dayPnl);
+  const title = st.locked
+    ? `Locked: ${st.lockReason ?? ''}`
+    : rule.enabled
+      ? `Daily loss ${loss.toFixed(2)} of ${rule.value} limit (${Math.round(pct * 100)}%)`
+      : 'Daily loss limit is off';
   return (
-    <div className="tb-risk" title={`Daily loss ${loss.toFixed(2)} of ${limit} limit (paper)`}>
-      <span className="muted">Daily risk</span>
+    <div className="tb-risk" title={title} data-testid="risk-meter" data-state={st.state}>
+      <span className="muted">{st.locked ? 'Locked' : 'Daily risk'}</span>
       <div className="risk-meter">
         <span
           style={{

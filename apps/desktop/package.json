@@ -11,6 +11,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@htflow/alerts": "workspace:*",
     "@htflow/chart-engine": "workspace:*",
     "@htflow/dom": "workspace:*",
     "@htflow/drawings": "workspace:*",
