@@ -7,6 +7,8 @@ members = [
     "crates/vault",
     "crates/connectors/binance",
     "crates/connectors/bybit",
+    "crates/connectors/common",
+    "crates/connectors/okx",
     "crates/tick-store",
 ]
 
@@ -36,6 +38,8 @@ htflow-auth = { path = "crates/auth" }
 htflow-vault = { path = "crates/vault" }
 htflow-connector-binance = { path = "crates/connectors/binance" }
 htflow-connector-bybit = { path = "crates/connectors/bybit" }
+htflow-connector-common = { path = "crates/connectors/common" }
+htflow-connector-okx = { path = "crates/connectors/okx" }
 
 htflow-tick-store = { path = "crates/tick-store" }
 

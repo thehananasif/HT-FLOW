@@ -1385,6 +1385,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "htflow-connector-common"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-core-types",
+ "rand 0.8.8",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-okx"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "htflow-core-types"
 version = "0.1.0"
 dependencies = [
