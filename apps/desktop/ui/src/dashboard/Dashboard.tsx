@@ -443,9 +443,14 @@ export function Dashboard({ version }: { version: string }) {
     ];
     const un = registerCommands(cmds);
     const unk = installHotkeys();
+    // Modules outside the ribbon (e.g. the drawings Objects List) open through this event.
+    const onOpen = (e: Event) =>
+      openWindow({ kind: 'module', module: String((e as CustomEvent).detail) });
+    window.addEventListener('htflow:open-module', onOpen);
     return () => {
       un();
       unk();
+      window.removeEventListener('htflow:open-module', onOpen);
     };
   }, [applyPreset, openWindow, split, detach]);
 

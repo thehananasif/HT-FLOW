@@ -133,8 +133,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P12 — Drawing tools
 
-- [~] Side-tool groups list every tool with its shortcut (Lines, Shapes, Volume Analysis, Fibonacci, Measurement, Elliott, Markers, Text, Positions, Gann & Pitchfork, Objects) — **tools are disabled until P12**
-- [ ] Every drawing tool, anchors, magnet, lock / hide / clone, styles, extend, per-timeframe visibility, sync across charts, alerts on cross, Objects List, Undo / Redo
+- [x] Side-tool groups list every tool with its shortcut (Lines, Shapes, Volume Analysis, Fibonacci, Measurement, Elliott, Markers, Text, Positions, Gann & Pitchfork, Objects); tools are live
+- [x] 67 drawing tools on a shared `@htflow/drawings` package (model, time axis, geometry, controller, history) attached to every chart as a chart extension; drawings persist per window and across layout tabs
+- [x] Anchors with drag editing, magnet (off / weak / strong presets), lock / hide / clone / delete, style toolbar (colour, width, dash, fill, text), extend left / right, per-timeframe visibility, sync across linked charts, Objects List window, Undo / Redo history, hotkeys
+- [~] Alert on cross: logic for horizontal line / ray only, no UI toggle yet; emoji marker has no picker; regression σ and anchored-VWAP band multipliers have no dialog field; magnet sensitivity is presets, not a slider; single selection only
+- [ ] ZigZag volume profile, CVD correlation, Magnifier, Remove indicators tools; Ctrl+Z / Ctrl+Y as registry shortcuts; drawings on both panes of Order Flow (Dark) (left pane only); Objects List ribbon button; i18n of drawing strings
 
 ## P13 — Indicator framework
 
