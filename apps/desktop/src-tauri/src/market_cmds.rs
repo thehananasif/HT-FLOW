@@ -122,11 +122,15 @@ impl MarketApi for BybitApi {
 #[derive(Clone)]
 pub struct Clients {
     apis: HashMap<&'static str, Arc<dyn MarketApi>>,
+    /// Also registered in `apis`; kept typed for the options chain.
+    deribit: Arc<htflow_connector_deribit::Deribit>,
 }
 
 impl Default for Clients {
     fn default() -> Self {
+        let deribit = Arc::new(htflow_connector_deribit::Deribit::default());
         let list: Vec<Arc<dyn MarketApi>> = vec![
+            deribit.clone(),
             Arc::new(Binance::market(Market::UsdM)),
             Arc::new(Binance::market(Market::CoinM)),
             Arc::new(Binance::market(Market::Spot)),
@@ -138,6 +142,7 @@ impl Default for Clients {
         ];
         Self {
             apis: list.into_iter().map(|a| (a.venue(), a)).collect(),
+            deribit,
         }
     }
 }
@@ -545,6 +550,23 @@ pub async fn market_subscribe(
     Ok(id)
 }
 
+/// Live options chain (Deribit): every active option of `currency` with bid/ask/mark and mark IV,
+/// for `@htflow/options`.
+#[tauri::command]
+pub async fn market_options_chain(
+    state: State<'_, MarketState>,
+    venue: String,
+    currency: String,
+) -> CmdResult<Vec<htflow_connector_deribit::OptionQuote>> {
+    if venue != "deribit" {
+        return Err(CmdError::new(
+            "market.venue",
+            format!("No options chain for '{venue}' (available: deribit)"),
+        ));
+    }
+    Ok(state.clients.deribit.options_chain(&currency).await?)
+}
+
 #[tauri::command]
 pub async fn market_unsubscribe(state: State<'_, MarketState>, id: u32) -> CmdResult<()> {
     if let Some(tx) = state.subs.lock().expect("subs").remove(&id) {
@@ -586,6 +608,7 @@ mod tests {
             "binance-coinm",
             "binance-spot",
             "okx-swap",
+            "deribit",
         ] {
             assert_eq!(c.parse(v).unwrap().id(), v);
         }

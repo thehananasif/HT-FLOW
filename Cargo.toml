@@ -9,6 +9,7 @@ members = [
     "crates/connectors/bybit",
     "crates/connectors/common",
     "crates/connectors/okx",
+    "crates/connectors/deribit",
     "crates/tick-store",
 ]
 
@@ -40,6 +41,7 @@ htflow-connector-binance = { path = "crates/connectors/binance" }
 htflow-connector-bybit = { path = "crates/connectors/bybit" }
 htflow-connector-common = { path = "crates/connectors/common" }
 htflow-connector-okx = { path = "crates/connectors/okx" }
+htflow-connector-deribit = { path = "crates/connectors/deribit" }
 
 htflow-tick-store = { path = "crates/tick-store" }
 

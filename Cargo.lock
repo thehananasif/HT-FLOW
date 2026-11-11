@@ -1402,6 +1402,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "htflow-connector-deribit"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "htflow-connector-okx"
 version = "0.1.0"
 dependencies = [
@@ -1432,6 +1445,7 @@ dependencies = [
  "htflow-connector-binance",
  "htflow-connector-bybit",
  "htflow-connector-common",
+ "htflow-connector-deribit",
  "htflow-connector-okx",
  "htflow-core-types",
  "htflow-tick-store",
