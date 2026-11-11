@@ -1,7 +1,7 @@
 /** Custom editors of the Settings window (tokens, hot keys, sounds, commission rules, clocks). */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, RotateCcw, Trash2, Plus, Circle } from 'lucide-react';
-import { Badge, Button, Input, THEMES, toast, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
+import { Badge, Button, THEMES, toast, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
 import {
   HOTKEY_SCOPES,
   defaultShortcut,
@@ -85,7 +85,10 @@ function TokenRow({
   useEffect(() => setText(value), [value]);
   const modified = value.toUpperCase() !== base.toUpperCase();
   return (
-    <div className="st-token" title={`--ht-${k.replace(/[A-Z0-9]/g, (m) => '-' + m.toLowerCase())}`}>
+    <div
+      className="st-token"
+      title={`--ht-${k.replace(/[A-Z0-9]/g, (m) => '-' + m.toLowerCase())}`}
+    >
       <span className="st-dot-slot">{modified && <span className="st-mod" />}</span>
       <input
         type="color"
@@ -128,7 +131,13 @@ export function TokensEditor({ value, onChange, draft }: EditorProps<TokenOverri
         <div key={g.label} className="st-token-group">
           <div className="st-subhead">{g.label}</div>
           {g.keys.map((k) => (
-            <TokenRow key={k} k={k} base={base[k]} value={value[k] ?? base[k]} onSet={(v) => set(k, v)} />
+            <TokenRow
+              key={k}
+              k={k}
+              base={base[k]}
+              value={value[k] ?? base[k]}
+              onSet={(v) => set(k, v)}
+            />
           ))}
         </div>
       ))}
@@ -139,7 +148,7 @@ export function TokensEditor({ value, onChange, draft }: EditorProps<TokenOverri
 /** Small preview card drawn with the draft tokens. */
 export function ThemePreview({ draft }: { draft: SettingsValues }) {
   const t = { ...THEMES[draft['appearance.theme'] as ThemeName], ...draft['appearance.tokens'] };
-  const candles = [
+  const candles: [number, number, number, number][] = [
     [40, 20, 46, 14],
     [30, 22, 36, 18],
     [26, 34, 38, 24],
@@ -150,12 +159,20 @@ export function ThemePreview({ draft }: { draft: SettingsValues }) {
     [46, 56, 62, 44],
   ];
   return (
-    <div className="st-preview" style={{ background: t.surface1, borderColor: t.border, color: t.textPrimary }}>
+    <div
+      className="st-preview"
+      style={{ background: t.surface1, borderColor: t.border, color: t.textPrimary }}
+    >
       <div className="row between center-y" style={{ background: t.surface2, padding: '6px 8px' }}>
         <b>ESZ6</b>
         <span style={{ color: t.textSecondary }}>5m · Footprint</span>
       </div>
-      <svg viewBox="0 0 160 70" width="100%" height="90" style={{ background: t.chartBg, display: 'block' }}>
+      <svg
+        viewBox="0 0 160 70"
+        width="100%"
+        height="90"
+        style={{ background: t.chartBg, display: 'block' }}
+      >
         {[15, 35, 55].map((y) => (
           <line key={y} x1={0} x2={160} y1={y} y2={y} stroke={t.grid} strokeDasharray="2 2" />
         ))}
@@ -166,17 +183,31 @@ export function ThemePreview({ draft }: { draft: SettingsValues }) {
           return (
             <g key={i}>
               <line x1={x + 5} x2={x + 5} y1={70 - h} y2={70 - l} stroke={col} />
-              <rect x={x} y={70 - Math.max(o, c)} width={10} height={Math.max(1, Math.abs(c - o))} fill={col} />
+              <rect
+                x={x}
+                y={70 - Math.max(o, c)}
+                width={10}
+                height={Math.max(1, Math.abs(c - o))}
+                fill={col}
+              />
               <rect x={x} y={64} width={10} height={6} fill={t.volume} opacity={0.6} />
             </g>
           );
         })}
       </svg>
       <div className="row gap6" style={{ padding: 8 }}>
-        <span className="st-pv-btn" style={{ background: t.up, color: '#000' }}>Buy</span>
-        <span className="st-pv-btn" style={{ background: t.down, color: '#fff' }}>Sell</span>
-        <span className="st-pv-btn" style={{ background: t.accent, color: t.accentText }}>Primary</span>
-        <span className="st-pv-btn" style={{ background: t.surface3, color: t.textSoft }}>Secondary</span>
+        <span className="st-pv-btn" style={{ background: t.up, color: '#000' }}>
+          Buy
+        </span>
+        <span className="st-pv-btn" style={{ background: t.down, color: '#fff' }}>
+          Sell
+        </span>
+        <span className="st-pv-btn" style={{ background: t.accent, color: t.accentText }}>
+          Primary
+        </span>
+        <span className="st-pv-btn" style={{ background: t.surface3, color: t.textSoft }}>
+          Secondary
+        </span>
       </div>
     </div>
   );
@@ -190,7 +221,15 @@ function useCommandList(): Command[] {
   return registeredCommands();
 }
 
-function Recorder({ value, onRecord, label }: { value?: string; onRecord(v: string | null): void; label: string }) {
+function Recorder({
+  value,
+  onRecord,
+  label,
+}: {
+  value?: string;
+  onRecord(v: string | null): void;
+  label: string;
+}) {
   const [rec, setRec] = useState(false);
   useEffect(() => {
     setHotkeysSuspended(rec);
@@ -220,7 +259,13 @@ function Recorder({ value, onRecord, label }: { value?: string; onRecord(v: stri
         setRec(false);
       }}
     >
-      {rec ? 'Press keys…' : value ? <kbd className="ht-kbd">{value}</kbd> : <span className="muted">—</span>}
+      {rec ? (
+        'Press keys…'
+      ) : value ? (
+        <kbd className="ht-kbd">{value}</kbd>
+      ) : (
+        <span className="muted">—</span>
+      )}
     </button>
   );
 }
@@ -235,8 +280,14 @@ export function HotkeysEditor({
     () =>
       cmds.map((c) => {
         const o = value[c.id];
-        const shortcut = o && o.shortcut !== undefined ? (o.shortcut ?? undefined) : defaultShortcut(c.id);
-        return { c, shortcut, scope: (o?.scope ?? c.scope ?? 'global') as HotkeyScope, modified: !!o };
+        const shortcut =
+          o && o.shortcut !== undefined ? (o.shortcut ?? undefined) : defaultShortcut(c.id);
+        return {
+          c,
+          shortcut,
+          scope: (o?.scope ?? c.scope ?? 'global') as HotkeyScope,
+          modified: !!o,
+        };
       }),
     [cmds, value],
   );
@@ -246,7 +297,8 @@ export function HotkeysEditor({
   );
   const q = filter.trim().toLowerCase();
   const shown = rows.filter(
-    (r) => !q || `${r.c.label} ${r.c.group} ${r.shortcut ?? ''} ${r.c.id}`.toLowerCase().includes(q),
+    (r) =>
+      !q || `${r.c.label} ${r.c.group} ${r.shortcut ?? ''} ${r.c.id}`.toLowerCase().includes(q),
   );
   const groups = [...new Set(shown.map((r) => r.c.group))];
   const label = (id: string) => cmds.find((c) => c.id === id)?.label ?? id;
@@ -286,14 +338,29 @@ export function HotkeysEditor({
               .map((r) => {
                 const conf = conflicts.get(r.c.id);
                 return (
-                  <tr key={r.c.id} data-conflict={conf ? 'true' : undefined} data-testid={`hk-${r.c.id}`}>
+                  <tr
+                    key={r.c.id}
+                    data-conflict={conf ? 'true' : undefined}
+                    data-testid={`hk-${r.c.id}`}
+                  >
                     <td>
-                      <span className="st-dot-slot">{r.modified && <span className="st-mod" />}</span>
+                      <span className="st-dot-slot">
+                        {r.modified && <span className="st-mod" />}
+                      </span>
                       {r.c.label}
-                      {conf && <span className="st-conflict"> — conflicts with {conf.map(label).join(', ')}</span>}
+                      {conf && (
+                        <span className="st-conflict">
+                          {' '}
+                          — conflicts with {conf.map(label).join(', ')}
+                        </span>
+                      )}
                     </td>
                     <td>
-                      <Recorder value={r.shortcut} label={r.c.label} onRecord={(s) => set(r.c.id, { shortcut: s })} />
+                      <Recorder
+                        value={r.shortcut}
+                        label={r.c.label}
+                        onRecord={(s) => set(r.c.id, { shortcut: s })}
+                      />
                     </td>
                     <td>
                       <select
@@ -338,7 +405,11 @@ export function HotkeysEditor({
 
 // ------------------------------------------------------------------ sounds
 
-export function SoundEventsEditor({ value, onChange, draft }: EditorProps<Record<SoundEvent, SoundEventConfig>>) {
+export function SoundEventsEditor({
+  value,
+  onChange,
+  draft,
+}: EditorProps<Record<SoundEvent, SoundEventConfig>>) {
   const customs = draft['sounds.custom'];
   const master = draft['sounds.master'] / 100;
   const set = (id: SoundEvent, patch: Partial<SoundEventConfig>) =>
@@ -405,12 +476,17 @@ export function SoundEventsEditor({ value, onChange, draft }: EditorProps<Record
 export function CustomSoundsEditor({ value, onChange, draft }: EditorProps<CustomSound[]>) {
   const fileRef = useRef<HTMLInputElement>(null);
   const add = (f: File) => {
-    if (f.size > MAX_CUSTOM_SOUND_BYTES) return toast('error', 'File too large', 'Max 2 MB per sound.');
-    if (value.length >= MAX_CUSTOM_SOUNDS) return toast('error', 'Too many sounds', 'Max 20 files.');
+    if (f.size > MAX_CUSTOM_SOUND_BYTES)
+      return toast('error', 'File too large', 'Max 2 MB per sound.');
+    if (value.length >= MAX_CUSTOM_SOUNDS)
+      return toast('error', 'Too many sounds', 'Max 20 files.');
     const r = new FileReader();
     r.onload = () => {
       const url = String(r.result).replace(/^data:(?!audio\/)[^;]*;/, 'data:audio/mpeg;');
-      onChange([...value, { id: Date.now().toString(36), name: f.name.slice(0, 120), dataUrl: url }]);
+      onChange([
+        ...value,
+        { id: Date.now().toString(36), name: f.name.slice(0, 120), dataUrl: url },
+      ]);
     };
     r.readAsDataURL(f);
   };
@@ -471,7 +547,12 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
     takerPct: draft['commission.cryptoTakerPct'],
     perContractRT: draft['commission.futuresRT'],
   };
-  const numCell = (r: CommissionRule, k: 'makerPct' | 'takerPct' | 'perContractRT', label: string, step: number) => (
+  const numCell = (
+    r: CommissionRule,
+    k: 'makerPct' | 'takerPct' | 'perContractRT',
+    label: string,
+    step: number,
+  ) => (
     <input
       className="st-num-in tnum"
       type="number"
@@ -539,7 +620,9 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
                   className="ht-select ht-select--sm"
                   aria-label="Rule source"
                   value={r.source}
-                  onChange={(e) => set(r.id, { source: e.target.value as CommissionRule['source'] })}
+                  onChange={(e) =>
+                    set(r.id, { source: e.target.value as CommissionRule['source'] })
+                  }
                 >
                   <option value="manual">Manual</option>
                   <option value="default">Default</option>
@@ -549,7 +632,11 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
                 </select>
               </td>
               <td>
-                <button className="ht-icon-btn" aria-label="Remove rule" onClick={() => onChange(value.filter((x) => x.id !== r.id))}>
+                <button
+                  className="ht-icon-btn"
+                  aria-label="Remove rule"
+                  onClick={() => onChange(value.filter((x) => x.id !== r.id))}
+                >
                   <Trash2 size={12} />
                 </button>
               </td>
@@ -557,20 +644,32 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
           ))}
         </tbody>
       </table>
-      {!value.length && <div className="muted">No rules — the defaults apply to every account and instrument.</div>}
+      {!value.length && (
+        <div className="muted">No rules — the defaults apply to every account and instrument.</div>
+      )}
       <div className="row gap8">
         <Button
           size="xs"
           onClick={() =>
             onChange([
               ...value,
-              { id: `r${Date.now().toString(36)}${ruleSeq++}`, accountId: '*', instrumentId: '*', ...defaults, source: 'manual' },
+              {
+                id: `r${Date.now().toString(36)}${ruleSeq++}`,
+                accountId: '*',
+                instrumentId: '*',
+                ...defaults,
+                source: 'manual',
+              },
             ])
           }
         >
           <Plus size={12} /> Add rule
         </Button>
-        <Button size="xs" disabled title="Reading fee tiers from exchange / broker APIs arrives with the connectors (P05)">
+        <Button
+          size="xs"
+          disabled
+          title="Reading fee tiers from exchange / broker APIs arrives with the connectors (P05)"
+        >
           Refresh from exchanges
         </Button>
       </div>
@@ -585,7 +684,9 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
                 <td>{i.symbol}</td>
                 <td className="muted">{fut ? 'Futures' : 'Crypto / linear'}</td>
                 <td className="tnum">
-                  {fut ? `$${c.perContractRT.toFixed(2)} / contract RT` : `maker ${c.makerPct}% · taker ${c.takerPct}%`}
+                  {fut
+                    ? `$${c.perContractRT.toFixed(2)} / contract RT`
+                    : `maker ${c.makerPct}% · taker ${c.takerPct}%`}
                 </td>
                 <td className="muted">{c.ruleId ? 'Rule' : 'Default'}</td>
               </tr>
@@ -629,13 +730,21 @@ export function ClocksEditor({ value, onChange, draft }: EditorProps<string[]>) 
                   aria-label={`Follow ${ex.name}`}
                   checked={value.includes(ex.id)}
                   onChange={(e) =>
-                    onChange(e.target.checked ? [...value, ex.id] : value.filter((x) => x !== ex.id))
+                    onChange(
+                      e.target.checked ? [...value, ex.id] : value.filter((x) => x !== ex.id),
+                    )
                   }
                 />
               </td>
               <td>{ex.name}</td>
               <td className="tnum" title={ex.tz}>
-                {now.toLocaleTimeString('en-GB', { timeZone: ex.tz, hour12, hour: '2-digit', minute: '2-digit', weekday: 'short' })}
+                {now.toLocaleTimeString('en-GB', {
+                  timeZone: ex.tz,
+                  hour12,
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  weekday: 'short',
+                })}
               </td>
               <td>
                 <Badge kind={st.open ? 'live' : 'default'}>
@@ -654,13 +763,4 @@ export function ClocksEditor({ value, onChange, draft }: EditorProps<string[]>) 
       </tbody>
     </table>
   );
-}
-
-export function DelayPreview() {
-  const [, set] = useState(0);
-  useEffect(() => {
-    const i = setInterval(() => set((x) => x + 1), 1000);
-    return () => clearInterval(i);
-  }, []);
-  return <Input readOnly value="" hidden />;
 }

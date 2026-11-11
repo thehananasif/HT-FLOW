@@ -69,7 +69,10 @@ describe('validation', () => {
     });
     expect(r).toEqual({
       ok: true,
-      value: { 'trading-panel': { shortcut: 'Shift+P', scope: 'trading' }, lock: { shortcut: null } },
+      value: {
+        'trading-panel': { shortcut: 'Shift+P', scope: 'trading' },
+        lock: { shortcut: null },
+      },
     });
     expect(validateSetting('hotkeys.bindings', { x: { scope: 'nowhere' } }).ok).toBe(false);
   });

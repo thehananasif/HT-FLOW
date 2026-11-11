@@ -20,7 +20,12 @@ describe('trading hours', () => {
 
 describe('commission rules', () => {
   const defaults = { makerPct: 0.02, takerPct: 0.05, perContractRT: 4.5 };
-  const rule = (id: string, accountId: string, instrumentId: string, rt: number): CommissionRule => ({
+  const rule = (
+    id: string,
+    accountId: string,
+    instrumentId: string,
+    rt: number,
+  ): CommissionRule => ({
     id,
     accountId,
     instrumentId,
@@ -29,12 +34,19 @@ describe('commission rules', () => {
     perContractRT: rt,
     source: 'manual',
   });
-  const rules = [rule('a', 'acc1', '*', 3), rule('i', '*', 'mock:ESZ6', 2), rule('ai', 'acc1', 'mock:ESZ6', 1)];
+  const rules = [
+    rule('a', 'acc1', '*', 3),
+    rule('i', '*', 'mock:ESZ6', 2),
+    rule('ai', 'acc1', 'mock:ESZ6', 1),
+  ];
   it('picks the most specific rule', () => {
     expect(resolveCommission(rules, defaults, 'acc1', 'mock:ESZ6').ruleId).toBe('ai');
     expect(resolveCommission(rules, defaults, 'acc2', 'mock:ESZ6').ruleId).toBe('i');
     expect(resolveCommission(rules, defaults, 'acc1', 'mock:CLZ6').ruleId).toBe('a');
-    expect(resolveCommission(rules, defaults, 'acc2', 'mock:CLZ6')).toEqual({ ...defaults, ruleId: null });
+    expect(resolveCommission(rules, defaults, 'acc2', 'mock:CLZ6')).toEqual({
+      ...defaults,
+      ruleId: null,
+    });
   });
   it('maps to paper-engine fields', () => {
     expect(engineFields(defaults, true)).toEqual({ commissionPerUnit: 2.25, takerFee: 0 });

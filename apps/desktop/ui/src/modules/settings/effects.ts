@@ -5,7 +5,12 @@
 import { applyTheme, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
 import type { Trade } from '@htflow/market-data';
 import { setHotkeyOverrides } from '../../shell/commands';
-import { getSetting, getSettings, useSettingsStore, type SettingsValues } from '../../state/settings';
+import {
+  getSetting,
+  getSettings,
+  useSettingsStore,
+  type SettingsValues,
+} from '../../state/settings';
 import { hub, paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { playSound } from '../../sound';
@@ -30,7 +35,10 @@ export function applyAppearance(v: AppearanceValues): void {
   const fs = v['appearance.fontSize'];
   for (const el of [document.documentElement, document.body, root])
     if (el) el.style.fontSize = fs === 12 ? '' : `${fs}px`;
-  document.documentElement.classList.toggle('ht-ribbon-icons-only', v['appearance.ribbonIconsOnly']);
+  document.documentElement.classList.toggle(
+    'ht-ribbon-icons-only',
+    v['appearance.ribbonIconsOnly'],
+  );
 }
 
 function commissionFor(accountId: string, instrumentId: string) {

@@ -94,7 +94,8 @@ export function setHotkeyOverrides(next: HotkeyOverrides): void {
   for (const [id, b] of Object.entries(next)) {
     const o: HotkeyBinding = {};
     if (b.shortcut === null) o.shortcut = null;
-    else if (typeof b.shortcut === 'string' && b.shortcut) o.shortcut = normalizeShortcut(b.shortcut);
+    else if (typeof b.shortcut === 'string' && b.shortcut)
+      o.shortcut = normalizeShortcut(b.shortcut);
     if (b.scope) o.scope = b.scope;
     if (o.shortcut !== undefined || o.scope) clean[id] = o;
   }
@@ -211,7 +212,11 @@ export function hotkeyConflicts(rows: BindingRow[]): Map<string, string[]> {
       const others = list.filter(
         (b) => b !== a && (a.scope === b.scope || a.scope === 'global' || b.scope === 'global'),
       );
-      if (others.length) out.set(a.id, others.map((b) => b.id));
+      if (others.length)
+        out.set(
+          a.id,
+          others.map((b) => b.id),
+        );
     }
   }
   return out;

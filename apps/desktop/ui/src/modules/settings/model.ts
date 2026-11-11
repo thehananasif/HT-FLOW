@@ -86,10 +86,17 @@ export function minuteOfWeek(tz: string, at: Date): number {
   return (WD[get('weekday')] ?? 0) * D + Number(get('hour')) * 60 + Number(get('minute'));
 }
 
-export function exchangeStatus(ex: ExchangeHours, at: Date): { open: boolean; minutesToChange: number } {
+export function exchangeStatus(
+  ex: ExchangeHours,
+  at: Date,
+): { open: boolean; minutesToChange: number } {
   const m = minuteOfWeek(ex.tz, at);
   const inside = ex.open.find(([a, b]) => m >= a && m < b);
-  if (inside) return { open: true, minutesToChange: inside[1] >= 7 * D && inside[0] === 0 ? Infinity : inside[1] - m };
+  if (inside)
+    return {
+      open: true,
+      minutesToChange: inside[1] >= 7 * D && inside[0] === 0 ? Infinity : inside[1] - m,
+    };
   let best = Infinity;
   for (const [a] of ex.open) best = Math.min(best, a > m ? a - m : a + 7 * D - m);
   return { open: false, minutesToChange: best };
