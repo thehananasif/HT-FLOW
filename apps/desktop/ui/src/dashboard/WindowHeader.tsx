@@ -12,8 +12,8 @@ import {
   type WindowState,
 } from '@htflow/workspace';
 import { useWindows } from '../state/windows';
-import { allInstruments, instrumentById } from '../state/instruments';
-import { isTauri } from '../backend';
+import { instrumentById } from '../state/instruments';
+import { InstrumentPickerButton } from '../components/InstrumentPicker';
 import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
 import { chartHeaderItems } from '../charts/extensions';
@@ -52,32 +52,17 @@ function LinkDot({ id, link }: { id: string; link: LinkColor }) {
 function InstrumentMenu({ id, instrumentId }: { id: string; instrumentId: string }) {
   const patch = useWindows((s) => s.patch);
   const inst = instrumentById(instrumentId);
-  const all = allInstruments(isTauri);
-  const groups = [
-    ...new Set(all.map((i) => (i.id.startsWith('mock:') ? 'Simulated (MockFeed)' : i.exchange))),
-  ];
-  const items: MenuEntry[] = groups.flatMap((g) => [
-    { kind: 'label' as const, id: 'l-' + g, label: g },
-    ...all
-      .filter((i) => (i.id.startsWith('mock:') ? 'Simulated (MockFeed)' : i.exchange) === g)
-      .map((i) => ({
-        id: i.id,
-        label: `${i.symbol} · ${i.exchange}`,
-        checked: i.id === instrumentId,
-        onSelect: () => patch(id, { instrumentId: i.id } as Partial<WindowState>),
-      })),
-  ]);
-  if (!isTauri)
-    items.push({ kind: 'label', id: 'live-note', label: 'Live crypto venues: desktop app' });
   return (
-    <DropdownMenu
-      items={items}
-      trigger={
-        <button className="hdr-symbol" data-testid="instrument-picker">
-          {inst?.symbol ?? instrumentId} <span className="caret">▾</span>
-        </button>
-      }
-    />
+    <InstrumentPickerButton
+      className="hdr-symbol"
+      testId="instrument-picker"
+      value={instrumentId}
+      onPick={(_e, feedId) => {
+        if (feedId) patch(id, { instrumentId: feedId } as Partial<WindowState>);
+      }}
+    >
+      {inst?.symbol ?? instrumentId} <span className="caret">▾</span>
+    </InstrumentPickerButton>
   );
 }
 
