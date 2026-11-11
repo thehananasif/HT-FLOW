@@ -69,19 +69,23 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Aggressor detection: venue flag, else tick rule vs best bid / ask
 - [~] Connector traits (MarketDataProvider / HistoryProvider / ExecutionProvider) — the UI-side `FeedSource` interface exists; Rust trait objects pending
 - [x] Binance USDⓈ-M Futures: aggTrade + depth@100ms, REST snapshot + sequence sync (U / u / pu), gap detection → resync, reconnect with backoff 0.5 s → 30 s + jitter, ping/pong, no-data watchdog
-- [ ] Binance spot, COIN-M; Bybit; OKX; Bitget; Kraken; Bitfinex; Phemex; WhiteBIT; Deribit (options); OI / funding / liquidations streams; rate limits; clock-skew correction (NTP)
+- [x] Bybit v5 linear (`crates/connectors/bybit`): publicTrade + orderbook.200, snapshot / delta sequence check with re-subscribe on gap, ping 20 s, reconnect with backoff; REST instruments-info, book, recent trades; recorded-message tests (`bybit-linear:` feed, desktop only)
+- [ ] Binance spot, COIN-M; OKX; Bitget; Kraken; Bitfinex; Phemex; WhiteBIT; Deribit (options); OI / funding / liquidations streams; rate limits; clock-skew correction (NTP)
 - [!] Rithmic, CQG, dxFeed, Interactive Brokers, Tradovate, Alpaca — need user credentials / SDKs (see BLOCKERS)
 - [ ] CSV / Parquet importer, "Custom WebSocket" JSON-mapping connector
-- [~] Connections window — status, latency, msgs/s and provider list with FREE / YOUR ACCOUNT tags; Connect / Disconnect / Edit, add-connection wizard, test button, auto-connect pending (P32)
+- [x] Connections window (P32): per-connection status, latency colours, msgs/s, accounts, Connect / Disconnect / Edit / remove, Connect all / Disconnect all, auto-connect on start, summary cards; two-step add-connection wizard (provider tree with spec groups, FREE / YOUR ACCOUNT tags, per-type forms, Test connection, credentials in the vault)
+- [ ] Providers without a connector show "Coming soon / requires SDK" (see BLOCKERS); simulator rows cannot be disconnected
 - [ ] Acceptance: BTCUSDT 1-hour soak with zero sequence gaps (needs a Windows run with network access to Binance)
 
 ## P06 — History download & tick store
 
-- [~] Backfill on open: recent aggTrades via REST pagination + depth snapshot (Binance); MockFeed generates N hours of seeded history
-- [ ] Columnar per-day tick files (zstd, mmap, index), depth snapshots + deltas recorder, retention / max-disk settings
+- [x] History merge (`market_history`): local store first, REST backfill only for uncovered gaps, written back to the store, de-duplicated at the seam; live stream buffered during history load so there is no gap or duplicate
+- [x] `crates/tick-store`: per-instrument per-UTC-day trade and depth files, zstd columnar blocks of 1,000 records with CRC, block index, crash-safe (torn block ignored, index rebuilt), recorder thread (1 s flush, 10 s fsync; depth deltas, full snapshots, 250 ms top-25 snapshots), day compaction, retention by age / max disk, coverage file, CSV export; tick store registered as the preferred replay source
+- [ ] Memory-mapped reads; bars cache; Parquet export; Bybit history beyond the latest 1,000 trades; Binance time-range backfill (reuses recent trades)
 - [ ] Binance public archives (data.binance.vision) import
-- [ ] "Set dates" dialog, "Reload all historical data", Data manager screen
-- [ ] Acceptance: 30 days of BTCUSDT into a 1m footprint in < 5 s
+- [x] Data manager (ribbon + Connections tab): stored instruments, date ranges, per-day sizes, delete per instrument / day, trades / depth CSV export, recorder on / off, retention and max-disk settings
+- [ ] "Set dates" dialog, "Reload all historical data"
+- [~] Acceptance: 30 days of BTCUSDT into a 1m footprint in < 5 s — the store reads 2M trades in ~0.11 s (projects to ~4.7 s for 30 days, synthetic data); the UI path still sends history as JSON over IPC and aggregates in TypeScript
 
 ## P07 — Aggregation engine
 
@@ -267,7 +271,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## P31–P43 — Detailed window specs
 
 - [~] P31 Trading workspace v2 — template switch keeps zoom; legend lines; session separators; stats rows; DOM Trader; status pills per connection. Pending: Snapshots in template menu, "Load days", "◂ Load 1 more day", previous-session profile on the left
-- [~] P32 Connections window — see P05
+- [x] P32 Connections window — see P05
 - [~] P33 Chart types — 4 of 12 renderers (+ bars / line / area / transparent)
 - [ ] P34 Chart settings window
 - [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission done; languages, custom modules pending)
