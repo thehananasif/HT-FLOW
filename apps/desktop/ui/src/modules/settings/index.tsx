@@ -29,7 +29,7 @@ function openSettings(section?: SectionId) {
   window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: 'settings' }));
 }
 
-function SettingsWindow({ state, setParams }: ModuleViewProps) {
+function SettingsWindow({ windowId, state, setParams }: ModuleViewProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<SectionId>(
     () => pendingSection ?? (state.params?.section as SectionId | undefined) ?? 'general',
@@ -58,7 +58,12 @@ function SettingsWindow({ state, setParams }: ModuleViewProps) {
         onClose={() => {
           // The module view has no panel API: close through the window header's own button.
           const group = ref.current?.closest('.dv-groupview');
-          group?.querySelector<HTMLButtonElement>('[aria-label="Close window"]')?.click();
+          const btn =
+            group?.querySelector<HTMLButtonElement>(
+              `[data-testid="win-hdr-${windowId}"] [aria-label="Close window"]`,
+            ) ??
+            group?.querySelector<HTMLButtonElement>('.dv-active-tab [aria-label="Close window"]');
+          btn?.click();
         }}
       />
     </div>
