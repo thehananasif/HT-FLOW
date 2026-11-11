@@ -239,7 +239,11 @@ describe('opml', () => {
 
 describe('keywords and symbols', () => {
   it('highlights whole words, longest first', () => {
-    const s = highlightSegments('Rate cut: separate rates, RATE halt.', ['rate', 'halt', 'rate cut']);
+    const s = highlightSegments('Rate cut: separate rates, RATE halt.', [
+      'rate',
+      'halt',
+      'rate cut',
+    ]);
     expect(s.filter((x) => x.keyword).map((x) => [x.text, x.keyword])).toEqual([
       ['Rate cut', 'rate cut'],
       ['RATE', 'rate'],
@@ -278,20 +282,31 @@ describe('ics + calendar', () => {
     expect(cpi.actual).toBeUndefined();
     expect(cpi.description).toBe('Consumer prices, all items.\nSource: BLS');
     const nfp = by('nfp-1');
-    expect(nfp).toMatchObject({ impact: 'high', currency: 'USD', actual: '175K', previous: '142K' });
+    expect(nfp).toMatchObject({
+      impact: 'high',
+      currency: 'USD',
+      actual: '175K',
+      previous: '142K',
+    });
     // 14:45 Berlin in July (CEST, UTC+2), Windows zone name
     expect(by('ecb-1').t).toBe(Date.UTC(2026, 6, 5, 12, 45));
-    expect(by('ecb-1')).toMatchObject({ currency: 'EUR', impact: 'medium', title: 'ECB President Speaks' });
+    expect(by('ecb-1')).toMatchObject({
+      currency: 'EUR',
+      impact: 'medium',
+      title: 'ECB President Speaks',
+    });
     expect(by('hol-1')).toMatchObject({ allDay: true, currency: 'USD', impact: 'low' });
-    expect(by('float-1').title).toBe('Floating event with a long title that is folded across two lines');
+    expect(by('float-1').title).toBe(
+      'Floating event with a long title that is folded across two lines',
+    );
     expect(by('float-1').impact).toBe('medium');
     expect(by('float-1').t).toBe(Date.UTC(2026, 10, 7, 9));
     expect(by('bad-tz')).toMatchObject({ currency: 'GBP', impact: 'high' });
     expect(r.warnings.some((w) => w.includes('Mars/Olympus'))).toBe(true);
     expect(r.warnings.some((w) => w.includes('RRULE'))).toBe(true);
-    expect(parseIcs(ICS, { defaultTz: 'Asia/Karachi' }).events.find((e) => e.uid === 'float-1')!.t).toBe(
-      Date.UTC(2026, 10, 7, 4),
-    );
+    expect(
+      parseIcs(ICS, { defaultTz: 'Asia/Karachi' }).events.find((e) => e.uid === 'float-1')!.t,
+    ).toBe(Date.UTC(2026, 10, 7, 4));
   });
   it('countdown, grouping, alerts, surprise', () => {
     const now = Date.UTC(2026, 10, 6, 12, 0);
@@ -304,12 +319,14 @@ describe('ics + calendar', () => {
     expect(g.find((x) => x.events.some((e) => e.uid === 'nfp-1'))!.label).toBe('Fri 06 Nov');
     const fired = new Set<string>();
     expect(dueAlerts(r.events, by('nfp-1').t - 6 * 60_000, 5, 'all', fired)).toEqual([]);
-    expect(dueAlerts(r.events, by('nfp-1').t - 4 * 60_000, 5, 'all', fired).map((e) => e.uid)).toEqual([
-      'nfp-1',
-    ]);
+    expect(
+      dueAlerts(r.events, by('nfp-1').t - 4 * 60_000, 5, 'all', fired).map((e) => e.uid),
+    ).toEqual(['nfp-1']);
     expect(dueAlerts(r.events, by('nfp-1').t - 3 * 60_000, 5, 'all', fired)).toEqual([]);
     expect(surprise(by('nfp-1'))).toBe('up');
-    expect(surprise({ title: 'Unemployment Claims', actual: '230K', forecast: '221K' })).toBe('down');
+    expect(surprise({ title: 'Unemployment Claims', actual: '230K', forecast: '221K' })).toBe(
+      'down',
+    );
     expect(surprise({ title: 'x', forecast: '1' })).toBeNull();
   });
   it('bundled sample calendar is labelled sample', () => {
@@ -357,7 +374,12 @@ describe('reader cache', () => {
     expect(u.total).toBe(3);
     expect(u.feeds.get('a')).toBe(3);
     expect(u.folders.get('Crypto')).toBe(3);
-    const capped = mergeFeedItems({ ...emptyReaderState(), feeds: st.feeds, maxPerFeed: 2 }, 'a', items, 1);
+    const capped = mergeFeedItems(
+      { ...emptyReaderState(), feeds: st.feeds, maxPerFeed: 2 },
+      'a',
+      items,
+      1,
+    );
     expect(capped.state.items).toHaveLength(2);
     expect(normalizeReaderState(JSON.parse(JSON.stringify(m.state)))).toEqual(m.state);
     expect(normalizeReaderState(null)).toEqual(emptyReaderState());
@@ -377,7 +399,11 @@ describe('news', () => {
       category,
       sentiment: 'neutral',
     });
-    const items = [mk('1', 'crypto', ['BTC']), mk('2', 'futures', ['CL']), mk('3', 'macro', ['USD'])];
+    const items = [
+      mk('1', 'crypto', ['BTC']),
+      mk('2', 'futures', ['CL']),
+      mk('3', 'macro', ['USD']),
+    ];
     const f = (chip: 'all' | 'crypto' | 'futures' | 'macro' | 'mine', extra = {}) =>
       filterNews(items, { chip, mySymbols: ['CL'], ...extra }).map((i) => i.id);
     expect(f('all')).toEqual(['1', '2', '3']);
@@ -388,7 +414,12 @@ describe('news', () => {
   });
   it('detects big trades, delta spikes and liquidity pulls', () => {
     const big = new BigTradeDetector(25, 0, 0, 50);
-    const base = Array.from({ length: 100 }, (_, i) => ({ ts: i, px: 100, qty: 2, side: 'buy' as const }));
+    const base = Array.from({ length: 100 }, (_, i) => ({
+      ts: i,
+      px: 100,
+      qty: 2,
+      side: 'buy' as const,
+    }));
     expect(big.push(base)).toEqual([]);
     const ev = big.push([{ ts: 200, px: 101, qty: 80, side: 'sell' }]);
     expect(ev).toHaveLength(1);
@@ -402,7 +433,10 @@ describe('news', () => {
       qty: 1,
       side: (i % 2 ? 'buy' : 'sell') as 'buy' | 'sell',
     }));
-    calm.push({ ts: 9990, px: 1, qty: 3, side: 'buy' }, { ts: 10_100, px: 1, qty: 200, side: 'sell' });
+    calm.push(
+      { ts: 9990, px: 1, qty: 3, side: 'buy' },
+      { ts: 10_100, px: 1, qty: 200, side: 'sell' },
+    );
     calm.push({ ts: 11_500, px: 1, qty: 1, side: 'buy' });
     const sp = ds.push(calm);
     expect(sp.filter((e) => e.side === 'sell' && e.qty === 200)).toHaveLength(1);
@@ -446,7 +480,13 @@ describe('ideas', () => {
     expect(p.skipped).toBe(1);
     expect(p.ideas.map((i) => i.id)).toEqual(['i1', 'i2']);
     expect(p.ideas[1]!.snapshot).toBeUndefined();
-    const m = mergeIdeas([idea], [{ ...idea, text: 'newer', updatedAt: 9 }, { ...idea, id: 'i3' }]);
+    const m = mergeIdeas(
+      [idea],
+      [
+        { ...idea, text: 'newer', updatedAt: 9 },
+        { ...idea, id: 'i3' },
+      ],
+    );
     expect([m.added, m.updated]).toEqual([1, 1]);
     expect(m.ideas[0]!.text).toBe('newer');
     expect(() => parseIdeaFile('{"format":"other"}')).toThrow();

@@ -10,7 +10,10 @@ export function passesImpact(e: Pick<CalendarEvent, 'impact'>, f: ImpactFilter):
 }
 
 /** Next high-impact event at or after `now` (events need not be sorted). */
-export function nextHighImpact<T extends CalendarEvent>(events: readonly T[], now: number): T | null {
+export function nextHighImpact<T extends CalendarEvent>(
+  events: readonly T[],
+  now: number,
+): T | null {
   let best: T | null = null;
   for (const e of events) {
     if (e.impact !== 'high' || e.allDay || e.t < now) continue;
@@ -79,7 +82,14 @@ export function utcOffsetLabel(t: number, tz: string): string {
     hourCycle: 'h23',
   }).formatToParts(t);
   const g = (ty: string) => Number(p.find((x) => x.type === ty)?.value ?? 0);
-  const asUtc = Date.UTC(g('year'), g('month') - 1, g('day'), g('hour') % 24, g('minute'), g('second'));
+  const asUtc = Date.UTC(
+    g('year'),
+    g('month') - 1,
+    g('day'),
+    g('hour') % 24,
+    g('minute'),
+    g('second'),
+  );
   const off = Math.round((asUtc - Math.floor(t / 1000) * 1000) / 60_000);
   if (off === 0) return 'UTC';
   const sign = off > 0 ? '+' : '-';
@@ -94,7 +104,10 @@ export interface DayGroup<T> {
 }
 
 /** Groups (sorted) events by calendar day in the user's zone. */
-export function groupByDay<T extends CalendarEvent>(events: readonly T[], tz: string): DayGroup<T>[] {
+export function groupByDay<T extends CalendarEvent>(
+  events: readonly T[],
+  tz: string,
+): DayGroup<T>[] {
   const sorted = [...events].sort((a, b) => a.t - b.t);
   const out: DayGroup<T>[] = [];
   for (const e of sorted) {
@@ -125,7 +138,9 @@ export function parseEconValue(v: string | undefined): number | null {
 const LOWER_IS_BETTER = /unemployment|jobless|claims|inventories|deficit/i;
 
 /** 'up' (green) when the actual beats the forecast for the currency, 'down' (red) when it misses. */
-export function surprise(e: Pick<CalendarEvent, 'title' | 'actual' | 'forecast'>): 'up' | 'down' | null {
+export function surprise(
+  e: Pick<CalendarEvent, 'title' | 'actual' | 'forecast'>,
+): 'up' | 'down' | null {
   const a = parseEconValue(e.actual);
   const f = parseEconValue(e.forecast);
   if (a === null || f === null || a === f) return null;

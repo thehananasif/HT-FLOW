@@ -5,7 +5,12 @@ import { registerChartExtension, type ChartExtensionContext } from '../../charts
 import { allEvents, calendar } from './store';
 
 /** x of time `t` on a bar chart (interpolated inside a bar, extrapolated past the last bar). */
-export function timeToX(bars: readonly Bar[], t: number, v: Pick<ChartView, 'xOf' | 'slotWidth'>, barMs: number | null): number | null {
+export function timeToX(
+  bars: readonly Bar[],
+  t: number,
+  v: Pick<ChartView, 'xOf' | 'slotWidth'>,
+  barMs: number | null,
+): number | null {
   const n = bars.length;
   if (!n || t < bars[0]!.t) return null;
   let lo = 0;
@@ -16,7 +21,10 @@ export function timeToX(bars: readonly Bar[], t: number, v: Pick<ChartView, 'xOf
     else hi = mid - 1;
   }
   const b = bars[lo]!;
-  let dur = lo + 1 < n ? bars[lo + 1]!.t - b.t : (barMs ?? Math.max(1, (b.t - bars[Math.max(0, n - 21)]!.t) / Math.min(20, n - 1 || 1)));
+  let dur =
+    lo + 1 < n
+      ? bars[lo + 1]!.t - b.t
+      : (barMs ?? Math.max(1, (b.t - bars[Math.max(0, n - 21)]!.t) / Math.min(20, n - 1 || 1)));
   if (!(dur > 0)) dur = 60_000;
   const frac = (t - b.t) / dur;
   if (lo + 1 < n && frac > 1) return v.xOf(lo) + v.slotWidth / 2; // gap between bars
@@ -49,7 +57,8 @@ class CalendarEventsLayer implements ChartLayer {
       if (e.currency && !currencyAffects(e.currency, root, inst.assetClass)) continue;
       const x = timeToX(series.bars, e.t, v, barMs);
       if (x === null || x < v.plot.x || x > v.plot.x + v.plot.w) continue;
-      const color = e.impact === 'high' ? p.down : e.impact === 'medium' ? p.warning : p.textTertiary;
+      const color =
+        e.impact === 'high' ? p.down : e.impact === 'medium' ? p.warning : p.textTertiary;
       const xx = Math.round(x) + 0.5;
       ctx.strokeStyle = color;
       ctx.globalAlpha = 0.8;

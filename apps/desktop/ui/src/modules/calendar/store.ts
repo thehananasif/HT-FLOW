@@ -62,10 +62,12 @@ const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 
 export function normalizeCalendar(raw: unknown): CalendarSettings {
   const d = defaultCalendar();
   if (!isObj(raw)) return d;
-  const imp = (v: unknown, def: ImpactFilter) => (IMPACTS.includes(v as ImpactFilter) ? (v as ImpactFilter) : def);
+  const imp = (v: unknown, def: ImpactFilter) =>
+    IMPACTS.includes(v as ImpactFilter) ? (v as ImpactFilter) : def;
   const sources = Array.isArray(raw.sources)
     ? raw.sources.filter(
-        (s): s is IcsSource => isObj(s) && typeof s.id === 'string' && typeof s.url === 'string' && isHttpUrl(s.url),
+        (s): s is IcsSource =>
+          isObj(s) && typeof s.id === 'string' && typeof s.url === 'string' && isHttpUrl(s.url),
       )
     : [];
   const cache: Record<string, CalendarEvent[]> = {};
@@ -73,7 +75,10 @@ export function normalizeCalendar(raw: unknown): CalendarSettings {
     for (const s of sources) {
       const list = raw.cache[s.id];
       if (Array.isArray(list))
-        cache[s.id] = list.filter((e): e is CalendarEvent => isObj(e) && typeof e.t === 'number' && typeof e.title === 'string');
+        cache[s.id] = list.filter(
+          (e): e is CalendarEvent =>
+            isObj(e) && typeof e.t === 'number' && typeof e.title === 'string',
+        );
     }
   const m = Number(raw.alertMinutes);
   return {
@@ -90,8 +95,11 @@ export function normalizeCalendar(raw: unknown): CalendarSettings {
   };
 }
 
-export const calendar = new PersistedStore<CalendarSettings>('calendar', defaultCalendar, normalizeCalendar, () =>
-  void refreshCalendars(),
+export const calendar = new PersistedStore<CalendarSettings>(
+  'calendar',
+  defaultCalendar,
+  normalizeCalendar,
+  () => void refreshCalendars(),
 );
 
 let sampleCache: { hour: number; events: CalEvent[] } | null = null;
@@ -100,7 +108,11 @@ function sampleEvents(now: number): CalEvent[] {
   if (sampleCache?.hour !== hour)
     sampleCache = {
       hour,
-      events: parseIcs(sampleCalendarIcs(now)).events.map((e) => ({ ...e, sourceId: 'sample', sample: true })),
+      events: parseIcs(sampleCalendarIcs(now)).events.map((e) => ({
+        ...e,
+        sourceId: 'sample',
+        sample: true,
+      })),
     };
   return sampleCache.events;
 }
@@ -125,14 +137,26 @@ export async function refreshSource(id: string): Promise<void> {
     }));
   try {
     const r = parseIcs(await fetchText(src.url), { defaultTz: 'UTC' });
-    patch({ lastFetched: Date.now(), lastError: r.events.length ? undefined : 'No events in calendar', name: r.calendarName || src.name }, r.events);
+    patch(
+      {
+        lastFetched: Date.now(),
+        lastError: r.events.length ? undefined : 'No events in calendar',
+        name: r.calendarName || src.name,
+      },
+      r.events,
+    );
   } catch (e) {
     patch({ lastFetched: Date.now(), lastError: e instanceof Error ? e.message : String(e) });
   }
 }
 
 export async function refreshCalendars(): Promise<void> {
-  await Promise.all(calendar.get().sources.filter((s) => s.enabled).map((s) => refreshSource(s.id)));
+  await Promise.all(
+    calendar
+      .get()
+      .sources.filter((s) => s.enabled)
+      .map((s) => refreshSource(s.id)),
+  );
 }
 
 export function addSource(url: string): string | null {

@@ -53,7 +53,12 @@ export function normalizeLink(link: string): string {
   return params.length ? `${base}?${params.join('&')}` : base;
 }
 
-export function itemKey(item: { guid?: string; link: string; title: string; published: number | null }) {
+export function itemKey(item: {
+  guid?: string;
+  link: string;
+  title: string;
+  published: number | null;
+}) {
   if (item.guid?.trim()) return `g:${item.guid.trim()}`;
   const l = normalizeLink(item.link);
   if (l) return `l:${l}`;

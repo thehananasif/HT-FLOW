@@ -66,9 +66,10 @@ function offsetMinutes(tz: string | undefined): number | null {
 export function parseFeedDate(raw: string | undefined | null): number | null {
   if (!raw) return null;
   const s = raw.trim();
-  let m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?\s*(Z|[+-]\d{2}:?\d{2})?)?$/i.exec(
-    s,
-  );
+  let m =
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?\s*(Z|[+-]\d{2}:?\d{2})?)?$/i.exec(
+      s,
+    );
   if (m) {
     const ms = m[7] ? Math.round(Number(`0.${m[7]}`) * 1000) : 0;
     const off = offsetMinutes(m[8]?.toUpperCase());

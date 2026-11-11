@@ -16,7 +16,15 @@ import {
   type FeedSub,
 } from '@htflow/info';
 import { registerModule, type ModuleViewProps } from '../registry';
-import { addFeed, FOLDERS, KEYWORDS_FOLDER, reader, refreshAll, refreshFeed, removeFeed } from './store';
+import {
+  addFeed,
+  FOLDERS,
+  KEYWORDS_FOLDER,
+  reader,
+  refreshAll,
+  refreshFeed,
+  removeFeed,
+} from './store';
 import {
   download,
   fmtClock,
@@ -29,7 +37,11 @@ import {
 } from './shared';
 import './styles.css';
 
-type Sel = { kind: 'all' } | { kind: 'folder'; name: string } | { kind: 'feed'; id: string } | { kind: 'keywords' };
+type Sel =
+  | { kind: 'all' }
+  | { kind: 'folder'; name: string }
+  | { kind: 'feed'; id: string }
+  | { kind: 'keywords' };
 
 export function Highlighted({ text, keywords }: { text: string; keywords: readonly string[] }) {
   return (
@@ -69,13 +81,20 @@ function FeedDialog({
   const folders = [...new Set([...FOLDERS, ...reader.get().folders])];
   const save = () => {
     if (feed) {
-      if (!/^https?:\/\/\S+$/i.test(url.trim())) return setErr('Enter an http:// or https:// feed URL');
+      if (!/^https?:\/\/\S+$/i.test(url.trim()))
+        return setErr('Enter an http:// or https:// feed URL');
       reader.update((s) => ({
         ...s,
         folders: s.folders.includes(folder) ? s.folders : [...s.folders, folder],
         feeds: s.feeds.map((f) =>
           f.id === feed.id
-            ? { ...f, url: url.trim(), title: title.trim() || url.trim(), folder, unverified: f.url === url.trim() ? f.unverified : undefined }
+            ? {
+                ...f,
+                url: url.trim(),
+                title: title.trim() || url.trim(),
+                folder,
+                unverified: f.url === url.trim() ? f.unverified : undefined,
+              }
             : f,
         ),
       }));
@@ -87,16 +106,30 @@ function FeedDialog({
     onClose();
   };
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()} title={feed ? 'Edit feed' : 'Add feed URL'} width={460}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title={feed ? 'Edit feed' : 'Add feed URL'}
+      width={460}
+    >
       <div className="col gap12">
         <Field label="Feed URL (RSS 2.0, RSS 1.0 or Atom)" error={err}>
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…/rss.xml" autoFocus />
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://…/rss.xml"
+            autoFocus
+          />
         </Field>
         <Field label="Name">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional" />
         </Field>
         <Field label="Folder">
-          <Select value={folder} onChange={setFolder} options={folders.map((f) => ({ value: f, label: f }))} />
+          <Select
+            value={folder}
+            onChange={setFolder}
+            options={folders.map((f) => ({ value: f, label: f }))}
+          />
         </Field>
         <div className="row gap8" style={{ justifyContent: 'flex-end' }}>
           {feed && (
@@ -127,7 +160,10 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
   const sel = useMemo<Sel>(() => rawSel ?? { kind: 'all' }, [rawSel]);
   const setSel = (v: Sel) => setParams({ sel: v });
   const [selected, setSelected] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<{ open: boolean; feed: FeedSub | null }>({ open: false, feed: null });
+  const [dialog, setDialog] = useState<{ open: boolean; feed: FeedSub | null }>({
+    open: false,
+    feed: null,
+  });
   const [kwText, setKwText] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -139,13 +175,16 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
   );
   const list = useMemo(() => {
     let items: CachedItem[] = s.items;
-    if (sel.kind === 'folder') items = items.filter((i) => feedById.get(i.feedId)?.folder === sel.name);
+    if (sel.kind === 'folder')
+      items = items.filter((i) => feedById.get(i.feedId)?.folder === sel.name);
     else if (sel.kind === 'feed') items = items.filter((i) => i.feedId === sel.id);
     else if (sel.kind === 'keywords') items = kwItems;
     return sortItems(items).slice(0, 500);
   }, [s.items, sel, feedById, kwItems]);
   const item = list.find((i) => i.id === selected) ?? null;
-  const folders = [...new Set([...FOLDERS, ...s.folders, ...s.feeds.map((f) => f.folder)])].filter(Boolean);
+  const folders = [...new Set([...FOLDERS, ...s.folders, ...s.feeds.map((f) => f.folder)])].filter(
+    Boolean,
+  );
   const loose = s.feeds.filter((f) => !f.folder);
   const sampleShown = s.items.some((i) => i.sample);
   const failing = s.feeds.filter((f) => f.lastError).length;
@@ -194,11 +233,16 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
           aria-label="Refresh interval"
           value={String(s.refreshMin)}
           onChange={(v) => reader.set({ ...reader.get(), refreshMin: Number(v) })}
-          options={REFRESH_CHOICES.map((m) => ({ value: String(m), label: m === 0 ? 'Manual' : `${m} min` }))}
+          options={REFRESH_CHOICES.map((m) => ({
+            value: String(m),
+            label: m === 0 ? 'Manual' : `${m} min`,
+          }))}
         />
         <span className="grow" />
         {sampleShown && <Badge kind="delayed">Offline sample shown</Badge>}
-        {failing > 0 && <span className="muted">{failing} feed(s) unreachable — cached items shown</span>}
+        {failing > 0 && (
+          <span className="muted">{failing} feed(s) unreachable — cached items shown</span>
+        )}
         <Button
           size="sm"
           onClick={() =>
@@ -207,8 +251,13 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
               try {
                 const doc = parseOpml(text);
                 let added = 0;
-                for (const f of doc.feeds) if (!addFeed(f.xmlUrl, f.title, f.folder || 'Imported')) added++;
-                toast('success', `OPML: ${added} feed(s) added`, `${doc.feeds.length - added} skipped (duplicate or invalid)`);
+                for (const f of doc.feeds)
+                  if (!addFeed(f.xmlUrl, f.title, f.folder || 'Imported')) added++;
+                toast(
+                  'success',
+                  `OPML: ${added} feed(s) added`,
+                  `${doc.feeds.length - added} skipped (duplicate or invalid)`,
+                );
               } catch (e) {
                 toast('error', 'OPML import failed', e instanceof Error ? e.message : String(e));
               }
@@ -236,7 +285,11 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
       <div className="rss-cols">
         <nav className="rss-tree" aria-label="Folders">
           <div className="rss-tree-title">Folders</div>
-          <button className="rss-node" aria-pressed={sel.kind === 'all'} onClick={() => setSel({ kind: 'all' })}>
+          <button
+            className="rss-node"
+            aria-pressed={sel.kind === 'all'}
+            onClick={() => setSel({ kind: 'all' })}
+          >
             <span className="grow">All items</span>
             <span className="tnum muted">{counts.total || ''}</span>
           </button>
@@ -281,7 +334,10 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
               onChange={(e) => setKwText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter' || !kwText.trim()) return;
-                reader.set({ ...s, keywords: normalizeKeywords([...s.keywords, ...kwText.split(',')]) });
+                reader.set({
+                  ...s,
+                  keywords: normalizeKeywords([...s.keywords, ...kwText.split(',')]),
+                });
                 setKwText('');
               }}
             />
@@ -318,7 +374,9 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
             <>
               <div className="muted">
                 {feedById.get(item.feedId)?.title} ·{' '}
-                {new Date(item.published ?? item.fetchedAt).toLocaleString('en-GB', { timeZone: tz })}
+                {new Date(item.published ?? item.fetchedAt).toLocaleString('en-GB', {
+                  timeZone: tz,
+                })}
                 {item.sample && (
                   <>
                     {' '}
@@ -351,14 +409,21 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
                       key={t.root}
                       variant="outline"
                       disabled={!inst}
-                      title={inst ? `Show ${inst} in the active chart` : 'No instrument for this tag'}
-                      onClick={() => inst && !openChartFor(inst) && toast('info', 'Open a chart window first')}
+                      title={
+                        inst ? `Show ${inst} in the active chart` : 'No instrument for this tag'
+                      }
+                      onClick={() =>
+                        inst && !openChartFor(inst) && toast('info', 'Open a chart window first')
+                      }
                     >
                       Open chart {tagLabel(t)}
                     </Button>
                   );
                 })}
-                <Button variant="outline" onClick={() => reader.set(setRead(reader.get(), [item.id], !item.read))}>
+                <Button
+                  variant="outline"
+                  onClick={() => reader.set(setRead(reader.get(), [item.id], !item.read))}
+                >
                   {item.read ? 'Mark unread' : 'Mark read'}
                 </Button>
               </div>
@@ -366,7 +431,11 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
           )}
         </article>
       </div>
-      <FeedDialog open={dialog.open} feed={dialog.feed} onClose={() => setDialog({ open: false, feed: null })} />
+      <FeedDialog
+        open={dialog.open}
+        feed={dialog.feed}
+        onClose={() => setDialog({ open: false, feed: null })}
+      />
     </div>
   );
 }

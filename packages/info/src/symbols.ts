@@ -75,7 +75,8 @@ function cachedRe(term: string): RegExp {
 }
 
 /** Explicit tickers in text, e.g. "NEWUSDT", "BTCUSDT.P", "$ETH". */
-const TICKER_RE = /(?<![\w])([A-Z0-9]{2,12}(?:USDT|USDC|BUSD|FDUSD)(?:\.P)?)(?![\w])|\$([A-Z]{2,6})\b/g;
+const TICKER_RE =
+  /(?<![\w])([A-Z0-9]{2,12}(?:USDT|USDC|BUSD|FDUSD)(?:\.P)?)(?![\w])|\$([A-Z]{2,6})\b/g;
 
 export interface SymbolTag {
   root: string;
@@ -85,7 +86,10 @@ export interface SymbolTag {
 }
 
 /** Tags a headline / summary with instrument roots (ordered by first appearance, unique). */
-export function tagSymbols(text: string, rules: readonly SymbolRule[] = DEFAULT_SYMBOL_RULES): SymbolTag[] {
+export function tagSymbols(
+  text: string,
+  rules: readonly SymbolRule[] = DEFAULT_SYMBOL_RULES,
+): SymbolTag[] {
   const hits: { at: number; tag: SymbolTag }[] = [];
   for (const m of text.matchAll(TICKER_RE)) {
     const ticker = m[1] ?? m[2]!;
@@ -124,7 +128,22 @@ export const tagLabel = (t: SymbolTag) => t.ticker ?? t.root;
  * USD data moves US index/energy/metal futures and USD-quoted crypto.
  */
 export const DEFAULT_CURRENCY_ROOTS: Record<string, string[]> = {
-  USD: ['ES', 'NQ', 'YM', 'RTY', 'CL', 'GC', 'SI', 'NG', 'ZN', 'ZB', 'BTC', 'ETH', 'SOL', '*crypto'],
+  USD: [
+    'ES',
+    'NQ',
+    'YM',
+    'RTY',
+    'CL',
+    'GC',
+    'SI',
+    'NG',
+    'ZN',
+    'ZB',
+    'BTC',
+    'ETH',
+    'SOL',
+    '*crypto',
+  ],
   EUR: ['6E', 'FDAX', 'FESX', 'FGBL'],
   GBP: ['6B', 'FTSE'],
   JPY: ['6J', 'NKD'],

@@ -35,7 +35,10 @@ interface Prop {
 
 /** Unfolds continuation lines (CRLF/LF followed by a space or tab). */
 function unfold(src: string): string[] {
-  return src.replace(/\r\n?/g, '\n').replace(/\n[ \t]/g, '').split('\n');
+  return src
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n[ \t]/g, '')
+    .split('\n');
 }
 
 function parseLine(line: string): Prop | null {
@@ -181,7 +184,9 @@ export function parseIcsDate(
 
 /** "PT1H30M", "P1D" → ms (negative durations allowed). */
 export function parseDuration(v: string): number | null {
-  const m = /^([+-])?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(v.trim());
+  const m = /^([+-])?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(
+    v.trim(),
+  );
   if (!m) return null;
   const ms =
     (+(m[2] ?? 0) * 7 * 86_400 +
@@ -199,7 +204,8 @@ export function parseImpact(raw: string | undefined): Impact | null {
   const s = raw.trim().toLowerCase();
   if (!s) return null;
   if (/^(3|h|red|★★★|\*\*\*)$/.test(s) || /\bhigh\b/.test(s)) return 'high';
-  if (/^(2|med|m|orange|amber|★★|\*\*)$/.test(s) || /\b(medium|moderate)\b/.test(s)) return 'medium';
+  if (/^(2|med|m|orange|amber|★★|\*\*)$/.test(s) || /\b(medium|moderate)\b/.test(s))
+    return 'medium';
   if (/^(1|0|l|yellow|gray|grey|★|\*|none|non-economic)$/.test(s) || /\b(low|holiday)\b/.test(s))
     return 'low';
   return null;
@@ -334,7 +340,9 @@ export function parseIcs(src: string, opts: { defaultTz?: string } = {}): IcsPar
       if (p.name === 'X-WR-TIMEZONE') defaultTz = resolveZone(p.value) ?? defaultTz;
     } else if (inside === 'VEVENT' && cur) {
       if (p.name === 'RRULE' && !rruleWarned) {
-        warnings.push('Recurring events (RRULE) are not expanded; only the first occurrence is shown');
+        warnings.push(
+          'Recurring events (RRULE) are not expanded; only the first occurrence is shown',
+        );
         rruleWarned = true;
       }
       cur.push(p);
@@ -399,7 +407,8 @@ function buildEvent(props: Prop[], defaultTz: string, warnings: string[]): Calen
     currencyFrom(fromDesc.country) ||
     categories.map(currencyFrom).find(Boolean) ||
     '';
-  const title = split.title.replace(/\s*(★+|\((high|medium|low)\))\s*/gi, ' ').trim() || '(untitled)';
+  const title =
+    split.title.replace(/\s*(★+|\((high|medium|low)\))\s*/gi, ' ').trim() || '(untitled)';
   const ev: CalendarEvent = {
     uid: text('UID')?.trim() || `${start.t}-${title}`,
     t: start.t,

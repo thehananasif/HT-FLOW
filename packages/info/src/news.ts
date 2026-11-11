@@ -58,8 +58,10 @@ export function categoryOf(classes: readonly string[], folder = ''): NewsCategor
   return 'other';
 }
 
-const BULL = /\b(surge|soar|jump|rall(y|ies)|gain|beat|record high|launch|listing|approv|upgrade|rises?|higher|cut rates?|rate cut)\b/i;
-const BEAR = /\b(plunge|slump|fall|drop|tumble|miss|delist|halt|suspend|hack|exploit|downgrade|probe|lawsuit|fine[ds]?|ban|lower|hike|outage|maintenance)\b/i;
+const BULL =
+  /\b(surge|soar|jump|rall(y|ies)|gain|beat|record high|launch|listing|approv|upgrade|rises?|higher|cut rates?|rate cut)\b/i;
+const BEAR =
+  /\b(plunge|slump|fall|drop|tumble|miss|delist|halt|suspend|hack|exploit|downgrade|probe|lawsuit|fine[ds]?|ban|lower|hike|outage|maintenance)\b/i;
 
 /** Very small headline sentiment heuristic (dot colour only — never a trading signal). */
 export function headlineSentiment(title: string): Sentiment {
@@ -128,7 +130,14 @@ export class BigTradeDetector {
       const big = ready && t.qty >= Math.max(this.minQty, this.multiple * this.avg);
       if (big) {
         if (t.ts - this.lastAt >= this.cooldownMs) {
-          out.push({ kind: 'big-trade', t: t.ts, px: t.px, qty: t.qty, side: t.side, ratio: t.qty / this.avg });
+          out.push({
+            kind: 'big-trade',
+            t: t.ts,
+            px: t.px,
+            qty: t.qty,
+            side: t.side,
+            ratio: t.qty / this.avg,
+          });
           this.lastAt = t.ts;
         }
         continue;
@@ -162,7 +171,11 @@ export class DeltaSpikeDetector {
     const h = this.history;
     if (h.length >= this.minWindows) {
       const base = h.reduce((a, b) => a + Math.abs(b), 0) / h.length;
-      if (base > 0 && Math.abs(this.delta) >= this.multiple * base && at - this.lastAt >= this.cooldownMs) {
+      if (
+        base > 0 &&
+        Math.abs(this.delta) >= this.multiple * base &&
+        at - this.lastAt >= this.cooldownMs
+      ) {
         out.push({
           kind: 'delta-spike',
           t: at,

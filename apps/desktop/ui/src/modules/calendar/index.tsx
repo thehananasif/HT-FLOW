@@ -52,7 +52,11 @@ function EconomicCalendar() {
           </Chip>
         ))}
         <span className="grow" />
-        <Checkbox checked={s.showOnCharts} onChange={(v) => set({ showOnCharts: v })} label="Show as lines on charts" />
+        <Checkbox
+          checked={s.showOnCharts}
+          onChange={(v) => set({ showOnCharts: v })}
+          label="Show as lines on charts"
+        />
         <Checkbox checked={s.alertOn} onChange={(v) => set({ alertOn: v })} label="Alert" />
         <NumberInput
           aria-label="Alert minutes before"
@@ -90,18 +94,28 @@ function EconomicCalendar() {
             <Button size="sm" onClick={() => void refreshCalendars()}>
               Refresh
             </Button>
-            <Checkbox checked={s.showSample} onChange={(v) => set({ showSample: v })} label="Include bundled sample" />
+            <Checkbox
+              checked={s.showSample}
+              onChange={(v) => set({ showSample: v })}
+              label="Include bundled sample"
+            />
           </div>
           {err && <span className="down">{err}</span>}
           {s.sources.map((src) => (
             <div key={src.id} className="row gap8 center-y" style={{ width: '100%' }}>
               <Checkbox
                 checked={src.enabled}
-                onChange={(v) => set({ sources: s.sources.map((x) => (x.id === src.id ? { ...x, enabled: v } : x)) })}
+                onChange={(v) =>
+                  set({
+                    sources: s.sources.map((x) => (x.id === src.id ? { ...x, enabled: v } : x)),
+                  })
+                }
                 label={src.name || src.url}
               />
               <span className="muted grow ellipsis">
-                {src.lastError ? `Error: ${src.lastError} — cached events shown` : `${s.cache[src.id]?.length ?? 0} events`}
+                {src.lastError
+                  ? `Error: ${src.lastError} — cached events shown`
+                  : `${s.cache[src.id]?.length ?? 0} events`}
               </span>
               <button
                 className="link"
@@ -141,7 +155,13 @@ function EconomicCalendar() {
                   return (
                     <tr
                       key={`${e.sourceId}:${e.uid}@${e.t}`}
-                      className={next && e.uid === next.uid && e.t === next.t ? 'cal-next' : e.t < now ? 'cal-past' : undefined}
+                      className={
+                        next && e.uid === next.uid && e.t === next.t
+                          ? 'cal-next'
+                          : e.t < now
+                            ? 'cal-past'
+                            : undefined
+                      }
                       title={e.description || undefined}
                     >
                       <td>{e.allDay ? 'All day' : timeLabel(e.t, tz)}</td>
@@ -149,7 +169,11 @@ function EconomicCalendar() {
                         <b>{e.currency || '—'}</b>
                       </td>
                       <td>
-                        <span className="impact-dots" data-impact={e.impact} aria-label={`${e.impact} impact`}>
+                        <span
+                          className="impact-dots"
+                          data-impact={e.impact}
+                          aria-label={`${e.impact} impact`}
+                        >
                           {DOTS[e.impact]}
                         </span>
                       </td>
@@ -176,7 +200,8 @@ function EconomicCalendar() {
       </div>
       <div className="info-foot">
         Source: public calendar feeds / ICS you add
-        {hasSample && ' · SAMPLE events bundled with HT Flow are shown (times and values are not real releases)'}
+        {hasSample &&
+          ' · SAMPLE events bundled with HT Flow are shown (times and values are not real releases)'}
       </div>
     </div>
   );

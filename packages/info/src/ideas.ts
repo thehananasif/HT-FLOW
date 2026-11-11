@@ -50,7 +50,8 @@ export function normalizeIdea(raw: unknown): Idea | null {
   const id = typeof raw.id === 'string' ? raw.id.slice(0, 64) : '';
   const instrumentId = typeof raw.instrumentId === 'string' ? raw.instrumentId.slice(0, 128) : '';
   const text = typeof raw.text === 'string' ? raw.text.slice(0, IDEA_TEXT_MAX) : '';
-  const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : NaN;
+  const createdAt =
+    typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : NaN;
   if (!id || !instrumentId || Number.isNaN(createdAt)) return null;
   const idea: Idea = {
     id,
@@ -58,10 +59,14 @@ export function normalizeIdea(raw: unknown): Idea | null {
     symbol: typeof raw.symbol === 'string' && raw.symbol ? raw.symbol.slice(0, 32) : instrumentId,
     createdAt,
     updatedAt:
-      typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt,
+      typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt)
+        ? raw.updatedAt
+        : createdAt,
     author: typeof raw.author === 'string' ? raw.author.slice(0, 64) : '',
     text,
-    tags: Array.isArray(raw.tags) ? parseTagInput(raw.tags.filter((t) => typeof t === 'string').join(' ')) : [],
+    tags: Array.isArray(raw.tags)
+      ? parseTagInput(raw.tags.filter((t) => typeof t === 'string').join(' '))
+      : [],
   };
   // Only raster data URLs (no SVG — it can carry script).
   if (

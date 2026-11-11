@@ -19,7 +19,9 @@ export async function fetchText(url: string): Promise<string> {
       return await invoke<string>('net_fetch_text', { url });
     } catch (e) {
       const msg =
-        e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e);
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : String(e);
       throw new Error(msg);
     }
   }
@@ -118,7 +120,10 @@ export class PersistedStore<T> {
     this.listeners.forEach((l) => l());
     if (persist && this.loaded) {
       if (this.saveTimer) clearTimeout(this.saveTimer);
-      this.saveTimer = setTimeout(() => void backend.saveSettings(this.key, this.value).catch(() => {}), 400);
+      this.saveTimer = setTimeout(
+        () => void backend.saveSettings(this.key, this.value).catch(() => {}),
+        400,
+      );
     }
   }
 
@@ -180,12 +185,21 @@ export function pickTextFile(accept: string): Promise<string | null> {
 }
 
 export function userTimezone(): string {
-  return useSession.getState().session?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  return (
+    useSession.getState().session?.timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    'UTC'
+  );
 }
 
 export const fmtClock = (t: number, tz: string) => {
   try {
-    return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: tz }).format(t);
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: tz,
+    }).format(t);
   } catch {
     return new Date(t).toISOString().slice(11, 16);
   }

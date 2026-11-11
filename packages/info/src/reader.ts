@@ -101,7 +101,9 @@ export function normalizeReaderState(raw: unknown): ReaderState {
         title: str(it.title, '(untitled)'),
         summary: str(it.summary),
         published: num(it.published) ?? null,
-        categories: Array.isArray(it.categories) ? it.categories.filter((c) => typeof c === 'string') : [],
+        categories: Array.isArray(it.categories)
+          ? it.categories.filter((c) => typeof c === 'string')
+          : [],
         feedId: str(it.feedId),
         fetchedAt: num(it.fetchedAt) ?? 0,
         read: it.read === true,
@@ -112,7 +114,9 @@ export function normalizeReaderState(raw: unknown): ReaderState {
       s.items.push(item);
     }
   }
-  const folders = Array.isArray(raw.folders) ? raw.folders.filter((f) => typeof f === 'string') : [];
+  const folders = Array.isArray(raw.folders)
+    ? raw.folders.filter((f) => typeof f === 'string')
+    : [];
   s.folders = [...new Set([...folders, ...s.feeds.map((f) => f.folder).filter(Boolean)])];
   s.keywords = normalizeKeywords(
     Array.isArray(raw.keywords) ? raw.keywords.filter((k) => typeof k === 'string') : [],
@@ -200,7 +204,9 @@ export function unreadCounts(state: Pick<ReaderState, 'feeds' | 'items'>): {
 }
 
 /** Newest first. */
-export function sortItems<T extends Pick<CachedItem, 'published' | 'fetchedAt'>>(items: readonly T[]): T[] {
+export function sortItems<T extends Pick<CachedItem, 'published' | 'fetchedAt'>>(
+  items: readonly T[],
+): T[] {
   return [...items].sort((a, b) => itemTime(b) - itemTime(a));
 }
 

@@ -22,7 +22,15 @@ import {
 import { hub } from '../../state/market';
 import { useWindows } from '../../state/windows';
 import { registerModule, type ModuleViewProps } from '../registry';
-import { fmtClock, instrumentForTag, openChartFor, openUrl, useStore, useTick, userTimezone } from '../rss/shared';
+import {
+  fmtClock,
+  instrumentForTag,
+  openChartFor,
+  openUrl,
+  useStore,
+  useTick,
+  userTimezone,
+} from '../rss/shared';
 import { reader } from '../rss/store';
 import { allEvents, calendar } from '../calendar/store';
 import { Highlighted } from '../rss';
@@ -55,7 +63,14 @@ function emit(store: MarketStore, e: DetectorEvent) {
     symbols: [i.symbol],
     roots: [root],
     category: i.assetClass === 'crypto' ? 'crypto' : 'futures',
-    sentiment: e.kind === 'liquidity-pull' ? 'warning' : e.side === 'buy' ? 'bull' : e.side === 'sell' ? 'bear' : 'neutral',
+    sentiment:
+      e.kind === 'liquidity-pull'
+        ? 'warning'
+        : e.side === 'buy'
+          ? 'bull'
+          : e.side === 'sell'
+            ? 'bear'
+            : 'neutral',
   });
   if (generated.length > 300) generated.length = 300;
   genListeners.forEach((l) => l());
@@ -76,7 +91,8 @@ function watch(store: MarketStore): () => void {
     const from = lastDepth?.t ?? col.t;
     lastDepth = col;
     const traded = new Map<number, number>();
-    for (const t of store.tradesBetween(from, col.t)) traded.set(t.px, (traded.get(t.px) ?? 0) + t.qty);
+    for (const t of store.tradesBetween(from, col.t))
+      traded.set(t.px, (traded.get(t.px) ?? 0) + t.qty);
     for (const e of pull.push(col, (px) => traded.get(px) ?? 0)) emit(store, e);
   });
   return () => (u1(), u2());
@@ -150,8 +166,14 @@ function News({ state: win, setParams }: ModuleViewProps) {
       source: `${feedById.get(i.feedId)?.title ?? 'RSS'}${i.sample ? ' · offline sample' : ''}`,
       symbols: tags.map(tagLabel),
       roots: tags.map((t) => t.root),
-      category: categoryOf(tags.map((t) => t.cls), folder),
-      sentiment: /exchange/i.test(folder) && /listing|launch/i.test(i.title) ? 'info' : headlineSentiment(i.title),
+      category: categoryOf(
+        tags.map((t) => t.cls),
+        folder,
+      ),
+      sentiment:
+        /exchange/i.test(folder) && /listing|launch/i.test(i.title)
+          ? 'info'
+          : headlineSentiment(i.title),
       link: i.link,
       sample: i.sample,
     };
@@ -177,14 +199,19 @@ function News({ state: win, setParams }: ModuleViewProps) {
     ...new Set(
       Object.values(windows)
         .filter((w) => w.kind !== 'module')
-        .map((w) => instrumentRoot((w as { instrumentId: string }).instrumentId.split(':').pop() ?? '')),
+        .map((w) =>
+          instrumentRoot((w as { instrumentId: string }).instrumentId.split(':').pop() ?? ''),
+        ),
     ),
   ];
   const activeWin = activeId ? windows[activeId] : undefined;
   const lastInst =
     activeWin && activeWin.kind !== 'module'
       ? activeWin.instrumentId
-      : (Object.values(windows).find((w) => w.kind !== 'module') as { instrumentId?: string } | undefined)?.instrumentId;
+      : (
+          Object.values(windows).find((w) => w.kind !== 'module') as
+            { instrumentId?: string } | undefined
+        )?.instrumentId;
   const activeRoot = lastInst ? instrumentRoot(lastInst.split(':').pop() ?? '') : null;
   const list = filterNews(merged, {
     chip,
@@ -204,7 +231,8 @@ function News({ state: win, setParams }: ModuleViewProps) {
       if (seen.current.has(i.id)) continue;
       seen.current.add(i.id);
       const hit = matchKeywords([i.title], alerts);
-      if (hit.length) toast('warning', `News alert: ${hit.join(', ')}`, `${i.title} — ${i.source}`, 8000);
+      if (hit.length)
+        toast('warning', `News alert: ${hit.join(', ')}`, `${i.title} — ${i.source}`, 8000);
     }
   });
 
@@ -240,7 +268,12 @@ function News({ state: win, setParams }: ModuleViewProps) {
         <div className="info-toolbar">
           <span className="muted">Alerts:</span>
           {alerts.map((a) => (
-            <button key={a} className="ht-chip" title="Remove alert" onClick={() => setParams({ alerts: alerts.filter((x) => x !== a) })}>
+            <button
+              key={a}
+              className="ht-chip"
+              title="Remove alert"
+              onClick={() => setParams({ alerts: alerts.filter((x) => x !== a) })}
+            >
               {a} ×
             </button>
           ))}
@@ -287,10 +320,15 @@ function News({ state: win, setParams }: ModuleViewProps) {
         })}
       </div>
       <div className="info-foot">
-        Sources: free public RSS you subscribe to, HT Flow metrics from open instruments (big prints, delta spikes,
-        liquidity pulls), calendar. Funding flips, OI jumps and liquidation spikes need funding / OI / liquidation
-        streams the connectors do not expose yet.{' '}
-        <Button size="xs" variant="ghost" onClick={() => setParams({ alerts: [] })} disabled={!alerts.length}>
+        Sources: free public RSS you subscribe to, HT Flow metrics from open instruments (big
+        prints, delta spikes, liquidity pulls), calendar. Funding flips, OI jumps and liquidation
+        spikes need funding / OI / liquidation streams the connectors do not expose yet.{' '}
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() => setParams({ alerts: [] })}
+          disabled={!alerts.length}
+        >
           Clear alerts
         </Button>
       </div>
