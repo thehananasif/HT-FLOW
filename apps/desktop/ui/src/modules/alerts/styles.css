@@ -1,0 +1,64 @@
+.al {
+  font-size: 12px;
+}
+.al-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  flex: none;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.al-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.al-list {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.al-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.al-desc {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.al-sub {
+  font-size: 11px;
+}
+.al-status {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.al-x {
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+}
+.al-form {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-left: 1px solid var(--ht-divider);
+  overflow: auto;
+}
+.al-in {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 8px;
+}
