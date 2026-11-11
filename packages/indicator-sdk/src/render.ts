@@ -4,6 +4,7 @@ import { paneGroups, resolveStyles, titleOf, type IndicatorConfig } from './conf
 import { formatValue, niceStep, rgba } from './format';
 import type { TfClass } from './periods';
 import { IndicatorRuntime } from './runtime';
+import { isPriceSource } from './types';
 import type {
   AnyIndicator,
   BarData,
@@ -13,6 +14,7 @@ import type {
   Marker,
   OutputDef,
   OutputStyle,
+  SourceId,
   ValueUnit,
   Zone,
 } from './types';
@@ -349,8 +351,13 @@ export function valueRange(it: RenderItem, i0: number, i1: number): [number, num
   return Number.isFinite(lo) && Number.isFinite(hi) ? [lo, hi] : null;
 }
 
-function unitOf(od: OutputDef): ValueUnit {
-  return od.unit ?? 'value';
+/** Output unit; 'price' outputs computed from a non-price source (volume, delta, CVD…) format as volume. */
+function unitFor(it: RenderItem, od: OutputDef): ValueUnit {
+  const u = od.unit ?? 'value';
+  const s = (it.rt.inputs as Record<string, unknown>).source;
+  if (u === 'price' && typeof s === 'string' && !isPriceSource(s as SourceId))
+    return s === 'trades' ? 'count' : 'volume';
+  return u;
 }
 
 function drawEye(ctx: CanvasRenderingContext2D, x: number, y: number, on: boolean, col: string): void {
@@ -497,7 +504,7 @@ export class IndicatorScene {
         if (!s || od.legend === false || !st.visible || od.kind === 'band') continue;
         const val = it.rt.valueAt(id, idx);
         if (Number.isNaN(val)) continue;
-        const txt = formatValue(val, unitOf(od), v.instrument);
+        const txt = formatValue(val, unitFor(it, od), v.instrument);
         ctx.fillStyle = toneColor(st, s.tone[idx]!);
         ctx.fillText(txt, cx, y);
         cx += ctx.measureText(txt).width + 7;
@@ -550,7 +557,7 @@ class OverlayLayer implements ChartLayer {
       if (!st.priceTag || !st.visible) continue;
       const val = it.rt.valueAt(id, it.rt.count - 1);
       if (!Number.isNaN(val))
-        v.tags.push({ px: val, bg: st.color, fg: '#000', text: formatValue(val, unitOf(od), v.instrument) });
+        v.tags.push({ px: val, bg: st.color, fg: '#000', text: formatValue(val, unitFor(it, od), v.instrument) });
     }
   }
 }
@@ -614,7 +621,7 @@ class PaneLayer implements ChartLayer {
       const range = rangeOf(merged);
       if (range) {
         const m = mapFor(range);
-        const unit = unitOf(Object.values(lead.def.outputs)[0]!);
+        const unit = unitFor(lead, Object.values(lead.def.outputs)[0]!);
         // Scale: grid lines + labels in the axis column.
         const k = unit === 'price' ? v.instrument.tickSize : 1;
         const step = niceStep((range[1] - range[0]) * k, Math.max(2, r.h / 30)) / k;
@@ -673,7 +680,7 @@ class PaneLayer implements ChartLayer {
               ctx.fillRect(ax + 1, Math.round(y - 8), v.priceAxis.w - 1, 16);
               ctx.fillStyle = '#000';
               ctx.font = v.font(10, 600);
-              ctx.fillText(formatValue(val, unitOf(od), v.instrument), ax + 6, y);
+              ctx.fillText(formatValue(val, unitFor(it, od), v.instrument), ax + 6, y);
             }
           }
         }

@@ -16,6 +16,8 @@
     "@htflow/footprint": "workspace:*",
     "@htflow/heatmap": "workspace:*",
     "@htflow/i18n": "workspace:*",
+    "@htflow/indicator-sdk": "workspace:*",
+    "@htflow/indicators": "workspace:*",
     "@htflow/market-data": "workspace:*",
     "@htflow/trading": "workspace:*",
     "@htflow/ui-kit": "workspace:*",
