@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — round 2b
+
+### Added
+
+- Replay (P24 / P35): `@htflow/replay` engine and sources, `replay:` feed provider, Replay window with templates and a separate replay paper account, chart replay control bar and hotkeys.
+- Risk management (P23 / P41): rule engine on paper-engine pre-trade / post-fill hooks, presets, override password, persistent locks, Risk window, title-bar meter.
+- Alerts (`@htflow/alerts`) with runtime, Alerts window and chart alert lines.
+- Trading Journal (P36), Trading Activity log, DataTable with sort / filters / grouping / saved views / CSV; Accounts / Positions / Orders / Trades rebuilt on it (P20 / P40).
+
+### Changed
+
+- A round trip that nets exactly zero now counts as break-even, not a loss.
+
 ## Unreleased — round 2
 
 ### Added
