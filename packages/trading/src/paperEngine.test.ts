@@ -160,4 +160,83 @@ describe('PaperEngine', () => {
       9,
     );
   });
+
+  it('pre-trade checks can reject; the first reason wins and nothing is placed', () => {
+    const { eng } = setup();
+    const seen: number[] = [];
+    eng.preTradeChecks.push((req) => {
+      seen.push(req.qty);
+      return req.qty > 3 ? 'Too big' : null;
+    });
+    eng.preTradeChecks.push(() => undefined);
+    const big = eng.place({
+      accountId: 'A',
+      instrumentId: 'X',
+      side: 'buy',
+      type: 'market',
+      qty: 4,
+    });
+    expect(big.status).toBe('rejected');
+    expect(big.reason).toBe('Too big');
+    expect(eng.fills).toHaveLength(0);
+    const ok = eng.place({
+      accountId: 'A',
+      instrumentId: 'X',
+      side: 'buy',
+      type: 'market',
+      qty: 2,
+    });
+    expect(ok.status).toBe('filled');
+    expect(seen).toEqual([4, 2]);
+  });
+
+  it('post-fill hooks run after the operation and may place orders (no re-entrancy)', () => {
+    const { eng } = setup();
+    const hooked: string[] = [];
+    eng.postFillHooks.push((f, e) => {
+      hooked.push(`${f.side}:${f.qty}`);
+      // Flatten from inside the hook: must not corrupt the operation that produced the fill.
+      if (f.side === 'buy') e.flatten('A', 'X');
+    });
+    eng.place({ accountId: 'A', instrumentId: 'X', side: 'buy', type: 'market', qty: 5 });
+    // 5 lots fill at two levels (3 + 2) → two buy fills, then one flatten sell (book bid 5 @ 9999).
+    expect(hooked).toEqual(['buy:3', 'buy:2', 'sell:5']);
+    expect(eng.position('A', 'X').qty).toBe(0);
+  });
+});
+
+describe('PaperEngine account routing and tags', () => {
+  it('routes replay instruments to the replay account and tags orders, fills and brackets', () => {
+    const { eng } = setup();
+    eng.createAccount({ id: 'R', name: 'Replay', kind: 'replay' });
+    eng.setAccountRouter((_acc, inst) =>
+      inst.startsWith('replay:') ? { accountId: 'R', tag: 'replay' } : undefined,
+    );
+    const o = eng.place({
+      accountId: 'A',
+      instrumentId: 'replay:mock:CLZ6',
+      side: 'buy',
+      type: 'market',
+      qty: 1,
+      bracket: { slTicks: 10, tpTicks: [20] },
+    });
+    expect(o.accountId).toBe('R');
+    expect(o.tag).toBe('replay');
+    expect(eng.fills.every((f) => f.tag === 'replay' && f.accountId === 'R')).toBe(true);
+    expect(eng.position('A', 'replay:mock:CLZ6').qty).toBe(1);
+    expect(eng.allPositions('A')).toHaveLength(0);
+    const children = eng.workingOrders('A', 'replay:mock:CLZ6');
+    expect(children.map((c) => c.tag)).toEqual(['replay', 'replay']);
+    eng.flatten('A', 'replay:mock:CLZ6');
+    expect(eng.position('R', 'replay:mock:CLZ6').qty).toBe(0);
+    const live = eng.place({
+      accountId: 'A',
+      instrumentId: 'mock:CLZ6',
+      side: 'buy',
+      type: 'market',
+      qty: 1,
+    });
+    expect(live.accountId).toBe('A');
+    expect(live.tag).toBeUndefined();
+  });
 });
