@@ -259,8 +259,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
         <div style={{ height: rows.length * ROW, position: 'relative' }}>
           {rows.slice(first, last).map((l, i) => {
             const isPoc = l.px === snap?.poc;
-            const atLast =
-              lastPx !== undefined && snap && lastPx >= l.px && lastPx < l.px + snap.g;
+            const atLast = lastPx !== undefined && snap && lastPx >= l.px && lastPx < l.px + snap.g;
             const dA = maxDelta > 0 ? (Math.abs(l.delta) / maxDelta) * 0.4 : 0;
             return (
               <div
@@ -310,8 +309,8 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
       </div>
       <div className="an-footer tnum">
         POC {snap && !Number.isNaN(snap.poc) ? formatPrice(snap.poc, inst) : '—'} highlighted ·{' '}
-        {rows.length} rows · volume {snap ? q(snap.totalVolume) : '—'} · bid = sold into bid, ask
-        = bought at ask · sort by any column
+        {rows.length} rows · volume {snap ? q(snap.totalVolume) : '—'} · bid = sold into bid, ask =
+        bought at ask · sort by any column
       </div>
     </div>
   );

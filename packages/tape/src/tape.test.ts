@@ -103,7 +103,13 @@ describe('smart print reconstruction', () => {
     const b = new TapeBuffer(65_536, { mode: 'timestamp', windowMs: 0 });
     const t0 = performance.now();
     for (let i = 0; i < 300_000; i++) {
-      b.push({ ts: i / 5, px: 1000 + (i % 7), qty: 1 + (i % 5), side: i % 3 ? 'buy' : 'sell', id: i });
+      b.push({
+        ts: i / 5,
+        px: 1000 + (i % 7),
+        qty: 1 + (i % 5),
+        side: i % 3 ? 'buy' : 'sell',
+        id: i,
+      });
     }
     expect(b.size).toBe(65_536);
     expect(performance.now() - t0).toBeLessThan(1500);

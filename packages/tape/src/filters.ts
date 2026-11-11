@@ -19,8 +19,7 @@ export const DEFAULT_FILTER: TapeFilter = {
   maxPx: null,
 };
 
-const num = (v: unknown): number | null =>
-  typeof v === 'number' && Number.isFinite(v) ? v : null;
+const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 /** Validates a (possibly persisted, possibly partial) filter: negatives → 0, swapped bounds → sorted. */
 export function normalizeFilter(raw: Partial<Record<keyof TapeFilter, unknown>> = {}): TapeFilter {

@@ -151,13 +151,18 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
   ctx.fillStyle = t.chartBg;
   ctx.fillRect(0, 0, w, h);
   ctx.textBaseline = 'middle';
-  const font = (bold: boolean) =>
-    `${bold ? 600 : 400} 11px "Geist", "Segoe UI", sans-serif`;
+  const font = (bold: boolean) => `${bold ? 600 : 400} 11px "Geist", "Segoe UI", sans-serif`;
   const px = (v: number) => (Number.isNaN(v) ? '—' : formatPrice(v, o.inst));
   const qp = o.inst.qtyPrecision;
 
   // Columns
-  type Col = { id: string; label: string; x: number; w: number; align: 'left' | 'right' | 'center' };
+  type Col = {
+    id: string;
+    label: string;
+    x: number;
+    w: number;
+    align: 'left' | 'right' | 'center';
+  };
   let cols: Col[];
   if (o.variant === 'smart') {
     const vis = SMART_COLUMNS.filter((cc) => o.cols.includes(cc.id));
@@ -165,7 +170,13 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
     let x = 0;
     cols = vis.map((cc) => {
       const cw = (cc.w / tw) * w;
-      const r: Col = { id: cc.id, label: cc.label, x, w: cw, align: cc.id === 'time' ? 'left' : 'right' };
+      const r: Col = {
+        id: cc.id,
+        label: cc.label,
+        x,
+        w: cw,
+        align: cc.id === 'time' ? 'left' : 'right',
+      };
       x += cw;
       return r;
     });
@@ -300,7 +311,11 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
     ctx.fillStyle = t.textTertiary;
     ctx.textAlign = 'center';
     ctx.font = font(false);
-    ctx.fillText(e.buf.size ? 'No prints match the filters' : 'Waiting for prints…', w / 2, HEAD + 30);
+    ctx.fillText(
+      e.buf.size ? 'No prints match the filters' : 'Waiting for prints…',
+      w / 2,
+      HEAD + 30,
+    );
   }
   if (o.paused) {
     ctx.fillStyle = alpha(t.warning, 0.9);
@@ -496,11 +511,7 @@ export function TapeView({
         >
           {p.sound ? <Bell size={13} /> : <BellOff size={13} />}
         </IconButton>
-        <IconButton
-          label="Filters"
-          active={showFilters}
-          onClick={() => setShowFilters((x) => !x)}
-        >
+        <IconButton label="Filters" active={showFilters} onClick={() => setShowFilters((x) => !x)}>
           <SlidersHorizontal size={13} />
         </IconButton>
       </div>
@@ -655,9 +666,8 @@ export function TapeView({
       </div>
       <div className="an-footer tnum">
         {variant === 'bidask' ? 'Speed ' : ''}
-        {Math.round(meter.pps)} prints/s · {formatCompact(Number(meter.vps.toFixed(2)))} vol/s ·
-        big prints ≥{' '}
-        {Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—'}
+        {Math.round(meter.pps)} prints/s · {formatCompact(Number(meter.vps.toFixed(2)))} vol/s · big
+        prints ≥ {Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—'}
         {p.bigSize ? '' : ' (auto)'} · sound {p.sound ? 'on' : 'off'} · hover pauses, wheel scrolls
       </div>
     </div>
