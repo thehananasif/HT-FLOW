@@ -273,7 +273,8 @@ export class SimulatedRecorder {
     this.instrument = m.instrument;
     this.stepMs = opts.stepMs ?? 250;
     const day = Math.floor(from / DAY);
-    const seed = ((opts.seed ?? hashString(m.instrument.symbol)) ^ Math.imul(day, 0x9e3779b1)) >>> 0;
+    const seed =
+      ((opts.seed ?? hashString(m.instrument.symbol)) ^ Math.imul(day, 0x9e3779b1)) >>> 0;
     this.sim = new MarketSimulator({ ...m.sim, seed }, day * DAY);
     this.start = day * DAY + Math.floor((from - day * DAY) / this.stepMs) * this.stepMs;
     this.end = Math.max(this.start, to);

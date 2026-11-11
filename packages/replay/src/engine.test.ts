@@ -85,7 +85,8 @@ describe('ReplayEngine', () => {
     // Never drops or reorders an event.
     expect(seen.flatMap((b) => b.trades)).toEqual(data.trades);
     expect(seen.reduce((a, b) => a + b.deltas.length, 0)).toBe(data.deltas.length);
-    for (let i = 1; i < seen.length; i++) expect(seen[i]!.ts).toBeGreaterThanOrEqual(seen[i - 1]!.ts);
+    for (let i = 1; i < seen.length; i++)
+      expect(seen[i]!.ts).toBeGreaterThanOrEqual(seen[i - 1]!.ts);
     for (const sp of specs)
       expect(store.getSeries(sp).bars.map(barKey)).toEqual(
         BarSeries.build(sp, data.trades).bars.map(barKey),
@@ -239,7 +240,9 @@ describe('ReplayEngine', () => {
     expect(store.depth.length).toBeGreaterThan(1000); // every snapshot reached the heatmap
     expect(store.book.bestBid).toBe(live.depth[live.depth.length - 1]!.bestBid);
     // Ticks only: a one-level book follows the tape.
-    const ticks = new ReplayEngine(datasetFromHistory(live, from, T0, { ticks: true, depth: false }));
+    const ticks = new ReplayEngine(
+      datasetFromHistory(live, from, T0, { ticks: true, depth: false }),
+    );
     const s2 = storeFor(ticks);
     ticks.advanceTo(from + MIN);
     expect(s2.book.bestAsk - s2.book.bestBid).toBe(1);

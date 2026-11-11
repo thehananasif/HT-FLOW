@@ -223,8 +223,8 @@ function Setup({ state, setParams }: ModuleViewProps) {
             </>
           ) : (
             <span className="muted">
-              No recorded data for {symbol(first)} — open it in a chart to record it in memory
-              (tick store download arrives with P06).
+              No recorded data for {symbol(first)} — open it in a chart to record it in memory (tick
+              store download arrives with P06).
             </span>
           )}
         </div>
@@ -388,4 +388,3 @@ registerModule({
     );
   },
 });
-

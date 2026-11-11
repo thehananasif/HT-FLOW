@@ -39,7 +39,10 @@ export function loadTemplates(): Promise<void> {
     .then((list) => {
       templates = (list ?? []).filter(valid).map((t) => ({
         ...t,
-        config: { ...t.config, layers: { ...DEFAULT_LAYERS, ...t.config.layers, hideFuture: true } },
+        config: {
+          ...t.config,
+          layers: { ...DEFAULT_LAYERS, ...t.config.layers, hideFuture: true },
+        },
       }));
       tplListeners.forEach((l) => l());
     })

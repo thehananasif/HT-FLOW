@@ -28,9 +28,7 @@ const speedLabel = (x: number) => `${x}×`;
 
 /** Bar type used by step bar: the chart's timeframe (1 min for the liquidity map). */
 function specOf(s: ChartWindowState): BarSpec {
-  return s.template === 'liquidity-map'
-    ? { kind: 'time', ms: 60_000 }
-    : (s.timeframe as BarSpec);
+  return s.template === 'liquidity-map' ? { kind: 'time', ms: 60_000 } : (s.timeframe as BarSpec);
 }
 
 // Control helpers act on the whole group when "Sync all windows" is on.
@@ -320,9 +318,7 @@ registerChartExtension({
 function activeReplayChart(): { id: string; state: ChartWindowState } | null {
   const { activeId, windows } = useWindows.getState();
   const w = activeId ? windows[activeId] : undefined;
-  return w && w.kind === 'chart' && isReplayId(w.instrumentId)
-    ? { id: activeId!, state: w }
-    : null;
+  return w && w.kind === 'chart' && isReplayId(w.instrumentId) ? { id: activeId!, state: w } : null;
 }
 
 let unregister: (() => void) | null = null;

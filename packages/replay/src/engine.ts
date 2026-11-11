@@ -437,7 +437,10 @@ export class ReplayEngine {
     const ob = this.realBookAt(first);
     if (!ob) {
       // Book starts later (snapshots / deltas only); begin at the first book event.
-      const t0 = Math.min(d.snapshots[0]?.ts ?? Infinity, d.deltas.length ? d.deltas.ts[0]! : Infinity);
+      const t0 = Math.min(
+        d.snapshots[0]?.ts ?? Infinity,
+        d.deltas.length ? d.deltas.ts[0]! : Infinity,
+      );
       if (!(t0 <= T)) return [];
       return this.depthFrom(Math.ceil(t0 / iv) * iv, T);
     }
