@@ -28,6 +28,8 @@ export interface Order {
   parentId?: string;
   role?: 'entry' | 'sl' | 'tp';
   reason?: string;
+  /** Free-form journal tag, e.g. 'replay' (copied to fills and bracket children). */
+  tag?: string;
 }
 
 export interface Fill {
@@ -43,6 +45,7 @@ export interface Fill {
   liquidity: 'maker' | 'taker';
   /** Realized PnL booked by this fill (after the position update, before commission). */
   realized: number;
+  tag?: string;
 }
 
 export interface Position {
@@ -86,6 +89,7 @@ export interface OrderRequest {
   tif?: TimeInForce;
   reduceOnly?: boolean;
   bracket?: BracketSpec;
+  tag?: string;
 }
 
 export interface InstrumentEconomics {

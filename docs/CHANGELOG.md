@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased — round 2b
+
+### Added
+
+- Replay (P24 / P35): `@htflow/replay` engine and sources, `replay:` feed provider, Replay window with templates and a separate replay paper account, chart replay control bar and hotkeys.
+- Risk management (P23 / P41): rule engine on paper-engine pre-trade / post-fill hooks, presets, override password, persistent locks, Risk window, title-bar meter.
+- Alerts (`@htflow/alerts`) with runtime, Alerts window and chart alert lines.
+- Trading Journal (P36), Trading Activity log, DataTable with sort / filters / grouping / saved views / CSV; Accounts / Positions / Orders / Trades rebuilt on it (P20 / P40).
+
+### Changed
+
+- A round trip that nets exactly zero now counts as break-even, not a loss.
+
+## Unreleased — round 2
+
+### Added
+
+- Extension points for parallel work: module registry (`modules/<name>/index.tsx`), feed-provider registry, chart extensions (layers, pointer handlers, overlays, menu items) and chart-header items; `docs/AGENT_GUIDE.md`.
+- ChartCore: pointer / keyboard handlers for extensions; each layer with a bottom pane gets its own stacked rect.
+- `MarketHub` ensure / retain / release with a 3 s grace period; per-store trade listeners.
+- Drawing tools (P12): `@htflow/drawings` with 67 tools, anchors, magnet, lock / hide / clone, style toolbar, per-timeframe visibility, linked-chart sync, Objects List, Undo / Redo, hotkeys; side-tool drawing groups are live.
+
 ## 0.1.0 — 2026-11-04 (fast-track foundation)
 
 ### Added

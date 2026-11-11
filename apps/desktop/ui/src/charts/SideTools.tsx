@@ -15,131 +15,48 @@ import {
   Waves,
 } from 'lucide-react';
 import { FOOTPRINT_GROUPS, FOOTPRINT_MODES, footprintMode } from '@htflow/footprint';
+import { toolDef, toolsIn, type ToolGroup, type ToolId } from '@htflow/drawings';
+import { activateTool, controllers, openObjectsList, useDrawUi } from '../modules/drawings/store';
 
-/** Drawing groups (P45). Tools themselves arrive with P12 — items are listed with shortcuts but disabled. */
-const DRAW_GROUPS: { id: string; label: string; icon: typeof Minus; items: [string, string?][] }[] =
-  [
-    {
-      id: 'lines',
-      label: 'Lines',
-      icon: Minus,
-      items: [
-        ['Trend Line', 'F2'],
-        ['Trend Angle'],
-        ['Vertical Line', 'F7'],
-        ['Horizontal Line', 'F6'],
-        ['Horizontal Ray'],
-        ['Cross Line'],
-        ['Brush'],
-      ],
-    },
-    {
-      id: 'shapes',
-      label: 'Shapes',
-      icon: Shapes,
-      items: [
-        ['Triangle', 'F11'],
-        ['Rectangle', 'F12'],
-        ['Ellipse'],
-        ['Channel'],
-        ['Highlight Y'],
-        ['Highlight X'],
-      ],
-    },
-    {
-      id: 'volume',
-      label: 'Volume Analysis',
-      icon: BarChart2,
-      items: [
-        ['Volume Profile & TPO', 'F3'],
-        ['Fixed VP & TPO', 'Ctrl+F3'],
-        ['Anchored VP & TPO'],
-        ['ZigZag VP & TPO'],
-        ['Anchored VWAP', 'F4'],
-        ['Dynamic POC'],
-        ['CVD correlation'],
-      ],
-    },
-    {
-      id: 'fib',
-      label: 'Fibonacci',
-      icon: Spline,
-      items: [['Retracements', 'F8'], ['Extensions'], ['Fibo Fan'], ['Time Zones'], ['Arcs']],
-    },
-    {
-      id: 'measure',
-      label: 'Measurement',
-      icon: PencilRuler,
-      items: [['Ruler', 'F9'], ['Measure']],
-    },
-    {
-      id: 'elliott',
-      label: 'Elliott Waves',
-      icon: Waves,
-      items: [
-        ['Impulse (12345)'],
-        ['Correction (ABC)'],
-        ['Triangle (ABCDE)'],
-        ['Double Combo (WXY)'],
-        ['Triple Combo (WXYXZ)'],
-      ],
-    },
-    {
-      id: 'markers',
-      label: 'Chart Markers',
-      icon: Circle,
-      items: [
-        ['Dot', 'Ctrl+Shift+N'],
-        ['Diamond', 'Ctrl+Shift+Q'],
-        ['Square', 'Ctrl+Shift+E'],
-        ['Up Arrow', 'Ctrl+Shift+W'],
-        ['Down Arrow', 'Ctrl+Shift+S'],
-      ],
-    },
-    {
-      id: 'text',
-      label: 'Text',
-      icon: Type,
-      items: [
-        ['Text', 'Ctrl+Shift+T'],
-        ['Label', 'Ctrl+Shift+L'],
-        ['Right Price Label', 'Ctrl+Shift+D'],
-        ['Left Price Label', 'Ctrl+Shift+A'],
-      ],
-    },
-    {
-      id: 'positions',
-      label: 'Positions',
-      icon: ArrowUpRight,
-      items: [['Long Position'], ['Short Position']],
-    },
-    {
-      id: 'gann',
-      label: 'Gann & Pitchfork',
-      icon: Gauge,
-      items: [['Gann Fan'], ['Gann Grid'], ["Andrew's Pitchfork"]],
-    },
-    {
-      id: 'objects',
-      label: 'Objects',
-      icon: List,
-      items: [
-        ['Objects List'],
-        ['Keep Drawing'],
-        ['Delete selected', 'Del'],
-        ['Delete all'],
-        ['Remove indicators'],
-      ],
-    },
-  ];
+/** Drawing groups (P45): each flyout lists tools of @htflow/drawings (P12). */
+const DRAW_GROUPS: { id: string; label: string; icon: typeof Minus; tools: ToolId[] }[] = [
+  { id: 'lines', label: 'Lines', icon: Minus, tools: ids('lines') },
+  {
+    id: 'shapes',
+    label: 'Shapes',
+    icon: Shapes,
+    tools: [
+      ...ids('shapes').filter((t) => !t.startsWith('highlight')),
+      ...ids('channels'),
+      'highlight-y',
+      'highlight-x',
+    ],
+  },
+  { id: 'volume', label: 'Volume Analysis', icon: BarChart2, tools: ids('volume') },
+  { id: 'fib', label: 'Fibonacci', icon: Spline, tools: ids('fib') },
+  { id: 'measure', label: 'Measurement', icon: PencilRuler, tools: ids('measure') },
+  { id: 'elliott', label: 'Elliott Waves', icon: Waves, tools: ids('elliott') },
+  { id: 'markers', label: 'Chart Markers', icon: Circle, tools: ids('markers') },
+  { id: 'text', label: 'Text', icon: Type, tools: ids('text') },
+  { id: 'positions', label: 'Positions', icon: ArrowUpRight, tools: ids('risk') },
+  { id: 'gann', label: 'Gann & Pitchfork', icon: Gauge, tools: ids('gann') },
+  { id: 'objects', label: 'Objects', icon: List, tools: [] },
+];
+
+function ids(group: ToolGroup): ToolId[] {
+  return toolsIn(group).map((t) => t.id);
+}
 
 export function SideTools({
+  windowId,
   mode,
   onMode,
   showFootprint,
   onSettings,
   compact,
 }: {
+  /** Chart window the drawing tools act on. */
+  windowId?: string;
   mode: string;
   onMode: (id: string) => void;
   showFootprint: boolean;
@@ -149,6 +66,13 @@ export function SideTools({
   const [open, setOpen] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const active = footprintMode(mode).group;
+  const tool = useDrawUi((st) => (windowId ? (st.tool[windowId] ?? null) : null));
+  const prefs = useDrawUi((st) => st.prefs);
+  const ctrl = () => (windowId ? controllers.get(windowId)?.ctrl : undefined);
+  const act = (fn: () => void) => () => {
+    fn();
+    setOpen(null);
+  };
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -224,6 +148,8 @@ export function SideTools({
             className="st-btn"
             aria-label={g.label}
             title={g.label}
+            aria-expanded={open === g.id}
+            data-has-tool={(tool && g.tools.includes(tool)) || undefined}
             onClick={() => setOpen(open === g.id ? null : g.id)}
           >
             <g.icon size={15} />
@@ -232,19 +158,94 @@ export function SideTools({
           {open === g.id && (
             <div className="st-flyout" role="menu" aria-label={g.label}>
               <div className="ht-menu-label">{g.label}</div>
-              {g.items.map(([label, sc]) => (
-                <button
-                  key={label}
-                  className="st-item"
-                  disabled
-                  title="Drawing tools ship in phase P12"
-                >
-                  <span className="st-check" />
-                  {label}
-                  {sc && <span className="ht-menu-sc">{sc}</span>}
-                </button>
-              ))}
-              <div className="st-note">Drawing tools arrive in P12</div>
+              {g.tools.map((id) => {
+                const def = toolDef(id)!;
+                return (
+                  <button
+                    key={id}
+                    role="menuitemradio"
+                    aria-checked={tool === id}
+                    className="st-item"
+                    disabled={!def.ready}
+                    title={def.note}
+                    onClick={act(() => activateTool(id, windowId))}
+                  >
+                    <span className="st-check" />
+                    {def.label}
+                    {!def.ready && <span className="ht-menu-sc">pending</span>}
+                    {def.ready && def.shortcut && (
+                      <span className="ht-menu-sc">{def.shortcut}</span>
+                    )}
+                  </button>
+                );
+              })}
+              {g.id === 'objects' && (
+                <>
+                  <button className="st-item" role="menuitem" onClick={act(openObjectsList)}>
+                    <span className="st-check" />
+                    Objects List
+                  </button>
+                  <button
+                    className="st-item"
+                    role="menuitemcheckbox"
+                    aria-checked={prefs.keep ? 'mixed' : false}
+                    onClick={() => useDrawUi.getState().setPrefs({ keep: !prefs.keep })}
+                  >
+                    <span className="st-check">{prefs.keep ? '✓' : ''}</span>
+                    Keep Drawing
+                  </button>
+                  <button
+                    className="st-item"
+                    role="menuitemcheckbox"
+                    aria-checked={prefs.magnet ? 'mixed' : false}
+                    onClick={() => useDrawUi.getState().setPrefs({ magnet: !prefs.magnet })}
+                  >
+                    <span className="st-check">{prefs.magnet ? '✓' : ''}</span>
+                    Magnet (OHLC / clusters)
+                    <span className="ht-menu-sc">{prefs.magnetPx} px</span>
+                  </button>
+                  <button
+                    className="st-item"
+                    role="menuitem"
+                    onClick={act(() => void ctrl()?.removeSelected())}
+                  >
+                    <span className="st-check" />
+                    Delete selected
+                    <span className="ht-menu-sc">Del</span>
+                  </button>
+                  <button
+                    className="st-item"
+                    role="menuitem"
+                    onClick={act(() => ctrl()?.removeAll())}
+                  >
+                    <span className="st-check" />
+                    Delete all drawings
+                  </button>
+                  <button
+                    className="st-item"
+                    role="menuitem"
+                    onClick={act(() => void ctrl()?.undo())}
+                  >
+                    <span className="st-check" />
+                    Undo
+                    <span className="ht-menu-sc">Ctrl+Z</span>
+                  </button>
+                  <button
+                    className="st-item"
+                    role="menuitem"
+                    onClick={act(() => void ctrl()?.redo())}
+                  >
+                    <span className="st-check" />
+                    Redo
+                    <span className="ht-menu-sc">Ctrl+Y</span>
+                  </button>
+                  <button className="st-item" disabled title="Arrives with the indicators phase">
+                    <span className="st-check" />
+                    Remove indicators
+                    <span className="ht-menu-sc">pending</span>
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
