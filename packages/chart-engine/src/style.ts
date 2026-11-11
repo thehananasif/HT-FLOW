@@ -11,7 +11,8 @@ export interface StrokeStyle {
 export interface ChartStyle {
   /** Second background colour for a vertical gradient; empty = single colour. */
   background2: string;
-  grid: { h: boolean; v: boolean; line: StrokeStyle };
+  /** barStep > 0 draws a vertical line every N bars instead of at time steps. */
+  grid: { h: boolean; v: boolean; line: StrokeStyle; barStep: number };
   crosshair: { line: StrokeStyle; labelBg: string; labelText: string; snap: boolean };
   axis: { bg: string; text: string; fontSize: number; border: boolean };
   /** 24-hour or 12-hour axis labels. */
@@ -20,7 +21,7 @@ export interface ChartStyle {
 
 export const DEFAULT_STYLE: ChartStyle = {
   background2: '',
-  grid: { h: true, v: true, line: { color: '', style: 'dash', width: 1 } },
+  grid: { h: true, v: true, line: { color: '', style: 'dash', width: 1 }, barStep: 0 },
   crosshair: {
     line: { color: '', style: 'dash', width: 1 },
     labelBg: '',

@@ -664,7 +664,14 @@ export class ChartCore {
         ctx.lineTo(v.plot.x + v.plot.w, y);
       }
     }
-    if (gs.v) {
+    if (gs.v && gs.barStep > 0) {
+      const st = Math.max(1, Math.round(gs.barStep));
+      for (let i = Math.ceil(v.i0 / st) * st; i <= v.i1; i += st) {
+        const x = Math.round(v.xOf(i) - v.slotWidth / 2) + 0.5;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, v.plot.h);
+      }
+    } else if (gs.v) {
       for (const x of this.timeGridXs(v)) {
         ctx.moveTo(Math.round(x.x) + 0.5, 0);
         ctx.lineTo(Math.round(x.x) + 0.5, v.plot.h);
