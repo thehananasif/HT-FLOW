@@ -50,6 +50,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@htflow/analytics':
+        specifier: workspace:*
+        version: link:../../packages/analytics
       '@htflow/chart-engine':
         specifier: workspace:*
         version: link:../../packages/chart-engine
@@ -74,6 +77,9 @@ importers:
       '@htflow/replay':
         specifier: workspace:*
         version: link:../../packages/replay
+      '@htflow/tape':
+        specifier: workspace:*
+        version: link:../../packages/tape
       '@htflow/trading':
         specifier: workspace:*
         version: link:../../packages/trading
