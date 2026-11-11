@@ -6,6 +6,7 @@ members = [
     "crates/auth",
     "crates/vault",
     "crates/connectors/binance",
+    "crates/connectors/bybit",
     "crates/tick-store",
 ]
 
@@ -35,7 +36,7 @@ htflow-auth = { path = "crates/auth" }
 htflow-vault = { path = "crates/vault" }
 htflow-connector-binance = { path = "crates/connectors/binance" }
 htflow-connector-bybit = { path = "crates/connectors/bybit" }
-htflow-connector-okx = { path = "crates/connectors/okx" }
+
 htflow-tick-store = { path = "crates/tick-store" }
 
 [profile.release]
