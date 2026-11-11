@@ -88,6 +88,12 @@ export interface FeedStatus {
 export interface FeedSource {
   readonly instrument: Instrument;
   readonly kind: 'mock' | 'live' | 'replay';
+  /** Data the feed supplies (bar types needing more are disabled in the timeframe dialog). */
+  readonly capabilities?: {
+    aggressor: boolean;
+    ticks: boolean;
+    subSecond: boolean;
+  };
   /** Loads previous data (tick store / backfill / simulated). */
   history(): Promise<HistoryData>;
   subscribe(listener: (batch: EventBatch) => void): () => void;

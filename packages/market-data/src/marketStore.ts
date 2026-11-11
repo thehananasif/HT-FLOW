@@ -1,4 +1,12 @@
-import { BarSeries, specKey, type BarSpec } from './aggregator';
+import {
+  BarSeries,
+  inferCapabilities,
+  specKey,
+  type BarSpec,
+  type FeedCapabilities,
+  type SessionRules,
+  type SessionSel,
+} from './aggregator';
 import { OrderBook } from './orderBook';
 import type {
   DepthColumn,
@@ -9,6 +17,19 @@ import type {
   Instrument,
   Trade,
 } from './types';
+
+/** Resolves RTH / ETH / custom session rules for an instrument (the app wires the market catalog). */
+export type SessionResolver = (instrument: Instrument, sel: SessionSel) => SessionRules | null;
+let sessionResolver: SessionResolver = () => null;
+
+/** Installs the session resolver used by every MarketStore.getSeries (P07 sessions). */
+export function setSessionResolver(fn: SessionResolver): void {
+  sessionResolver = fn;
+}
+
+export function resolveSession(instrument: Instrument, sel: SessionSel | undefined) {
+  return sel && sel !== '24h' ? sessionResolver(instrument, sel) : null;
+}
 
 export interface MarketStoreOptions {
   depthIntervalMs?: number;
@@ -62,7 +83,7 @@ export class MarketStore {
     this.lastDepthT = this.depth.length ? this.depth[this.depth.length - 1]!.t : h.end;
     this.lastTs = h.end;
     for (const s of this.series.values()) {
-      s.bars.length = 0;
+      s.clear();
       s.addAll(this.trades);
     }
     this.ready = true;
@@ -105,11 +126,19 @@ export class MarketStore {
     const key = specKey(spec);
     let s = this.series.get(key);
     if (!s) {
-      s = BarSeries.build(spec, this.trades);
+      s = BarSeries.build(spec, this.trades, resolveSession(this.instrument, spec.session));
       this.series.set(key, s);
     }
     return s;
   }
+
+  /** What the feed supplies (declared by the feed, else inferred from the trades). */
+  get capabilities(): FeedCapabilities {
+    return this.declaredCapabilities ?? inferCapabilities(this.trades);
+  }
+
+  /** Set by the hub from FeedSource.capabilities when the feed declares them. */
+  declaredCapabilities: FeedCapabilities | null = null;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -199,6 +228,7 @@ export class MarketHub {
     if (e) return e.store;
     const feed = this.factory(instrumentId);
     const store = new MarketStore(feed.instrument);
+    store.declaredCapabilities = feed.capabilities ?? null;
     const u1 = feed.subscribe((b) => {
       if (store.ready) store.ingest(b);
     });

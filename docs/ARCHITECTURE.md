@@ -57,19 +57,37 @@ Binance WS ──► connectors/binance (Rust)          MockFeed (TS, seeded)
 
 ## Bar types (P07)
 
-All bar types use the same incremental `BarSeries.add(trade)` for history and live, so bulk and incremental builds are identical (property-tested for every preset).
+All bar types use the same per-trade state machine (`BarSeries.push`) for history and live, so a bulk build and any chunked incremental build are identical (property-tested for every preset, through `add`, `addAll` and the typed-array `addColumns` path). Prices are integer ticks.
 
-| Type     | Rule                                                                                  |
-| -------- | ------------------------------------------------------------------------------------- |
-| Time     | Bar open = `floor(ts / period) * period` (UTC aligned). Empty periods produce no bar. |
-| Tick N   | Closes after N trades.                                                                |
-| Volume N | Closes once volume ≥ N; the crossing trade stays in the bar (no splitting).           |
-| Delta N  | Closes once \|delta\| ≥ N.                                                            |
-| Range N  | A trade that would make high − low exceed N ticks opens a new bar.                    |
+| Type                       | Rule                                                                                                                                                                                                     |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Time                       | Bar open = `floor(ts / period) * period` (UTC aligned). Empty periods produce no bar. With a session, daily bars open at the session open.                                                               |
+| Tick N                     | Closes after N trades.                                                                                                                                                                                   |
+| Volume N                   | Closes once volume ≥ N; the crossing trade stays in the bar (no splitting).                                                                                                                              |
+| Delta N                    | Closes once \|delta\| ≥ N.                                                                                                                                                                               |
+| Range N                    | A trade that would make high − low exceed N ticks opens a new bar (the bar may close anywhere inside its range; gaps allowed).                                                                           |
+| Range X N                  | Close-beyond rule: the bar closes on the trade that makes high − low = N. A trade past the boundary completes the bar at exactly N ticks (close = boundary) and opens the next bar at its own price.     |
+| Range XV N / V             | Closes on the first trade where high − low ≥ N **and** volume ≥ V; until the volume filter is met the range keeps growing.                                                                               |
+| Range Z N                  | Plain range rule, but every bar opens at the previous bar's close (open, high, low include it), so there are no gaps.                                                                                    |
+| Range US o / t / r         | Universal range: closes when close − open ≥ t ticks in the trend direction or ≥ r ticks against it (t for both before the first bar). The next bar opens at close − dir × o (open offset).               |
+| Renko B                    | Bricks of B ticks with the classic 2-box reversal: up brick when price ≥ last top + B, down when ≤ last bottom − B; a gap makes several bricks (the later ones empty). Wicks = traded extremes (option). |
+| Reversal S / R             | Closes when high − low ≥ S, or when an up bar (close ≥ open) pulls back R ticks from its high (down bar: R from its low).                                                                                |
+| Order Flow N               | New bar after N consecutive prints of the other aggressor side (N = 1: every side change). Prints without a side stay in the current bar.                                                                |
+| Cumulative Trades min..max | One bar per aggregated order (consecutive prints with the same timestamp and aggressor side); only orders whose size is within [min, max] are kept (max 0 = no upper limit).                             |
+| Heikin-Ashi P              | Time bars of P with HA close = (O+H+L+C)/4, HA open = (prev HA open + prev HA close)/2, high / low include both. Clusters are the raw traded clusters.                                                   |
+| Point & Figure B × R       | Columns of B-tick boxes; an X column extends while `floor(px/B)` rises and reverses to O when `ceil(px/B)` ≤ top − R (O column starts one box lower); symmetric for O. One bar per column.               |
+| Kagi R                     | Segments reverse after R ticks from the extreme. Yang (thick) once a line rises above the previous shoulder, yin once it falls below the previous waist; `thick0`, `thick`, `flip` describe a segment.   |
+| Line Break N / P           | Uses the close of each P period: a new line continues the trend when the close passes the last line, and reverses only past the extreme of the last N lines. The forming line is provisional.            |
 
-Range X / XV / Z / US, Renko, Reversal, Order Flow and Cumulative Trades bars are not implemented yet; their rules will be documented here when they are.
+**Sessions.** A bar spec may carry `session: 'rth' | 'eth' | '24h' | {open, close, tz?, days?}`. `MarketStore.getSeries` resolves it through `setSessionResolver` (the app wires the market catalog: `sessionRules()` in `@htflow/market-catalog`). Trades outside the session are skipped; crypto (24/7) needs no filter. Lookups are cached per minute.
 
-Cluster cell: `bid` = volume sold into the bid (sell aggressor), `ask` = volume bought at the ask (buy aggressor), `trades`, `maxTrade`. Delta = ask − bid.
+**Time at price.** `Cluster.tap` (ms): the time from each print to the next print is credited to the earlier print's price, capped at the bar end for time bars and at 5 minutes otherwise.
+
+**Benchmark.** `aggregator.bench.test.ts` feeds 10M synthetic ticks (typed arrays) into M1 cluster bars; about 0.5 s on the dev container.
+
+**Disabled chips.** `specUnavailableReason(spec, capabilities)` greys out bar types that need data the feed lacks (aggressor side for Delta / Order Flow, ticks for non-time bars, sub-second timestamps). Feeds may declare `capabilities`; otherwise they are inferred from the trades.
+
+Cluster cell: `bid` = volume sold into the bid (sell aggressor), `ask` = volume bought at the ask (buy aggressor), `trades`, `maxTrade`, `tap`. Delta = ask − bid.
 
 ## Charts
 

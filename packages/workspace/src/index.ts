@@ -38,15 +38,35 @@ export const PENDING_TEMPLATES = [
   'Delta Profile',
 ];
 
+/**
+ * Bar type of a chart (structural copy of @htflow/market-data BarSpec: time, tick, volume, delta,
+ * range, Range X / XV / Z / US, Renko, Reversal, Order Flow, Cumulative Trades, Heikin-Ashi, P&F,
+ * Kagi, Line Break; optional `session`).
+ */
+export type TimeframeSpec = (
+  | { kind: 'time'; ms: number }
+  | { kind: 'tick' | 'volume' | 'delta'; n: number }
+  | { kind: 'range' | 'rangex' | 'rangez'; ticks: number }
+  | { kind: 'rangexv'; ticks: number; vol: number }
+  | { kind: 'rangeus'; trend: number; reversal: number; offset: number }
+  | { kind: 'renko'; box: number; wicks?: boolean }
+  | { kind: 'reversal'; size: number; rev: number }
+  | { kind: 'orderflow'; n: number }
+  | { kind: 'cumtrades'; min: number; max: number }
+  | { kind: 'heikin'; ms: number }
+  | { kind: 'pnf'; box: number; reversal: number }
+  | { kind: 'kagi'; rev: number }
+  | { kind: 'linebreak'; lines: number; ms: number }
+) & {
+  session?: 'rth' | 'eth' | '24h' | { open: string; close: string; tz?: string; days?: number[] };
+};
+
 export interface ChartWindowState {
   kind: 'chart';
   instrumentId: string;
   template: ChartTemplateId;
   /** Bar type, e.g. { kind: 'time', ms: 300000 }. */
-  timeframe:
-    | { kind: 'time'; ms: number }
-    | { kind: 'tick' | 'volume' | 'delta'; n: number }
-    | { kind: 'range'; ticks: number };
+  timeframe: TimeframeSpec;
   lots: number;
   link: LinkColor;
   footprintMode: string;
