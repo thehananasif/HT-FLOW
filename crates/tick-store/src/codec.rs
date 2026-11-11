@@ -322,7 +322,7 @@ mod tests {
                 ts_ns: 1_700_000_000_000_000_000 + i * 1_000_003,
                 px: 681_234 + (i % 7) - 3,
                 qty: 0.001 * (i as f64 + 1.0),
-                aggressor: if i.is_multiple_of(3) {
+                aggressor: if i % 3 == 0 {
                     Aggressor::Buy
                 } else if i % 3 == 1 {
                     Aggressor::Sell
