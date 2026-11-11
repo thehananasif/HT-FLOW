@@ -16,5 +16,5 @@ test('ribbon modules open registered windows and placeholders', async ({ page })
   await page.getByTestId('ribbon-connections').click();
   await expect(page.getByText('Providers')).toBeVisible();
   await page.getByTestId('ribbon-options-board').click();
-  await expect(page.getByText(/phase P18/)).toBeVisible();
+  await expect(page.getByText('Options Strategy Analyser')).toBeVisible();
 });

@@ -1,0 +1,145 @@
+.wl {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+}
+.wl-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.wl-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+}
+.wl-tab {
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ht-r-input);
+  background: var(--ht-surface2);
+  color: var(--ht-text-secondary);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wl-tab[aria-selected='true'] {
+  background: var(--ht-accent);
+  color: var(--ht-accent-text);
+}
+.wl-tab-add {
+  background: none;
+  border: 1px dashed var(--ht-muted);
+}
+.wl-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ht-r-input);
+  background: var(--ht-accent);
+  color: var(--ht-accent-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wl-head,
+.wl-row {
+  display: grid;
+  grid-template-columns: var(--wl-cols);
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+.wl-head {
+  height: 26px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.wl-head button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ht-text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+}
+.wl-head .r,
+.wl-row .r {
+  text-align: right;
+}
+.wl-body {
+  flex: 1;
+  overflow-y: auto;
+}
+.wl-row {
+  height: 30px;
+  border-bottom: 1px solid var(--ht-divider);
+  color: var(--ht-text-soft);
+  cursor: default;
+}
+.wl-row:hover {
+  background: var(--ht-surface2);
+}
+.wl-row[aria-selected='true'] {
+  background: var(--ht-surface3);
+}
+.wl-sym {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ht-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.wl-star {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ht-text-tertiary);
+  cursor: pointer;
+}
+.wl-star[aria-pressed='true'] {
+  color: var(--ht-warning);
+}
+.wl-last {
+  color: var(--ht-text-primary);
+  font-weight: 500;
+  border-radius: var(--ht-r-cell);
+  padding: 2px 4px;
+}
+/* Price ticks flash colour only (150 ms, 20% tint). */
+.wl-last[data-flash='up'] {
+  animation: wl-flash-up 150ms linear;
+}
+.wl-last[data-flash='down'] {
+  animation: wl-flash-down 150ms linear;
+}
+@keyframes wl-flash-up {
+  from,
+  to {
+    background: color-mix(in srgb, var(--ht-up) 20%, transparent);
+  }
+}
+@keyframes wl-flash-down {
+  from,
+  to {
+    background: color-mix(in srgb, var(--ht-down) 20%, transparent);
+  }
+}
+.wl-spark {
+  display: inline-flex;
+  justify-content: flex-end;
+}

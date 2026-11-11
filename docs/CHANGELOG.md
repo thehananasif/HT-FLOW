@@ -9,6 +9,9 @@
 
 ### Added
 
+- Market catalog (P04): `@htflow/market-catalog` with Appendix A seed, sessions, expiry / roll rules; new Instrument Picker; Watchlist; Forward Curve (P19, simulated prices).
+- Options (P18): `@htflow/options` pricing, Greeks, IV, strategies, simulated chains and Deribit provider; Options Strategy Analyser window.
+- Info group (P22 / P39): `@htflow/info`; RSS Reader, News, Economic Calendar (with chart lines), TradersTalk; Rust `net_fetch_text` command.
 - Settings centre (P27 / P43): typed settings store, Settings window with General, Appearance, Hot keys, Sounds, Time zones, Commission, Data delays, Performance and Common settings; hotkey overrides with scopes.
 - Tape and analytics (P16 / P21 / P38): `@htflow/tape` and `@htflow/analytics`; Smart Tape, Bid/Ask Tape, All Prices, Market Pressure, Price Change, DOM Pressure, Delta Divergence windows.
 - Indicators (P13 / P14): `@htflow/indicator-sdk` and `@htflow/indicators` (63 indicators, 281-entry catalog), chart extension with canvas legend and sub-panes, Indicators dialog with presets; `docs/INDICATORS.md`.

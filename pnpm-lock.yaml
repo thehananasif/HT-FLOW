@@ -80,9 +80,18 @@ importers:
       '@htflow/indicators':
         specifier: workspace:*
         version: link:../../packages/indicators
+      '@htflow/info':
+        specifier: workspace:*
+        version: link:../../packages/info
+      '@htflow/market-catalog':
+        specifier: workspace:*
+        version: link:../../packages/market-catalog
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
+      '@htflow/options':
+        specifier: workspace:*
+        version: link:../../packages/options
       '@htflow/replay':
         specifier: workspace:*
         version: link:../../packages/replay
@@ -209,7 +218,13 @@ importers:
         specifier: workspace:*
         version: link:../market-data
 
+  packages/info: {}
+
+  packages/market-catalog: {}
+
   packages/market-data: {}
+
+  packages/options: {}
 
   packages/replay:
     dependencies:

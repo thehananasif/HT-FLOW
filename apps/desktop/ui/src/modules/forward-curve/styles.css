@@ -1,0 +1,93 @@
+.fc {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-size: 12px;
+}
+.fc-top,
+.fc-chips,
+.fc-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.fc-top {
+  border-bottom: 1px solid var(--ht-divider);
+}
+.fc-title {
+  font-weight: 600;
+  color: var(--ht-text-primary);
+}
+.fc-title .muted {
+  font-weight: 400;
+}
+.fc-note {
+  margin: 0 12px 6px;
+  padding: 6px 8px;
+  border-radius: var(--ht-r-cell);
+  background: color-mix(in srgb, var(--ht-special) 10%, transparent);
+  color: var(--ht-text-secondary);
+  font-size: 11px;
+}
+.fc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border-top: 1px solid var(--ht-divider);
+}
+.fc-chart {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.fc-grid {
+  stroke: var(--ht-grid);
+  stroke-dasharray: 3 3;
+}
+.fc-axis {
+  fill: var(--ht-text-secondary);
+  font-size: 11px;
+}
+.fc-line {
+  fill: none;
+  stroke: var(--ht-text-primary);
+  stroke-width: 2;
+}
+.fc-line-ago {
+  fill: none;
+  stroke: var(--ht-text-tertiary);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.fc-dot {
+  fill: var(--ht-text-primary);
+}
+.fc-table-wrap {
+  width: 330px;
+  flex: none;
+  overflow-y: auto;
+  border-left: 1px solid var(--ht-divider);
+}
+.fc.fc .fc-table th.r,
+.fc.fc .fc-table td.r {
+  text-align: right;
+}
+.fc-foot {
+  border-top: 1px solid var(--ht-divider);
+  font-size: 11px;
+}
+.fc-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ht-text-soft);
+}
+.fc-key {
+  display: inline-block;
+  width: 14px;
+  border-top: 2px solid var(--ht-text-primary);
+}
+.fc-key-ago {
+  border-top: 2px dashed var(--ht-text-tertiary);
+}

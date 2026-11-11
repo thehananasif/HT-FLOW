@@ -56,10 +56,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P04 — Market catalog & instrument model
 
-- [~] Instrument model (id, symbol, exchange, asset class, tick size, tick value, precision) — used by MockFeed and Binance; sessions, holidays, roll rules, contract specs and provider mappings pending
-- [ ] Seed the full Appendix A catalog (US/EU futures, crypto venues from exchange-info, US stocks, indexes, HKEX, single-stock futures, dxFeed groups) with `spec_source_url`
-- [~] Instrument Picker — dropdown grouped by source (simulated / Binance Futures); tree, fuzzy search, favourites, recent, "Has live feed" filter, drag to window pending
-- [ ] Watchlist panel (named lists, columns, flashes, sort, drag reorder, right-click open)
+- [x] `@htflow/market-catalog`: instrument model with Appendix A groups, sessions with exchange time zones and DST (RTH / ETH, breaks), expiry and roll rules (month cycles, last-trading-day rules, contract codes, auto-rolled front month), `spec_source_url` and `verified` flag; feed matching (Sim / Binance / replay)
+- [~] Full Appendix A seed (US / EU futures incl. micro / mini / E-nano, 16 crypto venue groups, VX, HKEX, single-stock futures, dxFeed groups); uncertain specs are `verified: false` with `TODO(verify)`; stocks and crypto symbol lists are placeholders; no holiday dates; specs not yet checked against exchange pages
+- [x] Instrument Picker: group tree, All / Favourites / Recent, typo-tolerant search (12k entries < 50 ms), star, "Has live feed" filter, status column (Live / Sim / Delayed / Replay / No feed), keyboard navigation; no-feed rows offer Connections
+- [x] Watchlist: tabs and user lists, Last flash, Chg %, Volume, Delta, sparkline, column chooser, drag reorder, sort, right-click open Chart / DOM / Heatmap / Tape, link-group colour, feeds retained only for visible rows
+- [ ] Drag from picker to a window / Ctrl+drag for a new window; OI / Funding columns (no feed); roll by volume (falls back to date rule)
 - [ ] 10,000+ symbol search < 50 ms
 
 ## P05 — Data connectors
@@ -178,11 +179,14 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P18 — Options Board & analytics
 
-- [ ] Options Strategy Analyser window, Greeks (Black-76 / Black-Scholes), IV solver, strategy builder, payoff chart, Deribit data
+- [x] `@htflow/options`: Black-Scholes (dividend / funding yield) and Black-76 with full Greeks, IV solver (Newton + bisection), strategies (payoff at expiry and T+n, breakevens, max profit / loss incl. unlimited, probability of profit, Greeks totals), 13 templates, simulated chains for all Sim instruments, Deribit provider (recorded-fixture tests); validated against Hull / Haug references within 0.5%
+- [x] Options Strategy Analyser window: series filters, expiry blocks (calls / strike + IV / puts, ITM tint, spot line), click bid to sell / ask to buy, strategy builder with canvas payoff chart and T+n slider, readouts, local options positions tab with live P&L
+- [ ] Options not modelled by the paper engine (local positions only); Appendix B options indicators exported but not on charts yet; live Deribit in the desktop app needs `net_fetch_text` (now merged) wiring check; CME options need a user feed
 
 ## P19 — Forward curve
 
-- [ ] Forward Curve window (expiries, contango / backwardation, spreads, roll calendar, basis)
+- [x] Forward Curve window: CL / NG / GC / ES / BTC (CME) / BTC quarterly, expiries from catalog roll rules, compare to 1 / 7 / 30 days ago, contango / backwardation badge, calendar spreads, basis and annualised basis, next roll; `registerCurveProvider()`
+- [ ] Real prices: simulated term structure (Sim badge) until a futures feed or quarterly crypto connectors exist
 
 ## P20 — Tables group
 
@@ -199,7 +203,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P22 — Info group
 
-- [ ] RSS Reader, News, Economic Calendar, TradersTalk
+- [x] `@htflow/info`: XML / RSS 2.0 / RSS 1.0 / Atom / OPML / ICS parsers, keyword highlighting, symbol tagging, calendar logic, reader cache, own-event detectors (big prints, delta spikes, liquidity pulls), `.htidea` format; Rust `net_fetch_text` (GET, 15 s, 5 MB cap, no cookies)
+- [x] RSS Reader (folders, unread, reading pane, open chart, OPML, keywords, refresh interval, offline cache), News (RSS + own events + calendar, filters, keyword alerts), Economic Calendar (impact filters, countdown, ICS URLs, actual vs forecast colours, vertical lines on charts, alert N min before), TradersTalk (local idea log with snapshots, `.htidea` export / import)
+- [ ] Default feed URLs unverified; RRULE recurrence not expanded; "Open in Web Pages" (window not built); funding / OI / liquidation events (no connector data); TradersTalk sharing, chat and sync need a server (BLOCKED); bundled data is labelled sample
 
 ## P23 — Alerts & Risk Management
 
@@ -264,7 +270,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [~] P32 Connections window — see P05
 - [~] P33 Chart types — 4 of 12 renderers (+ bars / line / area / transparent)
 - [ ] P34 Chart settings window
-- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [ ] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [~] P41 Alerts / Risk done, Watchlist / Forward curve · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission done; languages, custom modules pending)
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission done; languages, custom modules pending)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 
