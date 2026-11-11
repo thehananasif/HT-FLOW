@@ -9,3 +9,6 @@ test-results/
 apps/desktop/src-tauri/gen/schemas/
 *.tsbuildinfo
 .vite/
+
+# Agent worktrees and local Claude Code state
+.claude/

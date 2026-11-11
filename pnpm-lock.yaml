@@ -50,12 +50,18 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@htflow/alerts':
+        specifier: workspace:*
+        version: link:../../packages/alerts
       '@htflow/chart-engine':
         specifier: workspace:*
         version: link:../../packages/chart-engine
       '@htflow/dom':
         specifier: workspace:*
         version: link:../../packages/dom
+      '@htflow/drawings':
+        specifier: workspace:*
+        version: link:../../packages/drawings
       '@htflow/footprint':
         specifier: workspace:*
         version: link:../../packages/footprint
@@ -68,6 +74,9 @@ importers:
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
+      '@htflow/replay':
+        specifier: workspace:*
+        version: link:../../packages/replay
       '@htflow/trading':
         specifier: workspace:*
         version: link:../../packages/trading
@@ -115,6 +124,8 @@ importers:
         specifier: ^7.1.7
         version: 7.3.7(@types/node@22.20.5)
 
+  packages/alerts: {}
+
   packages/chart-engine:
     dependencies:
       '@htflow/market-data':
@@ -129,6 +140,15 @@ importers:
       '@htflow/trading':
         specifier: workspace:*
         version: link:../trading
+
+  packages/drawings:
+    dependencies:
+      '@htflow/chart-engine':
+        specifier: workspace:*
+        version: link:../chart-engine
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
 
   packages/footprint:
     dependencies:
@@ -151,6 +171,12 @@ importers:
   packages/i18n: {}
 
   packages/market-data: {}
+
+  packages/replay:
+    dependencies:
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
 
   packages/trading:
     dependencies:

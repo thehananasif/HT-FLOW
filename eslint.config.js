@@ -12,6 +12,7 @@ export default tseslint.config(
       'apps/desktop/src-tauri/**',
       '**/playwright-report/**',
       '**/test-results/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,

@@ -83,6 +83,7 @@ function InstrumentMenu({ id, instrumentId }: { id: string; instrumentId: string
 
 function FeedBadge({ instrumentId }: { instrumentId: string }) {
   const st = hub.peek(instrumentId)?.status.state ?? 'connecting';
+  if (instrumentId.startsWith('replay:')) return <Badge kind="replay">Replay</Badge>;
   if (instrumentId.startsWith('mock:')) return <Badge kind="replay">Sim</Badge>;
   if (st === 'live') return <Badge kind="live">Live</Badge>;
   if (st === 'error' || st === 'disconnected') return <Badge kind="error">{st}</Badge>;
