@@ -423,6 +423,56 @@ export function Slider({
   );
 }
 
+/**
+ * Slider for use inside dropdown / context menus: shows label + value, and keeps arrow keys,
+ * Home/End and pointer events from being taken by the menu (so it does not close or move focus).
+ */
+export function MenuSlider({
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+  step = 1,
+  label,
+  format,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  label: string;
+  format?: (v: number) => string;
+}) {
+  return (
+    <div
+      className="ht-menu-slider"
+      role="group"
+      aria-label={label}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' && e.key !== 'Tab') e.stopPropagation();
+      }}
+      onPointerMove={(e) => e.stopPropagation()}
+      onPointerLeave={(e) => e.stopPropagation()}
+    >
+      <span className="ht-menu-slider-head">
+        <span>{label}</span>
+        <span className="tnum">{format ? format(value) : value}</span>
+      </span>
+      <input
+        type="range"
+        className="ht-slider"
+        aria-label={label}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </div>
+  );
+}
+
 export function ColorSwatch({
   value,
   onChange,
@@ -540,7 +590,18 @@ export type MenuEntry =
     }
   | { kind: 'separator'; id: string }
   | { kind: 'label'; id: string; label: string }
-  | { kind: 'submenu'; id: string; label: string; icon?: ReactNode; items: MenuEntry[] };
+  | { kind: 'submenu'; id: string; label: string; icon?: ReactNode; items: MenuEntry[] }
+  | {
+      kind: 'slider';
+      id: string;
+      label: string;
+      value: number;
+      min?: number;
+      max?: number;
+      step?: number;
+      format?: (v: number) => string;
+      onChange: (v: number) => void;
+    };
 
 type MenuParts = typeof RxContext | typeof RxDropdown;
 
@@ -552,6 +613,19 @@ function renderEntries(P: MenuParts, entries: MenuEntry[]): ReactNode {
         <P.Label key={e.id} className="ht-menu-label">
           {e.label}
         </P.Label>
+      );
+    if (e.kind === 'slider')
+      return (
+        <MenuSlider
+          key={e.id}
+          label={e.label}
+          value={e.value}
+          min={e.min}
+          max={e.max}
+          step={e.step}
+          format={e.format}
+          onChange={e.onChange}
+        />
       );
     if (e.kind === 'submenu')
       return (
