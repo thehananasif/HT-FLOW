@@ -2,11 +2,20 @@ import { useEffect, useRef } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
 import { Lock } from 'lucide-react';
 import { DomLadder, DomModel, DEFAULT_COLUMNS, type DomColumnId } from '@htflow/dom';
-import { theme, toast } from '@htflow/ui-kit';
+import { Select, theme } from '@htflow/ui-kit';
 import type { DomWindowState } from '@htflow/workspace';
 import { useWindows } from '../state/windows';
-import { paper, PAPER_ACCOUNT, pnlTick } from '../state/market';
+import { paper, pnlTick } from '../state/market';
 import { useMarketStore } from '../charts/useMarket';
+import { activeAccount } from './accounts';
+import { useAtmTemplates } from './atmStore';
+import { cancelOrder, closePosition, reversePosition, submitOrder } from './orders';
+import { setPrefs, tradingPrefs, useTradingPrefs } from './prefs';
+import { usePaperTick } from './TradingPanel';
+import './trading.css';
+
+/** Account that trades `instrumentId` for the selected paper account (replay → replay account). */
+const acct = (instrumentId: string) => paper.route(activeAccount(), instrumentId);
 
 function domPalette() {
   const t = theme();
@@ -62,6 +71,7 @@ function Ladder({
     let dirty = true;
     const unsub = store.subscribe(() => (dirty = true));
     const unsubPaper = paper.subscribe(() => (dirty = true));
+    const unsubPrefs = tradingPrefs.subscribe(() => (dirty = true));
     const frame = () => {
       raf = requestAnimationFrame(frame);
       if (!dirty || !store.ready) return;
@@ -73,8 +83,8 @@ function Ladder({
         model: model.current,
         instrument: store.instrument,
         lastPx: store.lastTrade?.px ?? Number.NaN,
-        orders: paper.workingOrders(PAPER_ACCOUNT, instrumentId),
-        position: paper.position(PAPER_ACCOUNT, instrumentId),
+        orders: paper.workingOrders(acct(instrumentId), instrumentId),
+        position: paper.position(acct(instrumentId), instrumentId),
         pnlPerTick: pnlTick(instrumentId),
       });
     };
@@ -84,6 +94,7 @@ function Ladder({
       ro.disconnect();
       unsub();
       unsubPaper();
+      unsubPrefs();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, instrumentId]);
@@ -103,16 +114,16 @@ function Ladder({
     if (!hit) return;
     if (hit.column === 'orders') {
       const os = paper
-        .workingOrders(PAPER_ACCOUNT, instrumentId)
-        .filter((o) => (o.px ?? o.stopPx) === hit.px);
-      os.forEach((o) => paper.cancel(o.id));
+        .workingOrders(acct(instrumentId), instrumentId)
+        .filter((o) => (o.type === 'limit' ? o.px : o.stopPx) === hit.px);
+      os.forEach((o) => void cancelOrder(o));
       return;
     }
     if (hit.column !== 'bid' && hit.column !== 'ask') return;
     const side = right ? 'sell' : 'buy';
     const stop = e.ctrlKey;
-    const o = paper.place({
-      accountId: PAPER_ACCOUNT,
+    // One-click entries carry the selected ATM template when SL / TP is on.
+    void submitOrder({
       instrumentId,
       side,
       type: stop ? 'stop' : 'limit',
@@ -120,7 +131,6 @@ function Ladder({
       px: stop ? undefined : hit.px,
       stopPx: stop ? hit.px : undefined,
     });
-    if (o.status === 'rejected') toast('error', 'Order rejected', o.reason);
   };
 
   return (
@@ -146,66 +156,53 @@ export function DomWindow(props: IDockviewPanelProps) {
   const id = props.api.id;
   const s = useWindows((st) => st.windows[id]) as DomWindowState | undefined;
   if (!s || s.kind !== 'dom') return null;
+  return <DomWindowBody id={id} s={s} />;
+}
+
+function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
+  usePaperTick();
   const inst = s.instrumentId;
-  const pos = paper.position(PAPER_ACCOUNT, inst);
+  const account = acct(inst);
+  const pos = paper.position(account, inst);
   const act = (fn: () => void) => () => fn();
+  const market = (side: 'buy' | 'sell') =>
+    void submitOrder({ instrumentId: inst, side, type: 'market', qty: s.lots });
   return (
     <div className="dom-window" onMouseDown={() => useWindows.getState().setActive(id)}>
+      <AtmStrip />
       <Ladder instrumentId={inst} lots={s.lots} grouping={s.grouping} />
       <div className="dom-foot-row">
-        <button title="Reverse position" onClick={act(() => paper.reverse(PAPER_ACCOUNT, inst))}>
+        <button title="Reverse position" onClick={act(() => void reversePosition(inst))}>
           × R
         </button>
         <button title="Position PnL" disabled>
           PnL
         </button>
-        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst))}>
+        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(account, inst))}>
           ×
         </button>
-        <button
-          title="Buy market"
-          onClick={act(() =>
-            paper.place({
-              accountId: PAPER_ACCOUNT,
-              instrumentId: inst,
-              side: 'buy',
-              type: 'market',
-              qty: s.lots,
-            }),
-          )}
-        >
+        <button title="Buy market" onClick={act(() => market('buy'))}>
           MKT
         </button>
         <button
           title="Cancel buy orders"
-          onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst, 'buy'))}
+          onClick={act(() => paper.cancelAll(account, inst, 'buy'))}
         >
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst))}>
+        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(account, inst))}>
           ×
         </button>
-        <button
-          title="Sell market"
-          onClick={act(() =>
-            paper.place({
-              accountId: PAPER_ACCOUNT,
-              instrumentId: inst,
-              side: 'sell',
-              type: 'market',
-              qty: s.lots,
-            }),
-          )}
-        >
+        <button title="Sell market" onClick={act(() => market('sell'))}>
           MKT
         </button>
         <button
           title="Cancel sell orders"
-          onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst, 'sell'))}
+          onClick={act(() => paper.cancelAll(account, inst, 'sell'))}
         >
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst))}>
+        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(account, inst))}>
           ×
         </button>
       </div>
@@ -219,8 +216,8 @@ export function DomWindow(props: IDockviewPanelProps) {
         </button>
         <button
           className="ht-btn ht-btn--sm grow"
-          onClick={() => paper.flattenAll(PAPER_ACCOUNT)}
-          disabled={!pos.qty && !paper.workingOrders(PAPER_ACCOUNT).length}
+          onClick={() => (pos.qty ? void closePosition(inst) : paper.flattenAll(account))}
+          disabled={!pos.qty && !paper.workingOrders(account).length}
         >
           Flatten all
         </button>
@@ -234,7 +231,7 @@ export function DomWindow(props: IDockviewPanelProps) {
           className="ht-icon-btn"
           aria-label="Lock trading"
           title="Lock trading"
-          onClick={() => paper.setLocked(PAPER_ACCOUNT, !paper.accounts.get(PAPER_ACCOUNT)!.locked)}
+          onClick={() => paper.setLocked(account, !paper.accounts.get(account)?.locked)}
         >
           <Lock size={13} />
         </button>
@@ -247,11 +244,41 @@ export function DomWindow(props: IDockviewPanelProps) {
 export function DomTrader({ instrumentId, lots }: { instrumentId: string; lots: number }) {
   return (
     <div className="dom-trader">
+      <AtmStrip compact />
       <Ladder
         instrumentId={instrumentId}
         lots={lots}
         grouping={1}
         columns={['orders', 'bid', 'price', 'ask']}
+      />
+    </div>
+  );
+}
+
+/** SL / TP toggle + ATM template picker shared with the Trading Panel. */
+function AtmStrip({ compact }: { compact?: boolean }) {
+  const prefs = useTradingPrefs();
+  const templates = useAtmTemplates();
+  return (
+    <div className="ot-dom-atm" data-testid="dom-atm">
+      <label className="row gap6 center-y" title="Attach SL / TP to new orders">
+        <input
+          type="checkbox"
+          checked={prefs.bracketOn}
+          onChange={(e) => setPrefs({ bracketOn: e.target.checked })}
+          aria-label="SL/TP on DOM orders"
+        />
+        {compact ? 'ATM' : 'SL/TP'}
+      </label>
+      <Select
+        small
+        value={templates.some((t) => t.id === prefs.atmId) ? prefs.atmId : ''}
+        onChange={(v) => setPrefs({ atmId: v, bracketOn: true })}
+        options={[
+          { value: '', label: 'Custom' },
+          ...templates.map((t) => ({ value: t.id, label: t.name })),
+        ]}
+        aria-label="DOM ATM template"
       />
     </div>
   );

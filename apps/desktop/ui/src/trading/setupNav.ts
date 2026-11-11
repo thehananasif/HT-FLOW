@@ -18,6 +18,5 @@ export function openTradingSetup(tab: SetupTab): void {
   const open = Object.values(useWindows.getState().windows).some(
     (w) => w.kind === 'module' && w.module === SETUP_MODULE,
   );
-  if (!open)
-    window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: SETUP_MODULE }));
+  if (!open) window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: SETUP_MODULE }));
 }

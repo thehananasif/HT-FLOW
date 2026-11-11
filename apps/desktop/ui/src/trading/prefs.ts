@@ -157,7 +157,11 @@ export function normalizePrefs(raw: unknown): TradingPrefs {
   };
 }
 
-export const tradingPrefs = new Persisted<TradingPrefs>('trading.prefs', defaultPrefs, normalizePrefs);
+export const tradingPrefs = new Persisted<TradingPrefs>(
+  'trading.prefs',
+  defaultPrefs,
+  normalizePrefs,
+);
 
 export const useTradingPrefs = () => usePersisted(tradingPrefs);
 

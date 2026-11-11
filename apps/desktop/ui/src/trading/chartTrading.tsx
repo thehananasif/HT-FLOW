@@ -136,10 +136,20 @@ class TradingLayer implements ChartLayer {
       if (base === undefined) continue;
       const dragging = w.drag?.id === o.id;
       const px = dragging ? w.drag!.px : base;
-      const color = o.role === 'sl' ? c.sl : o.role === 'tp' ? c.tp : o.side === 'buy' ? c.buy : c.sell;
+      const color =
+        o.role === 'sl' ? c.sl : o.role === 'tp' ? c.tp : o.side === 'buy' ? c.buy : c.sell;
       let label = orderLineLabel(o, inst);
       if (dragging && px !== base) label += ` → ${formatPrice(px, inst)}`;
-      this.line(v, { kind: o.role === 'sl' ? 'sl' : o.role === 'tp' ? 'tp' : 'order', id: o.id, px, color, label, labelColor: color, solid: false, dragging });
+      this.line(v, {
+        kind: o.role === 'sl' ? 'sl' : o.role === 'tp' ? 'tp' : 'order',
+        id: o.id,
+        px,
+        color,
+        label,
+        labelColor: color,
+        solid: false,
+        dragging,
+      });
       if (o.type === 'stop-limit' && o.px !== undefined && !dragging) {
         // Limit leg of a stop-limit as a faint companion line.
         const y = Math.round(v.yOf(o.px)) + 0.5;
@@ -283,7 +293,14 @@ class TradingLayer implements ChartLayer {
     const w = this.w;
     if (!w.probe) return;
     const json = JSON.stringify(
-      w.lines.map((l) => ({ kind: l.kind, id: l.id, px: l.px, y: l.y, x: l.lx0 + 20, xClose: (l.x0 + l.x1) / 2 })),
+      w.lines.map((l) => ({
+        kind: l.kind,
+        id: l.id,
+        px: l.px,
+        y: l.y,
+        x: l.lx0 + 20,
+        xClose: (l.x0 + l.x1) / 2,
+      })),
     );
     const lastY = w.lastY === null ? '' : String(Math.round(w.lastY));
     if (json !== w.probeJson || w.probe.dataset.lastY !== lastY) {
@@ -406,23 +423,24 @@ function ensure(ctx: ChartExtensionContext): WinState {
 function Probe({ windowId }: { windowId: string; state: ChartWindowState }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const el = ref.current;
     const w = wins.get(windowId);
     if (w) {
-      w.probe = ref.current;
+      w.probe = el;
       w.probeJson = '';
       w.ctx.cores.forEach((c) => c.invalidate());
     }
     const i = setInterval(() => {
       const cur = wins.get(windowId);
-      if (cur && cur.probe !== ref.current) {
-        cur.probe = ref.current;
+      if (cur && cur.probe !== el) {
+        cur.probe = el;
         cur.probeJson = '';
       }
     }, 500);
     return () => {
       clearInterval(i);
       const cur = wins.get(windowId);
-      if (cur && cur.probe === ref.current) cur.probe = null;
+      if (cur && cur.probe === el) cur.probe = null;
     };
   }, [windowId]);
   return (
@@ -465,7 +483,11 @@ registerChartExtension({
     if (hit && hit.line.kind !== 'position') {
       const o = paper.orders.get(hit.line.id);
       if (o) {
-        items.push({ id: 'ctr-cancel', label: `Cancel ${hit.line.label}`, onSelect: () => void cancelOrder(o) });
+        items.push({
+          id: 'ctr-cancel',
+          label: `Cancel ${hit.line.label}`,
+          onSelect: () => void cancelOrder(o),
+        });
         if (px !== null)
           items.push({
             id: 'ctr-move',
@@ -487,7 +509,13 @@ registerChartExtension({
             id: 'ctr-mit',
             label: above ? 'Sell MIT' : 'Buy MIT',
             onSelect: () =>
-              void submitOrder({ instrumentId: instId, side: above ? 'sell' : 'buy', type: 'mit', stopPx: px, qty }),
+              void submitOrder({
+                instrumentId: instId,
+                side: above ? 'sell' : 'buy',
+                type: 'mit',
+                stopPx: px,
+                qty,
+              }),
           },
           {
             id: 'ctr-stl',
@@ -509,16 +537,26 @@ registerChartExtension({
     if (pos.qty !== 0)
       items.push(
         { id: 'ctr-close', label: 'Close position', onSelect: () => void closePosition(instId) },
-        { id: 'ctr-be', label: 'Breakeven', shortcut: 'H', onSelect: () => paper.breakeven(acc, instId) },
+        {
+          id: 'ctr-be',
+          label: 'Breakeven',
+          shortcut: 'H',
+          onSelect: () => paper.breakeven(acc, instId),
+        },
       );
     if (paper.workingOrders(acc, instId).length)
-      items.push({ id: 'ctr-cancel-all', label: 'Cancel all orders', onSelect: () => paper.cancelAll(acc, instId) });
+      items.push({
+        id: 'ctr-cancel-all',
+        label: 'Cancel all orders',
+        onSelect: () => paper.cancelAll(acc, instId),
+      });
     const p = tradingPrefs.get().chart;
     items.push({
       id: 'ctr-toggle',
       label: 'Trading on chart',
       checked: p.enabled,
-      onSelect: () => tradingPrefs.update((x) => ({ ...x, chart: { ...x.chart, enabled: !x.chart.enabled } })),
+      onSelect: () =>
+        tradingPrefs.update((x) => ({ ...x, chart: { ...x.chart, enabled: !x.chart.enabled } })),
     });
     return items;
   },

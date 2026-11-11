@@ -243,7 +243,12 @@ function OrderEntry({
         </div>
       )}
       <div className="tp-grid">
-        <Button variant="buy-outline" size="sm" onClick={() => place('buy')} data-testid="place-buy">
+        <Button
+          variant="buy-outline"
+          size="sm"
+          onClick={() => place('buy')}
+          data-testid="place-buy"
+        >
           BUY {type === 'iceberg' ? 'ICE' : type.toUpperCase().replace('-STOP', '')}
         </Button>
         <Button

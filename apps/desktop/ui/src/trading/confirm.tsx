@@ -27,8 +27,7 @@ function Host() {
   }, []);
   const close = (ok: boolean) => {
     if (!cur) return;
-    if (ok && skip)
-      setPrefs({ confirm: { ...tradingPrefs.get().confirm, [cur.kind]: false } });
+    if (ok && skip) setPrefs({ confirm: { ...tradingPrefs.get().confirm, [cur.kind]: false } });
     cur.resolve(ok);
     queue = queue.slice(1);
     setCur(queue[0] ?? null);
@@ -50,7 +49,12 @@ function Host() {
           <Checkbox checked={skip} onChange={setSkip} label="Don't ask again for this type" />
           <div className="row gap8 ot-confirm-actions">
             <Button onClick={() => close(false)}>Cancel</Button>
-            <Button variant="primary" autoFocus onClick={() => close(true)} data-testid="confirm-ok">
+            <Button
+              variant="primary"
+              autoFocus
+              onClick={() => close(true)}
+              data-testid="confirm-ok"
+            >
               Confirm
             </Button>
           </div>

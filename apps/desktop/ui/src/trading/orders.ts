@@ -58,7 +58,11 @@ export function currentTemplate(p = tradingPrefs.get()): AtmTemplate | null {
 }
 
 /** Resolves the current bracket for an entry at `refPx` (ticks). Throws a readable error. */
-export function bracketFor(instrumentId: string, refPx: number, t = currentTemplate()): BracketSpec | undefined {
+export function bracketFor(
+  instrumentId: string,
+  refPx: number,
+  t = currentTemplate(),
+): BracketSpec | undefined {
   if (!t) return undefined;
   const inst = instrumentOf(instrumentId);
   const econ = { tickSize: inst?.tickSize ?? 1, tickValue: inst?.tickValue ?? 0 };
@@ -106,7 +110,8 @@ function describe(req: OrderRequest, inst?: Instrument): string[] {
     `Type: ${orderTypeLabel({ type: req.type, displayQty: req.displayQty })}${req.tif ? ` · ${req.tif}` : ''}`,
   ];
   if (req.px !== undefined) lines.push(`Limit: ${f(req.px)}`);
-  if (req.stopPx !== undefined) lines.push(`${req.type === 'mit' ? 'Trigger' : 'Stop'}: ${f(req.stopPx)}`);
+  if (req.stopPx !== undefined)
+    lines.push(`${req.type === 'mit' ? 'Trigger' : 'Stop'}: ${f(req.stopPx)}`);
   if (req.trail) lines.push(`Trail: ${req.trail.amount} ${req.trail.kind}`);
   if (req.displayQty) lines.push(`Display qty: ${req.displayQty}`);
   if (req.bracket) {
@@ -115,7 +120,9 @@ function describe(req: OrderRequest, inst?: Instrument): string[] {
       `ATM ${b.atm ?? ''}: SL ${b.slTicks ?? '—'}T${b.slTrail ? ' trailing' : ''} · TP ${(b.tpTicks ?? []).join('/') || '—'}T`,
     );
   }
-  lines.push(`Account: ${paper.accounts.get(paper.route(req.accountId, req.instrumentId))?.name ?? req.accountId}`);
+  lines.push(
+    `Account: ${paper.accounts.get(paper.route(req.accountId, req.instrumentId))?.name ?? req.accountId}`,
+  );
   return lines;
 }
 
@@ -151,7 +158,11 @@ export async function submitOrder(
       return null;
     }
   }
-  if (full.type === 'trailing-stop' && full.trail?.kind === 'atr' && full.trail.atrTicks === undefined)
+  if (
+    full.type === 'trailing-stop' &&
+    full.trail?.kind === 'atr' &&
+    full.trail.atrTicks === undefined
+  )
     full.trail = { ...full.trail, atrTicks: instrumentAtr(full.instrumentId) };
   if (!opts.noConfirm) {
     const ok = await confirmAction(confirmKindOf(full), 'Confirm order', describe(full, inst));
@@ -164,7 +175,9 @@ export async function submitOrder(
 
 /** Cancels one order (with confirmation when enabled). */
 export async function cancelOrder(o: Order): Promise<boolean> {
-  const ok = await confirmAction('cancel', 'Cancel order?', [orderLineLabel(o, instrumentOf(o.instrumentId))]);
+  const ok = await confirmAction('cancel', 'Cancel order?', [
+    orderLineLabel(o, instrumentOf(o.instrumentId)),
+  ]);
   return ok && paper.cancel(o.id);
 }
 
@@ -186,7 +199,10 @@ export async function moveOrder(o: Order, px: number): Promise<boolean> {
 }
 
 /** Flattens a position (✕ on the position line, Close button). */
-export async function closePosition(instrumentId: string, accountId = activeAccount()): Promise<void> {
+export async function closePosition(
+  instrumentId: string,
+  accountId = activeAccount(),
+): Promise<void> {
   const acc = paper.route(accountId, instrumentId);
   const p = paper.position(acc, instrumentId);
   const inst = instrumentOf(instrumentId);
@@ -197,7 +213,12 @@ export async function closePosition(instrumentId: string, accountId = activeAcco
   if (ok) paper.flatten(acc, instrumentId);
 }
 
-export async function reversePosition(instrumentId: string, accountId = activeAccount()): Promise<void> {
-  const ok = await confirmAction('close', 'Reverse position?', [instrumentOf(instrumentId)?.symbol ?? instrumentId]);
+export async function reversePosition(
+  instrumentId: string,
+  accountId = activeAccount(),
+): Promise<void> {
+  const ok = await confirmAction('close', 'Reverse position?', [
+    instrumentOf(instrumentId)?.symbol ?? instrumentId,
+  ]);
   if (ok) paper.reverse(accountId, instrumentId);
 }

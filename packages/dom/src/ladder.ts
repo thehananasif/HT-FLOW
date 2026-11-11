@@ -180,7 +180,7 @@ export class DomLadder {
     }
     const ordersAt = new Map<number, Order[]>();
     for (const o of f.orders) {
-      const opx = o.type === 'stop' ? o.stopPx! : o.px!;
+      const opx = o.type === 'limit' ? o.px! : (o.stopPx ?? o.px!);
       const k = Math.floor(opx / g) * g;
       const arr = ordersAt.get(k) ?? [];
       arr.push(o);
@@ -215,7 +215,7 @@ export class DomLadder {
               ctx.font = `600 12px ${this.font}`;
               ctx.textAlign = 'right';
               ctx.fillText(
-                `${os[0]!.type === 'stop' ? 'S' : 'L'} ${formatCompact(q)}`,
+                `${os[0]!.type === 'limit' ? 'L' : 'S'} ${formatCompact(q)}`,
                 cx + cw - 10,
                 y + h / 2,
               );

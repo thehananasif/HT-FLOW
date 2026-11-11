@@ -32,7 +32,8 @@ export function addTemplate(from?: AtmTemplate): AtmTemplate {
   const base = from ? structuredClone(from) : blankAtm('');
   const names = new Set(allTemplates().map((t) => t.name));
   let name = from ? `${from.name} copy` : 'New template';
-  for (let i = 2; names.has(name); i++) name = `${from ? from.name + ' copy' : 'New template'} ${i}`;
+  for (let i = 2; names.has(name); i++)
+    name = `${from ? from.name + ' copy' : 'New template'} ${i}`;
   const t: AtmTemplate = { ...base, id: newId(), name, builtin: undefined };
   atmStore.update((l) => [...l, t]);
   return t;
