@@ -205,7 +205,7 @@ impl Recorder {
     pub fn on_break(&mut self, instrument: &str) {
         if let Some(st) = self.insts.get_mut(instrument) {
             if let Some(iv) = st.cov_open.take() {
-                st.cov_closed.push(iv);
+                st.cov_closed.push((iv.0, iv.1 + 1));
                 st.cov_dirty = true;
             }
             st.book = None;
@@ -513,11 +513,12 @@ impl Recorder {
             self.last_flush = now;
         }
         let keep_from = day_of(now_ns - 60_000_000_000);
-        if self
-            .insts
-            .values()
-            .any(|s| s.trades.keys().chain(s.depth.keys()).any(|d| *d < keep_from))
-        {
+        if self.insts.values().any(|s| {
+            s.trades
+                .keys()
+                .chain(s.depth.keys())
+                .any(|d| *d < keep_from)
+        }) {
             self.close_days_before(keep_from)?;
         }
         let due = self
@@ -536,7 +537,11 @@ impl Recorder {
             .store
             .enforce_retention(self.cfg.limits, day_of(now_ns), &open)?;
         if rep.files_deleted > 0 {
-            tracing::info!(files = rep.files_deleted, bytes = rep.bytes_freed, "tick-store retention");
+            tracing::info!(
+                files = rep.files_deleted,
+                bytes = rep.bytes_freed,
+                "tick-store retention"
+            );
         }
         Ok(rep)
     }

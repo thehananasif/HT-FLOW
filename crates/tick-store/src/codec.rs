@@ -322,14 +322,18 @@ mod tests {
                 ts_ns: 1_700_000_000_000_000_000 + i * 1_000_003,
                 px: 681_234 + (i % 7) - 3,
                 qty: 0.001 * (i as f64 + 1.0),
-                aggressor: if i % 3 == 0 {
+                aggressor: if i.is_multiple_of(3) {
                     Aggressor::Buy
                 } else if i % 3 == 1 {
                     Aggressor::Sell
                 } else {
                     Aggressor::Unknown
                 },
-                trade_id: if i == 7 { u64::MAX >> 11 } else { 5_000_000_000 + i as u64 },
+                trade_id: if i == 7 {
+                    u64::MAX >> 11
+                } else {
+                    5_000_000_000 + i as u64
+                },
             })
             .collect();
         let mut buf = Vec::new();

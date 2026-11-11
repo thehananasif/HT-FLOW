@@ -185,7 +185,9 @@ impl TickStore {
         for (_, p) in &files {
             match load_index(p) {
                 Ok(idx) => indexes.push((p, idx)),
-                Err(e) => tracing::warn!(file = %p.display(), error = %e, "tick-store: unreadable day file skipped"),
+                Err(e) => {
+                    tracing::warn!(file = %p.display(), error = %e, "tick-store: unreadable day file skipped")
+                }
             }
         }
         if target.is_none() {
@@ -313,7 +315,11 @@ impl TickStore {
                     }
                     if let Some((a, b)) = range {
                         let (a, b) = (a / 1_000_000, b / 1_000_000);
-                        e.first_ms = if e.first_ms == 0 { a } else { e.first_ms.min(a) };
+                        e.first_ms = if e.first_ms == 0 {
+                            a
+                        } else {
+                            e.first_ms.min(a)
+                        };
                         e.last_ms = e.last_ms.max(b);
                     }
                 }
@@ -329,7 +335,12 @@ impl TickStore {
                 bytes: days.iter().map(|d| d.trade_bytes + d.depth_bytes).sum(),
                 trades: days.iter().map(|d| d.trades).sum(),
                 depth_records: days.iter().map(|d| d.depth_records).sum(),
-                first_ms: days.iter().map(|d| d.first_ms).filter(|v| *v > 0).min().unwrap_or(0),
+                first_ms: days
+                    .iter()
+                    .map(|d| d.first_ms)
+                    .filter(|v| *v > 0)
+                    .min()
+                    .unwrap_or(0),
                 last_ms: days.iter().map(|d| d.last_ms).max().unwrap_or(0),
                 instrument: id,
                 days,
@@ -606,7 +617,10 @@ mod tests {
         let t = TickSize::parse("0.1").unwrap();
         assert_eq!(format_price(681_234, t), "68123.4");
         assert_eq!(format_price(-5, t), "-0.5");
-        assert_eq!(format_price(27_403, TickSize::parse("0.25").unwrap()), "6850.75");
+        assert_eq!(
+            format_price(27_403, TickSize::parse("0.25").unwrap()),
+            "6850.75"
+        );
         assert_eq!(format_price(7, TickSize::parse("1").unwrap()), "7");
     }
 }

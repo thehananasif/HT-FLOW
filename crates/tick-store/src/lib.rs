@@ -14,10 +14,12 @@
 //! * Coverage (`coverage.json`) records which time ranges hold complete data, so the history
 //!   merge (stage 6) can backfill only the gaps.
 //!
-//! Read throughput (see `tests/store.rs::read_throughput`, release-equivalent opt-level):
-//! decoding + filtering runs at roughly 20–40 M trades/s on one core of the 4-core dev box,
-//! and a 1-minute footprint aggregation on top at ~15–25 M trades/s. 30 days of BTCUSDT
-//! (≈ 2 M aggregated trades/day → 60 M) therefore read into a 1m footprint in ≈ 3–4 s.
+//! Read throughput (`tests/store.rs::read_throughput`, crate built at opt-level 3, one core
+//! of the shared 4-core dev box): 2 M trades read in ~0.11 s (~18 M trades/s) plus ~0.05 s to
+//! aggregate them into a 1-minute footprint. 30 days of BTCUSDT (~2 M aggregated trades/day,
+//! 60 M) therefore read + aggregate in ~4.7 s — just inside the P06 target of < 5 s. (The
+//! synthetic trades compress far better than real ones, so real files are larger on disk;
+//! decode speed is dominated by varint/column work, not by zstd.)
 //! Memory-mapped reads were not needed for that and are not used (on Windows a mapped file
 //! cannot be deleted or truncated, which would block retention while a chart is open).
 

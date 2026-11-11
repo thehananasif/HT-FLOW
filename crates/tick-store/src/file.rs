@@ -52,7 +52,9 @@ impl FileHeader {
         }
         let version = u16::from_le_bytes([b[4], b[5]]);
         if version != FILE_VERSION {
-            return Err(StoreError::Corrupt(format!("unsupported version {version}")));
+            return Err(StoreError::Corrupt(format!(
+                "unsupported version {version}"
+            )));
         }
         let kind = Kind::from_u8(b[6]).ok_or_else(|| StoreError::Corrupt("bad kind".into()))?;
         let scale = u32::from_le_bytes(b[8..12].try_into().expect("4"));
@@ -178,11 +180,7 @@ impl FileIndex {
 }
 
 /// Reads and validates a block (header check + CRC). Returns the compressed payload.
-fn check_block(
-    header_bytes: &[u8],
-    payload: &[u8],
-    kind: Kind,
-) -> Option<(BlockHeader, u32)> {
+fn check_block(header_bytes: &[u8], payload: &[u8], kind: Kind) -> Option<(BlockHeader, u32)> {
     let h = BlockHeader::decode(header_bytes)?;
     if h.kind != kind as u8 || payload.len() != h.payload_len as usize {
         return None;
@@ -208,7 +206,7 @@ pub fn load_index(path: &Path) -> Result<FileIndex, StoreError> {
     let mut entries = Vec::new();
     let mut next = FILE_HEADER_LEN;
     let idx_bytes = fs::read(index_path(path)).unwrap_or_default();
-    let idx_whole = idx_bytes.len() % INDEX_ENTRY_LEN == 0;
+    let idx_whole = idx_bytes.len().is_multiple_of(INDEX_ENTRY_LEN);
     for chunk in idx_bytes.chunks_exact(INDEX_ENTRY_LEN) {
         let e = IndexEntry::decode(chunk);
         if e.offset != next || e.end() > file_len || e.count == 0 {
@@ -324,8 +322,8 @@ pub fn read_range<R: Record>(
         for e in &wanted[i..j] {
             let off = (e.offset - start) as usize;
             let hdr = &buf[off..off + BLOCK_HEADER_LEN as usize];
-            let payload =
-                &buf[off + BLOCK_HEADER_LEN as usize..off + BLOCK_HEADER_LEN as usize + e.payload_len as usize];
+            let payload = &buf[off + BLOCK_HEADER_LEN as usize
+                ..off + BLOCK_HEADER_LEN as usize + e.payload_len as usize];
             if check_block(hdr, payload, R::KIND).is_none() {
                 tracing::warn!(file = %path.display(), offset = e.offset, "tick-store: skipping corrupt block");
                 continue;
