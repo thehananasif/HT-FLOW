@@ -1,0 +1,340 @@
+/* Settings window (P27 / P43, board 19). */
+.st-root {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--ht-surface1);
+  font-size: 12px;
+}
+.st-nav {
+  width: 210px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--ht-border);
+  background: var(--ht-bg);
+}
+.st-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ht-r-input);
+  background: transparent;
+  color: var(--ht-text-soft);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+.st-nav-item:hover {
+  background: var(--ht-surface2);
+  color: var(--ht-text-primary);
+}
+.st-nav-item[aria-current='page'] {
+  background: var(--ht-accent);
+  color: var(--ht-accent-text);
+}
+.st-nav-item[aria-current='page'] .st-mod {
+  background: var(--ht-accent-text);
+}
+.st-nav-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border-top: 1px solid var(--ht-divider);
+  padding-top: 6px;
+}
+.st-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 0;
+  gap: 8px;
+}
+.st-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.st-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.st-search {
+  height: 30px;
+}
+.st-desc {
+  margin: 0;
+  font-size: 12px;
+}
+.st-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-panel);
+  background: var(--ht-surface1);
+}
+.st-group-head,
+.st-hit-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--ht-surface2);
+  border: 0;
+  border-bottom: 1px solid var(--ht-divider);
+  font-weight: 600;
+  color: var(--ht-text-primary);
+  width: 100%;
+  text-align: left;
+}
+.st-hit-section {
+  cursor: pointer;
+}
+.st-subhead {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ht-text-tertiary);
+}
+.st-row {
+  display: flex;
+  align-items: center;
+  min-height: 31px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.st-row-label {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ht-text-soft);
+  min-width: 0;
+}
+.st-row-ctl {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 3px 0;
+}
+.st-row-ctl .ht-num-input {
+  width: 160px;
+  height: 26px;
+}
+.st-row-ctl .ht-select {
+  max-width: 280px;
+}
+.st-text {
+  height: 26px;
+  max-width: 280px;
+}
+.st-err {
+  flex-basis: 100%;
+  font-size: 11px;
+}
+.st-help {
+  display: inline-flex;
+  color: var(--ht-text-tertiary);
+  cursor: help;
+}
+.st-tip {
+  display: block;
+  max-width: 320px;
+}
+.st-dot-slot {
+  display: inline-flex;
+  width: 8px;
+  flex: none;
+}
+.st-mod {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ht-text-primary);
+  flex: none;
+}
+.st-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 10px;
+}
+.st-unsaved {
+  font-size: 11px;
+}
+.st-check {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ht-accent);
+}
+
+/* appearance */
+.st-appearance-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.st-preview {
+  width: 300px;
+  border: 1px solid;
+  border-radius: var(--ht-r-panel);
+  overflow: hidden;
+  font-size: 11px;
+}
+.st-pv-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.st-tokens {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0 16px;
+  padding-bottom: 8px;
+}
+.st-token {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+}
+.st-token input[type='color'] {
+  width: 26px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: none;
+}
+.st-token-name {
+  flex: 1;
+  color: var(--ht-text-soft);
+}
+.st-hex {
+  width: 80px;
+  height: 22px;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: var(--ht-surface2);
+  color: var(--ht-text-primary);
+  font-size: 11px;
+  padding: 0 6px;
+}
+.st-hex[aria-invalid='true'] {
+  border-color: var(--ht-down);
+}
+
+/* hot keys */
+.st-hk-tools {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.st-hk-filter {
+  height: 24px;
+  max-width: 260px;
+}
+.st-hk-table td {
+  height: 26px;
+}
+.st-hk-group td {
+  background: var(--ht-surface2);
+  color: var(--ht-text-tertiary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.st-hk-table tr[data-conflict='true'] td {
+  background: color-mix(in srgb, var(--ht-warning) 10%, transparent);
+}
+.st-conflict {
+  color: var(--ht-warning);
+}
+.st-warn {
+  padding: 6px 10px;
+  color: var(--ht-warning);
+  border-bottom: 1px solid var(--ht-divider);
+}
+.st-rec {
+  min-width: 110px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: var(--ht-surface2);
+  color: var(--ht-text-soft);
+  cursor: pointer;
+  text-align: left;
+}
+.st-rec[data-recording] {
+  border-color: var(--ht-accent);
+  color: var(--ht-text-primary);
+}
+
+/* sounds / commission */
+.st-vol {
+  width: 120px;
+}
+.st-num {
+  width: 36px;
+}
+.st-num-in {
+  width: 80px;
+  height: 22px;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: var(--ht-surface2);
+  color: var(--ht-text-primary);
+  padding: 0 6px;
+}
+
+/* app-wide effects of settings */
+.ht-ribbon-icons-only .ht-ribbon-btn > span {
+  display: none;
+}
+.ht-ribbon-icons-only .ht-ribbon-btn {
+  height: 34px;
+  min-width: 34px;
+}
+:root[data-toast-pos='bottom-left'] .ht-toasts {
+  right: auto;
+  left: 16px;
+}
+:root[data-toast-pos='top-right'] .ht-toasts {
+  bottom: auto;
+  top: 48px;
+}
+:root[data-toast-pos='top-left'] .ht-toasts {
+  bottom: auto;
+  top: 48px;
+  right: auto;
+  left: 16px;
+}
+.st-fps {
+  position: fixed;
+  top: 40px;
+  right: 8px;
+  z-index: 1300;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--ht-surface3);
+  border: 1px solid var(--ht-border);
+  color: var(--ht-up);
+  font-size: 11px;
+  pointer-events: none;
+}

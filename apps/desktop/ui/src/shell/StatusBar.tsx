@@ -4,6 +4,10 @@ import { StatusPill } from '@htflow/ui-kit';
 import type { MarketStore } from '@htflow/market-data';
 import { hub } from '../state/market';
 import { runCommand } from './commands';
+import { classifyDelay, useSetting } from '../state/settings';
+
+/** Settings → Data delays: amber above the warning latency, red above the critical one. */
+const DELAY_STATE = { ok: 'live', warning: 'delayed', critical: 'error' } as const;
 
 function useTick(ms: number) {
   const [, set] = useState(0);
@@ -24,7 +28,7 @@ function feedLabel(s: MarketStore): { key: string; label: string; state: string;
   return {
     key: venue,
     label: venue,
-    state: st === 'live' && inst.id.startsWith('mock:') ? 'live' : st,
+    state: st === 'live' ? DELAY_STATE[classifyDelay(s.status.latencyMs)] : st,
     title: `${venue}: ${st}${s.status.message ? ' — ' + s.status.message : ''} · ${s.status.latencyMs.toFixed(0)} ms · ${s.status.msgsPerSec.toFixed(0)} msg/s`,
   };
 }
@@ -39,9 +43,14 @@ export function StatusBar({ version, timezone }: { version: string; timezone: st
   }
   const latency = Math.max(0, ...hub.stores().map((s) => s.status.latencyMs));
   const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+  useSetting('dataDelays.warningMs');
+  useSetting('dataDelays.criticalMs');
+  const hour12 = !useSetting('general.clock24h');
+  const appZone = useSetting('timezones.app');
+  if (appZone) timezone = appZone;
   let clock = '';
   try {
-    clock = new Date().toLocaleTimeString('en-GB', { timeZone: timezone, hour12: false });
+    clock = new Date().toLocaleTimeString('en-GB', { timeZone: timezone, hour12 });
   } catch {
     clock = new Date().toLocaleTimeString('en-GB', { hour12: false });
   }

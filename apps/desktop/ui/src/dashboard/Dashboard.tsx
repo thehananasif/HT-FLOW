@@ -44,6 +44,7 @@ import {
 } from '@htflow/workspace';
 import { backend, BackendError } from '../backend';
 import { useSession } from '../state/session';
+import { getSetting } from '../state/settings';
 import { activeInstrument, useWindows } from '../state/windows';
 import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../state/instruments';
 import { paper, PAPER_ACCOUNT } from '../state/market';
@@ -462,7 +463,8 @@ export function Dashboard({ version }: { version: string }) {
     window.addEventListener('mousemove', bump);
     window.addEventListener('keydown', bump);
     const i = setInterval(() => {
-      if (Date.now() - last > 30 * 60_000) void useSession.getState().lock();
+      const mins = getSetting('general.autoLockMin'); // Settings → General (0 = never)
+      if (mins > 0 && Date.now() - last > mins * 60_000) void useSession.getState().lock();
     }, 15_000);
     return () => {
       window.removeEventListener('mousemove', bump);

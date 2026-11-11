@@ -141,13 +141,15 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P13 — Indicator framework
 
-- [ ] Indicator SDK (metadata, typed inputs, outputs, incremental calc, worker pool, Rust WASM path)
-- [ ] Indicators dialog (categories, added list, settings tabs: Inputs / Style / Alerts / Visibility / Advanced, presets, apply to all)
-- [ ] On-chart legend, drag to pane, overlay other symbol, Monaco editor for custom TS indicators (.htind)
+- [x] Indicator SDK (`@htflow/indicator-sdk`): metadata, typed inputs with validation, line / step / area / histogram / band / dots / bars / markers / levels / zones outputs, sources incl. delta / CVD / clusters, incremental calc (full on replace, last bar on append)
+- [x] Indicators dialog: categories with counts, search, favourites, pending badges, on-chart list (eye, reorder, duplicate, remove), settings tabs Inputs / Style / Visibility / Advanced, presets, reset, apply to all charts, live preview with Cancel; Ctrl+I, header chip, chart menu
+- [x] On-chart canvas legend (value at cursor, eye / settings / remove), stacked sub-panes with own scales (max 60% height), overlay / new / shared pane
+- [ ] Alerts tab (placeholder), timeframe override (MTF), drag to pane by mouse, overlay other symbol, custom-script editor and `.htind`, worker pool / Rust WASM path
 
 ## P14 — Indicator catalog (280+)
 
-- [ ] Batch A Volume & OrderFlow (36) · Batch B Order Book / Options / COT / Crypto / Trading / Samples · Batch C moving averages & bands · Batch D oscillators, trend, volatility, levels, structure (see Appendix B)
+- [~] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`); 63 implementations, 143 entries usable (incl. presets); each indicator tested against hand-computed values and incremental = full recompute
+- [ ] 138 pending entries: Order Book / COT / Options / Crypto Metrics need data sources; 14 MTF variants; the rest not written yet
 
 ## P15 — Smart DOM
 
@@ -161,7 +163,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P16 — Smart Tape, Bid/Ask Tape, All Prices
 
-- [ ] Smart Tape · Bid/Ask Tape · All Prices (ribbon entries open placeholders)
+- [x] `@htflow/tape`: typed-array ring buffer, smart-print aggregation (same timestamp / time window / off) with VWAP, high / low, fill count, bid / ask, CVD; filters, auto size buckets, big-print threshold, prints/s and volume/s
+- [x] Smart Tape (canvas, hideable columns, size-bucket colours, big-print highlight and sound, pause on hover, wheel scroll-back, filters panel), Bid/Ask Tape (split sells / price / buys, size chips, speed meter), All Prices (virtualised, sortable, volume bar, delta, time-at-price heat, POC, Session / Visible / Week, row grouping); follow the active chart / DOM or pick an instrument
+- [ ] Strings through i18n; measured 5,000 prints/s frame rate; Visible range is a rolling window (no chart visible-range API yet)
 
 ## P17 — Trading Panel, orders & paper engine
 
@@ -190,7 +194,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P21 — Market analytics tools
 
-- [ ] Market Pressure, Price Change, DOM Pressure, Delta Divergence scanners
+- [x] `@htflow/analytics` with shared ref-counted per-instrument engines (1 s refresh, up to 200 symbols): Market Pressure (buy % 1m / 5m / 15m / session, thresholds), Price Change (% / ticks / $, range position, VWAP distance, sparkline), DOM Pressure (±5 / 10 / 25 ticks, imbalance, pull flash), Delta Divergence (M1–H1, HH / LH and LL / HL vs CVD, optional absorption); sortable, persisted, optional toast + beep, row click sets the active chart
+- [ ] Shared Rust scanner (computed in TypeScript today, CPU target unmeasured); scroll chart to the signal bar; session start is 00:00 UTC; alerts not linked to the Alerts module
 
 ## P22 — Info group
 
@@ -221,7 +226,10 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P27 — Settings & customization centre
 
-- [ ] Global Settings (Ctrl+,) and Chart Settings (Ctrl+S) with every section; token editor; JSON export / import
+- [x] Typed settings store (82 settings: defaults, validation, help, reset per setting / section / all, modified markers), saved per user, JSON export / import with per-key validation; `useSetting` / `getSetting` / `onSettingChange` API
+- [x] Settings window (Ctrl+,, palette, "Settings: <section>"): search, draft with Cancel / Apply / OK; General, Appearance (5 themes, 29-token editor, UI scale, font size, icons-only ribbon, theme JSON), Hot keys (record, conflicts, scopes, presets, export / import), Sounds (7 events, volume, preview, own .wav / .mp3), Time zones (exchange clocks and trading hours), Commission (rules by account / instrument, applied to paper trading), Data delays (status-bar pills), Performance (FPS overlay), Common settings groups
+- [~] Many stored settings are not read by any module yet (date format, start-up workspace, confirmations, renderer, Common settings except notification position) — see the settings schema `wired` flag
+- [ ] Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy, Logs, About sections; per-chart Settings (Ctrl+S); P43 Custom Modules page; languages other than English; exact maker fee (engine charges half taker); "Open settings folder" needs a native command; UI scale does not grow chart canvases
 
 ## P28 — Remaining modules
 
@@ -256,7 +264,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [~] P32 Connections window — see P05
 - [~] P33 Chart types — 4 of 12 renderers (+ bars / line / area / transparent)
 - [ ] P34 Chart settings window
-- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [ ] P38 Market analytics windows · [ ] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [~] P41 Alerts / Risk done, Watchlist / Forward curve · [ ] P42 Strategies + VPS runner · [ ] P43 Common settings (hot keys, sounds, time zones, commission, languages, custom modules)
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [ ] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [~] P41 Alerts / Risk done, Watchlist / Forward curve · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission done; languages, custom modules pending)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 

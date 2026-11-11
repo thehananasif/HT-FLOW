@@ -53,6 +53,9 @@ importers:
       '@htflow/alerts':
         specifier: workspace:*
         version: link:../../packages/alerts
+      '@htflow/analytics':
+        specifier: workspace:*
+        version: link:../../packages/analytics
       '@htflow/chart-engine':
         specifier: workspace:*
         version: link:../../packages/chart-engine
@@ -71,12 +74,21 @@ importers:
       '@htflow/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@htflow/indicator-sdk':
+        specifier: workspace:*
+        version: link:../../packages/indicator-sdk
+      '@htflow/indicators':
+        specifier: workspace:*
+        version: link:../../packages/indicators
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
       '@htflow/replay':
         specifier: workspace:*
         version: link:../../packages/replay
+      '@htflow/tape':
+        specifier: workspace:*
+        version: link:../../packages/tape
       '@htflow/trading':
         specifier: workspace:*
         version: link:../../packages/trading
@@ -126,6 +138,15 @@ importers:
 
   packages/alerts: {}
 
+  packages/analytics:
+    dependencies:
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+      '@htflow/tape':
+        specifier: workspace:*
+        version: link:../tape
+
   packages/chart-engine:
     dependencies:
       '@htflow/market-data':
@@ -170,9 +191,33 @@ importers:
 
   packages/i18n: {}
 
+  packages/indicator-sdk:
+    dependencies:
+      '@htflow/chart-engine':
+        specifier: workspace:*
+        version: link:../chart-engine
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+
+  packages/indicators:
+    dependencies:
+      '@htflow/indicator-sdk':
+        specifier: workspace:*
+        version: link:../indicator-sdk
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+
   packages/market-data: {}
 
   packages/replay:
+    dependencies:
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+
+  packages/tape:
     dependencies:
       '@htflow/market-data':
         specifier: workspace:*
