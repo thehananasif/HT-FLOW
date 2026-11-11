@@ -36,6 +36,8 @@ export interface PriceTag {
   bg: string;
   fg: string;
   text?: string;
+  /** Second line under the price (bar countdown). */
+  sub?: string;
 }
 
 /** Everything a layer needs to draw one frame. */
@@ -74,6 +76,21 @@ export interface ChartView {
   /** Layers push tags; the core draws them on the price axis. */
   tags: PriceTag[];
   font(size: number, weight?: number, mono?: boolean): string;
+  /** Price scale mode of the main pane (log / percent / indexed …). */
+  scaleMode?: import('./priceScale').PriceScaleMode;
+  /** True when the price scale is inverted (high prices at the bottom). */
+  inverted?: boolean;
+  /** Base price (ticks) for percent / indexed labels: first visible value. */
+  baseValue?: number;
+  /** Time of slot i (epoch ms). */
+  timeAt?(i: number): number;
+}
+
+/** One row of the data window (values at the cursor). */
+export interface DataRow {
+  label: string;
+  value: string;
+  color?: string;
 }
 
 export interface ChartLayer {
@@ -83,6 +100,12 @@ export interface ChartLayer {
   leftGutter?(): number;
   rightGutter?(): number;
   bottomHeight?(): number;
+  /** Called when the user drags this sub-pane's separator; layers that persist their own height implement it. */
+  setBottomHeight?(h: number): void;
+  /** Label shown in pane menus (context-aware right-click). */
+  paneLabel?: string;
+  /** Rows for the data window at slot i (OHLCV, indicator values …). */
+  dataWindow?(i: number): DataRow[];
   draw(v: ChartView): void;
   /** Called on click in the plot; return true when handled. */
   onClick?(v: ChartView, x: number, y: number, e: MouseEvent): boolean;
