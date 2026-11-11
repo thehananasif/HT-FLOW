@@ -1,0 +1,117 @@
+/* Web Pages mini browser (P28). Tokens from @htflow/ui-kit. */
+.web-win {
+  height: 100%;
+  min-height: 0;
+  background: var(--ht-surface1);
+}
+.web-tabs {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--ht-border);
+  overflow-x: auto;
+}
+.web-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--ht-text-secondary);
+  background: transparent;
+  border-radius: var(--ht-r-cell) var(--ht-r-cell) 0 0;
+  cursor: pointer;
+}
+.web-tab.active {
+  color: var(--ht-text-primary);
+  background: var(--ht-surface3);
+}
+.web-tab-x,
+.web-tab-add,
+.web-bm-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+  border-radius: var(--ht-r-cell);
+  padding: 2px;
+}
+.web-tab-x:hover,
+.web-tab-add:hover,
+.web-bm-x:hover {
+  background: var(--ht-hover);
+  color: var(--ht-text-primary);
+}
+.web-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ht-border);
+}
+.web-address {
+  flex: 1;
+  min-width: 0;
+}
+.web-bookmarks {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--ht-border);
+}
+.web-bm {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 160px;
+  padding: 1px 4px 1px 8px;
+  background: var(--ht-surface3);
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-cell);
+}
+.web-bm-go {
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-soft);
+  font-size: 11px;
+  cursor: pointer;
+}
+.web-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.web-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.web-start {
+  padding: 24px;
+  font-size: 12px;
+  word-break: break-all;
+}
+.web-notice {
+  flex: none;
+  margin: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ht-text-soft);
+  background: color-mix(in srgb, var(--ht-warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ht-warning) 40%, transparent);
+  border-radius: var(--ht-r-input);
+}
