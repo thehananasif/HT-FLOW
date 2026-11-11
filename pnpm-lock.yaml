@@ -71,6 +71,12 @@ importers:
       '@htflow/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@htflow/indicator-sdk':
+        specifier: workspace:*
+        version: link:../../packages/indicator-sdk
+      '@htflow/indicators':
+        specifier: workspace:*
+        version: link:../../packages/indicators
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
@@ -169,6 +175,24 @@ importers:
         version: link:../market-data
 
   packages/i18n: {}
+
+  packages/indicator-sdk:
+    dependencies:
+      '@htflow/chart-engine':
+        specifier: workspace:*
+        version: link:../chart-engine
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+
+  packages/indicators:
+    dependencies:
+      '@htflow/indicator-sdk':
+        specifier: workspace:*
+        version: link:../indicator-sdk
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
 
   packages/market-data: {}
 
