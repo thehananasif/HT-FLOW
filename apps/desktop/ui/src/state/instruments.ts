@@ -1,4 +1,5 @@
 import { MOCK_INSTRUMENTS, type Instrument } from '@htflow/market-data';
+import { feedProviders } from '../feeds/registry';
 
 /** Free, built-in crypto venues streamed by the Rust connectors (desktop app only). */
 const BINANCE_FUTURES: [string, number, number, number][] = [
@@ -26,7 +27,14 @@ export const LIVE_INSTRUMENTS: Instrument[] = BINANCE_FUTURES.map(
 );
 
 export function allInstruments(includeLive: boolean): Instrument[] {
-  return [...MOCK_INSTRUMENTS.map((m) => m.instrument), ...(includeLive ? LIVE_INSTRUMENTS : [])];
+  const extra = feedProviders()
+    .filter((p) => includeLive || !p.desktopOnly)
+    .flatMap((p) => p.instruments());
+  return [
+    ...MOCK_INSTRUMENTS.map((m) => m.instrument),
+    ...(includeLive ? LIVE_INSTRUMENTS : []),
+    ...extra,
+  ];
 }
 
 export function instrumentById(id: string): Instrument | undefined {

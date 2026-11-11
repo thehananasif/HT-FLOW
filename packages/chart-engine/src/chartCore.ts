@@ -33,6 +33,19 @@ const DEFAULTS: ChartCoreOptions = {
   monoFamily: '"Geist Mono", Consolas, monospace',
 };
 
+/**
+ * Pluggable pointer interaction (drawing tools, order dragging…). Handlers are asked in order;
+ * returning true from onDown captures the pointer until mouseup and suppresses panning.
+ */
+export interface PointerHandler {
+  onDown?(v: ChartView, x: number, y: number, e: MouseEvent): boolean;
+  onMove?(v: ChartView, x: number, y: number, e: MouseEvent, captured: boolean): void;
+  onUp?(v: ChartView, x: number, y: number, e: MouseEvent): void;
+  onKey?(e: KeyboardEvent): boolean;
+  /** CSS cursor while hovering, or null for default. */
+  cursor?(v: ChartView, x: number, y: number): string | null;
+}
+
 export interface PriceRangeListener {
   (min: number, max: number): void;
 }
@@ -62,6 +75,9 @@ export class ChartCore {
   linkedPrice: ChartCore | null = null;
   /** Debug overlay with fps (Settings → Show debug info). */
   showDebug = false;
+  /** Drawing tools, order dragging and other interactions (see PointerHandler). */
+  pointerHandlers: PointerHandler[] = [];
+  private captured: PointerHandler | null = null;
 
   private width = 0;
   private height = 0;
@@ -312,9 +328,15 @@ export class ChartCore {
     ctx.textBaseline = 'middle';
 
     if (this.options.showGrid) this.drawGrid(v);
+    // Each layer that reserves bottom height gets its own stacked sub-pane rect.
+    let off = 0;
     for (const l of this.layers) {
+      const bh = l.bottomHeight?.() ?? 0;
+      const lv =
+        bh > 0 ? { ...v, bottom: { x: v.bottom.x, y: v.bottom.y + off, w: v.bottom.w, h: bh } } : v;
+      off += bh;
       ctx.save();
-      l.draw(v);
+      l.draw(lv);
       ctx.restore();
     }
     this.drawAxes(v);
@@ -506,6 +528,20 @@ export class ChartCore {
     const c = this.canvas;
     const opt = { signal: this.abort.signal } as AddEventListenerOptions;
     c.addEventListener('wheel', (e) => this.onWheel(e), { ...opt, passive: false });
+    c.addEventListener(
+      'keydown',
+      (e) => {
+        for (const h of this.pointerHandlers) {
+          if (h.onKey?.(e)) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.invalidate();
+            return;
+          }
+        }
+      },
+      opt,
+    );
     c.addEventListener('mousedown', (e) => this.onDown(e), opt);
     window.addEventListener('mousemove', (e) => this.onMove(e), opt);
     window.addEventListener('mouseup', (e) => this.onUp(e), opt);
@@ -581,6 +617,17 @@ export class ChartCore {
     const h = this.hit(x, y);
     if (e.button !== 0 && e.button !== 1) return;
     this.canvas.focus();
+    const view = this.lastView;
+    if (view && e.button === 0) {
+      for (const ph of this.pointerHandlers) {
+        if (ph.onDown?.(view, x, y, e)) {
+          this.captured = ph;
+          e.preventDefault();
+          this.invalidate();
+          return;
+        }
+      }
+    }
     const base = {
       x,
       y,
@@ -603,6 +650,23 @@ export class ChartCore {
     const { x, y } = this.local(e);
     const d = this.drag;
     const v = this.lastView;
+    if (v) {
+      if (this.captured) {
+        this.captured.onMove?.(v, x, y, e, true);
+        this.crosshair = { x, y };
+        this.invalidate();
+        return;
+      }
+      if (x >= 0 && y >= 0 && x <= this.width && y <= this.height) {
+        let cursor: string | null = null;
+        for (const ph of this.pointerHandlers) {
+          ph.onMove?.(v, x, y, e, false);
+          cursor = cursor ?? ph.cursor?.(v, x, y) ?? null;
+        }
+        this.canvas.style.cursor =
+          cursor ?? (this.mouseMode === 'crosshair' ? 'crosshair' : 'default');
+      }
+    }
     if (d && v) {
       const dx = x - d.x;
       const dy = y - d.y;
@@ -639,7 +703,15 @@ export class ChartCore {
     }
   }
 
-  private onUp(_e: MouseEvent): void {
+  private onUp(e: MouseEvent): void {
+    if (this.captured) {
+      const v = this.lastView;
+      const { x, y } = this.local(e);
+      if (v) this.captured.onUp?.(v, x, y, e);
+      this.captured = null;
+      this.invalidate();
+      return;
+    }
     if (this.drag?.kind === 'zoom-box' && this.zoomBox && this.lastView) {
       const v = this.lastView;
       const z = this.zoomBox;

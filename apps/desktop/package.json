@@ -13,6 +13,7 @@
   "dependencies": {
     "@htflow/chart-engine": "workspace:*",
     "@htflow/dom": "workspace:*",
+    "@htflow/drawings": "workspace:*",
     "@htflow/footprint": "workspace:*",
     "@htflow/heatmap": "workspace:*",
     "@htflow/i18n": "workspace:*",

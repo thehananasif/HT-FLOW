@@ -3,8 +3,11 @@ import { PaperEngine, pnlPerTick } from '@htflow/trading';
 import { isTauri } from '../backend';
 import { instrumentById, LIVE_INSTRUMENTS } from './instruments';
 import { TauriLiveFeed } from './liveFeed';
+import { providerFor } from '../feeds/registry';
 
 function createFeed(instrumentId: string): FeedSource {
+  const provider = providerFor(instrumentId);
+  if (provider) return provider.create(instrumentId);
   if (instrumentId.startsWith('binance-futures:')) {
     const inst = LIVE_INSTRUMENTS.find((i) => i.id === instrumentId);
     if (!inst) throw new Error(`Unknown instrument ${instrumentId}`);

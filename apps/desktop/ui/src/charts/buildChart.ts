@@ -19,9 +19,12 @@ import { DomHistogramGutter, FootprintLayer, VisibleProfileGutter } from '@htflo
 import { LiquidityMapLayer } from '@htflow/heatmap';
 import { specLabel, type BarSpec, type MarketStore } from '@htflow/market-data';
 import type { ChartWindowState } from '@htflow/workspace';
+import { chartExtensions, type ChartExtensionContext } from './extensions';
 
 export interface ChartHandle {
   cores: ChartCore[];
+  /** Extension contexts by extension id (for menus and overlays). */
+  extCtx: Map<string, ChartExtensionContext>;
   /** Applies window-state changes that don't need a rebuild (mode, filters). */
   update(state: ChartWindowState): void;
   dispose(): void;
@@ -48,7 +51,12 @@ export function buildChart(
   store: MarketStore,
   state: ChartWindowState,
   palette: ChartPalette,
+  opts: { windowId: string; setExt(id: string, value: unknown): void } = {
+    windowId: '',
+    setExt: () => {},
+  },
 ): ChartHandle {
+  let current = state;
   const inst = store.instrument;
   const spec = state.timeframe as BarSpec;
   const series = () => store.getSeries(spec);
@@ -192,9 +200,41 @@ export function buildChart(
     }
   }
 
+  // Chart extensions (indicators, drawings, …) attach to the core that shows bars.
+  const main = cores[0]!;
+  const hasBars = state.template !== 'liquidity-map';
+  const extCtx = new Map<string, ChartExtensionContext>();
+  for (const ext of chartExtensions()) {
+    const ctx: ChartExtensionContext = {
+      windowId: opts.windowId,
+      store,
+      state: () => current,
+      series: () => (hasBars ? series() : null),
+      core: main,
+      cores,
+      setExt: (value) => opts.setExt(ext.id, value),
+    };
+    extCtx.set(ext.id, ctx);
+    const extra = ext.layers?.(ctx) ?? [];
+    if (extra.length) {
+      // Insert before legend so the legend stays on top.
+      const li = main.layers.findIndex((l) => l.id === 'legend');
+      const layers = main.layers.slice();
+      layers.splice(li < 0 ? layers.length : li, 0, ...extra);
+      main.setLayers(layers);
+    }
+    const dispose = ext.attach?.(ctx);
+    if (dispose) unsubs.push(dispose);
+  }
+
   return {
     cores,
-    update,
+    extCtx,
+    update(s) {
+      current = s;
+      update(s);
+      cores.forEach((c) => c.invalidate());
+    },
     dispose() {
       unsubs.forEach((u) => u());
       cores.forEach((c) => c.destroy());

@@ -5,8 +5,6 @@ export interface ModuleDef {
   group: 'Analysis' | 'Platform' | 'Social / Tools' | 'Tables' | 'Market Analytics' | 'Info';
   phase: string;
   hasMenu?: boolean;
-  /** Built in this release (opens a real window rather than the module placeholder). */
-  built?: boolean;
 }
 
 export const MODULES: ModuleDef[] = [
@@ -16,7 +14,6 @@ export const MODULES: ModuleDef[] = [
     group: 'Analysis',
     phase: 'P08–P10, P46',
     hasMenu: true,
-    built: true,
   },
   { id: 'watchlist', label: 'Watchlist', group: 'Analysis', phase: 'P41' },
   {
@@ -25,15 +22,14 @@ export const MODULES: ModuleDef[] = [
     group: 'Analysis',
     phase: 'P15',
     hasMenu: true,
-    built: true,
   },
   { id: 'smart-tape', label: 'Smart Tape', group: 'Analysis', phase: 'P16' },
   { id: 'bidask-tape', label: 'Bid/Ask Tape', group: 'Analysis', phase: 'P16' },
   { id: 'all-prices', label: 'All Prices', group: 'Analysis', phase: 'P16' },
   { id: 'options-board', label: 'Options Board', group: 'Analysis', phase: 'P18' },
-  { id: 'heatmap', label: 'Heatmap', group: 'Analysis', phase: 'P11', built: true },
+  { id: 'heatmap', label: 'Heatmap', group: 'Analysis', phase: 'P11' },
   { id: 'forward-curve', label: 'Forward curve', group: 'Analysis', phase: 'P19 / P41' },
-  { id: 'connections', label: 'Connections', group: 'Platform', phase: 'P32', built: true },
+  { id: 'connections', label: 'Connections', group: 'Platform', phase: 'P32' },
   { id: 'workspaces', label: 'Workspaces', group: 'Platform', phase: 'P25 / P37', hasMenu: true },
   { id: 'layout-settings', label: 'Layout Settings', group: 'Platform', phase: 'P37' },
   { id: 'alerts', label: 'Alerts', group: 'Platform', phase: 'P23 / P41', hasMenu: true },
@@ -48,10 +44,10 @@ export const MODULES: ModuleDef[] = [
   { id: 'replay', label: 'Replay', group: 'Social / Tools', phase: 'P24 / P35', hasMenu: true },
   { id: 'web-pages', label: 'Web Pages', group: 'Social / Tools', phase: 'P28', hasMenu: true },
   { id: 'logs', label: 'Logs', group: 'Social / Tools', phase: 'P28', hasMenu: true },
-  { id: 'accounts', label: 'Accounts', group: 'Tables', phase: 'P40', built: true },
-  { id: 'positions', label: 'Positions', group: 'Tables', phase: 'P40', built: true },
-  { id: 'orders', label: 'Orders', group: 'Tables', phase: 'P40', built: true },
-  { id: 'trades', label: 'Trades', group: 'Tables', phase: 'P40', built: true },
+  { id: 'accounts', label: 'Accounts', group: 'Tables', phase: 'P40' },
+  { id: 'positions', label: 'Positions', group: 'Tables', phase: 'P40' },
+  { id: 'orders', label: 'Orders', group: 'Tables', phase: 'P40' },
+  { id: 'trades', label: 'Trades', group: 'Tables', phase: 'P40' },
   { id: 'activity', label: 'Trading Activity', group: 'Tables', phase: 'P40' },
   { id: 'journal', label: 'Journal', group: 'Tables', phase: 'P36' },
   { id: 'strategies', label: 'Strategies', group: 'Tables', phase: 'P42' },
@@ -68,3 +64,5 @@ export const MODULES: ModuleDef[] = [
 export function moduleDef(id: string): ModuleDef | undefined {
   return MODULES.find((m) => m.id === id);
 }
+
+// Whether a module has a real window is decided by modules/registry.ts (isModuleBuilt).

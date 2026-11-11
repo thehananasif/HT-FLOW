@@ -16,6 +16,7 @@ import { allInstruments, instrumentById } from '../state/instruments';
 import { isTauri } from '../backend';
 import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
+import { chartHeaderItems } from '../charts/extensions';
 
 const QUICK_TF: BarSpec[] = [
   { kind: 'time', ms: 60_000 },
@@ -171,13 +172,9 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
           </MenuTrigger>
         }
       />
-      <button
-        className="ht-chip ht-chip--ghost hdr-indicators"
-        disabled
-        title="Indicators dialog arrives in P13"
-      >
-        Indicators
-      </button>
+      {chartHeaderItems().map((h) => (
+        <h.Component key={h.id} windowId={id} state={s} />
+      ))}
     </>
   );
 }
