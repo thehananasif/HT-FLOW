@@ -6,6 +6,7 @@ members = [
     "crates/auth",
     "crates/vault",
     "crates/connectors/binance",
+    "crates/tick-store",
 ]
 
 [workspace.package]
@@ -33,6 +34,9 @@ htflow-core-types = { path = "crates/core-types" }
 htflow-auth = { path = "crates/auth" }
 htflow-vault = { path = "crates/vault" }
 htflow-connector-binance = { path = "crates/connectors/binance" }
+htflow-connector-bybit = { path = "crates/connectors/bybit" }
+htflow-connector-okx = { path = "crates/connectors/okx" }
+htflow-tick-store = { path = "crates/tick-store" }
 
 [profile.release]
 codegen-units = 1
@@ -42,4 +46,10 @@ strip = true
 panic = "abort"
 
 [profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.zstd-sys]
+opt-level = 3
+
+[profile.dev.package.htflow-tick-store]
 opt-level = 3
