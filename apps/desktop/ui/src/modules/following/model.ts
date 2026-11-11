@@ -22,7 +22,8 @@ export function validateHandle(input: string, existing: readonly Followed[]): st
   const h = normalizeHandle(input);
   if (!h) return 'Enter a trader handle';
   if (!HANDLE_RE.test(h)) return '3–24 letters, digits, dot, dash or underscore';
-  if (existing.some((f) => f.handle.toLowerCase() === h.toLowerCase())) return 'Already in your list';
+  if (existing.some((f) => f.handle.toLowerCase() === h.toLowerCase()))
+    return 'Already in your list';
   return null;
 }
 
@@ -52,7 +53,14 @@ export function addFollowed(
   const h = normalizeHandle(handle);
   return [
     ...list,
-    { id: `f${now.toString(36)}${list.length}`, handle: h, notes: notes.trim(), tags, addedAt: now, muted: false },
+    {
+      id: `f${now.toString(36)}${list.length}`,
+      handle: h,
+      notes: notes.trim(),
+      tags,
+      addedAt: now,
+      muted: false,
+    },
   ];
 }
 
@@ -70,7 +78,8 @@ export function filterFollowed(list: readonly Followed[], query: string, tag: st
 
 export function allTags(list: readonly Followed[]): string[] {
   const m = new Map<string, string>();
-  for (const f of list) for (const t of f.tags) if (!m.has(t.toLowerCase())) m.set(t.toLowerCase(), t);
+  for (const f of list)
+    for (const t of f.tags) if (!m.has(t.toLowerCase())) m.set(t.toLowerCase(), t);
   return [...m.values()].sort((a, b) => a.localeCompare(b));
 }
 
@@ -79,13 +88,16 @@ export function readFollowed(raw: unknown): Followed[] {
   const out: Followed[] = [];
   for (const r of raw) {
     const f = r as Partial<Followed>;
-    if (typeof f?.id !== 'string' || typeof f.handle !== 'string' || !HANDLE_RE.test(f.handle)) continue;
+    if (typeof f?.id !== 'string' || typeof f.handle !== 'string' || !HANDLE_RE.test(f.handle))
+      continue;
     if (out.some((o) => o.handle.toLowerCase() === f.handle!.toLowerCase())) continue;
     out.push({
       id: f.id,
       handle: f.handle,
       notes: typeof f.notes === 'string' ? f.notes : '',
-      tags: Array.isArray(f.tags) ? parseTags(f.tags.filter((t) => typeof t === 'string').join(',')) : [],
+      tags: Array.isArray(f.tags)
+        ? parseTags(f.tags.filter((t) => typeof t === 'string').join(','))
+        : [],
       addedAt: typeof f.addedAt === 'number' ? f.addedAt : 0,
       muted: f.muted === true,
     });

@@ -1,0 +1,125 @@
+/* User Guide (P28). Tokens from @htflow/ui-kit. */
+.ug-win {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) 1fr;
+  background: var(--ht-surface1);
+  font-size: 12px;
+}
+.ug-toc {
+  overflow: auto;
+  padding: 8px;
+  border-right: 1px solid var(--ht-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ug-count {
+  padding: 0 2px;
+}
+.ug-group-name {
+  margin: 10px 0 2px;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ht-text-tertiary);
+}
+.ug-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--ht-r-cell);
+  background: transparent;
+  color: var(--ht-text-soft);
+  font: inherit;
+  cursor: pointer;
+}
+.ug-item:hover {
+  background: var(--ht-hover);
+}
+.ug-item.active {
+  background: var(--ht-surface3);
+  color: var(--ht-text-primary);
+}
+.ug-snip {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.ug-article {
+  overflow: auto;
+  padding: 16px 24px 32px;
+  line-height: 1.6;
+  color: var(--ht-text-soft);
+  max-width: 820px;
+}
+.ug-title {
+  margin: 2px 0 10px;
+  font-size: 1.5em;
+  color: var(--ht-text-primary);
+}
+.ug-h2 {
+  margin: 1.4em 0 0.4em;
+  font-size: 1.1em;
+  color: var(--ht-text-primary);
+}
+.ug-h3 {
+  margin: 1.2em 0 0.3em;
+  font-size: 1em;
+  color: var(--ht-text-primary);
+}
+.ug-article p {
+  margin: 0.6em 0;
+}
+.ug-article ul,
+.ug-article ol {
+  margin: 0.6em 0;
+  padding-left: 1.4em;
+}
+.ug-article li {
+  margin: 0.2em 0;
+}
+.ug-article b {
+  color: var(--ht-text-primary);
+}
+.ug-code {
+  font-family: var(--ht-mono);
+  font-size: 0.92em;
+  padding: 0 4px;
+  border-radius: var(--ht-r-cell);
+  background: var(--ht-surface3);
+  border: 1px solid var(--ht-border);
+}
+.ug-open {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 0 8px;
+}
+.ug-table {
+  border-collapse: collapse;
+  margin: 0.8em 0;
+  width: 100%;
+}
+.ug-table th,
+.ug-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.ug-table th {
+  color: var(--ht-text-secondary);
+  font-weight: 500;
+}
+.ug-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  font-size: 11px;
+}

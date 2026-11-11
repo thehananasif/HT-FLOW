@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { Button, Checkbox, Input, Select, toast } from '@htflow/ui-kit';
 import { registerModule, type ModuleViewProps } from '../registry';
 import {
@@ -116,7 +116,10 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
           aria-label="Source"
           value={prefs.source}
           onChange={(v) => set({ source: v })}
-          options={[{ value: '', label: 'All sources' }, ...sources.map((s) => ({ value: s, label: s }))]}
+          options={[
+            { value: '', label: 'All sources' },
+            ...sources.map((s) => ({ value: s, label: s })),
+          ]}
         />
         <Input
           aria-label="Search logs"
@@ -139,7 +142,10 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
           size="sm"
           variant="secondary"
           onClick={() =>
-            download(`htflow-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`, entriesToText(shown))
+            download(
+              `htflow-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`,
+              entriesToText(shown),
+            )
           }
         >
           Export .txt

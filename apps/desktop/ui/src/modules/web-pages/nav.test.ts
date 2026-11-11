@@ -71,9 +71,12 @@ describe('persistence validation', () => {
     expect(tabs[0]).toEqual({ id: 'a', history: ['https://a.com/'], idx: 0 });
   });
   it('readBookmarks filters invalid and toggleBookmark adds / removes', () => {
-    expect(readBookmarks([{ title: 'x', url: 'file:///a' }, { title: 'ok', url: 'https://a.com/' }])).toEqual([
-      { title: 'ok', url: 'https://a.com/' },
-    ]);
+    expect(
+      readBookmarks([
+        { title: 'x', url: 'file:///a' },
+        { title: 'ok', url: 'https://a.com/' },
+      ]),
+    ).toEqual([{ title: 'ok', url: 'https://a.com/' }]);
     let b = toggleBookmark([], 'https://a.com/', '');
     expect(b).toEqual([{ url: 'https://a.com/', title: 'https://a.com/' }]);
     b = toggleBookmark(b, 'https://a.com/', '');

@@ -76,8 +76,13 @@ export function readTabs(raw: unknown): Tab[] {
     for (const r of raw) {
       const t = r as Partial<Tab>;
       if (typeof t?.id !== 'string' || !Array.isArray(t.history)) continue;
-      const history = t.history.filter((h): h is string => typeof h === 'string' && !!normalizeUrl(h));
-      const idx = typeof t.idx === 'number' ? Math.min(Math.max(t.idx, -1), history.length - 1) : history.length - 1;
+      const history = t.history.filter(
+        (h): h is string => typeof h === 'string' && !!normalizeUrl(h),
+      );
+      const idx =
+        typeof t.idx === 'number'
+          ? Math.min(Math.max(t.idx, -1), history.length - 1)
+          : history.length - 1;
       out.push({ id: t.id, history, idx: history.length ? Math.max(idx, 0) : -1 });
     }
   }

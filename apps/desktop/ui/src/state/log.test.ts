@@ -78,9 +78,9 @@ describe('filterEntries', () => {
     expect(filterEntries(all, { query: 'replay' }).map((e) => e.id)).toEqual([2]);
   });
   it('combines filters', () => {
-    expect(
-      filterEntries(all, { minLevel: 'error', source: 'feed', query: 'sock' }),
-    ).toHaveLength(1);
+    expect(filterEntries(all, { minLevel: 'error', source: 'feed', query: 'sock' })).toHaveLength(
+      1,
+    );
     expect(filterEntries(all, { minLevel: 'error', source: 'chart' })).toHaveLength(0);
   });
 });

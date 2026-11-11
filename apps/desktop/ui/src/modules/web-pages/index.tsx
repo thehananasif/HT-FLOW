@@ -127,7 +127,10 @@ function WebPages({ state, setParams }: ModuleViewProps) {
   const closeTab = (id: string) => {
     const rest = live.current.tabs.filter((t) => t.id !== id);
     if (!rest.length) rest.push(newTab(nextTabId()));
-    commit(rest, live.current.activeId === id ? rest[Math.max(0, rest.length - 1)]!.id : live.current.activeId);
+    commit(
+      rest,
+      live.current.activeId === id ? rest[Math.max(0, rest.length - 1)]!.id : live.current.activeId,
+    );
   };
 
   const bookmarked = !!url && bookmarks.some((b) => b.url === url);
