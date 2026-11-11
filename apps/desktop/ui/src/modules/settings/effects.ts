@@ -53,7 +53,8 @@ function commissionFor(accountId: string, instrumentId: string) {
     instrumentId,
   );
   const inst = hub.peek(instrumentId)?.instrument ?? instrumentById(instrumentId);
-  return engineFields(c, (inst?.tickValue ?? 0) > 0);
+  const futures = (inst?.tickValue ?? 0) > 0;
+  return { ...engineFields(c, futures), makerFee: futures ? 0 : c.makerPct / 100 };
 }
 
 function applyCommission(accountId: string, instrumentId: string): void {
@@ -62,6 +63,7 @@ function applyCommission(accountId: string, instrumentId: string): void {
   const f = commissionFor(accountId, instrumentId);
   acc.commissionPerUnit = f.commissionPerUnit;
   acc.takerFee = f.takerFee;
+  acc.makerFee = f.makerFee;
 }
 
 let installed = false;
