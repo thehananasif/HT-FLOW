@@ -83,6 +83,9 @@ importers:
       '@htflow/info':
         specifier: workspace:*
         version: link:../../packages/info
+      '@htflow/market-catalog':
+        specifier: workspace:*
+        version: link:../../packages/market-catalog
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
@@ -216,6 +219,8 @@ importers:
         version: link:../market-data
 
   packages/info: {}
+
+  packages/market-catalog: {}
 
   packages/market-data: {}
 
