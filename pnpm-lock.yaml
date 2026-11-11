@@ -71,6 +71,9 @@ importers:
       '@htflow/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@htflow/info':
+        specifier: workspace:*
+        version: link:../../packages/info
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
@@ -169,6 +172,8 @@ importers:
         version: link:../market-data
 
   packages/i18n: {}
+
+  packages/info: {}
 
   packages/market-data: {}
 

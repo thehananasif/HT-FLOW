@@ -4,6 +4,7 @@
 mod auth_cmds;
 mod error;
 mod market_cmds;
+mod net_cmds;
 mod paths;
 
 use std::sync::atomic::AtomicBool;
@@ -52,6 +53,7 @@ pub fn run() {
             market_cmds::market_history,
             market_cmds::market_subscribe,
             market_cmds::market_unsubscribe,
+            net_cmds::net_fetch_text,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");
