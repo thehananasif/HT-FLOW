@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 3
+
+### Added
+
+- UI kit v2 (P02): ColorPicker v2 and GradientEditor, Combobox, FontPicker, LineStylePicker, MenuSlider, Sheet, virtualized Table, TreeView, SplitPane; ribbon hide / reorder with Customize ribbon dialog.
+- Remaining modules (P28): Web Pages, Logs (with in-app log buffer), Following Manager (local, sharing blocked), User Guide (F1), guided tour, sample replay session.
+
 ## Unreleased — round 2c
 
 ### Changed

@@ -26,13 +26,14 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] tnum on for numbers, focus rings, 8 px grid, radii and control sizes per spec
 - [x] Button (primary / secondary / outline / buy / sell / destructive / ghost / icon), IconButton, RibbonButton (icon over label + chevron)
 - [x] SegmentedControl, Chip, Tabs, Input, NumberInput with ▲▼ stepper and step/tick snapping (PriceInput), Select, Checkbox, Radio, Toggle, Slider
-- [~] ColorPicker — swatch + hex only; RGBA/opacity, saved swatches and gradient editor pending
-- [ ] Combobox (searchable), FontPicker, LineStylePicker
+- [x] ColorPicker v2 (saturation / hue / opacity, hex / rgb, saved swatches, recent colours), GradientEditor (multi-stop, LUT for heatmaps); `ColorSwatch` kept for compatibility
+- [x] Combobox (searchable, async, free text), FontPicker (bundled + common system fonts), LineStylePicker (`dashPattern()` for canvas)
 - [x] Tooltip, ContextMenu (nested submenus, icons, shortcuts, checkmarks), DropdownMenu, Dialog, Toast, Badge, Kbd, EmptyState, Skeleton, StatusPill
-- [ ] Sliders inside menus, Sheet, virtualized Table component, TreeView, SplitPane (dockview covers docking splits)
+- [x] MenuSlider (and slider menu entries), Sheet, virtualized Table (sort, fixed header, single / multi selection, keyboard), TreeView (tri-state checkboxes), SplitPane (keyboard, min sizes, ratio callback); all in the UI Gallery
+- [ ] Popovers are plain positioned panels (no Radix Popover; can clip in `overflow: hidden`); Table has fixed row heights, no column resize / reorder; local fonts not enumerated
 - [x] Custom title bar (draggable, logo, workspace name, account menu, min / max / close)
 - [x] Ribbon with all groups from APP LAYOUT, horizontal scroll, collapse to icons (command "Ribbon: icons only")
-- [ ] Ribbon reorder / hide buttons
+- [x] Ribbon: right-click Hide button / Customize ribbon… (show / hide, drag or keyboard reorder, reset), saved per user
 - [x] Docking workspace (dockview): tabs, horizontal / vertical splits, drag tabs to re-dock, floating windows, maximize panel
 - [!] Detach to a separate OS window / multi-monitor — floating in-app window today (see BLOCKERS)
 - [x] Right Trading Panel slot, status bar, Command Palette (Ctrl+K) searching commands, symbols, layouts and modules
@@ -243,7 +244,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P28 — Remaining modules
 
-- [ ] Following Manager, Web Pages, Logs, chart strategies + backtests, snapshots to journal, in-app User Guide, guided tour, sample replay data
+- [x] Web Pages (tabbed iframe browser, bookmarks, claims `htflow:open-url` in the web build), Logs (in-app ring buffer capturing console errors and unhandled rejections; level / source filters, search, pause, copy, export, clear), User Guide (18 searchable articles, shortcuts table, F1), guided tour (once per profile, restartable from the palette), "Load sample replay session" (fixed seeded hour on CLZ6)
+- [~] Following Manager: full UI with a local list and sample feed; sharing and sync BLOCKED (needs a server)
+- [ ] Web Pages in the desktop app needs a native child webview (the CSP blocks iframes; links open in the system browser); chart strategies + backtests; snapshots to journal
 
 ## P29 — QA, performance & hardening
 
