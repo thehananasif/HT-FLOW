@@ -141,13 +141,15 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P13 — Indicator framework
 
-- [ ] Indicator SDK (metadata, typed inputs, outputs, incremental calc, worker pool, Rust WASM path)
-- [ ] Indicators dialog (categories, added list, settings tabs: Inputs / Style / Alerts / Visibility / Advanced, presets, apply to all)
-- [ ] On-chart legend, drag to pane, overlay other symbol, Monaco editor for custom TS indicators (.htind)
+- [x] Indicator SDK (`@htflow/indicator-sdk`): metadata, typed inputs with validation, line / step / area / histogram / band / dots / bars / markers / levels / zones outputs, sources incl. delta / CVD / clusters, incremental calc (full on replace, last bar on append)
+- [x] Indicators dialog: categories with counts, search, favourites, pending badges, on-chart list (eye, reorder, duplicate, remove), settings tabs Inputs / Style / Visibility / Advanced, presets, reset, apply to all charts, live preview with Cancel; Ctrl+I, header chip, chart menu
+- [x] On-chart canvas legend (value at cursor, eye / settings / remove), stacked sub-panes with own scales (max 60% height), overlay / new / shared pane
+- [ ] Alerts tab (placeholder), timeframe override (MTF), drag to pane by mouse, overlay other symbol, custom-script editor and `.htind`, worker pool / Rust WASM path
 
 ## P14 — Indicator catalog (280+)
 
-- [ ] Batch A Volume & OrderFlow (36) · Batch B Order Book / Options / COT / Crypto / Trading / Samples · Batch C moving averages & bands · Batch D oscillators, trend, volatility, levels, structure (see Appendix B)
+- [~] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`); 63 implementations, 143 entries usable (incl. presets); each indicator tested against hand-computed values and incremental = full recompute
+- [ ] 138 pending entries: Order Book / COT / Options / Crypto Metrics need data sources; 14 MTF variants; the rest not written yet
 
 ## P15 — Smart DOM
 

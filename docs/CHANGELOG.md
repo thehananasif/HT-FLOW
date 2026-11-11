@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — round 2c
+
+### Added
+
+- Indicators (P13 / P14): `@htflow/indicator-sdk` and `@htflow/indicators` (63 indicators, 281-entry catalog), chart extension with canvas legend and sub-panes, Indicators dialog with presets; `docs/INDICATORS.md`.
+
 ## Unreleased — round 2b
 
 ### Added
