@@ -1,4 +1,13 @@
-import { HT, defineIndicator, input, output, periodStart, type CalcContext, type InputDefs, type OutputDefs } from '@htflow/indicator-sdk';
+import {
+  HT,
+  defineIndicator,
+  input,
+  output,
+  periodStart,
+  type CalcContext,
+  type InputDefs,
+  type OutputDefs,
+} from '@htflow/indicator-sdk';
 
 /** Fills prevO/prevH/prevL/prevC buffers with the previous period's OHLC at bar i. */
 function prevPeriod(
@@ -69,7 +78,10 @@ export const PivotPoints = defineIndicator({
   },
   title: (p) => `Pivots ${p.type} ${p.period}`,
   calc(ctx) {
-    const { h, l, c } = prevPeriod(ctx as unknown as CalcContext<InputDefs, OutputDefs, unknown>, ctx.inputs.period as 'D');
+    const { h, l, c } = prevPeriod(
+      ctx as unknown as CalcContext<InputDefs, OutputDefs, unknown>,
+      ctx.inputs.period as 'D',
+    );
     if (Number.isNaN(h)) return;
     const r = h - l;
     let v: number[];
@@ -80,7 +92,15 @@ export const PivotPoints = defineIndicator({
         break;
       }
       case 'camarilla':
-        v = [c + (r * 1.1) / 4, c + (r * 1.1) / 6, c + (r * 1.1) / 12, (h + l + c) / 3, c - (r * 1.1) / 12, c - (r * 1.1) / 6, c - (r * 1.1) / 4];
+        v = [
+          c + (r * 1.1) / 4,
+          c + (r * 1.1) / 6,
+          c + (r * 1.1) / 12,
+          (h + l + c) / 3,
+          c - (r * 1.1) / 12,
+          c - (r * 1.1) / 6,
+          c - (r * 1.1) / 4,
+        ];
         break;
       case 'woodie': {
         const p = (h + l + 2 * c) / 4;
@@ -116,7 +136,10 @@ export const PrevSessionOHLC = defineIndicator({
   },
   title: (p) => `Prev ${p.period} OHLC`,
   calc(ctx) {
-    const v = prevPeriod(ctx as unknown as CalcContext<InputDefs, OutputDefs, unknown>, ctx.inputs.period as 'D');
+    const v = prevPeriod(
+      ctx as unknown as CalcContext<InputDefs, OutputDefs, unknown>,
+      ctx.inputs.period as 'D',
+    );
     ctx.out.o.set(ctx.i, v.o);
     ctx.out.h.set(ctx.i, v.h);
     ctx.out.l.set(ctx.i, v.l);

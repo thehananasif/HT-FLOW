@@ -69,7 +69,8 @@ export const CumulativeDelta = defineIndicator({
   ...of,
   pane: 'new',
   zeroLine: true,
-  description: 'Running sum of bar delta as candles or a line, reset per session, week, month or never.',
+  description:
+    'Running sum of bar delta as candles or a line, reset per session, week, month or never.',
   formula: 'CVD = CVD₋₁ + Δ (0 at reset); candle O = CVD₋₁, H/L = O + max/min Δ, C = CVD',
   inputs: {
     mode: input.enum('Display', 'candles', [
@@ -89,7 +90,8 @@ export const CumulativeDelta = defineIndicator({
     const reset = i === 0 || isNewPeriod(ctx.bars[i - 1]!.t, bar.t, ctx.inputs.reset as ResetMode);
     const o = reset ? 0 : cum[i - 1]!;
     cum[i] = o + bar.delta;
-    if (ctx.inputs.mode === 'candles') ctx.out.candles.setBar(i, o, o + bar.maxDelta, o + bar.minDelta, cum[i]!);
+    if (ctx.inputs.mode === 'candles')
+      ctx.out.candles.setBar(i, o, o + bar.maxDelta, o + bar.minDelta, cum[i]!);
     else ctx.out.line.set(i, cum[i]!);
   },
 });
@@ -142,8 +144,13 @@ export const AverageDelta = defineIndicator({
   zeroLine: true,
   description: 'Moving average of bar delta.',
   formula: 'AvgΔ = MA(Δ, n)',
-  inputs: { period: input.int('Period', 14, { min: 1, max: 500 }), type: input.enum('MA type', 'ema', MA_TYPES) },
-  outputs: { avg: output.histogram('Avg delta', HT.up, { color2: HT.down, opacity: 0.8, unit: 'volume' }) },
+  inputs: {
+    period: input.int('Period', 14, { min: 1, max: 500 }),
+    type: input.enum('MA type', 'ema', MA_TYPES),
+  },
+  outputs: {
+    avg: output.histogram('Avg delta', HT.up, { color2: HT.down, opacity: 0.8, unit: 'volume' }),
+  },
   title: (p) => `Avg Delta ${p.type.toUpperCase()} ${p.period}`,
   calc(ctx) {
     const v = ctx.out.avg.v;
@@ -164,7 +171,12 @@ export const BigTrades = defineIndicator({
   formula: 'Consecutive same-side prints within the window are merged; radius ∝ √size (or linear)',
   inputs: {
     min: input.float('Minimum trade size', 20, { min: 0.0001, max: 1e9, step: 1, unit: 'lots' }),
-    window: input.int('Aggregation window', 50, { min: 0, max: 5000, unit: 'ms', help: '0 = no aggregation' }),
+    window: input.int('Aggregation window', 50, {
+      min: 0,
+      max: 5000,
+      unit: 'ms',
+      help: '0 = no aggregation',
+    }),
     scaling: input.enum('Bubble scaling', 'sqrt', [
       ['sqrt', 'Square root'],
       ['linear', 'Linear'],
@@ -215,7 +227,8 @@ export const StackedImbalance = defineIndicator({
   ...of,
   pane: 'overlay',
   autoscale: false,
-  description: 'Zones where N or more consecutive prices show diagonal bid/ask imbalance; extended until price trades through.',
+  description:
+    'Zones where N or more consecutive prices show diagonal bid/ask imbalance; extended until price trades through.',
   formula: 'Buy imb at p: ask[p] ≥ ratio·bid[p−1]; sell imb at p: bid[p] ≥ ratio·ask[p+1]',
   inputs: {
     ratio: input.float('Imbalance ratio', 3, { min: 1.1, max: 50, step: 0.1, unit: '×' }),
@@ -242,14 +255,24 @@ export const StackedImbalance = defineIndicator({
       let n = 0;
       const flush = () => {
         if (n >= levels)
-          ctx.out.zones.add({ bar: ctx.i, to: extend ? -1 : ctx.i, top: runEnd + 0.5, bottom: runStart - 0.5, tone: buy ? 0 : 1 });
+          ctx.out.zones.add({
+            bar: ctx.i,
+            to: extend ? -1 : ctx.i,
+            top: runEnd + 0.5,
+            bottom: runStart - 0.5,
+            tone: buy ? 0 : 1,
+          });
         n = 0;
       };
       for (const p of pxs) {
         const c = b.clusters.get(p)!;
         const imb = buy
-          ? c.ask >= minVol && c.ask >= ratio * (b.clusters.get(p - 1)?.bid ?? 0) && (b.clusters.get(p - 1)?.bid ?? 0) > 0
-          : c.bid >= minVol && c.bid >= ratio * (b.clusters.get(p + 1)?.ask ?? 0) && (b.clusters.get(p + 1)?.ask ?? 0) > 0;
+          ? c.ask >= minVol &&
+            c.ask >= ratio * (b.clusters.get(p - 1)?.bid ?? 0) &&
+            (b.clusters.get(p - 1)?.bid ?? 0) > 0
+          : c.bid >= minVol &&
+            c.bid >= ratio * (b.clusters.get(p + 1)?.ask ?? 0) &&
+            (b.clusters.get(p + 1)?.ask ?? 0) > 0;
         if (imb && n > 0 && p === runEnd + 1) {
           runEnd = p;
           n++;
@@ -353,7 +376,8 @@ export const MaximumLevels = defineIndicator({
   ...of,
   pane: 'overlay',
   autoscale: false,
-  description: 'Price with the maximum volume, positive delta and negative delta in the period, as extended lines.',
+  description:
+    'Price with the maximum volume, positive delta and negative delta in the period, as extended lines.',
   formula: 'max over prices p of Σvol(p), Σ(ask−bid)(p), Σ(bid−ask)(p)',
   inputs: { period: input.timeframe('Period', 'D', { options: ['H1', 'H4', 'D', 'W', 'MN'] }) },
   outputs: {
@@ -392,7 +416,8 @@ export const VWAP = defineIndicator({
   ...of,
   pane: 'overlay',
   description: 'Volume-weighted average price with standard-deviation bands, reset per period.',
-  formula: 'VWAP = Σ(p·v)/Σv over all prints (clusters); σ = √(Σ(p²·v)/Σv − VWAP²); bands = VWAP ± kσ',
+  formula:
+    'VWAP = Σ(p·v)/Σv over all prints (clusters); σ = √(Σ(p²·v)/Σv − VWAP²); bands = VWAP ± kσ',
   inputs: {
     reset: input.enum('Reset', 'session', RESET_OPTIONS),
     bands: input.int('σ bands', 2, { min: 0, max: 3, help: 'Number of band pairs (1σ, 2σ, 3σ).' }),
@@ -497,7 +522,8 @@ export const DailyChange = defineIndicator({
   ...of,
   pane: 'overlay',
   autoscale: false,
-  description: 'Prior session close as a level and the % change from it as a label at the last bar.',
+  description:
+    'Prior session close as a level and the % change from it as a label at the last bar.',
   formula: 'Change % = 100 · (C − prior close) / prior close',
   inputs: {},
   outputs: {
@@ -507,7 +533,12 @@ export const DailyChange = defineIndicator({
   calc(ctx) {
     const { i, bar } = ctx;
     const pc = ctx.buf('pc');
-    pc[i] = i === 0 ? NaN_ : isNewPeriod(ctx.bars[i - 1]!.t, bar.t, 'session') ? ctx.bars[i - 1]!.c : pc[i - 1]!;
+    pc[i] =
+      i === 0
+        ? NaN_
+        : isNewPeriod(ctx.bars[i - 1]!.t, bar.t, 'session')
+          ? ctx.bars[i - 1]!.c
+          : pc[i - 1]!;
     const p = pc[i]!;
     if (Number.isNaN(p)) return;
     ctx.out.prior.set(i, p);
@@ -536,7 +567,12 @@ export const PsychologicalLevels = defineIndicator({
   description: 'Horizontal lines at round-number prices around the last price.',
   formula: 'levels = round(C / step)·step ± k·step',
   inputs: {
-    step: input.float('Step (price)', 100, { min: 0.00001, max: 1e7, step: 1, help: 'In price units.' }),
+    step: input.float('Step (price)', 100, {
+      min: 0.00001,
+      max: 1e7,
+      step: 1,
+      help: 'In price units.',
+    }),
     count: input.int('Levels each side', 5, { min: 1, max: 50 }),
   },
   outputs: { levels: output.levels('Levels', HT.dim, { style: 'dotted' }) },
@@ -547,7 +583,13 @@ export const PsychologicalLevels = defineIndicator({
     const base = Math.round(ctx.bar.c / step) * step;
     for (let k = -ctx.inputs.count; k <= ctx.inputs.count; k++) {
       const v = base + k * step;
-      ctx.out.levels.add({ bar: 0, to: -1, value: v, tone: 0, label: String(+(v * ctx.tickSize).toPrecision(10)) });
+      ctx.out.levels.add({
+        bar: 0,
+        to: -1,
+        value: v,
+        tone: 0,
+        label: String(+(v * ctx.tickSize).toPrecision(10)),
+      });
     }
   },
 });
@@ -561,7 +603,9 @@ export const CandleStatistics = defineIndicator({
   autoscale: false,
   description: 'Volume and delta printed under every bar (trades and duration in the legend).',
   formula: 'Per bar: Σvol, Δ, trades, duration (s)',
-  inputs: { minWidth: input.int('Hide labels below bar width', 0, { min: 0, max: 200, unit: 'px' }) },
+  inputs: {
+    minWidth: input.int('Hide labels below bar width', 0, { min: 0, max: 200, unit: 'px' }),
+  },
   outputs: {
     labels: output.markers('Labels', HT.soft, { color2: HT.up, color3: HT.down }),
     trades: output.line('Trades', HT.grey, { unit: 'count', visible: false }),
@@ -592,7 +636,10 @@ export const MarketPower = defineIndicator({
   zeroLine: true,
   description: 'Delta weighted by the price movement it produced, smoothed.',
   formula: 'raw = Δ · |C − C₋₁| (ticks); MP = MA(raw, n)',
-  inputs: { period: input.int('Period', 10, { min: 1, max: 500 }), type: input.enum('MA type', 'ema', MA_TYPES) },
+  inputs: {
+    period: input.int('Period', 10, { min: 1, max: 500 }),
+    type: input.enum('MA type', 'ema', MA_TYPES),
+  },
   outputs: { mp: output.histogram('Power', HT.up, { color2: HT.down, unit: 'value' }) },
   title: (p) => `Market Power ${p.period}`,
   calc(ctx) {

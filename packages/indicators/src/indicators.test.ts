@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { IndicatorRuntime, SeriesOut, computeIndicator, type AnyIndicator } from '@htflow/indicator-sdk';
+import {
+  IndicatorRuntime,
+  SeriesOut,
+  computeIndicator,
+  type AnyIndicator,
+} from '@htflow/indicator-sdk';
 import { BarSeries, type Bar, type Trade } from '@htflow/market-data';
 import { CATALOG, INDICATORS, catalogCounts, indicatorById, isImplemented } from './index';
 
 /** Bars from closes (o = previous close, h/l = ±1 around the body, simple clusters). */
-function mkBars(closes: number[], opts: { vol?: number[]; delta?: number[]; t0?: number; ms?: number } = {}): Bar[] {
+function mkBars(
+  closes: number[],
+  opts: { vol?: number[]; delta?: number[]; t0?: number; ms?: number } = {},
+): Bar[] {
   return closes.map((c, i) => {
     const o = i > 0 ? closes[i - 1]! : c;
     const vol = opts.vol?.[i] ?? 10;
@@ -33,7 +41,8 @@ function mkBars(closes: number[], opts: { vol?: number[]; delta?: number[]; t0?:
 
 const run = (id: string, bars: Bar[], inputs?: Record<string, number | string | boolean>) =>
   computeIndicator(indicatorById(id)!, bars, inputs);
-const vals = (rt: IndicatorRuntime, out: string) => Array.from((rt.outputs[out] as SeriesOut).v.slice(0, rt.count));
+const vals = (rt: IndicatorRuntime, out: string) =>
+  Array.from((rt.outputs[out] as SeriesOut).v.slice(0, rt.count));
 const close = (a: number[], b: number[], eps = 1e-9) => {
   expect(a.length).toBe(b.length);
   a.forEach((x, k) => {
@@ -81,9 +90,15 @@ describe('bands and volatility', () => {
     expect(vals(rt, 'basis')[7]).toBeCloseTo(5);
     expect(vals(rt, 'upper')[7]).toBeCloseTo(9);
     expect(vals(rt, 'lower')[7]).toBeCloseTo(1);
-    expect(vals(run('bb-percent-b', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'pb')[7]).toBeCloseTo(1);
-    expect(vals(run('bb-bandwidth', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'bw')[7]).toBeCloseTo(160);
-    expect(vals(run('stdev', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'sd')[7]).toBeCloseTo(2);
+    expect(
+      vals(run('bb-percent-b', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'pb')[7],
+    ).toBeCloseTo(1);
+    expect(
+      vals(run('bb-bandwidth', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'bw')[7],
+    ).toBeCloseTo(160);
+    expect(
+      vals(run('stdev', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'sd')[7],
+    ).toBeCloseTo(2);
   });
   it('ATR is Wilder smoothing of the true range', () => {
     // Constant closes: every bar h−l = 2 → ATR 2.
@@ -118,7 +133,9 @@ describe('oscillators', () => {
     expect(vals(rt, 'k')[4]).toBeCloseTo(80); // HH = 6, LL = 1 (bar 2 low)
   });
   it('Williams %R mirrors stochastic', () => {
-    expect(vals(run('williams-r', mkBars([1, 2, 3, 4, 5]), { period: 3 }), 'r')[4]).toBeCloseTo(-20);
+    expect(vals(run('williams-r', mkBars([1, 2, 3, 4, 5]), { period: 3 }), 'r')[4]).toBeCloseTo(
+      -20,
+    );
   });
   it('MACD = EMA(fast) − EMA(slow); histogram = MACD − signal', () => {
     const bars = mkBars(Array.from({ length: 60 }, (_, i) => 100 + Math.sin(i / 4) * 10));
@@ -134,8 +151,12 @@ describe('oscillators', () => {
     expect(vals(run('cci', mkBars([1, 2, 3]), { period: 3 }), 'cci')[2]).toBeCloseTo(100);
     expect(vals(run('roc', mkBars([100, 110]), { period: 1 }), 'roc')[1]).toBeCloseTo(10);
     expect(vals(run('momentum', mkBars([100, 110, 130]), { period: 2 }), 'mom')[2]).toBe(30);
-    expect(vals(run('cmo', mkBars([1, 2, 1, 3]), { period: 3 }), 'cmo')[3]).toBeCloseTo((100 * (3 - 1)) / 4);
-    expect(vals(run('zscore', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'z')[7]).toBeCloseTo(2);
+    expect(vals(run('cmo', mkBars([1, 2, 1, 3]), { period: 3 }), 'cmo')[3]).toBeCloseTo(
+      (100 * (3 - 1)) / 4,
+    );
+    expect(
+      vals(run('zscore', mkBars([2, 4, 4, 4, 5, 5, 7, 9]), { period: 8 }), 'z')[7],
+    ).toBeCloseTo(2);
     // BOP: bar (o=1,c=3,h=4,l=0) → 0.5
     expect(vals(run('bop', mkBars([1, 3]), { period: 1 }), 'bop')[1]).toBeCloseTo(0.5);
   });
@@ -153,7 +174,10 @@ describe('oscillators', () => {
 
 describe('trend', () => {
   it('ADX: steady up-trend → DI+ dominant, ADX → 100', () => {
-    const rt = run('adx', mkBars(Array.from({ length: 60 }, (_, i) => i * 3)), { period: 5, smooth: 5 });
+    const rt = run('adx', mkBars(Array.from({ length: 60 }, (_, i) => i * 3)), {
+      period: 5,
+      smooth: 5,
+    });
     expect(vals(rt, 'minus')[59]).toBe(0);
     expect(vals(rt, 'adx')[59]).toBeCloseTo(100);
   });
@@ -170,7 +194,10 @@ describe('trend', () => {
     expect(vals(rt, 'sar')[2]).toBeCloseTo(Math.min(9 + 0.02 * 3, bars[0]!.l, bars[1]!.l));
   });
   it('SuperTrend flips to the down line after a crash', () => {
-    const closes = [...Array.from({ length: 20 }, (_, i) => 100 + i), ...Array.from({ length: 10 }, (_, i) => 80 - i * 3)];
+    const closes = [
+      ...Array.from({ length: 20 }, (_, i) => 100 + i),
+      ...Array.from({ length: 10 }, (_, i) => 80 - i * 3),
+    ];
     const rt = run('supertrend', mkBars(closes), { period: 3, mult: 1 });
     expect(Number.isNaN(vals(rt, 'up')[15]!)).toBe(false);
     expect(Number.isNaN(vals(rt, 'down')[29]!)).toBe(false);
@@ -203,7 +230,9 @@ describe('volume-based', () => {
     close(vals(run('obv', bars), 'obv'), [0, 10, -10, -10]);
     expect(vals(run('pvt', bars), 'pvt')[1]).toBeCloseTo((10 * 2) / 10);
     // A/D bar1: h=13 l=9 c=12 → MFM 0.5 → 5
-    expect(vals(run('ad-line', bars), 'ad')[1]).toBeCloseTo(vals(run('ad-line', bars), 'ad')[0]! + 5);
+    expect(vals(run('ad-line', bars), 'ad')[1]).toBeCloseTo(
+      vals(run('ad-line', bars), 'ad')[0]! + 5,
+    );
     expect(vals(run('cmf', bars, { period: 1 }), 'cmf')[1]).toBeCloseTo(0.5);
     expect(vals(run('mfi', mkBars([1, 2, 3, 4]), { period: 2 }), 'mfi')[3]).toBe(100);
     expect(vals(run('force-index', bars, { period: 1 }), 'fi')[1]).toBe(20);
@@ -248,7 +277,10 @@ describe('order flow', () => {
     const day = 86_400_000;
     const bars = mkBars([1, 2, 3, 4], { delta: [1, 2, 3, 4], ms: day / 2 });
     close(vals(run('cumulative-delta', bars, { mode: 'line' }), 'line'), [1, 3, 3, 7]);
-    close(vals(run('cumulative-delta', bars, { mode: 'line', reset: 'never' }), 'line'), [1, 3, 6, 10]);
+    close(
+      vals(run('cumulative-delta', bars, { mode: 'line', reset: 'never' }), 'line'),
+      [1, 3, 6, 10],
+    );
     const c = run('cumulative-delta', bars).outputs.candles as SeriesOut;
     expect(c.v[1]).toBe(1); // open = previous CVD
     expect(c.v4[1]).toBe(3);
@@ -268,7 +300,12 @@ describe('order flow', () => {
       { ts: 1500, px: 100, qty: 30, side: 'sell', id: 3 },
       { ts: 1600, px: 100, qty: 5, side: 'sell', id: 4 },
     ];
-    const rt = computeIndicator(indicatorById('big-trades')!, bars, { min: 20, window: 50 }, { tradesBetween: () => trades });
+    const rt = computeIndicator(
+      indicatorById('big-trades')!,
+      bars,
+      { min: 20, window: 50 },
+      { tradesBetween: () => trades },
+    );
     const items = rt.list('bubbles')!.items as { value: number; tone: number }[];
     expect(items.length).toBe(2);
     expect(items[0]!.value).toBeCloseTo((15 * 100 + 10 * 101) / 25);
@@ -282,7 +319,11 @@ describe('order flow', () => {
       [101, { bid: 2, ask: 10, trades: 1, maxTrade: 1 }],
       [102, { bid: 1, ask: 9, trades: 1, maxTrade: 1 }],
     ]);
-    const zones = run('stacked-imbalance', [b!]).list('zones')!.items as { top: number; bottom: number; tone: number }[];
+    const zones = run('stacked-imbalance', [b!]).list('zones')!.items as {
+      top: number;
+      bottom: number;
+      tone: number;
+    }[];
     expect(zones).toEqual([expect.objectContaining({ bottom: 99.5, top: 102.5, tone: 0 })]);
   });
   it('Dynamic levels: developing POC / VA and Maximum Levels', () => {
@@ -294,14 +335,29 @@ describe('order flow', () => {
   });
   it('Speed of tape spikes, daily change, psychological levels, candle stats, market power, rhythm', () => {
     const bars = mkBars([1, 1, 1, 1], { vol: [1, 1, 1, 9] });
-    expect((run('speed-of-tape', bars, { metric: 'volume', period: 2, k: 2 }).outputs.speed as SeriesOut).tone[3]).toBe(1);
+    expect(
+      (run('speed-of-tape', bars, { metric: 'volume', period: 2, k: 2 }).outputs.speed as SeriesOut)
+        .tone[3],
+    ).toBe(1);
     const day = 86_400_000;
     const dc = run('daily-change', mkBars([100, 110], { ms: day }));
     expect((dc.list('label')!.items[0] as { text: string }).text).toBe('+10.00%');
-    const psy = computeIndicator(indicatorById('psychological-levels')!, mkBars([1234]), { step: 1, count: 1 }, { tickSize: 0.01 });
-    expect(psy.list('levels')!.items.map((l) => (l as { value: number }).value)).toEqual([1100, 1200, 1300]);
+    const psy = computeIndicator(
+      indicatorById('psychological-levels')!,
+      mkBars([1234]),
+      { step: 1, count: 1 },
+      { tickSize: 0.01 },
+    );
+    expect(psy.list('levels')!.items.map((l) => (l as { value: number }).value)).toEqual([
+      1100, 1200, 1300,
+    ]);
     expect(run('candle-statistics', bars).list('labels')!.items.length).toBe(4);
-    expect(vals(run('market-power', mkBars([1, 3], { delta: [0, 5] }), { period: 1, type: 'sma' }), 'mp')[1]).toBe(10);
+    expect(
+      vals(
+        run('market-power', mkBars([1, 3], { delta: [0, 5] }), { period: 1, type: 'sma' }),
+        'mp',
+      )[1],
+    ).toBe(10);
     expect(vals(run('order-flow-rhythm', bars), 'tps')[0]).toBeCloseTo(5 / 60);
   });
 });
@@ -309,12 +365,18 @@ describe('order flow', () => {
 /** Random trades → BarSeries; incremental updates (trade by trade) must equal a full recompute. */
 function randomTrades(n: number, seed = 7): Trade[] {
   let s = seed;
-  const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
   let px = 1000;
   const out: Trade[] = [];
   for (let i = 0; i < n; i++) {
     px += Math.round((rnd() - 0.5) * 6);
-    out.push({ ts: 1_700_000_000_000 + i * 1500, px, qty: 1 + Math.floor(rnd() * 30), side: rnd() > 0.5 ? 'buy' : 'sell', id: i });
+    out.push({
+      ts: 1_700_000_000_000 + i * 1500,
+      px,
+      qty: 1 + Math.floor(rnd() * 30),
+      side: rnd() > 0.5 ? 'buy' : 'sell',
+      id: i,
+    });
   }
   return out;
 }
@@ -324,7 +386,11 @@ function snapshot(rt: IndicatorRuntime): string {
   for (const [k, v] of Object.entries(rt.outputs)) {
     if (v instanceof SeriesOut) {
       const n = rt.count;
-      o[k] = [v.v, v.v2, v.v3, v.v4].map((a) => Array.from(a.slice(0, a.length ? n : 0)).map((x) => (Number.isNaN(x) ? null : +x.toFixed(9))));
+      o[k] = [v.v, v.v2, v.v3, v.v4].map((a) =>
+        Array.from(a.slice(0, a.length ? n : 0)).map((x) =>
+          Number.isNaN(x) ? null : +x.toFixed(9),
+        ),
+      );
       o[k + '.t'] = Array.from(v.tone.slice(0, n));
     } else o[k] = JSON.stringify(v.items);
   }
@@ -333,28 +399,32 @@ function snapshot(rt: IndicatorRuntime): string {
 
 describe('incremental contract', () => {
   const trades = randomTrades(1600);
-  it.each(INDICATORS.map((d) => [d.id, d] as [string, AnyIndicator]))('%s: incremental == full', (_id, def) => {
-    const series = new BarSeries({ kind: 'time', ms: 60_000 });
-    const between = (from: number, to: number) => trades.filter((t) => t.ts >= from && t.ts <= to);
-    const data = {
-      get bars() {
-        return series.bars;
-      },
-      get version() {
-        return series.version;
-      },
-      tickSize: 1,
-      tradesBetween: between,
-    };
-    const inc = new IndicatorRuntime(def);
-    for (let k = 0; k < trades.length; k++) {
-      series.add(trades[k]!);
-      if (k % 7 === 0 || k === trades.length - 1) inc.update(data);
-    }
-    const full = computeIndicator(def, series.bars, undefined, { tradesBetween: between });
-    expect(inc.stats.full).toBe(1);
-    expect(snapshot(inc)).toBe(snapshot(full));
-  });
+  it.each(INDICATORS.map((d) => [d.id, d] as [string, AnyIndicator]))(
+    '%s: incremental == full',
+    (_id, def) => {
+      const series = new BarSeries({ kind: 'time', ms: 60_000 });
+      const between = (from: number, to: number) =>
+        trades.filter((t) => t.ts >= from && t.ts <= to);
+      const data = {
+        get bars() {
+          return series.bars;
+        },
+        get version() {
+          return series.version;
+        },
+        tickSize: 1,
+        tradesBetween: between,
+      };
+      const inc = new IndicatorRuntime(def);
+      for (let k = 0; k < trades.length; k++) {
+        series.add(trades[k]!);
+        if (k % 7 === 0 || k === trades.length - 1) inc.update(data);
+      }
+      const full = computeIndicator(def, series.bars, undefined, { tradesBetween: between });
+      expect(inc.stats.full).toBe(1);
+      expect(snapshot(inc)).toBe(snapshot(full));
+    },
+  );
 });
 
 describe('catalog', () => {
@@ -373,7 +443,11 @@ describe('catalog', () => {
   });
   it('every implementation reference resolves and every indicator is catalogued', () => {
     for (const e of CATALOG) if (e.impl) expect(indicatorById(e.impl), e.name).toBeDefined();
-    for (const d of INDICATORS) expect(CATALOG.some((e) => e.impl === d.id), d.id).toBe(true);
+    for (const d of INDICATORS)
+      expect(
+        CATALOG.some((e) => e.impl === d.id),
+        d.id,
+      ).toBe(true);
     expect(new Set(CATALOG.map((e) => e.key)).size).toBe(CATALOG.length);
     expect(INDICATORS.length).toBeGreaterThanOrEqual(55);
     expect(CATALOG.filter(isImplemented).length).toBeGreaterThan(100);

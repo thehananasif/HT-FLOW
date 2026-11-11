@@ -91,7 +91,6 @@ export class IndicatorRuntime {
     for (const [k, o] of Object.entries(def.outputs)) {
       this.outputs[k] = isSeriesKind(o.kind) ? new SeriesOut(o.kind as SeriesKind) : new ListOut();
     }
-    const self = this;
     this.ctx = {
       i: 0,
       bars: [],
@@ -100,9 +99,9 @@ export class IndicatorRuntime {
       final: false,
       inputs: this.inputs,
       out: this.outputs as unknown as Outputs<OutputDefs>,
-      buf: (name) => self.buf(name),
-      src: (id) => self.src(id),
-      trades: (i) => self.trades(i),
+      buf: (name) => this.buf(name),
+      src: (id) => this.src(id),
+      trades: (i) => this.trades(i),
       tickSize: 1,
       state: undefined,
     };

@@ -42,7 +42,11 @@ import { instrumentById } from '../../state/instruments';
 import { readExt, useIndicatorDialog, writeExt } from './state';
 
 type Tab = 'inputs' | 'style' | 'alerts' | 'visibility' | 'advanced';
-type Preset = { name: string; inputs: IndicatorConfig['inputs']; styles: IndicatorConfig['styles'] };
+type Preset = {
+  name: string;
+  inputs: IndicatorConfig['inputs'];
+  styles: IndicatorConfig['styles'];
+};
 
 const FAV_KEY = 'indicators.favourites';
 const PRESET_KEY = 'indicators.presets';
@@ -59,7 +63,13 @@ const DEFAULT_FAVS = [
 
 const catLabel = (c: IndicatorCategory) => CATEGORIES.find((x) => x.id === c)?.label ?? c;
 
-export function IndicatorsDialog({ windowId, state }: { windowId: string; state: ChartWindowState }) {
+export function IndicatorsDialog({
+  windowId,
+  state,
+}: {
+  windowId: string;
+  state: ChartWindowState;
+}) {
   const close = useIndicatorDialog((s) => s.close);
   const initialSelect = useIndicatorDialog((s) => s.select);
   const original = useRef(readExt(windowId).items);
@@ -74,7 +84,9 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
 
   useEffect(() => {
     void backend.loadSettings<string[]>(FAV_KEY).then((f) => Array.isArray(f) && setFavs(f));
-    void backend.loadSettings<Record<string, Preset[]>>(PRESET_KEY).then((p) => p && typeof p === 'object' && setPresets(p));
+    void backend
+      .loadSettings<Record<string, Preset[]>>(PRESET_KEY)
+      .then((p) => p && typeof p === 'object' && setPresets(p));
   }, []);
 
   // Live preview: every change is written to the chart; Cancel restores the original list.
@@ -144,7 +156,10 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
     if (!selected || !presetName?.trim()) return;
     const name = presetName.trim().slice(0, 40);
     const forType = (presets[selected.type] ?? []).filter((p) => p.name !== name);
-    const next = { ...presets, [selected.type]: [...forType, { name, inputs: selected.inputs, styles: selected.styles }] };
+    const next = {
+      ...presets,
+      [selected.type]: [...forType, { name, inputs: selected.inputs, styles: selected.styles }],
+    };
     setPresets(next);
     setPresetName(null);
     void backend.saveSettings(PRESET_KEY, next);
@@ -165,7 +180,10 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
       writeExt(id, items);
       n++;
     }
-    toast('success', `${titleOf(def!, selected.inputs)} applied to ${n} chart${n === 1 ? '' : 's'}`);
+    toast(
+      'success',
+      `${titleOf(def!, selected.inputs)} applied to ${n} chart${n === 1 ? '' : 's'}`,
+    );
   };
 
   const inst = instrumentById(state.instrumentId);
@@ -180,7 +198,11 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
       description={`${inst?.symbol ?? state.instrumentId} · ${specLabel(state.timeframe as BarSpec)} · ${t('indicators.available', { n: total })}`}
       width={1180}
     >
-      <div className="ind-dlg" onContextMenu={(e) => e.stopPropagation()} data-testid="indicators-dialog">
+      <div
+        className="ind-dlg"
+        onContextMenu={(e) => e.stopPropagation()}
+        data-testid="indicators-dialog"
+      >
         <input
           className="ht-input ind-search"
           placeholder={t('indicators.search')}
@@ -193,12 +215,19 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
         </button>
         <div className="ind-cols">
           <nav className="ind-cats" aria-label="Categories">
-            <button aria-pressed={cat === 'favourites' && !query} onClick={() => (setCat('favourites'), setQuery(''))}>
+            <button
+              aria-pressed={cat === 'favourites' && !query}
+              onClick={() => (setCat('favourites'), setQuery(''))}
+            >
               {t('indicators.favourites')}
               <span className="tnum">{favs.length}</span>
             </button>
             {CATEGORIES.map((c) => (
-              <button key={c.id} aria-pressed={cat === c.id && !query} onClick={() => (setCat(c.id), setQuery(''))}>
+              <button
+                key={c.id}
+                aria-pressed={cat === c.id && !query}
+                onClick={() => (setCat(c.id), setQuery(''))}
+              >
                 {c.label}
                 <span className="tnum">{counts[c.id] ?? 0}</span>
               </button>
@@ -206,14 +235,24 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
           </nav>
           <section className="ind-mid">
             <div className="ind-catalog" data-testid="indicator-catalog">
-              <div className="ind-head">{query ? `Search: ${list.length}` : cat === 'favourites' ? 'Favourites' : catLabel(cat)}</div>
+              <div className="ind-head">
+                {query
+                  ? `Search: ${list.length}`
+                  : cat === 'favourites'
+                    ? 'Favourites'
+                    : catLabel(cat)}
+              </div>
               {list.map((e, k) => {
                 const ok = isImplemented(e);
-                const showGroup = e.group && !query && cat !== 'favourites' && list[k - 1]?.group !== e.group;
+                const showGroup =
+                  e.group && !query && cat !== 'favourites' && list[k - 1]?.group !== e.group;
                 return (
                   <div key={e.key}>
                     {showGroup && <div className="ind-group">{e.group}</div>}
-                    <div className={`ind-row ${ok ? '' : 'ind-row--pending'}`} title={e.note ?? (ok ? indicatorById(e.impl!)?.description : '')}>
+                    <div
+                      className={`ind-row ${ok ? '' : 'ind-row--pending'}`}
+                      title={e.note ?? (ok ? indicatorById(e.impl!)?.description : '')}
+                    >
                       <button
                         className="ind-star"
                         aria-label={`Favourite ${e.name}`}
@@ -224,7 +263,12 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                       </button>
                       <span className="ind-name">{e.name}</span>
                       {ok ? (
-                        <button className="ht-icon-btn" aria-label={`Add ${e.name}`} disabled={noBars} onClick={() => add(e)}>
+                        <button
+                          className="ht-icon-btn"
+                          aria-label={`Add ${e.name}`}
+                          disabled={noBars}
+                          onClick={() => add(e)}
+                        >
                           <Plus size={13} />
                         </button>
                       ) : (
@@ -242,13 +286,20 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                 const d = indicatorById(c.type);
                 if (!d) return null;
                 return (
-                  <div key={c.uid} className="ind-row ind-inst" aria-selected={c.uid === sel} onClick={() => setSel(c.uid)}>
+                  <div
+                    key={c.uid}
+                    className="ind-row ind-inst"
+                    aria-selected={c.uid === sel}
+                    onClick={() => setSel(c.uid)}
+                  >
                     <button
                       className="ht-icon-btn"
                       aria-label={c.enabled ? 'Hide' : 'Show'}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDraft(draft.map((x) => (x.uid === c.uid ? { ...x, enabled: !x.enabled } : x)));
+                        setDraft(
+                          draft.map((x) => (x.uid === c.uid ? { ...x, enabled: !x.enabled } : x)),
+                        );
                       }}
                     >
                       {c.enabled ? <Eye size={13} /> : <EyeOff size={13} />}
@@ -258,10 +309,18 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                     </span>
                     <span className="ind-pane">{paneLabel(c)}</span>
                     <span className="ind-acts">
-                      <button className="ht-icon-btn" aria-label="Move up" onClick={(e) => (e.stopPropagation(), move(c.uid, -1))}>
+                      <button
+                        className="ht-icon-btn"
+                        aria-label="Move up"
+                        onClick={(e) => (e.stopPropagation(), move(c.uid, -1))}
+                      >
                         <ArrowUp size={12} />
                       </button>
-                      <button className="ht-icon-btn" aria-label="Move down" onClick={(e) => (e.stopPropagation(), move(c.uid, 1))}>
+                      <button
+                        className="ht-icon-btn"
+                        aria-label="Move down"
+                        onClick={(e) => (e.stopPropagation(), move(c.uid, 1))}
+                      >
                         <ArrowDown size={12} />
                       </button>
                       <button
@@ -281,7 +340,11 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                         aria-label="Remove"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDraft(draft.filter((x) => x.uid !== c.uid).map((x) => (x.pane === c.uid ? { ...x, pane: 'new' } : x)));
+                          setDraft(
+                            draft
+                              .filter((x) => x.uid !== c.uid)
+                              .map((x) => (x.pane === c.uid ? { ...x, pane: 'new' } : x)),
+                          );
                           if (sel === c.uid) setSel(null);
                         }}
                       >
@@ -307,14 +370,25 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                     aria-label="Preset"
                     value=""
                     onChange={(name) => {
-                      if (name === '__default') update({ inputs: { ...resolveInputs(def.inputs, undefined) }, styles: resolveStyles(def, undefined) });
+                      if (name === '__default')
+                        update({
+                          inputs: { ...resolveInputs(def.inputs, undefined) },
+                          styles: resolveStyles(def, undefined),
+                        });
                       const p = presets[selected.type]?.find((x) => x.name === name);
-                      if (p) update({ inputs: { ...resolveInputs(def.inputs, p.inputs) }, styles: resolveStyles(def, p.styles) });
+                      if (p)
+                        update({
+                          inputs: { ...resolveInputs(def.inputs, p.inputs) },
+                          styles: resolveStyles(def, p.styles),
+                        });
                     }}
                     options={[
                       { value: '', label: 'Preset…' },
                       { value: '__default', label: 'Default' },
-                      ...(presets[selected.type] ?? []).map((p) => ({ value: p.name, label: `${p.name} (saved)` })),
+                      ...(presets[selected.type] ?? []).map((p) => ({
+                        value: p.name,
+                        label: `${p.name} (saved)`,
+                      })),
                     ]}
                   />
                 </div>
@@ -331,8 +405,12 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                   ]}
                 />
                 <div className="ind-body">
-                  {tab === 'inputs' && <InputsTab def={def} cfg={selected} onChange={(inputs) => update({ inputs })} />}
-                  {tab === 'style' && <StyleTab def={def} cfg={selected} onChange={(styles) => update({ styles })} />}
+                  {tab === 'inputs' && (
+                    <InputsTab def={def} cfg={selected} onChange={(inputs) => update({ inputs })} />
+                  )}
+                  {tab === 'style' && (
+                    <StyleTab def={def} cfg={selected} onChange={(styles) => update({ styles })} />
+                  )}
                   {tab === 'alerts' && <p className="muted">{t('indicators.alertsPending')}</p>}
                   {tab === 'visibility' && (
                     <div className="ind-grid2">
@@ -352,10 +430,21 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
                       ))}
                     </div>
                   )}
-                  {tab === 'advanced' && <AdvancedTab cfg={selected} draft={draft} update={update} />}
+                  {tab === 'advanced' && (
+                    <AdvancedTab cfg={selected} draft={draft} update={update} />
+                  )}
                 </div>
                 <div className="ind-foot">
-                  <Button variant="ghost" size="sm" onClick={() => update({ inputs: { ...resolveInputs(def.inputs, undefined) }, styles: resolveStyles(def, undefined) })}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      update({
+                        inputs: { ...resolveInputs(def.inputs, undefined) },
+                        styles: resolveStyles(def, undefined),
+                      })
+                    }
+                  >
                     {t('indicators.reset')}
                   </Button>
                   {presetName === null ? (
@@ -398,7 +487,15 @@ export function IndicatorsDialog({ windowId, state }: { windowId: string; state:
   );
 }
 
-function Row({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
+function Row({
+  label,
+  help,
+  children,
+}: {
+  label: string;
+  help?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="ind-field" title={help}>
       <span className="ind-label">{label}</span>
@@ -408,7 +505,15 @@ function Row({ label, help, children }: { label: string; help?: string; children
   );
 }
 
-function InputControl({ d, value, onChange }: { d: InputDef; value: InputValue; onChange: (v: InputValue) => void }) {
+function InputControl({
+  d,
+  value,
+  onChange,
+}: {
+  d: InputDef;
+  value: InputValue;
+  onChange: (v: InputValue) => void;
+}) {
   switch (d.type) {
     case 'int':
     case 'float':
@@ -419,7 +524,9 @@ function InputControl({ d, value, onChange }: { d: InputDef; value: InputValue; 
           min={d.min}
           max={d.max}
           step={d.step}
-          precision={d.type === 'int' ? 0 : Math.max(2, (String(d.step).split('.')[1] ?? '').length)}
+          precision={
+            d.type === 'int' ? 0 : Math.max(2, (String(d.step).split('.')[1] ?? '').length)
+          }
           unit={d.unit}
           onChange={onChange}
         />
@@ -427,7 +534,14 @@ function InputControl({ d, value, onChange }: { d: InputDef; value: InputValue; 
     case 'bool':
       return <Toggle label={d.label} checked={value as boolean} onChange={onChange} />;
     case 'enum':
-      return <Select aria-label={d.label} value={value as string} onChange={onChange} options={d.options.map((o) => ({ ...o }))} />;
+      return (
+        <Select
+          aria-label={d.label}
+          value={value as string}
+          onChange={onChange}
+          options={d.options.map((o) => ({ ...o }))}
+        />
+      );
     case 'color':
       return <ColorSwatch label={d.label} value={value as string} onChange={onChange} />;
     case 'linestyle':
@@ -445,7 +559,10 @@ function InputControl({ d, value, onChange }: { d: InputDef; value: InputValue; 
           aria-label={d.label}
           value={value as string}
           onChange={onChange}
-          options={SOURCES.filter((s) => !d.sources || d.sources.includes(s.value)).map((s) => ({ value: s.value, label: s.label }))}
+          options={SOURCES.filter((s) => !d.sources || d.sources.includes(s.value)).map((s) => ({
+            value: s.value,
+            label: s.label,
+          }))}
         />
       );
     case 'timeframe':
@@ -454,15 +571,32 @@ function InputControl({ d, value, onChange }: { d: InputDef; value: InputValue; 
           aria-label={d.label}
           value={value as string}
           onChange={onChange}
-          options={TIMEFRAMES.filter((s) => !d.options || d.options.includes(s.value)).map((s) => ({ ...s }))}
+          options={TIMEFRAMES.filter((s) => !d.options || d.options.includes(s.value)).map((s) => ({
+            ...s,
+          }))}
         />
       );
     case 'string':
-      return <Input aria-label={d.label} value={value as string} maxLength={d.maxLength} onChange={(e) => onChange(e.target.value)} />;
+      return (
+        <Input
+          aria-label={d.label}
+          value={value as string}
+          maxLength={d.maxLength}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
   }
 }
 
-function InputsTab({ def, cfg, onChange }: { def: AnyIndicator; cfg: IndicatorConfig; onChange: (v: IndicatorConfig['inputs']) => void }) {
+function InputsTab({
+  def,
+  cfg,
+  onChange,
+}: {
+  def: AnyIndicator;
+  cfg: IndicatorConfig;
+  onChange: (v: IndicatorConfig['inputs']) => void;
+}) {
   const vals = resolveInputs(def.inputs, cfg.inputs) as Record<string, InputValue>;
   const entries = Object.entries(def.inputs);
   if (!entries.length) return <p className="muted">This indicator has no inputs.</p>;
@@ -477,9 +611,18 @@ function InputsTab({ def, cfg, onChange }: { def: AnyIndicator; cfg: IndicatorCo
   );
 }
 
-function StyleTab({ def, cfg, onChange }: { def: AnyIndicator; cfg: IndicatorConfig; onChange: (v: IndicatorConfig['styles']) => void }) {
+function StyleTab({
+  def,
+  cfg,
+  onChange,
+}: {
+  def: AnyIndicator;
+  cfg: IndicatorConfig;
+  onChange: (v: IndicatorConfig['styles']) => void;
+}) {
   const styles = resolveStyles(def, cfg.styles);
-  const set = (id: string, p: Partial<OutputStyle>) => onChange({ ...styles, [id]: { ...styles[id]!, ...p } });
+  const set = (id: string, p: Partial<OutputStyle>) =>
+    onChange({ ...styles, [id]: { ...styles[id]!, ...p } });
   return (
     <div className="ind-styles">
       {Object.entries(def.outputs).map(([id, o]) => {
@@ -487,10 +630,33 @@ function StyleTab({ def, cfg, onChange }: { def: AnyIndicator; cfg: IndicatorCon
         return (
           <div key={id} className="ind-style-row">
             <Checkbox label="" checked={s.visible} onChange={(v) => set(id, { visible: v })} />
-            <Input aria-label={`${o.label} label`} className="ind-style-label" value={s.label} onChange={(e) => set(id, { label: e.target.value })} />
-            <ColorSwatch label={`${o.label} colour`} value={s.color} onChange={(c) => set(id, { color: c })} />
-            {o.color2 && <ColorSwatch label={`${o.label} colour 2`} value={s.color2} onChange={(c) => set(id, { color2: c })} />}
-            <NumberInput aria-label={`${o.label} width`} value={s.width} min={0.5} max={8} step={0.5} precision={1} onChange={(w) => set(id, { width: w })} />
+            <Input
+              aria-label={`${o.label} label`}
+              className="ind-style-label"
+              value={s.label}
+              onChange={(e) => set(id, { label: e.target.value })}
+            />
+            <ColorSwatch
+              label={`${o.label} colour`}
+              value={s.color}
+              onChange={(c) => set(id, { color: c })}
+            />
+            {o.color2 && (
+              <ColorSwatch
+                label={`${o.label} colour 2`}
+                value={s.color2}
+                onChange={(c) => set(id, { color2: c })}
+              />
+            )}
+            <NumberInput
+              aria-label={`${o.label} width`}
+              value={s.width}
+              min={0.5}
+              max={8}
+              step={0.5}
+              precision={1}
+              onChange={(w) => set(id, { width: w })}
+            />
             <Select
               small
               aria-label={`${o.label} line style`}
@@ -503,7 +669,13 @@ function StyleTab({ def, cfg, onChange }: { def: AnyIndicator; cfg: IndicatorCon
               ]}
             />
             <span className="ind-opacity" title="Opacity">
-              <Slider label={`${o.label} opacity`} value={Math.round(s.opacity * 100)} min={0} max={100} onChange={(v) => set(id, { opacity: v / 100 })} />
+              <Slider
+                label={`${o.label} opacity`}
+                value={Math.round(s.opacity * 100)}
+                min={0}
+                max={100}
+                onChange={(v) => set(id, { opacity: v / 100 })}
+              />
             </span>
             <Checkbox label="Tag" checked={s.priceTag} onChange={(v) => set(id, { priceTag: v })} />
           </div>
@@ -522,7 +694,10 @@ function AdvancedTab({
   draft: IndicatorConfig[];
   update: (p: Partial<IndicatorConfig>) => void;
 }) {
-  const before = draft.slice(0, draft.findIndex((c) => c.uid === cfg.uid));
+  const before = draft.slice(
+    0,
+    draft.findIndex((c) => c.uid === cfg.uid),
+  );
   const panes = before.filter((c) => c.pane === 'new');
   return (
     <div className="ind-form">
@@ -534,11 +709,17 @@ function AdvancedTab({
           options={[
             { value: 'overlay', label: 'Price pane (overlay)' },
             { value: 'new', label: 'New pane' },
-            ...panes.map((p) => ({ value: p.uid, label: `Same pane as ${titleOf(indicatorById(p.type)!, p.inputs)}` })),
+            ...panes.map((p) => ({
+              value: p.uid,
+              label: `Same pane as ${titleOf(indicatorById(p.type)!, p.inputs)}`,
+            })),
           ]}
         />
       </Row>
-      <Row label="Scale" help="Merged: price scale (overlay) or the pane's shared scale. Own: independent scale.">
+      <Row
+        label="Scale"
+        help="Merged: price scale (overlay) or the pane's shared scale. Own: independent scale."
+      >
         <Select
           aria-label="Scale"
           value={cfg.scale}
@@ -561,10 +742,23 @@ function AdvancedTab({
         />
       </Row>
       <Row label="Pane height" help={`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
-        <NumberInput aria-label="Pane height" value={cfg.height} min={PANE_HEIGHT.min} max={PANE_HEIGHT.max} step={10} unit="px" onChange={(h) => update({ height: h })} />
+        <NumberInput
+          aria-label="Pane height"
+          value={cfg.height}
+          min={PANE_HEIGHT.min}
+          max={PANE_HEIGHT.max}
+          step={10}
+          unit="px"
+          onChange={(h) => update({ height: h })}
+        />
       </Row>
       <Row label="Data source" help="Overlaying another symbol is not available yet.">
-        <Select aria-label="Data source" value="chart" onChange={() => {}} options={[{ value: 'chart', label: "This chart's instrument" }]} />
+        <Select
+          aria-label="Data source"
+          value="chart"
+          onChange={() => {}}
+          options={[{ value: 'chart', label: "This chart's instrument" }]}
+        />
       </Row>
     </div>
   );

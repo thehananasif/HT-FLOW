@@ -1,7 +1,23 @@
-import { HT, defineIndicator, ema, highest, input, lowest, meanDev, output, rma, sma, sum } from '@htflow/indicator-sdk';
+import {
+  HT,
+  defineIndicator,
+  ema,
+  highest,
+  input,
+  lowest,
+  meanDev,
+  output,
+  rma,
+  sma,
+  sum,
+} from '@htflow/indicator-sdk';
 import { srcLabel } from './common';
 
-const osc = { category: 'technical' as const, group: 'Momentum & oscillators', pane: 'new' as const };
+const osc = {
+  category: 'technical' as const,
+  group: 'Momentum & oscillators',
+  pane: 'new' as const,
+};
 
 export const RSI = defineIndicator({
   id: 'rsi',
@@ -35,7 +51,10 @@ export const RSI = defineIndicator({
     al[ctx.i] = rma(al, l, ctx.i, ctx.inputs.period);
     const a = ag[ctx.i]!;
     const b = al[ctx.i]!;
-    ctx.out.rsi.set(ctx.i, Number.isNaN(a) ? a : b === 0 ? (a === 0 ? 50 : 100) : 100 - 100 / (1 + a / b));
+    ctx.out.rsi.set(
+      ctx.i,
+      Number.isNaN(a) ? a : b === 0 ? (a === 0 ? 50 : 100) : 100 - 100 / (1 + a / b),
+    );
   },
 });
 
@@ -153,7 +172,10 @@ export const CCI = defineIndicator({
   ...osc,
   description: 'Deviation of the typical price from its SMA, scaled by mean deviation.',
   formula: 'CCI = (TP − SMA(TP)) / (0.015 · MeanDev(TP))',
-  inputs: { period: input.int('Period', 20, { min: 2, max: 500 }), source: input.source('Source', 'hlc3') },
+  inputs: {
+    period: input.int('Period', 20, { min: 2, max: 500 }),
+    source: input.source('Source', 'hlc3'),
+  },
   outputs: { cci: output.line('CCI', HT.info) },
   guides: () => [-100, 0, 100],
   title: (p) => `CCI ${p.period}`,
@@ -180,7 +202,10 @@ export const WilliamsR = defineIndicator({
   calc(ctx) {
     const hh = highest(ctx.src('high'), ctx.i, ctx.inputs.period);
     const ll = lowest(ctx.src('low'), ctx.i, ctx.inputs.period);
-    ctx.out.r.set(ctx.i, hh > ll ? (-100 * (hh - ctx.bar.c)) / (hh - ll) : Number.isNaN(hh) ? hh : -50);
+    ctx.out.r.set(
+      ctx.i,
+      hh > ll ? (-100 * (hh - ctx.bar.c)) / (hh - ll) : Number.isNaN(hh) ? hh : -50,
+    );
   },
 });
 
@@ -192,7 +217,10 @@ export const ROC = defineIndicator({
   description: 'Percentage change over n bars.',
   formula: 'ROC = 100 · (x − x[n]) / x[n]',
   zeroLine: true,
-  inputs: { period: input.int('Period', 10, { min: 1, max: 500 }), source: input.source('Source', 'close') },
+  inputs: {
+    period: input.int('Period', 10, { min: 1, max: 500 }),
+    source: input.source('Source', 'close'),
+  },
   outputs: { roc: output.line('ROC', HT.info, { unit: 'percent' }) },
   title: (p) => `ROC ${p.period}${srcLabel(p.source)}`,
   calc(ctx) {
@@ -212,12 +240,16 @@ export const Momentum = defineIndicator({
   description: 'Difference between the source and its value n bars ago.',
   formula: 'MOM = x − x[n]',
   zeroLine: true,
-  inputs: { period: input.int('Period', 10, { min: 1, max: 500 }), source: input.source('Source', 'close') },
+  inputs: {
+    period: input.int('Period', 10, { min: 1, max: 500 }),
+    source: input.source('Source', 'close'),
+  },
   outputs: { mom: output.line('Momentum', HT.info, { unit: 'price' }) },
   title: (p) => `MOM ${p.period}${srcLabel(p.source)}`,
   calc(ctx) {
     const s = ctx.src(ctx.inputs.source);
-    if (ctx.i >= ctx.inputs.period) ctx.out.mom.set(ctx.i, s[ctx.i]! - s[ctx.i - ctx.inputs.period]!);
+    if (ctx.i >= ctx.inputs.period)
+      ctx.out.mom.set(ctx.i, s[ctx.i]! - s[ctx.i - ctx.inputs.period]!);
   },
 });
 
@@ -229,7 +261,10 @@ export const Awesome = defineIndicator({
   description: 'SMA(5) − SMA(34) of the median price, coloured by change.',
   formula: 'AO = SMA(HL2, 5) − SMA(HL2, 34)',
   zeroLine: true,
-  inputs: { fast: input.int('Fast', 5, { min: 1, max: 200 }), slow: input.int('Slow', 34, { min: 2, max: 500 }) },
+  inputs: {
+    fast: input.int('Fast', 5, { min: 1, max: 200 }),
+    slow: input.int('Slow', 34, { min: 2, max: 500 }),
+  },
   outputs: { ao: output.histogram('AO', HT.up, { color2: HT.down, unit: 'price' }) },
   title: (p) => `AO ${p.fast} ${p.slow}`,
   calc(ctx) {
@@ -249,7 +284,10 @@ export const CMO = defineIndicator({
   formula: 'CMO = 100 · (ΣU − ΣD) / (ΣU + ΣD)',
   range: [-100, 100],
   zeroLine: true,
-  inputs: { period: input.int('Period', 14, { min: 1, max: 500 }), source: input.source('Source', 'close') },
+  inputs: {
+    period: input.int('Period', 14, { min: 1, max: 500 }),
+    source: input.source('Source', 'close'),
+  },
   outputs: { cmo: output.line('CMO', HT.info) },
   title: (p) => `CMO ${p.period}`,
   calc(ctx) {
@@ -275,7 +313,10 @@ export const TRIX = defineIndicator({
   description: 'Rate of change of a triple-smoothed EMA.',
   formula: 'TRIX = 100 · (E3 − E3₋₁) / E3₋₁, E3 = EMA(EMA(EMA(x)))',
   zeroLine: true,
-  inputs: { period: input.int('Period', 15, { min: 1, max: 500 }), source: input.source('Source', 'close') },
+  inputs: {
+    period: input.int('Period', 15, { min: 1, max: 500 }),
+    source: input.source('Source', 'close'),
+  },
   outputs: { trix: output.line('TRIX', HT.info, { unit: 'percent' }) },
   title: (p) => `TRIX ${p.period}`,
   calc(ctx) {
@@ -300,7 +341,10 @@ export const ZScore = defineIndicator({
   description: 'Distance of the source from its mean in standard deviations.',
   formula: 'Z = (x − SMA(n)) / σ(n)',
   zeroLine: true,
-  inputs: { period: input.int('Period', 20, { min: 2, max: 1000 }), source: input.source('Source', 'close') },
+  inputs: {
+    period: input.int('Period', 20, { min: 2, max: 1000 }),
+    source: input.source('Source', 'close'),
+  },
   outputs: { z: output.line('Z', HT.info) },
   guides: () => [-2, 2],
   title: (p) => `Z ${p.period}${srcLabel(p.source)}`,

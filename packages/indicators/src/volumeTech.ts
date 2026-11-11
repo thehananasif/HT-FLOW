@@ -51,7 +51,8 @@ export const MFI = defineIndicator({
   },
 });
 
-const mfm = (b: { h: number; l: number; c: number }) => (b.h > b.l ? (2 * b.c - b.l - b.h) / (b.h - b.l) : 0);
+const mfm = (b: { h: number; l: number; c: number }) =>
+  b.h > b.l ? (2 * b.c - b.l - b.h) / (b.h - b.l) : 0;
 
 export const CMF = defineIndicator({
   id: 'cmf',

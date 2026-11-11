@@ -1,5 +1,12 @@
 import type { ChartLayer, PointerHandler } from '@htflow/chart-engine';
-import { IndicatorScene, PaneSpacerLayer, tfClassOf, titleOf, type BarData, type Hotspot } from '@htflow/indicator-sdk';
+import {
+  IndicatorScene,
+  PaneSpacerLayer,
+  tfClassOf,
+  titleOf,
+  type BarData,
+  type Hotspot,
+} from '@htflow/indicator-sdk';
 import { indicatorById } from '@htflow/indicators';
 import { t } from '@htflow/i18n';
 import { Chip } from '@htflow/ui-kit';
@@ -21,7 +28,11 @@ function act(windowId: string, h: Hotspot): void {
       windowId,
       items.map((c) => (c.uid === h.uid ? { ...c, enabled: !c.enabled } : c)),
     );
-  else writeExt(windowId, items.filter((c) => c.uid !== h.uid));
+  else
+    writeExt(
+      windowId,
+      items.filter((c) => c.uid !== h.uid),
+    );
 }
 
 registerChartExtension({
@@ -70,7 +81,8 @@ registerChartExtension({
       },
       onUp(_v, x, y) {
         const h = scene.hit(x, y);
-        if (pressed && h && h.uid === pressed.uid && h.action === pressed.action) act(ctx.windowId, h);
+        if (pressed && h && h.uid === pressed.uid && h.action === pressed.action)
+          act(ctx.windowId, h);
         pressed = null;
       },
       cursor: (_v, x, y) => (scene.hit(x, y) ? 'pointer' : null),

@@ -20,7 +20,15 @@ function collect(...mods: Record<string, unknown>[]): AnyIndicator[] {
 }
 
 /** Every implemented indicator. */
-export const INDICATORS: AnyIndicator[] = collect(orderflow, ma, bands, osc, trend, volumeTech, levels);
+export const INDICATORS: AnyIndicator[] = collect(
+  orderflow,
+  ma,
+  bands,
+  osc,
+  trend,
+  volumeTech,
+  levels,
+);
 
 const byId = new Map(INDICATORS.map((d) => [d.id, d]));
 

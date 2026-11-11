@@ -105,7 +105,12 @@ export const CATALOG: CatalogEntry[] = [
   ]),
   ...rows('samples', undefined, [['Bar Timer'], ['Bar Numbering']]),
   ...rows('custom', undefined, [
-    ['Custom script (TypeScript .htind)', undefined, undefined, 'Code editor + hot reload (P13 custom indicators)'],
+    [
+      'Custom script (TypeScript .htind)',
+      undefined,
+      undefined,
+      'Code editor + hot reload (P13 custom indicators)',
+    ],
   ]),
   // ---------------------------------------------------------------- Technical
   ...rows('technical', 'Moving averages', [
@@ -337,7 +342,12 @@ export const CATALOG: CatalogEntry[] = [
         'Donchian',
         'VWAP',
       ] as const
-    ).map((n): Row => [`MTF ${n} (higher timeframe)`, undefined, undefined, 'Timeframe override not built yet']),
+    ).map((n): Row => [
+      `MTF ${n} (higher timeframe)`,
+      undefined,
+      undefined,
+      'Timeframe override not built yet',
+    ]),
   ]),
 ];
 

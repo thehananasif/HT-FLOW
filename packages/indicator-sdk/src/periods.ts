@@ -54,14 +54,7 @@ export function resetTimeframe(mode: ResetMode): TimeframeId {
 
 /** Chart timeframe classes for the Visibility tab. */
 export type TfClass =
-  | 'seconds'
-  | 'minutes'
-  | 'hours'
-  | 'days'
-  | 'tick'
-  | 'volume'
-  | 'delta'
-  | 'range';
+  'seconds' | 'minutes' | 'hours' | 'days' | 'tick' | 'volume' | 'delta' | 'range';
 
 export const TF_CLASSES: { value: TfClass; label: string }[] = [
   { value: 'seconds', label: 'Seconds' },

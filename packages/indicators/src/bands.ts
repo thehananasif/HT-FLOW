@@ -1,9 +1,26 @@
-import { HT, defineIndicator, ema, highest, input, lowest, output, rma, sma, stdev, trueRange } from '@htflow/indicator-sdk';
+import {
+  HT,
+  defineIndicator,
+  ema,
+  highest,
+  input,
+  lowest,
+  output,
+  rma,
+  sma,
+  stdev,
+  trueRange,
+} from '@htflow/indicator-sdk';
 import { srcLabel } from './common';
 
 const bbInputs = {
   period: input.int('Period', 20, { min: 2, max: 1000 }),
-  mult: input.float('StdDev multiplier', 2, { min: 0.1, max: 10, step: 0.1, help: 'Band width in population standard deviations.' }),
+  mult: input.float('StdDev multiplier', 2, {
+    min: 0.1,
+    max: 10,
+    step: 0.1,
+    help: 'Band width in population standard deviations.',
+  }),
   source: input.source('Source', 'close'),
 };
 
@@ -85,7 +102,10 @@ export const StdDev = defineIndicator({
   pane: 'new',
   description: 'Population standard deviation of the source.',
   formula: 'σ = √(Σ(x − mean)² / n)',
-  inputs: { period: input.int('Period', 20, { min: 2, max: 1000 }), source: input.source('Source', 'close') },
+  inputs: {
+    period: input.int('Period', 20, { min: 2, max: 1000 }),
+    source: input.source('Source', 'close'),
+  },
   outputs: { sd: output.line('StdDev', HT.soft, { unit: 'price' }) },
   title: (p) => `StdDev ${p.period}${srcLabel(p.source)}`,
   calc(ctx) {

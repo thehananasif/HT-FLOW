@@ -356,9 +356,11 @@ export interface IndicatorDefinition<
 /** Type-erased definition used by registries and hosts. */
 export type AnyIndicator = IndicatorDefinition<InputDefs, OutputDefs, unknown>;
 
-export function defineIndicator<const I extends InputDefs, const O extends OutputDefs, S = undefined>(
-  def: IndicatorDefinition<I, O, S>,
-): IndicatorDefinition<I, O, S> {
+export function defineIndicator<
+  const I extends InputDefs,
+  const O extends OutputDefs,
+  S = undefined,
+>(def: IndicatorDefinition<I, O, S>): IndicatorDefinition<I, O, S> {
   return def;
 }
 

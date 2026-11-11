@@ -23,7 +23,10 @@ export const ADX = defineIndicator({
   description: "Wilder's Directional Movement System.",
   formula: 'DI± = 100·RMA(DM±)/RMA(TR); DX = 100·|DI+ − DI−|/(DI+ + DI−); ADX = RMA(DX)',
   range: [0, 100],
-  inputs: { period: input.int('DI period', 14, { min: 1, max: 500 }), smooth: input.int('ADX smoothing', 14, { min: 1, max: 500 }) },
+  inputs: {
+    period: input.int('DI period', 14, { min: 1, max: 500 }),
+    smooth: input.int('ADX smoothing', 14, { min: 1, max: 500 }),
+  },
   outputs: {
     adx: output.line('ADX', HT.white),
     plus: output.line('DI+', HT.up),
@@ -57,7 +60,8 @@ export const ADX = defineIndicator({
     ctx.out.plus.set(i, dip);
     ctx.out.minus.set(i, dim);
     const dx = ctx.buf('dx');
-    dx[i] = dip + dim > 0 ? (100 * Math.abs(dip - dim)) / (dip + dim) : Number.isNaN(dip) ? NaN_ : 0;
+    dx[i] =
+      dip + dim > 0 ? (100 * Math.abs(dip - dim)) / (dip + dim) : Number.isNaN(dip) ? NaN_ : 0;
     const a = ctx.out.adx.v;
     a[i] = rma(a, dx, i, ctx.inputs.smooth);
   },
@@ -90,7 +94,8 @@ export const ParabolicSAR = defineIndicator({
   ...trend,
   pane: 'overlay',
   description: "Wilder's stop-and-reverse points.",
-  formula: 'SAR = SAR₋₁ + AF·(EP − SAR₋₁); AF += step on new extreme (max AF), reverse on penetration',
+  formula:
+    'SAR = SAR₋₁ + AF·(EP − SAR₋₁); AF += step on new extreme (max AF), reverse on penetration',
   inputs: {
     start: input.float('AF start', 0.02, { min: 0.001, max: 1, step: 0.01 }),
     step: input.float('AF step', 0.02, { min: 0.001, max: 1, step: 0.01 }),
@@ -205,7 +210,8 @@ export const Ichimoku = defineIndicator({
   ...trend,
   pane: 'overlay',
   description: 'Tenkan, Kijun, Senkou spans (cloud, shifted forward) and Chikou (shifted back).',
-  formula: 'Tenkan = (HH9+LL9)/2; Kijun = (HH26+LL26)/2; A = (T+K)/2 → +26; B = (HH52+LL52)/2 → +26; Chikou = C → −26',
+  formula:
+    'Tenkan = (HH9+LL9)/2; Kijun = (HH26+LL26)/2; A = (T+K)/2 → +26; B = (HH52+LL52)/2 → +26; Chikou = C → −26',
   inputs: {
     tenkan: input.int('Tenkan', 9, { min: 1, max: 200 }),
     kijun: input.int('Kijun', 26, { min: 1, max: 200 }),
@@ -306,7 +312,8 @@ export const ZigZag = defineIndicator({
     const pi = pI[i]!;
     const ei = eI[i]!;
     for (let k = pi; k <= i; k++)
-      v[k] = k <= ei ? (ei === pi ? pP[i]! : pP[i]! + ((eP[i]! - pP[i]!) * (k - pi)) / (ei - pi)) : NaN_;
+      v[k] =
+        k <= ei ? (ei === pi ? pP[i]! : pP[i]! + ((eP[i]! - pP[i]!) * (k - pi)) / (ei - pi)) : NaN_;
   },
 });
 
@@ -320,13 +327,16 @@ export const HeikinAshi = defineIndicator({
   description: 'Heikin-Ashi candles drawn over the price bars.',
   formula: 'C = OHLC4; O = (O₋₁ + C₋₁)/2; H = max(H, O, C); L = min(L, O, C)',
   inputs: {},
-  outputs: { ha: output.bars('Heikin-Ashi', HT.up, { color2: HT.down, opacity: 0.8, unit: 'price' }) },
+  outputs: {
+    ha: output.bars('Heikin-Ashi', HT.up, { color2: HT.down, opacity: 0.8, unit: 'price' }),
+  },
   calc(ctx) {
     const { i } = ctx;
     const b = ctx.bar;
     const c = (b.o + b.h + b.l + b.c) / 4;
     const s = ctx.out.ha;
-    const o = i > 0 && !Number.isNaN(s.v[i - 1]!) ? (s.v[i - 1]! + s.v4[i - 1]!) / 2 : (b.o + b.c) / 2;
+    const o =
+      i > 0 && !Number.isNaN(s.v[i - 1]!) ? (s.v[i - 1]! + s.v4[i - 1]!) / 2 : (b.o + b.c) / 2;
     s.setBar(i, o, Math.max(b.h, o, c), Math.min(b.l, o, c), c);
   },
 });

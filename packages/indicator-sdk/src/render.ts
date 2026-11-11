@@ -61,7 +61,8 @@ function dash(ctx: CanvasRenderingContext2D, s: OutputStyle): void {
   ctx.setLineDash(s.style === 'dashed' ? [6, 4] : s.style === 'dotted' ? [1.5, 3] : []);
 }
 
-const toneColor = (s: OutputStyle, t: number) => (t === 1 ? s.color2 : t === 2 ? s.color3 : s.color);
+const toneColor = (s: OutputStyle, t: number) =>
+  t === 1 ? s.color2 : t === 2 ? s.color3 : s.color;
 
 /** Draws every visible output of one indicator into `m.rect`. */
 export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
@@ -72,7 +73,9 @@ export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
   const sw = v.slotWidth;
   const bw = Math.max(1, Math.floor(sw * 0.6));
   const right = m.rect.x + m.rect.w;
-  const entries = Object.entries(it.def.outputs).sort((p, q) => ORDER[p[1].kind]! - ORDER[q[1].kind]!);
+  const entries = Object.entries(it.def.outputs).sort(
+    (p, q) => ORDER[p[1].kind]! - ORDER[q[1].kind]!,
+  );
   for (const [id, od] of entries) {
     const st = it.styles[id]!;
     if (!st.visible) continue;
@@ -360,7 +363,13 @@ function unitFor(it: RenderItem, od: OutputDef): ValueUnit {
   return u;
 }
 
-function drawEye(ctx: CanvasRenderingContext2D, x: number, y: number, on: boolean, col: string): void {
+function drawEye(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  on: boolean,
+  col: string,
+): void {
   ctx.save();
   ctx.strokeStyle = col;
   ctx.fillStyle = col;
@@ -492,7 +501,14 @@ export class IndicatorScene {
     ctx.fillStyle = on ? p.textSoft : p.textTertiary;
     ctx.fillText(it.title, cx, y);
     const tw = ctx.measureText(it.title).width;
-    this.hotspots.push({ x: cx - 2, y: y - 8, w: tw + 4, h: 16, uid: it.cfg.uid, action: 'settings' });
+    this.hotspots.push({
+      x: cx - 2,
+      y: y - 8,
+      w: tw + 4,
+      h: 16,
+      uid: it.cfg.uid,
+      action: 'settings',
+    });
     cx += tw + 8;
     if (on && it.rt.count > 0) {
       const c = v.crosshair;
@@ -557,7 +573,12 @@ class OverlayLayer implements ChartLayer {
       if (!st.priceTag || !st.visible) continue;
       const val = it.rt.valueAt(id, it.rt.count - 1);
       if (!Number.isNaN(val))
-        v.tags.push({ px: val, bg: st.color, fg: '#000', text: formatValue(val, unitFor(it, od), v.instrument) });
+        v.tags.push({
+          px: val,
+          bg: st.color,
+          fg: '#000',
+          text: formatValue(val, unitFor(it, od), v.instrument),
+        });
     }
   }
 }

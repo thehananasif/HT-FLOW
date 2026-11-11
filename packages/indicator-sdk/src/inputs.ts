@@ -38,10 +38,30 @@ interface Opts {
 /** Typed input builders: every input has a default, validation range and help text. */
 export const input = {
   int(label: string, def: number, o: NumOpts = {}): IntInput {
-    return { type: 'int', label, default: def, min: o.min ?? 1, max: o.max ?? 5000, step: o.step ?? 1, help: o.help, unit: o.unit, group: o.group };
+    return {
+      type: 'int',
+      label,
+      default: def,
+      min: o.min ?? 1,
+      max: o.max ?? 5000,
+      step: o.step ?? 1,
+      help: o.help,
+      unit: o.unit,
+      group: o.group,
+    };
   },
   float(label: string, def: number, o: NumOpts = {}): FloatInput {
-    return { type: 'float', label, default: def, min: o.min ?? 0, max: o.max ?? 1e9, step: o.step ?? 0.1, help: o.help, unit: o.unit, group: o.group };
+    return {
+      type: 'float',
+      label,
+      default: def,
+      min: o.min ?? 0,
+      max: o.max ?? 1e9,
+      step: o.step ?? 0.1,
+      help: o.help,
+      unit: o.unit,
+      group: o.group,
+    };
   },
   bool(label: string, def: boolean, o: Opts = {}): BoolInput {
     return { type: 'bool', label, default: def, ...o };
@@ -52,7 +72,13 @@ export const input = {
     options: readonly (readonly [T, string])[],
     o: Opts = {},
   ): EnumInput<T> {
-    return { type: 'enum', label, default: def, options: options.map(([value, l]) => ({ value, label: l })), ...o };
+    return {
+      type: 'enum',
+      label,
+      default: def,
+      options: options.map(([value, l]) => ({ value, label: l })),
+      ...o,
+    };
   },
   color(label: string, def: string, o: Opts = {}): ColorInput {
     return { type: 'color', label, default: def, ...o };
@@ -60,13 +86,28 @@ export const input = {
   lineStyle(label: string, def: LineStyle, o: Opts = {}): LineStyleInput {
     return { type: 'linestyle', label, default: def, ...o };
   },
-  source(label: string, def: SourceId, o: Opts & { sources?: readonly SourceId[] } = {}): SourceInput {
+  source(
+    label: string,
+    def: SourceId,
+    o: Opts & { sources?: readonly SourceId[] } = {},
+  ): SourceInput {
     return { type: 'source', label, default: def, ...o };
   },
   string(label: string, def: string, o: Opts & { maxLength?: number } = {}): StringInput {
-    return { type: 'string', label, default: def, maxLength: o.maxLength ?? 64, help: o.help, group: o.group };
+    return {
+      type: 'string',
+      label,
+      default: def,
+      maxLength: o.maxLength ?? 64,
+      help: o.help,
+      group: o.group,
+    };
   },
-  timeframe(label: string, def: TimeframeId, o: Opts & { options?: readonly TimeframeId[] } = {}): TimeframeInput {
+  timeframe(
+    label: string,
+    def: TimeframeId,
+    o: Opts & { options?: readonly TimeframeId[] } = {},
+  ): TimeframeInput {
     return { type: 'timeframe', label, default: def, ...o };
   },
 };
@@ -90,26 +131,35 @@ export function validateInput(def: InputDef, raw: unknown): InputValue {
     case 'bool':
       return typeof raw === 'boolean' ? raw : def.default;
     case 'enum':
-      return typeof raw === 'string' && def.options.some((o) => o.value === raw) ? raw : def.default;
+      return typeof raw === 'string' && def.options.some((o) => o.value === raw)
+        ? raw
+        : def.default;
     case 'color':
       return isColor(raw) ? raw : def.default;
     case 'linestyle':
       return raw === 'solid' || raw === 'dashed' || raw === 'dotted' ? raw : def.default;
     case 'source': {
       const allowed = def.sources ?? SOURCES.map((s) => s.value);
-      return typeof raw === 'string' && (allowed as readonly string[]).includes(raw) ? raw : def.default;
+      return typeof raw === 'string' && (allowed as readonly string[]).includes(raw)
+        ? raw
+        : def.default;
     }
     case 'string':
       return typeof raw === 'string' ? raw.slice(0, def.maxLength) : def.default;
     case 'timeframe': {
       const allowed = def.options ?? TIMEFRAMES.map((t) => t.value);
-      return typeof raw === 'string' && (allowed as readonly string[]).includes(raw) ? raw : def.default;
+      return typeof raw === 'string' && (allowed as readonly string[]).includes(raw)
+        ? raw
+        : def.default;
     }
   }
 }
 
 /** Fills defaults and validates every input (unknown keys are dropped). */
-export function resolveInputs<I extends InputDefs>(defs: I, raw: RawInputs | undefined): InputValues<I> {
+export function resolveInputs<I extends InputDefs>(
+  defs: I,
+  raw: RawInputs | undefined,
+): InputValues<I> {
   const out: Record<string, InputValue> = {};
   for (const [k, d] of Object.entries(defs)) out[k] = validateInput(d, raw?.[k]);
   return out as InputValues<I>;

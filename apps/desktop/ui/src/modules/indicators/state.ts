@@ -25,7 +25,9 @@ export function writeExt(windowId: string, items: IndicatorConfig[]): void {
   }
   const cur = useWindows.getState().windows[windowId];
   if (cur?.kind !== 'chart') return;
-  useWindows.getState().patch(windowId, { ext: { ...(cur.ext ?? {}), [EXT_ID]: value } } as Partial<WindowState>);
+  useWindows
+    .getState()
+    .patch(windowId, { ext: { ...(cur.ext ?? {}), [EXT_ID]: value } } as Partial<WindowState>);
 }
 
 interface DialogState {

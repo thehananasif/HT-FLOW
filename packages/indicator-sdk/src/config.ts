@@ -111,7 +111,10 @@ export function createConfig(def: AnyIndicator, uid = newUid()): IndicatorConfig
  * Validates saved extension data: unknown indicator types are dropped, inputs/styles are
  * resolved against their definitions, pane references to missing indicators become 'new'.
  */
-export function normalizeExt(raw: unknown, lookup: (id: string) => AnyIndicator | undefined): IndicatorsExt {
+export function normalizeExt(
+  raw: unknown,
+  lookup: (id: string) => AnyIndicator | undefined,
+): IndicatorsExt {
   if (!raw || typeof raw !== 'object') return { v: 1, items: [] };
   const items = (raw as { items?: unknown }).items;
   if (!Array.isArray(items)) return { v: 1, items: [] };

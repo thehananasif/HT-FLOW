@@ -48,7 +48,17 @@ describe('inputs', () => {
       ls: 'dashed',
       junk: 1,
     } as never);
-    expect(v).toEqual({ n: 10, f: 0, on: true, mode: 'a', col: '#FFFFFF', src: 'close', tf: 'W', s: 'abc', ls: 'dashed' });
+    expect(v).toEqual({
+      n: 10,
+      f: 0,
+      on: true,
+      mode: 'a',
+      col: '#FFFFFF',
+      src: 'close',
+      tf: 'W',
+      s: 'abc',
+      ls: 'dashed',
+    });
   });
 });
 
@@ -94,7 +104,13 @@ describe('config', () => {
     const ext = normalizeExt(
       {
         items: [
-          { uid: 'a', type: 'demo', inputs: { n: 5 }, styles: { v: { width: 99, color: 'bad' } }, height: 5 },
+          {
+            uid: 'a',
+            type: 'demo',
+            inputs: { n: 5 },
+            styles: { v: { width: 99, color: 'bad' } },
+            height: 5,
+          },
           { uid: 'b', type: 'nope' },
           { uid: 'c', type: 'demo', pane: 'a', scale: 'merged' },
           { uid: 'd', type: 'demo', pane: 'missing' },
