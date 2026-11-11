@@ -161,3 +161,39 @@ describe('PaperEngine', () => {
     );
   });
 });
+
+describe('PaperEngine account routing and tags', () => {
+  it('routes replay instruments to the replay account and tags orders, fills and brackets', () => {
+    const { eng } = setup();
+    eng.createAccount({ id: 'R', name: 'Replay', kind: 'replay' });
+    eng.setAccountRouter((_acc, inst) =>
+      inst.startsWith('replay:') ? { accountId: 'R', tag: 'replay' } : undefined,
+    );
+    const o = eng.place({
+      accountId: 'A',
+      instrumentId: 'replay:mock:CLZ6',
+      side: 'buy',
+      type: 'market',
+      qty: 1,
+      bracket: { slTicks: 10, tpTicks: [20] },
+    });
+    expect(o.accountId).toBe('R');
+    expect(o.tag).toBe('replay');
+    expect(eng.fills.every((f) => f.tag === 'replay' && f.accountId === 'R')).toBe(true);
+    expect(eng.position('A', 'replay:mock:CLZ6').qty).toBe(1);
+    expect(eng.allPositions('A')).toHaveLength(0);
+    const children = eng.workingOrders('A', 'replay:mock:CLZ6');
+    expect(children.map((c) => c.tag)).toEqual(['replay', 'replay']);
+    eng.flatten('A', 'replay:mock:CLZ6');
+    expect(eng.position('R', 'replay:mock:CLZ6').qty).toBe(0);
+    const live = eng.place({
+      accountId: 'A',
+      instrumentId: 'mock:CLZ6',
+      side: 'buy',
+      type: 'market',
+      qty: 1,
+    });
+    expect(live.accountId).toBe('A');
+    expect(live.tag).toBeUndefined();
+  });
+});

@@ -17,6 +17,7 @@
     "@htflow/heatmap": "workspace:*",
     "@htflow/i18n": "workspace:*",
     "@htflow/market-data": "workspace:*",
+    "@htflow/replay": "workspace:*",
     "@htflow/trading": "workspace:*",
     "@htflow/ui-kit": "workspace:*",
     "@htflow/workspace": "workspace:*",
