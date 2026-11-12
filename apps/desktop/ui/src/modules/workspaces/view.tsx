@@ -774,7 +774,8 @@ export function WorkspacesWindow({ state, setParams }: ModuleViewProps) {
 
   const renaming =
     dialog?.kind === 'rename' ? lib.items.find((w) => w.meta.id === dialog.id) : undefined;
-  const liveName = workspaceHost()?.snapshot().name ?? 'Workspace';
+  const liveName =
+    dialog?.kind === 'save-as' ? (workspaceHost()?.snapshot().name ?? 'Workspace') : '';
 
   return (
     <div className="wsm-win" data-testid="workspaces-window">
