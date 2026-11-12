@@ -18,6 +18,10 @@ export interface Provider {
   gateway?: boolean;
   /** Rust venue id when a live connector exists. */
   venue?: string;
+  /** Symbol used by the wizard's connection test (instrument metadata over REST). */
+  testSymbol?: string;
+  /** Market description shown in the Connections list ("USDⓈ-M", "Linear perps", …). */
+  market?: string;
   /** Built-in simulator (always available). */
   simulator?: 'mock' | 'crypto';
   /** Short description shown at the top of the form. */
@@ -50,16 +54,21 @@ const FUT: Capability[] = ['Trades', 'L2 depth', 'Trading'];
 const FUT_MBO: Capability[] = ['Trades', 'L2 depth', 'MBO', 'Trading'];
 const NEEDS_SDK = 'Requires the vendor SDK / API licence (see docs/BLOCKERS.md)';
 
-const crypto = (id: string, name: string, caps: Capability[], venue?: string): Provider => ({
+const crypto = (
+  id: string,
+  name: string,
+  caps: Capability[],
+  live?: { venue: string; testSymbol: string; market: string },
+): Provider => ({
   id,
   name,
   group: 'Crypto',
   tag: 'FREE',
   caps,
   form: 'crypto',
-  venue,
+  ...live,
   blurb: 'Free public market data — no API key needed. Add a key only to trade.',
-  blocked: venue ? undefined : 'Connector planned (P05) — not implemented yet',
+  blocked: live ? undefined : 'Connector planned (P05) — not implemented yet',
 });
 
 const PERP: Capability[] = ['Trades', 'L2 depth', 'Funding', 'Liquidations', 'OI'];
@@ -92,17 +101,62 @@ export const PROVIDERS: Provider[] = [
   broker('ttp-dxfeed', 'TheTradingPit dxFeed', 'Prop connections', FUT, NEEDS_SDK),
   broker('prop-rithmic', 'Prop firm · Rithmic', 'Prop connections', FUT_MBO, NEEDS_SDK),
   broker('prop-tradovate', 'Prop firm · Tradovate', 'Prop connections', FUT, NEEDS_SDK),
-  crypto('binance', 'Binance', ['Trades', 'L2 depth']),
-  crypto('binance-futures', 'Binance Futures', PERP, 'binance-futures'),
-  crypto('bitfinex', 'Bitfinex', ['Trades', 'L2 depth']),
-  crypto('bitget', 'Bitget', PERP),
+  crypto('binance', 'Binance', ['Trades', 'L2 depth'], {
+    venue: 'binance-spot',
+    testSymbol: 'BTCUSDT',
+    market: 'Spot',
+  }),
+  crypto('binance-futures', 'Binance Futures', PERP, {
+    venue: 'binance-futures',
+    testSymbol: 'BTCUSDT',
+    market: 'USDⓈ-M',
+  }),
+  crypto('binance-coinm', 'Binance COIN-M', PERP, {
+    venue: 'binance-coinm',
+    testSymbol: 'BTCUSD_PERP',
+    market: 'COIN-M',
+  }),
+  crypto('bitfinex', 'Bitfinex', PERP, {
+    venue: 'bitfinex',
+    testSymbol: 'tBTCF0:USTF0',
+    market: 'Perpetuals and spot',
+  }),
+  crypto('bitget', 'Bitget', PERP, {
+    venue: 'bitget',
+    testSymbol: 'BTCUSDT',
+    market: 'USDT-M futures',
+  }),
   crypto('bitmex', 'BitMEX', PERP),
-  crypto('bybit', 'Bybit', ['Trades', 'L2 depth'], 'bybit-linear'),
-  crypto('deribit', 'Deribit', ['Trades', 'L2 depth', 'OI']),
-  crypto('kraken', 'Kraken', ['Trades', 'L2 depth']),
-  crypto('okx', 'OKX', PERP),
-  crypto('phemex', 'Phemex', ['Trades', 'L2 depth']),
-  crypto('whitebit', 'Whitebit', ['Trades', 'L2 depth']),
+  crypto('bybit', 'Bybit', ['Trades', 'L2 depth'], {
+    venue: 'bybit-linear',
+    testSymbol: 'BTCUSDT',
+    market: 'Linear perps',
+  }),
+  crypto('deribit', 'Deribit', ['Trades', 'L2 depth', 'Funding', 'Liquidations', 'OI'], {
+    venue: 'deribit',
+    testSymbol: 'BTC-PERPETUAL',
+    market: 'Perpetuals, futures, options chain',
+  }),
+  crypto('kraken', 'Kraken', PERP, {
+    venue: 'kraken-futures',
+    testSymbol: 'PF_XBTUSD',
+    market: 'Futures (flexible perpetuals)',
+  }),
+  crypto('okx', 'OKX', PERP, {
+    venue: 'okx-swap',
+    testSymbol: 'BTC-USDT-SWAP',
+    market: 'Perpetual swaps',
+  }),
+  crypto('phemex', 'Phemex', ['Trades', 'L2 depth', 'Funding', 'OI'], {
+    venue: 'phemex',
+    testSymbol: 'BTCUSDT',
+    market: 'USDT perpetuals (hedged)',
+  }),
+  crypto('whitebit', 'Whitebit', ['Trades', 'L2 depth', 'Funding', 'OI'], {
+    venue: 'whitebit',
+    testSymbol: 'BTC_PERP',
+    market: 'Perpetuals and spot',
+  }),
   {
     id: 'ht-sim',
     name: 'HT Sim (15-min delayed)',

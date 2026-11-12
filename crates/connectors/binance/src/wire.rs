@@ -37,8 +37,9 @@ pub struct DepthUpdateWire {
     pub first_id: u64,
     #[serde(rename = "u")]
     pub final_id: u64,
-    #[serde(rename = "pu")]
-    pub prev_final_id: u64,
+    /// Futures only (spot streams have no `pu`).
+    #[serde(rename = "pu", default)]
+    pub prev_final_id: Option<u64>,
     #[serde(rename = "b")]
     pub bids: Vec<[String; 2]>,
     #[serde(rename = "a")]
@@ -78,4 +79,54 @@ pub struct SymbolInfo {
     pub symbol: String,
     #[serde(default)]
     pub filters: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MarkPrice<'a> {
+    #[serde(rename = "E")]
+    pub event_ms: i64,
+    #[serde(rename = "p")]
+    pub mark: &'a str,
+    /// Funding rate (empty on delivery contracts).
+    #[serde(rename = "r", default)]
+    pub rate: &'a str,
+    /// Next funding time (ms).
+    #[serde(rename = "T", default)]
+    pub next_ms: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ForceOrder<'a> {
+    #[serde(rename = "o", borrow)]
+    pub order: ForceOrderBody<'a>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ForceOrderBody<'a> {
+    #[serde(rename = "S")]
+    pub side: &'a str,
+    #[serde(rename = "p")]
+    pub price: &'a str,
+    #[serde(rename = "ap", default)]
+    pub avg_price: &'a str,
+    #[serde(rename = "q")]
+    pub qty: &'a str,
+    #[serde(rename = "z", default)]
+    pub filled: &'a str,
+    #[serde(rename = "T")]
+    pub trade_ms: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenInterest {
+    #[serde(rename = "openInterest")]
+    pub open_interest: String,
+    #[serde(default)]
+    pub time: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ServerTime {
+    #[serde(rename = "serverTime")]
+    pub server_time: i64,
 }

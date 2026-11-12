@@ -26,6 +26,7 @@
     "@htflow/market-data": "workspace:*",
     "@htflow/options": "workspace:*",
     "@htflow/replay": "workspace:*",
+    "@htflow/strategy": "workspace:*",
     "@htflow/tape": "workspace:*",
     "@htflow/trading": "workspace:*",
     "@htflow/ui-kit": "workspace:*",

@@ -975,7 +975,7 @@ export const SCHEMA = {
     max: 95,
     step: 1,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'common.vaLevelsAtTime': num({
     section: 'common',
@@ -1031,7 +1031,7 @@ export const SCHEMA = {
     min: 1000,
     max: 1_000_000,
     step: 1000,
-    wired: false,
+    wired: true,
   }),
   'common.defaultLoadDays': num({
     section: 'common',
@@ -1345,7 +1345,7 @@ export const SCHEMA = {
       { value: 'area', label: 'Area' },
     ],
     keywords: 'candlestick bars heikin line area style',
-    wired: false,
+    wired: true,
   }),
   'chart.defaultTimeframe': oneOf({
     section: 'chart',
@@ -1377,7 +1377,7 @@ export const SCHEMA = {
     max: 80,
     step: 1,
     unit: 'px',
-    wired: false,
+    wired: true,
   }),
   'chart.rightMarginBars': num({
     section: 'chart',
@@ -1389,7 +1389,7 @@ export const SCHEMA = {
     max: 100,
     step: 1,
     unit: 'bars',
-    wired: false,
+    wired: true,
   }),
   'chart.candleUp': color({
     section: 'chart',
@@ -1397,7 +1397,7 @@ export const SCHEMA = {
     label: 'Up candle body',
     help: 'Body colour of rising candles. Empty follows the theme "up" colour.',
     keywords: 'colour color bullish green',
-    wired: false,
+    wired: true,
   }),
   'chart.candleDown': color({
     section: 'chart',
@@ -1405,7 +1405,7 @@ export const SCHEMA = {
     label: 'Down candle body',
     help: 'Body colour of falling candles. Empty follows the theme "down" colour.',
     keywords: 'colour color bearish red',
-    wired: false,
+    wired: true,
   }),
   'chart.wickUp': color({
     section: 'chart',
@@ -1445,28 +1445,28 @@ export const SCHEMA = {
       { value: 'solid', label: 'Solid' },
       { value: 'gradient', label: 'Gradient' },
     ],
-    wired: false,
+    wired: true,
   }),
   'chart.bgColor': color({
     section: 'chart',
     group: 'Background',
     label: 'Background colour',
     help: 'Solid background. Empty follows the theme chart background.',
-    wired: false,
+    wired: true,
   }),
   'chart.bgGradientTop': color({
     section: 'chart',
     group: 'Background',
     label: 'Gradient top',
     help: 'Top colour when the background is a gradient.',
-    wired: false,
+    wired: true,
   }),
   'chart.bgGradientBottom': color({
     section: 'chart',
     group: 'Background',
     label: 'Gradient bottom',
     help: 'Bottom colour when the background is a gradient.',
-    wired: false,
+    wired: true,
   }),
   'chart.gridVisible': bool({
     section: 'chart',
@@ -1474,7 +1474,7 @@ export const SCHEMA = {
     label: 'Show grid',
     help: 'Draw the horizontal and vertical grid lines.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.gridStyle': oneOf({
     section: 'chart',
@@ -1487,14 +1487,14 @@ export const SCHEMA = {
       { value: 'dashed', label: 'Dashed' },
       { value: 'dotted', label: 'Dotted' },
     ],
-    wired: false,
+    wired: true,
   }),
   'chart.gridColor': color({
     section: 'chart',
     group: 'Grid',
     label: 'Grid colour',
     help: 'Empty follows the theme divider colour.',
-    wired: false,
+    wired: true,
   }),
   'chart.gridOpacity': num({
     section: 'chart',
@@ -1506,7 +1506,7 @@ export const SCHEMA = {
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'chart.axisSide': oneOf({
     section: 'chart',
@@ -1518,7 +1518,7 @@ export const SCHEMA = {
       { value: 'right', label: 'Right' },
       { value: 'left', label: 'Left' },
     ],
-    wired: false,
+    wired: true,
   }),
   'chart.priceScaleMode': oneOf({
     section: 'chart',
@@ -1531,7 +1531,7 @@ export const SCHEMA = {
       { value: 'log', label: 'Logarithmic' },
       { value: 'percent', label: 'Percentage' },
     ],
-    wired: false,
+    wired: true,
   }),
   'chart.autoScale': bool({
     section: 'chart',
@@ -1539,7 +1539,7 @@ export const SCHEMA = {
     label: 'Auto-scale price axis',
     help: 'Fit the price axis to the visible bars.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.scaleMarginPct': num({
     section: 'chart',
@@ -1551,7 +1551,7 @@ export const SCHEMA = {
     max: 40,
     step: 1,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'chart.lastPriceLine': bool({
     section: 'chart',
@@ -1559,7 +1559,7 @@ export const SCHEMA = {
     label: 'Last price line and label',
     help: 'Draw a line and an axis label at the last traded price.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.sessionBreaks': bool({
     section: 'chart',
@@ -1567,7 +1567,7 @@ export const SCHEMA = {
     label: 'Session separators',
     help: 'Draw a vertical line where a trading session starts.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.crosshairStyle': oneOf({
     section: 'chart',
@@ -1581,14 +1581,14 @@ export const SCHEMA = {
       { value: 'dotted', label: 'Dotted lines' },
       { value: 'dot', label: 'Dot only' },
     ],
-    wired: false,
+    wired: true,
   }),
   'chart.crosshairColor': color({
     section: 'chart',
     group: 'Crosshair',
     label: 'Crosshair colour',
     help: 'Empty follows the theme text colour.',
-    wired: false,
+    wired: true,
   }),
   'chart.crosshairLabels': bool({
     section: 'chart',
@@ -1617,7 +1617,7 @@ export const SCHEMA = {
     label: 'Show legend',
     help: 'Symbol, timeframe and OHLC values in the top-left corner.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.statusLine': bool({
     section: 'chart',
@@ -1633,7 +1633,7 @@ export const SCHEMA = {
     label: 'Show symbol watermark',
     help: 'Large faint symbol name behind the bars.',
     default: false,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Footprint (P27)
@@ -1711,7 +1711,7 @@ export const SCHEMA = {
     step: 10,
     unit: '%',
     keywords: 'diagonal imbalance ratio',
-    wired: false,
+    wired: true,
   }),
   'footprint.imbalanceMinVolume': num({
     section: 'footprint',
@@ -1722,7 +1722,7 @@ export const SCHEMA = {
     min: 0,
     max: 100_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'footprint.stackedImbalance': num({
     section: 'footprint',
@@ -1733,21 +1733,21 @@ export const SCHEMA = {
     min: 2,
     max: 10,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'footprint.imbalanceBuyColor': color({
     section: 'footprint',
     group: 'Imbalance',
     label: 'Buy imbalance colour',
     help: 'Empty follows the theme "up" colour.',
-    wired: false,
+    wired: true,
   }),
   'footprint.imbalanceSellColor': color({
     section: 'footprint',
     group: 'Imbalance',
     label: 'Sell imbalance colour',
     help: 'Empty follows the theme "down" colour.',
-    wired: false,
+    wired: true,
   }),
   'footprint.showPoc': bool({
     section: 'footprint',
@@ -1755,14 +1755,14 @@ export const SCHEMA = {
     label: 'Mark the point of control',
     help: 'Highlight the highest-volume price of every bar.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'footprint.pocColor': color({
     section: 'footprint',
     group: 'Profile marks',
     label: 'POC colour',
     help: 'Empty follows the theme warning colour.',
-    wired: false,
+    wired: true,
   }),
   'footprint.showValueArea': bool({
     section: 'footprint',

@@ -1,14 +1,39 @@
-import { BarSeries, specKey, type BarSpec } from './aggregator';
+import {
+  BarSeries,
+  inferCapabilities,
+  specKey,
+  type BarSpec,
+  type FeedCapabilities,
+  type SessionRules,
+  type SessionSel,
+} from './aggregator';
 import { OrderBook } from './orderBook';
 import type {
   DepthColumn,
   EventBatch,
   FeedSource,
   FeedStatus,
+  FundingStat,
   HistoryData,
   Instrument,
+  LiquidationStat,
+  MarketStat,
+  OpenInterestStat,
   Trade,
 } from './types';
+
+/** Resolves RTH / ETH / custom session rules for an instrument (the app wires the market catalog). */
+export type SessionResolver = (instrument: Instrument, sel: SessionSel) => SessionRules | null;
+let sessionResolver: SessionResolver = () => null;
+
+/** Installs the session resolver used by every MarketStore.getSeries (P07 sessions). */
+export function setSessionResolver(fn: SessionResolver): void {
+  sessionResolver = fn;
+}
+
+export function resolveSession(instrument: Instrument, sel: SessionSel | undefined) {
+  return sel && sel !== '24h' ? sessionResolver(instrument, sel) : null;
+}
 
 export interface MarketStoreOptions {
   depthIntervalMs?: number;
@@ -33,9 +58,22 @@ export class MarketStore {
   /** Time of the first live event (history/live seam). */
   liveFrom = Number.NaN;
   lastTs = 0;
+  /** Set by the hub when the feed can load older history (lazy left-scroll loading). */
+  olderLoader: ((before: number, spanMs: number, anchorPx?: number) => Promise<Trade[]>) | null =
+    null;
+  loadingOlder = false;
+  /** True once the feed returned no older data. */
+  historyExhausted = false;
   private series = new Map<string, BarSeries>();
   private listeners = new Set<() => void>();
   private tradeListeners = new Set<(trades: Trade[]) => void>();
+  /** Latest funding / open interest, recent liquidations (live derivatives venues only). */
+  funding: FundingStat | null = null;
+  openInterest: OpenInterestStat | null = null;
+  liquidations: LiquidationStat[] = [];
+  private fundingListeners = new Set<(f: FundingStat) => void>();
+  private oiListeners = new Set<(o: OpenInterestStat) => void>();
+  private liqListeners = new Set<(l: LiquidationStat[]) => void>();
   private lastDepthT = 0;
   private readonly opts: Required<MarketStoreOptions>;
 
@@ -62,7 +100,7 @@ export class MarketStore {
     this.lastDepthT = this.depth.length ? this.depth[this.depth.length - 1]!.t : h.end;
     this.lastTs = h.end;
     for (const s of this.series.values()) {
-      s.bars.length = 0;
+      s.clear();
       s.addAll(this.trades);
     }
     this.ready = true;
@@ -81,6 +119,7 @@ export class MarketStore {
         this.trades = this.trades.slice(Math.floor(this.opts.maxTrades * 0.1));
       }
     }
+    if (batch.stats?.length) this.ingestStats(batch.stats);
     this.lastTs = batch.ts;
     if (
       batch.ts - this.lastDepthT >= this.opts.depthIntervalMs &&
@@ -95,6 +134,81 @@ export class MarketStore {
     this.bump();
   }
 
+  /** Asks the feed for spanMs of trades before the first loaded one; resolves to the count added. */
+  async loadOlder(spanMs = 3_600_000): Promise<number> {
+    if (!this.olderLoader || this.loadingOlder || this.historyExhausted || !this.ready) return 0;
+    const first = this.trades[0];
+    const before = first ? first.ts : this.lastTs;
+    this.loadingOlder = true;
+    this.bump();
+    try {
+      const older = await this.olderLoader(before, spanMs, first?.px);
+      const n = this.prependTrades(older);
+      if (n === 0) this.historyExhausted = true;
+      return n;
+    } finally {
+      this.loadingOlder = false;
+      this.bump();
+    }
+  }
+
+  /** Prepends trades older than the first loaded trade and rebuilds every bar series. */
+  prependTrades(older: readonly Trade[]): number {
+    const first = this.trades[0]?.ts ?? Infinity;
+    const add = older.filter((t) => t.ts < first);
+    if (!add.length) return 0;
+    add.sort((a, b) => a.ts - b.ts);
+    this.trades = add.concat(this.trades);
+    this.rebuildSeries();
+    return add.length;
+  }
+
+  /** Rebuilds all shared bar series from the trade list ("Reload all historical data"). */
+  rebuildSeries(): void {
+    for (const s of this.series.values()) {
+      s.bars.length = 0;
+      s.addAll(this.trades);
+    }
+    this.bump();
+  }
+
+  private ingestStats(stats: MarketStat[]): void {
+    const liq: LiquidationStat[] = [];
+    for (const s of stats) {
+      if (s.kind === 'funding') {
+        this.funding = s;
+        for (const l of this.fundingListeners) l(s);
+      } else if (s.kind === 'open_interest') {
+        this.openInterest = s;
+        for (const l of this.oiListeners) l(s);
+      } else liq.push(s);
+    }
+    if (liq.length) {
+      this.liquidations.push(...liq);
+      if (this.liquidations.length > 5000)
+        this.liquidations.splice(0, this.liquidations.length - 5000);
+      for (const l of this.liqListeners) l(liq);
+    }
+  }
+
+  /** Funding rate updates (live perpetuals). */
+  onFunding(fn: (f: FundingStat) => void): () => void {
+    this.fundingListeners.add(fn);
+    return () => this.fundingListeners.delete(fn);
+  }
+
+  /** Open interest updates (live futures / perpetuals). */
+  onOpenInterest(fn: (o: OpenInterestStat) => void): () => void {
+    this.oiListeners.add(fn);
+    return () => this.oiListeners.delete(fn);
+  }
+
+  /** Liquidations as they arrive. */
+  onLiquidation(fn: (l: LiquidationStat[]) => void): () => void {
+    this.liqListeners.add(fn);
+    return () => this.liqListeners.delete(fn);
+  }
+
   setStatus(s: FeedStatus): void {
     this.status = s;
     this.bump();
@@ -105,11 +219,19 @@ export class MarketStore {
     const key = specKey(spec);
     let s = this.series.get(key);
     if (!s) {
-      s = BarSeries.build(spec, this.trades);
+      s = BarSeries.build(spec, this.trades, resolveSession(this.instrument, spec.session));
       this.series.set(key, s);
     }
     return s;
   }
+
+  /** What the feed supplies (declared by the feed, else inferred from the trades). */
+  get capabilities(): FeedCapabilities {
+    return this.declaredCapabilities ?? inferCapabilities(this.trades);
+  }
+
+  /** Set by the hub from FeedSource.capabilities when the feed declares them. */
+  declaredCapabilities: FeedCapabilities | null = null;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -199,10 +321,13 @@ export class MarketHub {
     if (e) return e.store;
     const feed = this.factory(instrumentId);
     const store = new MarketStore(feed.instrument);
+    store.declaredCapabilities = feed.capabilities ?? null;
     const u1 = feed.subscribe((b) => {
       if (store.ready) store.ingest(b);
     });
     const u2 = feed.onStatus((s) => store.setStatus(s));
+    if (feed.historyBefore)
+      store.olderLoader = (before, span, anchor) => feed.historyBefore!(before, span, anchor);
     this.entries.set(instrumentId, {
       store,
       feed,

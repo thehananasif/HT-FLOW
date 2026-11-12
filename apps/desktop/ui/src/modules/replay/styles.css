@@ -228,3 +228,21 @@
 .rp-speeds button {
   font-variant-numeric: tabular-nums;
 }
+
+.rp-evt {
+  position: absolute;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3px;
+  transform: rotate(45deg);
+  background: var(--ht-text-tertiary);
+  cursor: pointer;
+  z-index: 2;
+}
+.rp-evt--medium {
+  background: var(--ht-warning);
+}
+.rp-evt--high {
+  background: var(--ht-down);
+}

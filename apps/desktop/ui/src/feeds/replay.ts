@@ -41,6 +41,8 @@ export interface ReplayConfig {
   layers: ReplayLayers & { hideFuture: boolean };
   /** Data source id ('tick-store', 'simulated', 'memory'); default: first that covers. */
   source?: string;
+  /** Replay template this session was started from: its bookmarks and loop are saved back to it. */
+  templateId?: string;
 }
 
 export interface ReplaySession {
@@ -147,6 +149,17 @@ export async function startReplay(
   scheduler.start();
   notify();
   return session;
+}
+
+/** "Hide future bars": on = nothing after the clock is drawn, off = future bars show as ghosts. */
+export function hideFuture(): boolean {
+  return session?.config.layers.hideFuture ?? true;
+}
+
+export function setHideFuture(on: boolean): void {
+  if (!session || session.config.layers.hideFuture === on) return;
+  session.config = { ...session.config, layers: { ...session.config.layers, hideFuture: on } };
+  notify();
 }
 
 export function stopReplay(): void {
@@ -281,6 +294,8 @@ if (!paper.accounts.has(REPLAY_ACCOUNT)) {
     commissionPerUnit: 0,
   });
 }
+// Orders and fills on replay instruments are stamped with the replay clock, not wall time.
+paper.setClock((id) => (isReplayId(id) ? replayEngine(id)?.time : undefined));
 // Orders on replay instruments always trade the replay account and are tagged #replay.
 paper.setAccountRouter((_acc, instrumentId) =>
   isReplayId(instrumentId) ? { accountId: REPLAY_ACCOUNT, tag: 'replay' } : undefined,

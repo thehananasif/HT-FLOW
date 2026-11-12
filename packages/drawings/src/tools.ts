@@ -1,4 +1,5 @@
 import type { VolumeProfile } from '@htflow/market-data';
+import { cvdCorrelation, zigzag } from './swing';
 import { angleDeg, dist, extendSegment, rectPts } from './geometry';
 import {
   DEFAULT_STYLE,
@@ -53,6 +54,8 @@ export interface ToolDef {
   note?: string;
   /** Anchors are plot fractions (screen-fixed), not time/price. */
   screen?: boolean;
+  /** Not a drawing: activating it runs an action (magnifier, remove indicators). */
+  command?: boolean;
   defaults?: DrawingDefaults;
   /** Completes anchors after placement (e.g. positions add target/stop). */
   init?(d: Drawing, P: Proj): void;
@@ -267,12 +270,20 @@ function profileShapes(
   return out;
 }
 
-function profileOf(d: Drawing, P: Proj, i0: number, i1: number, lo?: number, hi?: number) {
+function profileOf(
+  d: Drawing,
+  P: Proj,
+  i0: number,
+  i1: number,
+  lo?: number,
+  hi?: number,
+  cacheId = d.id,
+) {
   const bars = P.bars!;
   const mode = prop<string>(d, 'mode', 'volume');
   const va = prop(d, 'va', 70) / 100;
   const key = `${i0}|${i1}|${lo}|${hi}|${mode}|${va}|${bars.length}`;
-  return cached(d.id, key, P.barsVersion, () =>
+  return cached(cacheId, key, P.barsVersion, () =>
     mode === 'tpo'
       ? tpoProfile(bars, i0, i1, prop(d, 'tpoMin', 30) * 60_000, va, lo, hi)
       : rangeProfile(bars, i0, i1, va, lo, hi),
@@ -885,24 +896,6 @@ const pricesAndTimes = (d: Drawing) => ({
 const pricesOnly = (d: Drawing) => ({ px: d.anchors.map((a) => a.px), t: [] });
 const timesOnly = (d: Drawing) => ({ px: [], t: d.anchors.map((a) => a.t) });
 
-const PENDING = (
-  id: ToolId,
-  label: string,
-  group: ToolGroup,
-  note: string,
-  shortcut?: string,
-): ToolDef => ({
-  id,
-  label,
-  group,
-  shortcut,
-  mode: 'click',
-  n: 1,
-  ready: false,
-  note,
-  build: () => [],
-});
-
 const markerTool = (id: ToolId, label: string, shortcut?: string, color = '#4FA3F7'): ToolDef => ({
   id,
   label,
@@ -1355,7 +1348,10 @@ export const TOOLS: ToolDef[] = [
       const n = i1 - i0;
       const out: Shape[] = [];
       const lines: number[][] = [];
-      for (const f of [k, 0, -k]) {
+      const k2 = prop(d, 'sigma2', 0);
+      const inner = k2 > 0 && k2 < k ? [k2, -k2] : [];
+      const fs = [k, ...inner.slice(0, 1), 0, ...inner.slice(1), -k];
+      for (const f of fs) {
         const seg = extendSegment(
           xs,
           P.y(r.a + f * r.sd),
@@ -1367,10 +1363,21 @@ export const TOOLS: ToolDef[] = [
         );
         if (!seg) continue;
         lines.push(seg);
-        out.push(path(d, [...seg], f === 0 ? { dash: 'dashed' } : {}));
+        out.push(
+          path(
+            d,
+            [...seg],
+            f === 0
+              ? { dash: 'dashed' }
+              : Math.abs(f) < k
+                ? { dash: 'dotted', alpha: d.style.opacity * 0.7 }
+                : {},
+          ),
+        );
       }
-      if (d.style.fill && lines.length === 3) {
-        const [u, , l] = lines as [number[], number[], number[]];
+      if (d.style.fill && lines.length === fs.length) {
+        const u = lines[0]!;
+        const l = lines[lines.length - 1]!;
         out.unshift({
           k: 'path',
           pts: [u[0]!, u[1]!, u[2]!, u[3]!, l[2]!, l[3]!, l[0]!, l[1]!],
@@ -1537,12 +1544,83 @@ export const TOOLS: ToolDef[] = [
     handles: (d, P) => [{ x: P.x(d.anchors[0]!.t), y: P.y(d.anchors[0]!.px), key: 0 }],
     labels: timesOnly,
   },
-  PENDING(
-    'zigzag-vp',
-    'ZigZag Volume Profile & TPO',
-    'volume',
-    'Pending: needs the ZigZag swing detector (indicators phase)',
-  ),
+  {
+    id: 'zigzag-vp',
+    label: 'ZigZag Volume Profile & TPO',
+    group: 'volume',
+    mode: 'two',
+    n: 2,
+    ready: true,
+    note: 'ZigZag swings between two times, with a volume profile for every leg',
+    defaults: {
+      style: { color: '#8C8C8C' },
+      props: {
+        va: 70,
+        mode: 'volume',
+        width: 80,
+        reversal: 20,
+        showZigzag: true,
+        legLabels: false,
+      },
+    },
+    build: (d, P) => {
+      const [a, b] = d.anchors as [Anchor, Anchor];
+      const x0 = P.x(Math.min(a.t, b.t));
+      if (!P.bars) return [noData(P, x0 + 4, P.y(a.px))];
+      const bars = P.bars;
+      const { i0, i1 } = barRange(bars, a.t, b.t);
+      const rev = Math.max(1, prop(d, 'reversal', 20));
+      const swings = cached(d.id + ':zz', `${i0}|${i1}|${rev}|${bars.length}`, P.barsVersion, () =>
+        zigzag(bars, i0, i1, rev),
+      );
+      const out: Shape[] = [];
+      if (swings.length < 2) {
+        out.push(
+          path(d, [x0, P.y(a.px), P.x(Math.max(a.t, b.t)), P.y(a.px)], { dash: 'dashed' }),
+          text(x0 + 4, P.y(a.px) - 8, 'No swings: lower the reversal', P.colors.textSecondary, {
+            size: 10,
+            hit: false,
+          }),
+        );
+        return out;
+      }
+      if (prop(d, 'showZigzag', true))
+        out.push(
+          path(
+            d,
+            swings.flatMap((s) => [P.xOfSlot(s.i), P.y(s.px)]),
+            { width: Math.max(1, d.style.width), alpha: d.style.opacity },
+          ),
+        );
+      for (let k = 0; k + 1 < swings.length; k++) {
+        const s0 = swings[k]!;
+        const s1 = swings[k + 1]!;
+        const lo = Math.min(s0.px, s1.px);
+        const hi = Math.max(s0.px, s1.px);
+        const prof = profileOf(d, P, s0.i, s1.i, lo, hi, `${d.id}:${k}`);
+        if (!(prof.total > 0)) continue;
+        const xa = P.xOfSlot(s0.i);
+        const xb = P.xOfSlot(s1.i);
+        out.push(...profileShapes(d, P, prof, xa, ((xb - xa) * prop(d, 'width', 80)) / 100, false));
+        if (prop(d, 'legLabels', false))
+          out.push(
+            text(
+              xb,
+              P.y(s1.px) + (s1.dir === 1 ? -8 : 8),
+              `${Math.round(Math.abs(s1.px - s0.px))}t`,
+              d.style.color,
+              {
+                size: 10,
+                align: 'center',
+                hit: false,
+              },
+            ),
+          );
+      }
+      return out;
+    },
+    labels: () => ({ px: [], t: [] }),
+  },
   {
     id: 'anchored-vwap',
     label: 'Anchored VWAP',
@@ -1623,12 +1701,91 @@ export const TOOLS: ToolDef[] = [
     handles: (d, P) => [{ x: P.x(d.anchors[0]!.t), y: P.y(d.anchors[0]!.px), key: 0 }],
     labels: () => ({ px: [], t: [] }),
   },
-  PENDING(
-    'cvd-correlation',
-    'CVD correlation',
-    'volume',
-    'Pending: needs the CVD indicator (indicators phase)',
-  ),
+  {
+    id: 'cvd-correlation',
+    label: 'CVD correlation',
+    group: 'volume',
+    mode: 'two',
+    n: 2,
+    ready: true,
+    note: 'Correlation of price and cumulative delta over the range; flags divergence',
+    defaults: {
+      style: { color: '#B07CF0', fill: '#B07CF0', fillOpacity: 0.06 },
+      showLabels: false,
+      props: { showCvd: true, divergenceAlert: true, corrWarn: 0.3 },
+    },
+    build: (d, P) => {
+      const [a, b] = d.anchors as [Anchor, Anchor];
+      const x0 = P.x(Math.min(a.t, b.t));
+      const x1 = P.x(Math.max(a.t, b.t));
+      if (!P.bars) return [noData(P, x0 + 4, P.y(a.px))];
+      const bars = P.bars;
+      const { i0, i1 } = barRange(bars, a.t, b.t);
+      const r = cached(d.id, `${i0}|${i1}|${bars.length}`, P.barsVersion, () =>
+        cvdCorrelation(bars, i0, i1),
+      );
+      let hi = -Infinity;
+      let lo = Infinity;
+      for (let i = Math.max(0, i0); i <= Math.min(bars.length - 1, i1); i++) {
+        hi = Math.max(hi, bars[i]!.h);
+        lo = Math.min(lo, bars[i]!.l);
+      }
+      if (!(hi > lo)) return [path(d, [x0, P.y(a.px), x1, P.y(a.px)], { dash: 'dashed' })];
+      const yt = P.y(hi);
+      const yb = P.y(lo);
+      const out: Shape[] = [
+        {
+          k: 'path',
+          pts: rectPts(x0, yt, x1, yb),
+          closed: true,
+          ...stroke(d),
+          dash: 'dotted',
+          ...fillOf(d),
+          hit: 'fill',
+        },
+      ];
+      if (prop(d, 'showCvd', true) && r.cvd.length > 1) {
+        const mn = Math.min(...r.cvd);
+        const mx = Math.max(...r.cvd);
+        const span = mx - mn || 1;
+        const lo0 = Math.max(0, Math.min(i0, i1));
+        out.push(
+          path(
+            d,
+            r.cvd.flatMap((v, k) => [P.xOfSlot(lo0 + k), yb - ((v - mn) / span) * (yb - yt)]),
+            { width: Math.max(1.5, d.style.width), hit: 'none' },
+          ),
+        );
+      }
+      const warn = prop(d, 'corrWarn', 0.3);
+      const div = r.divergence !== 'none' || (r.corr !== null && r.corr < warn);
+      const tag =
+        r.divergence === 'bullish'
+          ? 'bullish divergence'
+          : r.divergence === 'bearish'
+            ? 'bearish divergence'
+            : r.corr !== null && r.corr < warn
+              ? 'weak correlation'
+              : 'in sync';
+      out.push(
+        text(
+          x0 + 6,
+          yt + 10,
+          `CVD corr ${r.corr === null ? 'n/a' : r.corr.toFixed(2)} · price ${r.priceChange >= 0 ? '+' : ''}${Math.round(r.priceChange)}t · CVD ${r.cvdChange >= 0 ? '+' : ''}${Math.round(r.cvdChange)} · ${tag}`,
+          div
+            ? r.divergence === 'bullish'
+              ? P.colors.up
+              : r.divergence === 'bearish'
+                ? P.colors.down
+                : P.colors.warning
+            : d.style.color,
+          { size: Math.max(9, d.style.fontSize - 2), hit: false },
+        ),
+      );
+      return out;
+    },
+    labels: () => ({ px: [], t: [] }),
+  },
   // ---------------------------------------------------------- fibonacci
   {
     id: 'fib-retracement',
@@ -1906,6 +2063,30 @@ export const TOOLS: ToolDef[] = [
   markerTool('star', 'Star', undefined, '#E8B04B'),
   markerTool('flag', 'Flag', undefined, '#E8B04B'),
   { ...markerTool('emoji', 'Emoji / icon'), defaults: { props: { size: 20, glyph: '⭐' } } },
+  // ---------------------------------------------------------- commands (not drawings)
+  {
+    id: 'magnifier',
+    label: 'Magnifier',
+    group: 'measure',
+    shortcut: 'M',
+    mode: 'click',
+    n: 1,
+    ready: true,
+    command: true,
+    note: 'Zoom lens at the cursor (toggle)',
+    build: () => [],
+  },
+  {
+    id: 'remove-indicators',
+    label: 'Remove indicators',
+    group: 'measure',
+    mode: 'click',
+    n: 1,
+    ready: true,
+    command: true,
+    note: 'Removes every indicator from the active chart',
+    build: () => [],
+  },
   // ---------------------------------------------------------- text
   {
     id: 'text',

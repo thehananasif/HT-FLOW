@@ -2,6 +2,10 @@
 //! buffer stream events → fetch REST snapshot → drop events with `u < lastUpdateId` → the first
 //! applied event must straddle `lastUpdateId` → every next event's `pu` must equal the previous `u`.
 //! Any break marks the book stale and requests a new snapshot.
+//!
+//! Spot streams have no `pu`: the parser sets `prev_final_id = U - 1`, so the same chain check
+//! (`U == previous u + 1`) applies, and the snapshot straddle rule shifts by one
+//! (`U <= lastUpdateId + 1 <= u`).
 use std::collections::BTreeMap;
 
 use htflow_core_types::{BookDelta, BookSnapshot, Side};
@@ -83,6 +87,8 @@ pub struct BookSync {
     buffer: Vec<DepthUpdate>,
     max_buffer: usize,
     pub gaps: u64,
+    /// Spot rules (see the module docs).
+    pub spot: bool,
 }
 
 impl Default for BookSync {
@@ -99,6 +105,14 @@ impl BookSync {
             buffer: Vec::new(),
             max_buffer,
             gaps: 0,
+            spot: false,
+        }
+    }
+
+    pub fn spot() -> Self {
+        Self {
+            spot: true,
+            ..Self::default()
         }
     }
 
@@ -140,15 +154,17 @@ impl BookSync {
     ) -> SyncOutcome {
         self.book.bids = bids.into_iter().filter(|(_, q)| *q > 0.0).collect();
         self.book.asks = asks.into_iter().filter(|(_, q)| *q > 0.0).collect();
+        // Futures keep the event with u == lastUpdateId; spot drops it (u <= lastUpdateId).
+        let first_needed = last_update_id + u64::from(self.spot);
         let pending: Vec<DepthUpdate> = std::mem::take(&mut self.buffer)
             .into_iter()
-            .filter(|u| u.final_id >= last_update_id)
+            .filter(|u| u.final_id >= first_needed)
             .collect();
         let mut last: Option<u64> = None;
         let mut scratch = Vec::new();
         for (i, u) in pending.into_iter().enumerate() {
             if i == 0 {
-                if u.first_id > last_update_id {
+                if u.first_id > first_needed {
                     // Snapshot is older than the stream we buffered: need a newer one.
                     self.gaps += 1;
                     self.synced_u = None;
@@ -230,6 +246,28 @@ mod tests {
         }
         assert_eq!(s.book.best_bid(), Some(99));
         assert_eq!(s.book.best_ask(), Some(101));
+    }
+
+    #[test]
+    fn spot_rules() {
+        // Spot: prev_final_id = U - 1 (set by the parser).
+        let mut s = BookSync::spot();
+        s.on_update(upd(95, 100, 94, &[(1, 1.0)], &[]));
+        s.on_update(upd(101, 105, 100, &[(2, 1.0)], &[]));
+        // lastUpdateId 100: the u=100 event is dropped, U=101 = lastUpdateId + 1 is the first.
+        let SyncOutcome::Synced(snap) = s.on_snapshot(100, vec![], vec![], 0) else {
+            panic!()
+        };
+        assert_eq!(snap.bids, vec![(2, 1.0)]);
+        assert!(matches!(
+            s.on_update(upd(106, 106, 105, &[], &[])),
+            SyncOutcome::Applied(_)
+        ));
+        assert_eq!(s.on_update(upd(108, 109, 107, &[], &[])), SyncOutcome::Gap);
+        // Snapshot older than the first buffered event (U = 108 > 100 + 1) -> gap.
+        let mut s = BookSync::spot();
+        s.on_update(upd(108, 109, 107, &[], &[]));
+        assert_eq!(s.on_snapshot(100, vec![], vec![], 0), SyncOutcome::Gap);
     }
 
     #[test]

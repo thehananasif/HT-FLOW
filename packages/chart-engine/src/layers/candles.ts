@@ -6,8 +6,11 @@ import {
   type BarSeries,
   type VolumeProfile,
 } from '@htflow/market-data';
-import type { ChartLayer, ChartView } from '../types';
+import type { ChartLayer, ChartView, DataRow } from '../types';
+import { dashFor, type StrokeStyle } from '../style';
 import { clamp, rgba, rowTicksFor, sessionStart } from './util';
+
+const sessionStartUtc = sessionStart;
 
 export type CandleMode = 'candles' | 'bars' | 'line' | 'area' | 'transparent' | 'hidden';
 
@@ -23,12 +26,55 @@ export function barsRange(bars: readonly Bar[], i0: number, i1: number): [number
 }
 
 /** Japanese candles / OHLC bars / line / area (P08 display modes). */
+export interface CandleStyle {
+  /** Candle colours; empty = theme up / down. */
+  up: string;
+  down: string;
+  /** Outline the candle body. */
+  border: boolean;
+  /** Border and wick use the body colour. */
+  sameBorderAsBody: boolean;
+  borderColor: string;
+  borderWidth: number;
+  /** 'close-open' colours by close vs open; 'close-prev' by close vs previous close. */
+  direction: 'close-open' | 'close-prev';
+  /** OHLC bars. */
+  barWidth: number;
+  dojiColor: string;
+  showOpen: boolean;
+  showClose: boolean;
+  /** Line chart and area. */
+  line: StrokeStyle;
+  areaLine: StrokeStyle;
+  areaTop: string;
+  areaBottom: string;
+}
+
+export const DEFAULT_CANDLE_STYLE: CandleStyle = {
+  up: '',
+  down: '',
+  border: false,
+  sameBorderAsBody: true,
+  borderColor: '',
+  borderWidth: 1,
+  direction: 'close-open',
+  barWidth: 1,
+  dojiColor: '',
+  showOpen: true,
+  showClose: true,
+  line: { color: '', style: 'solid', width: 1.5 },
+  areaLine: { color: '', style: 'solid', width: 1.5 },
+  areaTop: '',
+  areaBottom: '',
+};
+
 export class CandlesLayer implements ChartLayer {
   readonly id = 'candles';
   mode: CandleMode = 'candles';
   bodyPct = 0.6;
   /** Only draw a thin candle strip at the left of the slot (footprint). */
   strip = false;
+  style: CandleStyle = { ...DEFAULT_CANDLE_STYLE };
 
   constructor(private series: () => BarSeries) {}
 
@@ -36,15 +82,28 @@ export class CandlesLayer implements ChartLayer {
     return barsRange(this.series().bars, i0, i1);
   }
 
+  /** Up / down for bar i under the direction mode. */
+  private isUp(i: number): boolean {
+    const bars = this.series().bars;
+    const b = bars[i]!;
+    if (this.style.direction === 'close-prev' && i > 0) return b.c >= bars[i - 1]!.c;
+    return b.c >= b.o;
+  }
+
   draw(v: ChartView): void {
     if (this.mode === 'hidden') return;
     const { ctx, palette: p } = v;
+    const st = this.style;
+    const upCol = st.up || p.up;
+    const downCol = st.down || p.down;
     const bars = this.series().bars;
     ctx.save();
     ctx.beginPath();
     ctx.rect(v.plot.x, v.plot.y, v.plot.w, v.plot.h);
     ctx.clip();
     if (this.mode === 'line' || this.mode === 'area') {
+      const ls = this.mode === 'area' ? st.areaLine : st.line;
+      const lineCol = ls.color || p.info;
       ctx.beginPath();
       for (let i = v.i0; i <= v.i1; i++) {
         const b = bars[i]!;
@@ -52,16 +111,18 @@ export class CandlesLayer implements ChartLayer {
         if (i === v.i0) ctx.moveTo(x, v.yOf(b.c));
         else ctx.lineTo(x, v.yOf(b.c));
       }
-      ctx.strokeStyle = p.info;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = lineCol;
+      ctx.lineWidth = ls.width;
+      ctx.setLineDash(dashFor(ls.style, ls.width));
       ctx.stroke();
+      ctx.setLineDash([]);
       if (this.mode === 'area' && v.i1 >= v.i0) {
         ctx.lineTo(v.xOf(v.i1), v.plot.h);
         ctx.lineTo(v.xOf(v.i0), v.plot.h);
         ctx.closePath();
         const g = ctx.createLinearGradient(0, 0, 0, v.plot.h);
-        g.addColorStop(0, rgba(p.info, 0.35));
-        g.addColorStop(1, rgba(p.info, 0));
+        g.addColorStop(0, st.areaTop || rgba(lineCol, 0.35));
+        g.addColorStop(1, st.areaBottom || rgba(lineCol, 0));
         ctx.fillStyle = g;
         ctx.fill();
       }
@@ -72,34 +133,50 @@ export class CandlesLayer implements ChartLayer {
     const bodyW = this.strip
       ? clamp(Math.floor(sw * 0.08), 3, 8)
       : Math.max(1, Math.floor(sw * this.bodyPct));
+    const borderCol = st.borderColor || p.textTertiary;
     for (let i = v.i0; i <= v.i1; i++) {
       const b = bars[i]!;
       const cx = this.strip ? v.xOf(i) - sw / 2 + bodyW / 2 + 1 : v.xOf(i);
-      const up = b.c >= b.o;
-      const col = up ? p.up : p.down;
+      const doji = b.c === b.o && this.mode === 'bars' && st.dojiColor;
+      const col = doji ? st.dojiColor : this.isUp(i) ? upCol : downCol;
       const x = Math.round(cx) + 0.5;
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = st.sameBorderAsBody || this.mode === 'bars' ? col : borderCol;
+      ctx.lineWidth = this.mode === 'bars' ? st.barWidth : 1;
       ctx.beginPath();
       ctx.moveTo(x, Math.round(v.yOf(b.h)));
       ctx.lineTo(x, Math.round(v.yOf(b.l)));
       if (this.mode === 'bars') {
-        ctx.moveTo(x - bodyW / 2, Math.round(v.yOf(b.o)) + 0.5);
-        ctx.lineTo(x, Math.round(v.yOf(b.o)) + 0.5);
-        ctx.moveTo(x, Math.round(v.yOf(b.c)) + 0.5);
-        ctx.lineTo(x + bodyW / 2, Math.round(v.yOf(b.c)) + 0.5);
+        if (st.showOpen) {
+          ctx.moveTo(x - bodyW / 2, Math.round(v.yOf(b.o)) + 0.5);
+          ctx.lineTo(x, Math.round(v.yOf(b.o)) + 0.5);
+        }
+        if (st.showClose) {
+          ctx.moveTo(x, Math.round(v.yOf(b.c)) + 0.5);
+          ctx.lineTo(x + bodyW / 2, Math.round(v.yOf(b.c)) + 0.5);
+        }
       }
       ctx.stroke();
       if (this.mode === 'bars') continue;
-      const yTop = Math.round(v.yOf(Math.max(b.o, b.c)) - (this.strip ? v.tickPx / 2 : 0));
-      const yBot = Math.round(v.yOf(Math.min(b.o, b.c)) + (this.strip ? v.tickPx / 2 : 0));
+      // min / max keep body rects positive on inverted scales.
+      const ya = v.yOf(b.o);
+      const yb = v.yOf(b.c);
+      const pad = this.strip ? v.tickPx / 2 : 0;
+      const yTop = Math.round(Math.min(ya, yb) - pad);
+      const yBot = Math.round(Math.max(ya, yb) + pad);
       const h = Math.max(1, yBot - yTop);
       const left = Math.round(cx - bodyW / 2);
       if (this.mode === 'transparent') {
+        ctx.strokeStyle = col;
         ctx.strokeRect(left + 0.5, yTop + 0.5, bodyW - 1, h);
       } else {
         ctx.fillStyle = col;
         ctx.fillRect(left, yTop, bodyW, h);
+        if (st.border && bodyW > 2) {
+          ctx.strokeStyle = st.sameBorderAsBody ? col : borderCol;
+          ctx.lineWidth = st.borderWidth;
+          ctx.strokeRect(left + 0.5, yTop + 0.5, bodyW - 1, h);
+          ctx.lineWidth = 1;
+        }
       }
     }
     ctx.restore();
@@ -109,11 +186,24 @@ export class CandlesLayer implements ChartLayer {
 /** Volume bars in a bottom sub-pane (45% tint, direction coloured). */
 export class VolumePaneLayer implements ChartLayer {
   readonly id = 'volume-pane';
+  readonly paneLabel = 'Volume';
   height = 80;
+  visible = true;
+  /** Formats a volume number (minimise / decimals / quote currency from Chart settings). */
+  format: (vol: number) => string = (v) => formatCompact(v);
   constructor(private series: () => BarSeries) {}
 
   bottomHeight() {
-    return this.height;
+    return this.visible ? this.height : 0;
+  }
+
+  setBottomHeight(h: number) {
+    this.height = h;
+  }
+
+  dataWindow(i: number): DataRow[] {
+    const b = this.series().bars[i];
+    return b ? [{ label: 'Volume', value: this.format(b.vol) }] : [];
   }
 
   draw(v: ChartView): void {
@@ -138,7 +228,7 @@ export class VolumePaneLayer implements ChartLayer {
     ctx.fillStyle = p.textTertiary;
     ctx.font = v.font(10);
     ctx.textAlign = 'left';
-    ctx.fillText(`Vol ${formatCompact(max)}`, r.x + 4, r.y + 9);
+    ctx.fillText(`Vol ${this.format(max)}`, r.x + 4, r.y + 9);
   }
 }
 
@@ -256,6 +346,12 @@ export class PeriodProfilesLayer implements ChartLayer {
 export class LastPriceLayer implements ChartLayer {
   readonly id = 'last-price';
   showBidAsk = false;
+  /** Line colour (empty = direction colour), dash style, width; extend = full width. */
+  line: StrokeStyle = { color: '', style: 'dash', width: 1 };
+  extend = true;
+  showLine = true;
+  /** Bar countdown shown under the price tag (null = off). */
+  countdown: (() => string | null) | null = null;
   constructor(
     private last: () => { px: number; up: boolean } | null,
     private bidAsk: () => { bid: number; ask: number } | null = () => null,
@@ -283,20 +379,53 @@ export class LastPriceLayer implements ChartLayer {
     if (!l) return;
     const col = l.up ? p.up : p.down;
     const y = Math.round(v.yOf(l.px)) + 0.5;
-    ctx.strokeStyle = rgba(col, 0.8);
-    ctx.setLineDash([4, 3]);
-    ctx.beginPath();
-    ctx.moveTo(v.plot.x, y);
-    ctx.lineTo(v.plot.x + v.plot.w, y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    v.tags.push({ px: l.px, bg: col, fg: '#000' });
+    if (this.showLine) {
+      ctx.strokeStyle = this.line.color || rgba(col, 0.8);
+      ctx.lineWidth = this.line.width;
+      ctx.setLineDash(dashFor(this.line.style, this.line.width));
+      ctx.beginPath();
+      const x0 = this.extend ? v.plot.x : Math.max(v.plot.x, v.xOf(v.slotCount - 1));
+      ctx.moveTo(x0, y);
+      ctx.lineTo(v.plot.x + v.plot.w, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+    }
+    const sub = this.countdown?.() ?? undefined;
+    v.tags.push({ px: l.px, bg: col, fg: '#000', ...(sub ? { sub } : {}) });
   }
 }
 
 /** Two-line legend: symbol · venue · subtitle, then OHLCV of hovered (or last) bar. */
+export interface LegendOptions {
+  show: boolean;
+  title: boolean;
+  ohlc: boolean;
+  /** Colour OHLC values by candle direction; otherwise use `color`. */
+  byCandle: boolean;
+  color: string;
+  change: boolean;
+  volume: boolean;
+  delta: boolean;
+  /** Formats the V field. */
+  formatVol: (v: number) => string;
+}
+
+export const DEFAULT_LEGEND: LegendOptions = {
+  show: true,
+  title: true,
+  ohlc: true,
+  byCandle: true,
+  color: '',
+  change: false,
+  volume: true,
+  delta: true,
+  formatVol: (v) => formatCompact(v),
+};
+
 export class LegendLayer implements ChartLayer {
   readonly id = 'legend';
+  opts: LegendOptions = { ...DEFAULT_LEGEND };
   constructor(
     private series: () => BarSeries | null,
     private title: () => string,
@@ -304,21 +433,26 @@ export class LegendLayer implements ChartLayer {
   ) {}
 
   draw(v: ChartView): void {
+    const o = this.opts;
+    if (!o.show) return;
     const { ctx, palette: p } = v;
     const x = v.plot.x + 8;
     ctx.textAlign = 'left';
     ctx.font = v.font(11);
     ctx.fillStyle = p.textSecondary;
-    ctx.fillText(this.title(), x, 12);
+    let y = 12;
+    if (o.title) {
+      ctx.fillText(this.title(), x, y);
+      y += 17;
+    }
     const s = this.series();
-    let y = 29;
-    if (s && s.bars.length) {
+    if (s && s.bars.length && (o.ohlc || o.volume || o.delta || o.change)) {
       const idx =
         v.crosshair && v.crosshair.slot >= 0 && v.crosshair.slot < s.bars.length
           ? v.crosshair.slot
           : s.bars.length - 1;
       const b = s.bars[idx]!;
-      const col = b.c >= b.o ? p.up : p.down;
+      const col = o.byCandle || !o.color ? (b.c >= b.o ? p.up : p.down) : o.color;
       let cx = x;
       const part = (label: string, value: string, c: string) => {
         ctx.fillStyle = p.textSecondary;
@@ -330,12 +464,25 @@ export class LegendLayer implements ChartLayer {
         ctx.fillText(value, cx, y);
         cx += ctx.measureText(value).width + 8;
       };
-      part('O', formatPrice(b.o, v.instrument), col);
-      part('H', formatPrice(b.h, v.instrument), col);
-      part('L', formatPrice(b.l, v.instrument), col);
-      part('C', formatPrice(b.c, v.instrument), col);
-      part('V', formatCompact(b.vol), p.textSoft);
-      part('Δ', formatCompact(b.delta), b.delta >= 0 ? p.up : p.down);
+      if (o.ohlc) {
+        part('O', formatPrice(b.o, v.instrument), col);
+        part('H', formatPrice(b.h, v.instrument), col);
+        part('L', formatPrice(b.l, v.instrument), col);
+        part('C', formatPrice(b.c, v.instrument), col);
+      }
+      if (o.change) {
+        const prev = s.bars[idx - 1];
+        const ref = prev ? prev.c : b.o;
+        const d = b.c - ref;
+        const pct = ref ? (d / ref) * 100 : 0;
+        part(
+          'Chg',
+          `${d >= 0 ? '+' : ''}${formatPrice(d, v.instrument)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`,
+          d >= 0 ? p.up : p.down,
+        );
+      }
+      if (o.volume) part('V', o.formatVol(b.vol), p.textSoft);
+      if (o.delta) part('Δ', formatCompact(b.delta), b.delta >= 0 ? p.up : p.down);
       y += 17;
     }
     const e = this.extra();
@@ -350,13 +497,23 @@ export class LegendLayer implements ChartLayer {
 /** Dashed vertical session separators with "New session · dd Mon 00:00" labels (P31). */
 export class SessionSeparatorLayer implements ChartLayer {
   readonly id = 'sessions';
+  visible = true;
+  line: StrokeStyle = { color: '', style: 'dash', width: 1 };
+  /** Session start offset from 00:00 UTC (custom session time / trading session). */
+  offsetMs = 0;
   constructor(private series: () => BarSeries) {}
 
   draw(v: ChartView): void {
+    if (!this.visible) return;
     const bars = this.series().bars;
     const { ctx, palette: p } = v;
-    ctx.strokeStyle = p.textTertiary;
-    ctx.setLineDash([5, 4]);
+    const off = this.offsetMs;
+    const sessionStart = (t: number) => sessionStartUtc(t - off) + off;
+    ctx.strokeStyle = this.line.color || p.textTertiary;
+    ctx.lineWidth = this.line.width;
+    ctx.setLineDash(
+      this.line.style === 'dash' ? [5, 4] : dashFor(this.line.style, this.line.width),
+    );
     ctx.font = v.font(10);
     ctx.textAlign = 'left';
     for (let i = Math.max(1, v.i0); i <= v.i1; i++) {
@@ -366,11 +523,17 @@ export class SessionSeparatorLayer implements ChartLayer {
       ctx.moveTo(x, 0);
       ctx.lineTo(x, v.plot.h);
       ctx.stroke();
-      const d = new Date(sessionStart(bars[i]!.t));
+      const st = sessionStart(bars[i]!.t);
+      const d = new Date(st);
       ctx.fillStyle = p.textTertiary;
-      ctx.fillText(`New session · ${d.toUTCString().slice(5, 11)} 00:00`, x + 4, v.plot.h - 10);
+      ctx.fillText(
+        `New session · ${d.toUTCString().slice(5, 11)} ${d.toISOString().slice(11, 16)}`,
+        x + 4,
+        v.plot.h - 10,
+      );
     }
     ctx.setLineDash([]);
+    ctx.lineWidth = 1;
   }
 }
 

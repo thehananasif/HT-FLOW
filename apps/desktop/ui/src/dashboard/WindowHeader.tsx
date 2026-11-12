@@ -1,7 +1,6 @@
 import type { IDockviewPanelHeaderProps } from 'dockview';
 import { Camera, Maximize2, Settings2, X } from 'lucide-react';
-import { Badge, Chip, DropdownMenu, IconButton, MenuTrigger, type MenuEntry } from '@htflow/ui-kit';
-import { specLabel, TIMEFRAME_PRESETS, type BarSpec } from '@htflow/market-data';
+import { Badge, Chip, DropdownMenu, IconButton, MenuTrigger } from '@htflow/ui-kit';
 import {
   CHART_TEMPLATES,
   LINK_COLORS,
@@ -17,13 +16,9 @@ import { InstrumentPickerButton } from '../components/InstrumentPicker';
 import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
 import { chartHeaderItems } from '../charts/extensions';
+import { openChartSettings, templateMenuItems } from '../charts/headerMenu';
+import { TimeframeHeader } from '../charts/timeframes/TimeframeDialog';
 import { confirmAction } from '../state/confirm';
-
-const QUICK_TF: BarSpec[] = [
-  { kind: 'time', ms: 60_000 },
-  { kind: 'time', ms: 300_000 },
-  { kind: 'time', ms: 3_600_000 },
-];
 
 /** Closes a window, asking first when Settings → General → Confirmations requires it. */
 function closeWindow(api: IDockviewPanelHeaderProps['api']): void {
@@ -34,8 +29,6 @@ function closeWindow(api: IDockviewPanelHeaderProps['api']): void {
     { module: w?.kind === 'module' },
   ).then((ok) => ok && api.close());
 }
-
-const sameSpec = (a: BarSpec, b: BarSpec) => JSON.stringify(a) === JSON.stringify(b);
 
 function LinkDot({ id, link }: { id: string; link: LinkColor }) {
   const patch = useWindows((s) => s.patch);
@@ -90,17 +83,6 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
   const patch = useWindows((st) => st.patch);
   const set = (p: Partial<ChartWindowState>) => patch(id, p as Partial<WindowState>);
   const tpl = CHART_TEMPLATES.find((t) => t.id === s.template)!;
-  const tfItems: MenuEntry[] = TIMEFRAME_PRESETS.map((row) => ({
-    kind: 'submenu' as const,
-    id: row.row,
-    label: row.row,
-    items: row.specs.map((sp) => ({
-      id: JSON.stringify(sp),
-      label: specLabel(sp),
-      checked: sameSpec(sp, s.timeframe as BarSpec),
-      onSelect: () => set({ timeframe: sp as ChartWindowState['timeframe'] }),
-    })),
-  }));
   return (
     <>
       {s.template === 'liquidity-map' ? (
@@ -110,25 +92,7 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
           </Chip>
         ))
       ) : (
-        <>
-          {QUICK_TF.map((sp) => (
-            <Chip
-              key={JSON.stringify(sp)}
-              variant="ghost"
-              selected={sameSpec(sp, s.timeframe as BarSpec)}
-              onClick={() => set({ timeframe: sp as ChartWindowState['timeframe'] })}
-            >
-              {specLabel(sp)}
-            </Chip>
-          ))}
-          {!QUICK_TF.some((q) => sameSpec(q, s.timeframe as BarSpec)) && (
-            <Chip selected>{specLabel(s.timeframe as BarSpec)}</Chip>
-          )}
-          <DropdownMenu
-            items={tfItems}
-            trigger={<MenuTrigger aria-label="Timeframe">TF</MenuTrigger>}
-          />
-        </>
+        <TimeframeHeader windowId={id} s={s} />
       )}
       <span className="hdr-lots tnum" title="Order quantity">
         <input
@@ -158,8 +122,7 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
             label: `${label} (P09)`,
             disabled: true,
           })),
-          { kind: 'separator', id: 's' },
-          { id: 'save', label: 'Settings · Save current as template… (P34)', disabled: true },
+          ...templateMenuItems(id),
         ]}
         trigger={
           <MenuTrigger data-testid="template-menu">
@@ -261,7 +224,12 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
       >
         <Maximize2 size={12} />
       </IconButton>
-      <IconButton label="Settings" disabled title="Chart settings window arrives in P34">
+      <IconButton
+        label="Settings"
+        disabled={s.kind !== 'chart'}
+        title={s.kind === 'chart' ? 'Chart settings (Ctrl+S)' : 'Settings'}
+        onClick={() => s.kind === 'chart' && openChartSettings(id)}
+      >
         <Settings2 size={13} />
       </IconButton>
       <IconButton label="Close window" onClick={() => closeWindow(props.api)}>

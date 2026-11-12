@@ -4,6 +4,14 @@ import { anchorAt, type MagnetOptions } from './magnet';
 import { cloneDrawing, createDrawing, isVisibleOn, maxZ } from './model';
 import type { Proj } from './proj';
 import { handlesOf } from './render';
+import {
+  deleteGroup,
+  normRect,
+  selectInBox,
+  toggleSelection,
+  translateDrawing,
+  type Rect,
+} from './selection';
 import { hitShapes } from './shapes';
 import { toolDef, type ToolDef } from './tools';
 import type { Anchor, Drawing, ToolId } from './types';
@@ -19,6 +27,9 @@ export interface ControllerHost {
   proj(v: ChartView): Proj;
   selected(): string | null;
   select(id: string | null): void;
+  /** Whole multi-selection (primary last). Defaults to the single selected id. */
+  selectedIds?(): string[];
+  selectMany?(ids: string[]): void;
   /** Timeframe key for "visible on timeframes". */
   tfKey(): string;
   invalidate(): void;
@@ -40,10 +51,20 @@ interface Draft {
 
 interface Drag {
   orig: Drawing;
+  /** Other members of a group drag (excluding orig). */
+  group: Drawing[];
   key: number;
   x: number;
   y: number;
   moved: boolean;
+}
+
+interface BoxSel {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  base: string[];
 }
 
 const HANDLE_R = 7;
@@ -51,15 +72,42 @@ const HIT_TOL = 5;
 
 /** Interaction state machine: create, select, move, edit handles, keys, undo/redo. */
 export class DrawingController implements PointerHandler {
-  readonly history = new History();
+  readonly history: History;
   private draft: Draft | null = null;
   private drag: Drag | null = null;
-  private temp: Drawing | null = null;
+  private temps = new Map<string, Drawing>();
+  private box: BoxSel | null = null;
   private hover: { id: string; handle: boolean } | null = null;
   private lastClick = { t: 0, id: '' };
   private lastView: ChartView | null = null;
 
-  constructor(readonly host: ControllerHost) {}
+  constructor(
+    readonly host: ControllerHost,
+    /** Share one history between the controllers of several panes of the same window. */
+    history = new History(),
+  ) {
+    this.history = history;
+  }
+
+  /** Current multi-selection (ids). */
+  selection(): string[] {
+    const ids = this.host.selectedIds?.();
+    if (ids) return ids;
+    const one = this.host.selected();
+    return one ? [one] : [];
+  }
+
+  /** Rubber-band rectangle being dragged (Ctrl+drag), for rendering. */
+  boxRect(): Rect | null {
+    return this.box
+      ? normRect({ x: this.box.x0, y: this.box.y0 }, { x: this.box.x1, y: this.box.y1 })
+      : null;
+  }
+
+  private setSelection(ids: string[]): void {
+    if (this.host.selectMany) this.host.selectMany(ids);
+    else this.host.select(ids[ids.length - 1] ?? null);
+  }
 
   // ---------------------------------------------------------------- data
 
@@ -69,7 +117,7 @@ export class DrawingController implements PointerHandler {
     const out = this.host
       .items()
       .filter((d) => isVisibleOn(d, tf))
-      .map((d) => (this.temp && this.temp.id === d.id ? this.temp : d))
+      .map((d) => this.temps.get(d.id) ?? d)
       .sort((a, b) => a.z - b.z);
     if (this.draft) out.push(this.draft.d);
     return out;
@@ -92,11 +140,21 @@ export class DrawingController implements PointerHandler {
   }
 
   removeSelected(): boolean {
-    const id = this.host.selected();
-    const d = this.host.items().find((x) => x.id === id);
-    if (!d || d.locked) return false;
-    this.remove(d.id);
+    const ids = new Set(this.selection());
+    if (!ids.size) return false;
+    const items = this.host.items();
+    const next = deleteGroup(items, ids);
+    if (next.length === items.length) return false;
+    this.commit(next);
+    this.setSelection(this.selection().filter((id) => next.some((d) => d.id === id)));
     return true;
+  }
+
+  /** Applies a change to every selected drawing in one undo step. */
+  updateSelected(fn: (d: Drawing) => Drawing): void {
+    const ids = new Set(this.selection());
+    if (!ids.size) return;
+    this.commit(this.host.items().map((d) => (ids.has(d.id) ? fn(d) : d)));
   }
 
   removeAll(): void {
@@ -153,7 +211,8 @@ export class DrawingController implements PointerHandler {
   cancel(): void {
     this.draft = null;
     this.drag = null;
-    this.temp = null;
+    this.temps.clear();
+    this.box = null;
     this.host.invalidate();
   }
 
@@ -233,10 +292,21 @@ export class DrawingController implements PointerHandler {
     }
     const hit = this.hitAt(v, x, y);
     if (!hit) {
-      if (this.host.selected()) this.host.select(null);
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl+drag on empty space: rubber-band selection (Shift adds to the current one).
+        this.box = { x0: x, y0: y, x1: x, y1: y, base: e.shiftKey ? this.selection() : [] };
+        return true;
+      }
+      if (this.selection().length && !e.shiftKey) this.setSelection([]);
       return false;
     }
-    this.host.select(hit.d.id);
+    if (e.shiftKey) {
+      this.setSelection(toggleSelection(this.selection(), hit.d.id));
+      return true;
+    }
+    const cur = this.selection();
+    const inGroup = cur.length > 1 && cur.includes(hit.d.id);
+    if (!inGroup) this.host.select(hit.d.id);
     const now = Date.now();
     if (this.lastClick.id === hit.d.id && now - this.lastClick.t < 350) {
       this.lastClick = { t: 0, id: '' };
@@ -244,7 +314,12 @@ export class DrawingController implements PointerHandler {
       return true;
     }
     this.lastClick = { t: now, id: hit.d.id };
-    if (!hit.d.locked) this.drag = { orig: hit.d, key: hit.key, x, y, moved: false };
+    const group =
+      inGroup && hit.key < 0
+        ? this.list().filter((d) => d.id !== hit.d.id && cur.includes(d.id) && !d.locked)
+        : [];
+    if (!hit.d.locked || group.length)
+      this.drag = { orig: hit.d, group, key: hit.key, x, y, moved: false };
     return true;
   }
 
@@ -263,12 +338,26 @@ export class DrawingController implements PointerHandler {
       this.host.invalidate();
       return;
     }
+    if (this.box && captured) {
+      this.box.x1 = x;
+      this.box.y1 = y;
+      this.host.invalidate();
+      return;
+    }
     if (this.drag && captured) {
       const g = this.drag;
       if (!g.moved && Math.hypot(x - g.x, y - g.y) < 3) return;
       g.moved = true;
       const def = toolDef(g.orig.type)!;
       const d: Drawing = { ...g.orig, anchors: g.orig.anchors.map((a) => ({ ...a })) };
+      if (g.group.length) {
+        const snap = this.host.magnet().snapTicks;
+        this.temps.clear();
+        for (const m of [g.orig, ...g.group])
+          if (!m.locked) this.temps.set(m.id, translateDrawing(m, P, x - g.x, y - g.y, g.y, snap));
+        this.host.invalidate();
+        return;
+      }
       if (g.key >= 0) {
         const a = this.anchor(P, def, x, y, e);
         if (def.moveHandle) def.moveHandle(d, g.key, a, P);
@@ -286,7 +375,7 @@ export class DrawingController implements PointerHandler {
           px: a.px + dp,
         }));
       }
-      this.temp = d;
+      this.temps.set(d.id, d);
       this.host.invalidate();
       return;
     }
@@ -309,12 +398,24 @@ export class DrawingController implements PointerHandler {
       }
       return;
     }
+    if (this.box) {
+      const b = this.box;
+      this.box = null;
+      const r = normRect({ x: b.x0, y: b.y0 }, { x: b.x1, y: b.y1 });
+      if (r.x1 - r.x0 > 3 || r.y1 - r.y0 > 3) {
+        const v = this.lastView;
+        const hits = v ? selectInBox(this.list(), this.host.proj(v), r) : [];
+        this.setSelection([...new Set([...b.base, ...hits])]);
+      }
+      this.host.invalidate();
+      return;
+    }
     if (this.drag) {
-      const t = this.temp;
+      const temps = new Map(this.temps);
       const moved = this.drag.moved;
       this.drag = null;
-      this.temp = null;
-      if (t && moved) this.commit(this.host.items().map((d) => (d.id === t.id ? t : d)));
+      this.temps.clear();
+      if (temps.size && moved) this.commit(this.host.items().map((d) => temps.get(d.id) ?? d));
     }
   }
 
@@ -336,7 +437,7 @@ export class DrawingController implements PointerHandler {
     if (k === 'Escape') {
       if (this.draft) this.cancel();
       else if (this.host.tool()) this.host.setTool(null);
-      else if (this.host.selected()) this.host.select(null);
+      else if (this.selection().length) this.setSelection([]);
       else return false;
       return true;
     }
@@ -346,21 +447,34 @@ export class DrawingController implements PointerHandler {
       return true;
     }
     if (k === 'Delete' || k === 'Backspace') return this.removeSelected();
+    if (ctrl && (k === 'a' || k === 'A') && !this.host.tool()) {
+      const ids = this.list()
+        .filter((d) => !d.locked)
+        .map((d) => d.id);
+      if (!ids.length) return false;
+      this.setSelection(ids);
+      this.host.invalidate();
+      return true;
+    }
     if (ctrl && (k === 'z' || k === 'Z') && !e.shiftKey) return this.undo() || true;
     if (ctrl && (k === 'y' || k === 'Y' || ((k === 'z' || k === 'Z') && e.shiftKey)))
       return this.redo() || true;
-    const sel = this.host.items().find((d) => d.id === this.host.selected());
-    if (
-      sel &&
-      !sel.locked &&
-      !toolDef(sel.type)?.screen &&
-      (k === 'ArrowUp' || k === 'ArrowDown')
-    ) {
+    const ids = new Set(this.selection());
+    const mv = new Set(
+      this.host
+        .items()
+        .filter((d) => ids.has(d.id) && !d.locked && !toolDef(d.type)?.screen)
+        .map((d) => d.id),
+    );
+    if (mv.size && (k === 'ArrowUp' || k === 'ArrowDown')) {
       const dp = k === 'ArrowUp' ? 1 : -1;
-      this.update(sel.id, (d) => ({
-        ...d,
-        anchors: d.anchors.map((a) => ({ t: a.t, px: a.px + dp })),
-      }));
+      this.commit(
+        this.host
+          .items()
+          .map((d) =>
+            mv.has(d.id) ? { ...d, anchors: d.anchors.map((a) => ({ t: a.t, px: a.px + dp })) } : d,
+          ),
+      );
       return true;
     }
     return false;

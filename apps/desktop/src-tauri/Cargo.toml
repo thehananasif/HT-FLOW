@@ -18,7 +18,16 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 base64.workspace = true
 htflow-auth.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 htflow-connector-binance.workspace = true
+htflow-connector-common.workspace = true
+htflow-connector-okx.workspace = true
+htflow-connector-whitebit.workspace = true
+htflow-connector-phemex.workspace = true
+htflow-connector-bitfinex.workspace = true
+htflow-connector-kraken.workspace = true
+htflow-connector-bitget.workspace = true
+htflow-connector-deribit.workspace = true
 htflow-connector-bybit.workspace = true
 htflow-tick-store.workspace = true
 htflow-core-types.workspace = true

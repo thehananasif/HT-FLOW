@@ -34,7 +34,11 @@ export const useWindows = create<WindowsState>((set, get) => ({
     // Link groups: changing the instrument in one window changes every window of the same colour.
     if ('instrumentId' in p && next.kind !== 'module' && next.link !== 'none') {
       for (const [k, w] of Object.entries(all)) {
-        if (k !== id && w.kind !== 'module' && w.link === next.link)
+        // Pinned charts (chart header pin) keep their instrument.
+        const pinned =
+          w.kind === 'chart' &&
+          (w.ext?.['chart-settings'] as { pinned?: boolean } | undefined)?.pinned === true;
+        if (k !== id && w.kind !== 'module' && w.link === next.link && !pinned)
           all[k] = { ...w, instrumentId: next.instrumentId };
       }
     }

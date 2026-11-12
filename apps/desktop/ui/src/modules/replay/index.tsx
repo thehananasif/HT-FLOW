@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { Button, Checkbox, DropdownMenu, Field, Input, Select, toast } from '@htflow/ui-kit';
+import {
+  Button,
+  Checkbox,
+  DropdownMenu,
+  Field,
+  Input,
+  NumberInput,
+  Select,
+  Slider,
+  toast,
+} from '@htflow/ui-kit';
 import type { ReplayDataInfo } from '@htflow/replay';
 import { journalStats, roundTrips } from '@htflow/trading';
 import { registerModule, type ModuleViewProps } from '../registry';
@@ -9,8 +19,10 @@ import { paper, pnlTick } from '../../state/market';
 import { isTauri } from '../../backend';
 import { activeInstrument } from '../../state/windows';
 import {
+  hideFuture,
   isReplayId,
   REPLAY_ACCOUNT,
+  setHideFuture,
   replaySources,
   sourceIdOf,
   startReplay,
@@ -20,14 +32,18 @@ import {
 import { showReplayOn } from './ControlBar';
 import {
   addTemplate,
+  applyTemplateState,
   fmtBytes,
   fmtClock,
   fmtRange,
   fromLocalInput,
   saveTemplates,
+  setReplayDisplay,
   toLocalInput,
+  useReplayDisplay,
   useReplaySession,
   useTemplates,
+  type ReplayTemplate,
 } from './shared';
 import './styles.css';
 
@@ -37,6 +53,8 @@ interface SetupParams {
   to: number;
   ticks: boolean;
   depth: boolean;
+  /** false = future bars are drawn as faded ghost candles. */
+  hideFuture: boolean;
   source: string;
 }
 
@@ -44,7 +62,15 @@ function defaults(): SetupParams {
   const cur = activeInstrument();
   const src = cur ? (isReplayId(cur) ? sourceIdOf(cur) : cur) : 'mock:CLZ6';
   const to = Math.floor(Date.now() / 60_000) * 60_000;
-  return { instruments: [src], from: to - 60 * 60_000, to, ticks: true, depth: true, source: '' };
+  return {
+    instruments: [src],
+    from: to - 60 * 60_000,
+    to,
+    ticks: true,
+    depth: true,
+    hideFuture: true,
+    source: '',
+  };
 }
 
 function readParams(p: Record<string, unknown> | undefined): SetupParams {
@@ -60,6 +86,7 @@ function readParams(p: Record<string, unknown> | undefined): SetupParams {
     to: ok(s.to) && ok(s.from) && s.to > s.from ? s.to : d.to,
     ticks: true,
     depth: typeof s.depth === 'boolean' ? s.depth : true,
+    hideFuture: typeof s.hideFuture === 'boolean' ? s.hideFuture : true,
     source: typeof s.source === 'string' ? s.source : '',
   };
 }
@@ -69,15 +96,22 @@ function toConfig(p: SetupParams): ReplayConfig {
     instruments: p.instruments,
     from: p.from,
     to: p.to,
-    layers: { ticks: p.ticks, depth: p.depth, hideFuture: true },
+    layers: { ticks: p.ticks, depth: p.depth, hideFuture: p.hideFuture },
     source: p.source || undefined,
   };
 }
 
-async function launch(cfg: ReplayConfig, setBusy: (b: string | null) => void) {
+async function launch(
+  cfg: ReplayConfig,
+  setBusy: (b: string | null) => void,
+  template?: ReplayTemplate,
+) {
   setBusy('Loading data… 0%');
   try {
-    const s = await startReplay(cfg, (p) => setBusy(`Loading data… ${Math.round(p * 100)}%`));
+    const s = await startReplay(template ? { ...cfg, templateId: template.id } : cfg, (p) =>
+      setBusy(`Loading data… ${Math.round(p * 100)}%`),
+    );
+    if (template) applyTemplateState(s, template);
     showReplayOn([...s.engines.keys()]);
     toast('success', 'Replay ready', 'Press Play or Space on the chart');
   } catch (e) {
@@ -204,7 +238,19 @@ function Setup({ state, setParams }: ModuleViewProps) {
           onChange={(v) => set({ depth: v })}
           label="Depth of market (heatmap + DOM)"
         />
-        <Checkbox checked onChange={() => {}} label="Hide future bars (no peeking)" />
+        <Checkbox
+          checked={p.hideFuture}
+          onChange={(v) => {
+            set({ hideFuture: v });
+            setHideFuture(v);
+          }}
+          label="Hide future bars (no peeking)"
+        />
+        {!p.hideFuture && (
+          <span className="muted rp-sub">
+            Future bars show as faded ghost candles after the last real bar.
+          </span>
+        )}
         <div className="rp-info">
           {source && info ? (
             <>
@@ -324,7 +370,11 @@ function Templates({ setBusy }: { setBusy: (b: string | null) => void }) {
         <div key={t.id} className="rp-tpl">
           <span className="rp-tpl-name">{t.name}</span>
           <span className="muted tnum">{fmtRange(t.config.from, t.config.to)}</span>
-          <Button size="xs" onClick={() => void launch(t.config, setBusy)}>
+          <span className="muted tnum" title="Saved with this template">
+            {(t.bookmarks?.length ?? 0) > 0 ? `${t.bookmarks!.length} bookmarks` : ''}
+            {t.loop ? ' · loop' : ''}
+          </span>
+          <Button size="xs" onClick={() => void launch(t.config, setBusy, t)}>
             Load
           </Button>
           <button
@@ -336,6 +386,79 @@ function Templates({ setBusy }: { setBusy: (b: string | null) => void }) {
           </button>
         </div>
       ))}
+    </section>
+  );
+}
+
+/** Customisation of the replay chart overlays: ghost candles, fill tags, timeline events. */
+function Display() {
+  useReplaySession(); // re-render when the session (e.g. hide-future) changes
+  const d = useReplayDisplay();
+  const hf = hideFuture();
+  return (
+    <section className="rp-card" aria-label="Replay display">
+      <h4>Replay display</h4>
+      <div className="col gap8">
+        <Checkbox
+          checked={d.fillTags}
+          onChange={(v) => setReplayDisplay({ fillTags: v })}
+          label="B / S fill tags on bars"
+        />
+        <Checkbox
+          checked={d.tagQty}
+          onChange={(v) => setReplayDisplay({ tagQty: v })}
+          label="Show quantity in the tag"
+        />
+        <Field label={`Tag size: ${d.tagSize}px`}>
+          <Slider
+            label="Tag size"
+            min={8}
+            max={16}
+            value={d.tagSize}
+            onChange={(v) => setReplayDisplay({ tagSize: v })}
+          />
+        </Field>
+        <Checkbox
+          checked={d.timelineEvents}
+          onChange={(v) => setReplayDisplay({ timelineEvents: v })}
+          label="Economic events on the timeline"
+        />
+        <Field label="Event impact">
+          <Select
+            value={d.eventImpact}
+            onChange={(v) => setReplayDisplay({ eventImpact: v as typeof d.eventImpact })}
+            options={[
+              { value: 'all', label: 'All events' },
+              { value: 'medium', label: 'Medium and high' },
+              { value: 'high', label: 'High only' },
+            ]}
+          />
+        </Field>
+        <Checkbox
+          checked={hf}
+          onChange={(v) => setHideFuture(v)}
+          label="Hide future bars (off = ghost candles)"
+        />
+        <div className="row gap8">
+          <Field label="Ghost bars">
+            <NumberInput
+              value={d.ghostBars}
+              min={5}
+              max={300}
+              onChange={(v) => setReplayDisplay({ ghostBars: v })}
+            />
+          </Field>
+          <Field label={`Ghost opacity: ${Math.round(d.ghostOpacity * 100)}%`}>
+            <Slider
+              label="Ghost opacity"
+              min={10}
+              max={90}
+              value={Math.round(d.ghostOpacity * 100)}
+              onChange={(v) => setReplayDisplay({ ghostOpacity: v / 100 })}
+            />
+          </Field>
+        </div>
+      </div>
     </section>
   );
 }
@@ -381,6 +504,7 @@ registerModule({
           <div className="col gap12">
             <Account />
             <Templates setBusy={setBusy} />
+            <Display />
             {busy && <span className="muted">{busy}</span>}
           </div>
         </div>

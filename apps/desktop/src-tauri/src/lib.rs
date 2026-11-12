@@ -59,6 +59,7 @@ pub fn run() {
             market_cmds::market_unsubscribe,
             net_cmds::net_fetch_text,
             market_cmds::market_test,
+            market_cmds::market_options_chain,
             data_cmds::recorder_set,
             data_cmds::recorder_status,
             data_cmds::data_list,
