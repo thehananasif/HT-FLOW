@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { ChartCore } from '@htflow/chart-engine';
 import {
   deserialize,
   isTool,
@@ -12,6 +13,7 @@ import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import { toast } from '@htflow/ui-kit';
 import { backend } from '../../backend';
 import { useWindows } from '../../state/windows';
+import { readExt, writeExt as writeIndicators } from '../indicators/state';
 import type { ChartExtensionContext } from '../../charts/extensions';
 
 export const EXT_ID = 'drawings';
@@ -25,6 +27,9 @@ export interface DrawPrefs {
   snapTicks: boolean;
   /** Show the selected-drawing style toolbar. */
   toolbar: boolean;
+  /** Magnifier zoom factor (1.5..8) and lens diameter in px (60..300). */
+  lensZoom: number;
+  lensSize: number;
 }
 
 export const DEFAULT_PREFS: DrawPrefs = {
@@ -33,18 +38,32 @@ export const DEFAULT_PREFS: DrawPrefs = {
   magnetPx: 8,
   snapTicks: true,
   toolbar: true,
+  lensZoom: 3,
+  lensSize: 140,
 };
 
 interface DrawUi {
   tool: Record<string, ToolId | null>;
+  /** Primary selected drawing per window (last of the multi-selection). */
   selected: Record<string, string | null>;
+  /** Whole multi-selection per window (Shift+click / Ctrl+drag box). */
+  multi: Record<string, string[]>;
+  /** Magnifier lens on / off per window. */
+  lens: Record<string, boolean>;
+  /** Drawing preferences dialog. */
+  prefsOpen: boolean;
   /** Properties dialog target. */
   editing: { windowId: string; id: string } | null;
   prefs: DrawPrefs;
   setTool(windowId: string, tool: ToolId | null): void;
   select(windowId: string, id: string | null): void;
+  selectMany(windowId: string, ids: string[]): void;
+  setLens(windowId: string, on: boolean): void;
+  openPrefs(open: boolean): void;
   edit(target: { windowId: string; id: string } | null): void;
   setPrefs(p: Partial<DrawPrefs>): void;
+  /** Applies loaded prefs (validated) without saving. */
+  setPrefsSilent(p: DrawPrefs): void;
 }
 
 const PREFS_KEY = 'drawings.prefs';
@@ -52,6 +71,9 @@ const PREFS_KEY = 'drawings.prefs';
 export const useDrawUi = create<DrawUi>((set, get) => ({
   tool: {},
   selected: {},
+  multi: {},
+  lens: {},
+  prefsOpen: false,
   editing: null,
   prefs: DEFAULT_PREFS,
   setTool: (windowId, tool) => {
@@ -59,18 +81,50 @@ export const useDrawUi = create<DrawUi>((set, get) => ({
     controllers.get(windowId)?.ctrl.cancel();
   },
   select: (windowId, id) => {
-    if (get().selected[windowId] === id) return;
-    set({ selected: { ...get().selected, [windowId]: id } });
-    controllers.get(windowId)?.ctx.core.invalidate();
+    const cur = get().multi[windowId] ?? [];
+    if (get().selected[windowId] === id && cur.length === (id ? 1 : 0)) return;
+    set({
+      selected: { ...get().selected, [windowId]: id },
+      multi: { ...get().multi, [windowId]: id ? [id] : [] },
+    });
+    invalidateAll(windowId);
   },
+  selectMany: (windowId, ids) => {
+    const uniq = [...new Set(ids)];
+    set({
+      selected: { ...get().selected, [windowId]: uniq[uniq.length - 1] ?? null },
+      multi: { ...get().multi, [windowId]: uniq },
+    });
+    invalidateAll(windowId);
+  },
+  setLens: (windowId, on) => {
+    set({ lens: { ...get().lens, [windowId]: on } });
+    invalidateAll(windowId);
+  },
+  openPrefs: (prefsOpen) => set({ prefsOpen }),
   edit: (editing) => set({ editing }),
+  setPrefsSilent: (p) => {
+    const prefs = { ...p };
+    prefs.magnetPx = Math.min(40, Math.max(2, Math.round(Number(prefs.magnetPx) || 8)));
+    prefs.lensZoom = Math.min(8, Math.max(1.5, Number(prefs.lensZoom) || 3));
+    prefs.lensSize = Math.min(300, Math.max(60, Math.round(Number(prefs.lensSize) || 140)));
+    set({ prefs });
+  },
   setPrefs: (p) => {
     const prefs = { ...get().prefs, ...p };
     prefs.magnetPx = Math.min(40, Math.max(2, Math.round(prefs.magnetPx)));
+    prefs.lensZoom = Math.min(8, Math.max(1.5, Number(prefs.lensZoom) || 3));
+    prefs.lensSize = Math.min(300, Math.max(60, Math.round(Number(prefs.lensSize) || 140)));
     set({ prefs });
     void backend.saveSettings(PREFS_KEY, prefs).catch(() => {});
   },
 }));
+
+function invalidateAll(windowId: string): void {
+  const e = controllers.get(windowId);
+  if (!e) return;
+  for (const c of e.ctx.cores) c.invalidate();
+}
 
 let prefsLoaded = false;
 export function loadPrefs(): void {
@@ -79,7 +133,8 @@ export function loadPrefs(): void {
   backend
     .loadSettings<Partial<DrawPrefs>>(PREFS_KEY)
     .then((p) => {
-      if (p && typeof p === 'object') useDrawUi.setState({ prefs: { ...DEFAULT_PREFS, ...p } });
+      if (p && typeof p === 'object')
+        useDrawUi.getState().setPrefsSilent({ ...DEFAULT_PREFS, ...p });
     })
     .catch(() => {
       prefsLoaded = false;
@@ -89,7 +144,12 @@ export function loadPrefs(): void {
 /** windowId → controller + extension context of the chart currently built for that window. */
 export const controllers = new Map<
   string,
-  { ctrl: DrawingController; ctx: ChartExtensionContext }
+  {
+    ctrl: DrawingController;
+    ctx: ChartExtensionContext;
+    /** One controller per extra chart pane (Order Flow right pane), sharing the undo history. */
+    extra: { ctrl: DrawingController; core: ChartCore }[];
+  }
 >();
 
 const parsed = new WeakMap<object, Drawing[]>();
@@ -157,6 +217,10 @@ export function activateTool(tool: ToolId | null, windowId = activeChartId()): v
     return;
   }
   const ui = useDrawUi.getState();
+  if (tool && def?.command) {
+    runToolCommand(tool, windowId);
+    return;
+  }
   ui.setTool(windowId, ui.tool[windowId] === tool ? null : tool);
   controllers.get(windowId)?.ctx.core.canvas.focus();
 }
@@ -171,4 +235,43 @@ export function mutate(windowId: string, fn: (items: Drawing[]) => Drawing[]): v
 
 export function openObjectsList(): void {
   window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: 'drawing-objects' }));
+}
+
+/** Tools that are actions, not drawings. */
+export function runToolCommand(tool: ToolId, windowId = activeChartId()): void {
+  if (!windowId) return;
+  const ui = useDrawUi.getState();
+  if (tool === 'magnifier') {
+    const on = !ui.lens[windowId];
+    ui.setLens(windowId, on);
+    toast(
+      'info',
+      on ? 'Magnifier on' : 'Magnifier off',
+      on ? 'Press M to turn it off.' : undefined,
+    );
+  } else if (tool === 'remove-indicators') {
+    const n = readExt(windowId).items.length;
+    if (!n) {
+      toast('info', 'No indicators on this chart');
+      return;
+    }
+    writeIndicators(windowId, []);
+    toast('success', `Removed ${n} indicator${n === 1 ? '' : 's'}`);
+  }
+}
+
+/** Multi-selection of a window (ids), falling back to the single selected drawing. */
+export function selectionOf(windowId: string): string[] {
+  const ui = useDrawUi.getState();
+  const m = ui.multi[windowId];
+  if (m && m.length) return m;
+  const one = ui.selected[windowId];
+  return one ? [one] : [];
+}
+
+/** Applies a change to every selected drawing as a single undo step. */
+export function mutateSelection(windowId: string, fn: (d: Drawing) => Drawing): void {
+  const ids = new Set(selectionOf(windowId));
+  if (!ids.size) return;
+  mutate(windowId, (items) => items.map((d) => (ids.has(d.id) ? fn(d) : d)));
 }

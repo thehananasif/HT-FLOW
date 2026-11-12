@@ -1,6 +1,7 @@
 import type { ChartLayer, ChartView } from '@htflow/chart-engine';
 import type { Proj } from './proj';
 import { dashArray, textBox, type Shape } from './shapes';
+import { shapesBounds } from './selection';
 import { toolDef, type Handle } from './tools';
 import type { Drawing } from './types';
 
@@ -187,6 +188,10 @@ export interface LayerSource {
   /** Visible drawings in z order (including the one being created / dragged). */
   list(): Drawing[];
   selected(): string | null;
+  /** Every selected id (multi-selection); defaults to `selected()`. */
+  selectedIds?(): string[];
+  /** Rubber-band rectangle in plot px while Ctrl+dragging. */
+  box?(): { x0: number; y0: number; x1: number; y1: number } | null;
   proj(v: ChartView): Proj;
 }
 
@@ -197,10 +202,12 @@ export class DrawingsLayer implements ChartLayer {
 
   draw(v: ChartView): void {
     const list = this.src.list();
-    if (!list.length) return;
+    const box = this.src.box?.() ?? null;
+    if (!list.length && !box) return;
     const P = this.src.proj(v);
     const ctx = v.ctx;
     const sel = this.src.selected();
+    const multi = new Set(this.src.selectedIds?.() ?? (sel ? [sel] : []));
     ctx.save();
     ctx.beginPath();
     ctx.rect(v.plot.x, v.plot.y, v.plot.w, v.plot.h);
@@ -210,7 +217,17 @@ export class DrawingsLayer implements ChartLayer {
       const def = toolDef(d.type);
       if (!def) continue;
       for (const s of def.build(d, P)) drawShape(v, s, P);
-      if (d.id === sel) {
+      if (multi.size > 1 && multi.has(d.id)) {
+        const b = shapesBounds(def.build(d, P), P);
+        if (b) {
+          ctx.save();
+          ctx.setLineDash([4, 3]);
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(b.x0 - 3, b.y0 - 3, b.x1 - b.x0 + 6, b.y1 - b.y0 + 6);
+          ctx.restore();
+        }
+      } else if (d.id === sel) {
         for (const h of handlesOf(d, P)) {
           ctx.beginPath();
           ctx.arc(h.x, h.y, 4.5, 0, Math.PI * 2);
@@ -264,6 +281,18 @@ export class DrawingsLayer implements ChartLayer {
             P,
           );
       }
+    }
+    if (box) {
+      const x = Math.min(box.x0, box.x1);
+      const y = Math.min(box.y0, box.y1);
+      const w = Math.abs(box.x1 - box.x0);
+      const h = Math.abs(box.y1 - box.y0);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(x, y, w, h);
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.strokeRect(x, y, w, h);
+      ctx.setLineDash([]);
     }
     ctx.restore();
   }

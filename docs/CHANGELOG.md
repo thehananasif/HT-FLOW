@@ -11,6 +11,7 @@
 
 ### Added
 
+- Drawings and replay gaps (P12 / P24): alert on cross, multi-select, emoji picker, magnet slider, new tools (ZigZag VP, CVD correlation, Magnifier, Remove indicators), drawings on both Order Flow panes; replay ghost bars, replay-time fills, B / S tags, calendar markers, per-template bookmarks, own split.
 - Chart engine v2 (P08 / P26 / P34 / P09): crosshair sync, resizable panes, log / % / indexed / inverted scales, gaps, per-chart time zone, countdown, watermark, high / low marks, compare overlays, data window, Go to date, pin, lazy history; Chart Settings window (Ctrl+S); JSON chart templates and style presets; context-aware chart menu.
 - Chart types and aggregation (P07 / P33 / P09): Range X / XV / Z / US, Renko, Reversal, Order Flow, Cumulative Trades, Heikin-Ashi, P&F, Kagi, Line Break; sessions applied to bars; time-at-price; timeframe dialog with Configure; Order Flow (Light), Imbalance, TPO, On-Chart Liquidity Map, Multi-timeframe, Volume Histogram, Delta Profile and COT (sample data) templates.
 - Smart DOM v2 (P15): 18 configurable columns, 13 templates, template designer, notes, iceberg and pulled / stacked detection, drag-to-modify orders.

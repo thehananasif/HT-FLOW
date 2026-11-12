@@ -144,8 +144,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Side-tool groups list every tool with its shortcut (Lines, Shapes, Volume Analysis, Fibonacci, Measurement, Elliott, Markers, Text, Positions, Gann & Pitchfork, Objects); tools are live
 - [x] 67 drawing tools on a shared `@htflow/drawings` package (model, time axis, geometry, controller, history) attached to every chart as a chart extension; drawings persist per window and across layout tabs
 - [x] Anchors with drag editing, magnet (off / weak / strong presets), lock / hide / clone / delete, style toolbar (colour, width, dash, fill, text), extend left / right, per-timeframe visibility, sync across linked charts, Objects List window, Undo / Redo history, hotkeys
-- [~] Alert on cross: logic for horizontal line / ray only, no UI toggle yet; emoji marker has no picker; regression σ and anchored-VWAP band multipliers have no dialog field; magnet sensitivity is presets, not a slider; single selection only
-- [ ] ZigZag volume profile, CVD correlation, Magnifier, Remove indicators tools; Ctrl+Z / Ctrl+Y as registry shortcuts; drawings on both panes of Order Flow (Dark) (left pane only); Objects List ribbon button; i18n of drawing strings
+- [x] Alert on cross for lines, rays, channels and rectangles (cross / enter / exit), bell toggle + dialog, fires through the alerts runtime; emoji picker; regression inner / outer σ and anchored-VWAP band fields; magnet slider (px) in Drawing preferences; multi-select (Shift+click, Ctrl+drag box, Ctrl+A) with group move / delete / style
+- [x] ZigZag volume profile, CVD correlation, Magnifier (M), Remove indicators; Ctrl+Z / Ctrl+Y / Del / Ctrl+A registry commands; drawings on both Order Flow (Dark) panes; Objects List ribbon button
+- [ ] i18n of drawing strings; registry Ctrl+Z needs the last pointer-down inside a chart
 
 ## P13 — Indicator framework
 
@@ -228,7 +229,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] `@htflow/replay`: deterministic engine (trades, book snapshots / deltas, keyframes), 0.25×–1000×, step tick / bar / back bar, jump to time, loop, bookmarks, multi-instrument synced groups; sources: simulator history, in-memory store history, pluggable `registerReplaySource()` for the tick store
 - [x] `replay:` feed provider (purple Replay badge / status pill), Replay window (setup, templates, replay paper account with tag routing), chart control bar (P35) with timeline, speeds, Go to time, bookmarks, Sync, Loop; Space / arrows / 1–7 hotkeys
-- [ ] Ghost future bars (hide-future is always on), fills stamped in replay time, B/S fill tags, economic-event markers, missing-data download, persisted bookmarks; Replay window opens as a tab over the chart
+- [x] Hide future bars toggle with ghost candles (never fed to the store), fills stamped in replay time (`PaperEngine.setClock`), B / S fill tags, economic-event markers on the timeline, bookmarks and loop saved per template, Replay window opens in its own split
+- [ ] Missing-data download
 
 ## P25 — Workspaces, layouts, linking
 
