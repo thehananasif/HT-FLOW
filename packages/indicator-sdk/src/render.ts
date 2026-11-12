@@ -510,6 +510,12 @@ export class IndicatorScene {
       action: 'settings',
     });
     cx += tw + 8;
+    if (on && it.rt.notice) {
+      ctx.font = v.font(11);
+      ctx.fillStyle = p.textTertiary;
+      ctx.fillText(it.rt.notice, cx, y);
+      cx += ctx.measureText(it.rt.notice).width + 8;
+    }
     if (on && it.rt.count > 0) {
       const c = v.crosshair;
       const idx = c && c.slot >= 0 && c.slot < it.rt.count ? c.slot : it.rt.count - 1;

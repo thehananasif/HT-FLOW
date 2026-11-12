@@ -57,13 +57,14 @@ export const PivotPoints = defineIndicator({
   autoscale: false,
   description: 'Support / resistance levels from the previous period high, low and close.',
   formula:
-    'Classic: P=(H+L+C)/3, R1=2P−L, S1=2P−H, R2=P+(H−L), S2=P−(H−L), R3=H+2(P−L), S3=L−2(H−P). Fibonacci: P±0.382/0.618/1.0·(H−L). Camarilla: C±(H−L)·1.1/12, /6, /4. Woodie: P=(H+L+2C)/4.',
+    'Classic: P=(H+L+C)/3, R1=2P−L, S1=2P−H, R2=P+(H−L), S2=P−(H−L), R3=H+2(P−L), S3=L−2(H−P). Fibonacci: P±0.382/0.618/1.0·(H−L). Camarilla: C±(H−L)·1.1/12, /6, /4. Woodie: P=(H+L+2C)/4. DeMark: X = H+2L+C (C<O), 2H+L+C (C>O), H+L+2C (C=O); P=X/4, R1=X/2−L, S1=X/2−H.',
   inputs: {
     type: input.enum('Type', 'classic', [
       ['classic', 'Classic'],
       ['fibonacci', 'Fibonacci'],
       ['camarilla', 'Camarilla'],
       ['woodie', 'Woodie'],
+      ['demark', 'DeMark'],
     ]),
     period: input.timeframe('Period', 'D', { options: PERIODS }),
   },
@@ -78,7 +79,12 @@ export const PivotPoints = defineIndicator({
   },
   title: (p) => `Pivots ${p.type} ${p.period}`,
   calc(ctx) {
-    const { h, l, c } = prevPeriod(
+    const {
+      o: po,
+      h,
+      l,
+      c,
+    } = prevPeriod(
       ctx as unknown as CalcContext<InputDefs, OutputDefs, unknown>,
       ctx.inputs.period as 'D',
     );
@@ -89,6 +95,11 @@ export const PivotPoints = defineIndicator({
       case 'fibonacci': {
         const p = (h + l + c) / 3;
         v = [p + r, p + 0.618 * r, p + 0.382 * r, p, p - 0.382 * r, p - 0.618 * r, p - r];
+        break;
+      }
+      case 'demark': {
+        const x = c < po ? h + 2 * l + c : c > po ? 2 * h + l + c : h + l + 2 * c;
+        v = [NaN, NaN, x / 2 - l, x / 4, x / 2 - h, NaN, NaN];
         break;
       }
       case 'camarilla':
