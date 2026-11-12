@@ -17,6 +17,7 @@ import { InstrumentPickerButton } from '../components/InstrumentPicker';
 import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
 import { chartHeaderItems } from '../charts/extensions';
+import { openChartSettings, templateMenuItems } from '../charts/headerMenu';
 import { confirmAction } from '../state/confirm';
 
 const QUICK_TF: BarSpec[] = [
@@ -158,8 +159,7 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
             label: `${label} (P09)`,
             disabled: true,
           })),
-          { kind: 'separator', id: 's' },
-          { id: 'save', label: 'Settings · Save current as template… (P34)', disabled: true },
+          ...templateMenuItems(id),
         ]}
         trigger={
           <MenuTrigger data-testid="template-menu">
@@ -261,7 +261,12 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
       >
         <Maximize2 size={12} />
       </IconButton>
-      <IconButton label="Settings" disabled title="Chart settings window arrives in P34">
+      <IconButton
+        label="Settings"
+        disabled={s.kind !== 'chart'}
+        title={s.kind === 'chart' ? 'Chart settings (Ctrl+S)' : 'Settings'}
+        onClick={() => s.kind === 'chart' && openChartSettings(id)}
+      >
         <Settings2 size={13} />
       </IconButton>
       <IconButton label="Close window" onClick={() => closeWindow(props.api)}>
