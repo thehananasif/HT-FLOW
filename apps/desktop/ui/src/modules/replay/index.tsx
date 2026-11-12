@@ -392,6 +392,7 @@ function Templates({ setBusy }: { setBusy: (b: string | null) => void }) {
 
 /** Customisation of the replay chart overlays: ghost candles, fill tags, timeline events. */
 function Display() {
+  useReplaySession(); // re-render when the session (e.g. hide-future) changes
   const d = useReplayDisplay();
   const hf = hideFuture();
   return (
