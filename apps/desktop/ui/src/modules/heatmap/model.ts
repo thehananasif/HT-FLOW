@@ -25,7 +25,7 @@ export interface Camera {
   dist: number;
 }
 
-export const DEFAULT_CAMERA: Camera = { yaw: -0.65, pitch: 0.6, dist: 2.6 };
+export const DEFAULT_CAMERA: Camera = { yaw: -0.6, pitch: 0.62, dist: 3.1 };
 
 export interface HeatmapParams {
   /** null = follow the active window's instrument. */

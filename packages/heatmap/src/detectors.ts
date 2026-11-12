@@ -61,9 +61,9 @@ export const DEFAULT_DETECTOR: DetectorOptions = {
   pullRatio: 0.2,
   maxTradedRatio: 0.1,
   minDistanceTicks: 1,
-  icebergRatio: 2,
+  icebergRatio: 3,
   icebergMinTraded: 5,
-  icebergMinRefills: 2,
+  icebergMinRefills: 3,
   maxEvents: 2000,
 };
 

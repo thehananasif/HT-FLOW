@@ -173,6 +173,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
   const sRef = useRef(s);
   sRef.current = s;
 
+  const fpsMode = values['common.heatmapFpsMode'];
+  const fpsCap = values['common.heatmapFpsCap'];
   // ---------------------------------------------------------------- build
   useEffect(() => {
     const el = host.current;
@@ -265,14 +267,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
       drawRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    store,
-    store.ready,
-    params.columnMs,
-    stress,
-    values['common.heatmapFpsMode'],
-    values['common.heatmapFpsCap'],
-  ]);
+  }, [store, store.ready, params.columnMs, stress, fpsMode, fpsCap]);
 
   // Settings apply in place.
   useEffect(() => {

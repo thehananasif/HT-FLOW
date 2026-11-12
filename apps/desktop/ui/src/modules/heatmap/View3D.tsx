@@ -203,12 +203,14 @@ function startThree(
     preserveDrawingBuffer: true,
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
+  // LUT colours are display colours already: no sRGB re-encoding (keeps them identical to 2D).
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
   el.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.55);
+  scene.add(new THREE.AmbientLight(0xffffff, 1.15));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.1);
   sun.position.set(1, 2, 1.5);
   scene.add(sun);
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
@@ -340,7 +342,7 @@ function startIsometric(el: HTMLDivElement, latest: Latest, cam: CamRef, dirty: 
     ctx.fillStyle = latest.current.background;
     ctx.fillRect(0, 0, W, H);
     const c = cam.current;
-    const scale = (Math.min(W, H) * 0.95) / c.dist;
+    const scale = (Math.min(W, H) * 1.25) / c.dist;
     const hScale = 0.45 * latest.current.height;
     // Downsample so the fallback stays interactive.
     const stepC = Math.max(1, Math.ceil(s.cols / 90));
