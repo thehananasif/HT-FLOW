@@ -338,3 +338,136 @@
   font-size: 11px;
   pointer-events: none;
 }
+
+/* ---- confirmation dialog */
+.st-confirm-body {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--ht-text-soft);
+  line-height: 1.5;
+}
+.st-confirm-actions {
+  align-items: center;
+}
+
+/* ---- colour control */
+.st-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.st-color-pick {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.st-hex {
+  width: 88px;
+  height: 24px;
+  font-size: 11px;
+}
+
+/* ---- custom modules, About, Logs */
+.st-sub-head {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ht-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.st-note {
+  margin: 6px 0;
+  font-size: 11px;
+}
+.st-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.st-folder-list {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+}
+.st-folder-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.st-about {
+  padding: 8px 4px 12px;
+}
+.st-about-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.st-about-links {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.st-about a {
+  color: var(--ht-info);
+}
+.st-log {
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.st-log-rows {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  font-size: 11px;
+}
+.st-log-row {
+  display: grid;
+  grid-template-columns: 170px 48px 70px 1fr;
+  gap: 8px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.st-log-row[data-level='error'] .st-log-level {
+  color: var(--ht-down);
+}
+.st-log-row[data-level='warn'] .st-log-level {
+  color: var(--ht-warning);
+}
+.st-log-msg {
+  word-break: break-word;
+}
+
+/* ---- right-to-left layout (Settings → General → Layout direction; Urdu / Arabic later).
+ * The chrome mirrors; charts, DOM ladders, tapes, tables of numbers and every number stay LTR. */
+:root[dir='rtl'] canvas,
+:root[dir='rtl'] .tnum,
+:root[dir='rtl'] .dom-canvas-wrap,
+:root[dir='rtl'] .chart-host,
+:root[dir='rtl'] [data-testid='dom-ladder'],
+:root[dir='rtl'] .dv-split-view-container {
+  direction: ltr;
+}
+:root[dir='rtl'] .st-nav {
+  border-right: 0;
+  border-left: 1px solid var(--ht-border);
+}
+:root[dir='rtl'] .st-nav-item {
+  text-align: right;
+}
+:root[dir='rtl'] .st-row-ctl {
+  justify-content: flex-start;
+}
+:root[dir='rtl'] .ht-toasts {
+  text-align: right;
+}

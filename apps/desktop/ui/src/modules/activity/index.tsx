@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
+import { fmtClock, fmtDate, useTimeFormat } from '../../state/format';
 import { activityLog, type ActivityEvent, type ActivityType } from './log';
 
 const TYPES: Record<
@@ -19,11 +20,8 @@ const TYPES: Record<
 };
 
 const stamp = (ts: number) => {
-  const d = new Date(ts);
-  const t = d.toLocaleTimeString('en-GB', { hour12: false });
-  return d.toDateString() === new Date().toDateString()
-    ? t
-    : `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ${t}`;
+  const t = fmtClock(ts);
+  return fmtDate(ts) === fmtDate(Date.now()) ? t : `${fmtDate(ts)} ${t}`;
 };
 
 const cols: DataColumn<ActivityEvent>[] = [
@@ -54,6 +52,7 @@ const cols: DataColumn<ActivityEvent>[] = [
 ];
 
 function Activity({ state, setParams }: ModuleViewProps) {
+  useTimeFormat();
   const [, set] = useState(0);
   useEffect(() => activityLog.subscribe(() => set((x) => x + 1)), []);
   const rows = [...activityLog.list()].reverse();
