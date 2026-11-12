@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Kbd } from '@htflow/ui-kit';
 import { commands, onCommandsChange, type Command } from './commands';
 
@@ -9,11 +9,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const [, force] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => onCommandsChange(() => force((x) => x + 1)), []);
-  useEffect(() => {
+  // Focus in the same commit that shows the palette: a deferred focus (setTimeout) let the first
+  // keystrokes typed right after Ctrl+K reach the window underneath (and its hotkeys) on a busy PC.
+  useLayoutEffect(() => {
     if (open) {
       setQ('');
       setSel(0);
-      setTimeout(() => inputRef.current?.focus(), 0);
+      inputRef.current?.focus();
     }
   }, [open]);
   const list = useMemo(() => {

@@ -17,6 +17,7 @@ import { useSession } from '../../state/session';
 import { useWindows } from '../../state/windows';
 import { allInstruments, DEFAULT_INSTRUMENT, instrumentById } from '../../state/instruments';
 import { isTauri } from '../../backend';
+import { registerOpenFileHandler } from '../../platform/openFile';
 import { registerModule, type ModuleViewProps } from '../registry';
 import {
   activeChartId,
@@ -44,6 +45,15 @@ const talk = new PersistedStore<TalkState>(
     return { version: 1, ideas: list.map(normalizeIdea).filter((i): i is Idea => i !== null) };
   },
 );
+
+// Double-clicking a .htidea file (file association) merges it into the idea log.
+registerOpenFileHandler('idea', async (f) => {
+  await talk.ensureLoaded();
+  const p = parseIdeaFile(f.text);
+  const m = mergeIdeas(talk.get().ideas, p.ideas);
+  talk.set({ ...talk.get(), ideas: m.ideas });
+  toast('success', `Imported ${m.added} new, ${m.updated} updated idea(s)`, f.name);
+});
 
 // Chart cores per chart window, so a snapshot can be taken of the active chart.
 const coresByWindow = new Map<string, ChartCore[]>();

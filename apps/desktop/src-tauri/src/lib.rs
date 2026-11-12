@@ -2,11 +2,14 @@
 //! allow-list: local accounts + encrypted settings/vault (P03) and live market data (P05/P06).
 
 mod auth_cmds;
+mod crash;
 mod data_cmds;
 mod error;
 mod market_cmds;
 mod net_cmds;
+mod openfile;
 mod paths;
+mod updater_cmds;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -21,10 +24,24 @@ pub fn run() {
         )
         .try_init();
 
+    // Local-only crash reports (<data>/crashes/), also for panics during start-up.
+    crash::install_panic_hook(paths::data_root(None));
+
     tauri::Builder::default()
+        // A second launch (e.g. double-clicking a .htprofile) hands its arguments to this instance.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            openfile::dispatch(app, openfile::paths_from_args(args));
+        }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let root = paths::data_root(app.path().app_data_dir().ok());
             std::fs::create_dir_all(&root)?;
+            app.manage(crash::CrashState(crash::crash_dir(&root)));
+            app.manage(openfile::OpenFileState::default());
+            openfile::dispatch(
+                app.handle(),
+                openfile::paths_from_args(std::env::args().skip(1)),
+            );
             tracing::info!(root = %root.display(), "HT Flow data root");
             app.manage(data_cmds::DataState(data_cmds::RecorderService::start(
                 &root,
@@ -66,6 +83,14 @@ pub fn run() {
             data_cmds::data_delete,
             data_cmds::data_export_csv,
             data_cmds::data_replay,
+            crash::crash_save,
+            crash::crash_list,
+            crash::crash_summary,
+            crash::crash_open_folder,
+            openfile::open_file_ready,
+            updater_cmds::update_status,
+            updater_cmds::update_check,
+            updater_cmds::update_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");

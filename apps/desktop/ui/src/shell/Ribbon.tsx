@@ -4,6 +4,13 @@ import { MODULES } from './modules';
 import { MODULE_ICONS } from './icons';
 import { runCommand } from './commands';
 import { RibbonCustomize } from './RibbonCustomize';
+import { ribbonMenu } from './ribbonMenus';
+
+/** Wraps a ribbon button in its module's ▾ menu, when the module registered one. */
+function withMenu(id: string, button: JSX.Element): JSX.Element {
+  const Menu = ribbonMenu(id);
+  return Menu ? <Menu trigger={button} /> : button;
+}
 import { groupIds, ribbonStore, RIBBON_GROUPS, useRibbonState } from './ribbonStore';
 
 /**
@@ -43,14 +50,17 @@ export function Ribbon({ compact }: { compact?: boolean }) {
                     },
                   ]}
                 >
-                  <RibbonButton
-                    icon={<Icon />}
-                    label={m.label}
-                    hasMenu={m.hasMenu}
-                    compact={compact}
-                    data-testid={`ribbon-${m.id}`}
-                    onClick={() => runCommand(`open.${m.id}`)}
-                  />
+                  {withMenu(
+                    m.id,
+                    <RibbonButton
+                      icon={<Icon />}
+                      label={m.label}
+                      hasMenu={m.hasMenu}
+                      compact={compact}
+                      data-testid={`ribbon-${m.id}`}
+                      onClick={ribbonMenu(m.id) ? undefined : () => runCommand(`open.${m.id}`)}
+                    />,
+                  )}
                 </ContextMenu>
               );
             })}

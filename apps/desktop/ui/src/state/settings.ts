@@ -29,6 +29,7 @@ import {
 export type SectionId =
   | 'general'
   | 'appearance'
+  | 'layout'
   | 'chart'
   | 'footprint'
   | 'heatmap'
@@ -60,6 +61,12 @@ export const SECTIONS: { id: SectionId; label: string; description: string }[] =
     id: 'appearance',
     label: 'Appearance',
     description: 'Theme, every colour token, UI scale, font size and ribbon.',
+  },
+  {
+    id: 'layout',
+    label: 'Layout',
+    description:
+      'Window grid, gaps, headers, tabs, where new windows open, link-group colours and multi-monitor restore.',
   },
   {
     id: 'chart',
@@ -1110,7 +1117,7 @@ export const SCHEMA = {
       { value: 'high-performance', label: 'Discrete (high performance)' },
       { value: 'low-power', label: 'Integrated (low power)' },
     ],
-    wired: false,
+    wired: true,
   }),
   'common.heatmapFpsMode': oneOf({
     section: 'common',
@@ -1123,7 +1130,7 @@ export const SCHEMA = {
       { value: 'auto', label: 'Auto' },
       { value: 'manual', label: 'Manual' },
     ],
-    wired: false,
+    wired: true,
   }),
   'common.heatmapFpsCap': num({
     section: 'common',
@@ -1136,7 +1143,7 @@ export const SCHEMA = {
     max: 240,
     step: 5,
     unit: 'fps',
-    wired: false,
+    wired: true,
   }),
   'common.heatmapStartupLevels': num({
     section: 'common',
@@ -1148,7 +1155,7 @@ export const SCHEMA = {
     min: 10,
     max: 1000,
     step: 10,
-    wired: false,
+    wired: true,
   }),
   'common.backupDays': num({
     section: 'common',
@@ -1222,7 +1229,7 @@ export const SCHEMA = {
     min: 0,
     max: 1000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'common.strategiesUnusedDays': num({
     section: 'common',
@@ -1818,7 +1825,7 @@ export const SCHEMA = {
       { value: 'blue-red', label: 'Blue to red' },
       { value: 'viridis', label: 'Viridis' },
     ],
-    wired: false,
+    wired: true,
   }),
   'heatmap.contrast': num({
     section: 'heatmap',
@@ -1830,7 +1837,7 @@ export const SCHEMA = {
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'heatmap.opacity': num({
     section: 'heatmap',
@@ -1842,7 +1849,7 @@ export const SCHEMA = {
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'heatmap.normalization': oneOf({
     section: 'heatmap',
@@ -1854,7 +1861,7 @@ export const SCHEMA = {
       { value: 'visible', label: 'Visible window' },
       { value: 'session', label: 'Whole session' },
     ],
-    wired: false,
+    wired: true,
   }),
   'heatmap.minSize': num({
     section: 'heatmap',
@@ -1865,7 +1872,7 @@ export const SCHEMA = {
     min: 0,
     max: 1_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'heatmap.smoothing': bool({
     section: 'heatmap',
@@ -1873,7 +1880,7 @@ export const SCHEMA = {
     label: 'Smooth between snapshots',
     help: 'Interpolate colours between depth snapshots instead of drawing hard steps.',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'heatmap.historyMinutes': num({
     section: 'heatmap',
@@ -1885,7 +1892,7 @@ export const SCHEMA = {
     max: 1440,
     step: 5,
     unit: 'min',
-    wired: false,
+    wired: true,
   }),
   'heatmap.showBestBidAsk': bool({
     section: 'heatmap',
@@ -1893,7 +1900,7 @@ export const SCHEMA = {
     label: 'Best bid / ask lines',
     help: 'Draw the best bid and best ask over the heatmap.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'heatmap.showTradeBubbles': bool({
     section: 'heatmap',
@@ -1901,7 +1908,7 @@ export const SCHEMA = {
     label: 'Trade bubbles',
     help: 'Draw executed trades as bubbles sized by volume.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'heatmap.bubbleScale': num({
     section: 'heatmap',
@@ -1913,7 +1920,7 @@ export const SCHEMA = {
     max: 400,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'heatmap.bubbleMinSize': num({
     section: 'heatmap',
@@ -1924,7 +1931,7 @@ export const SCHEMA = {
     min: 0,
     max: 1_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'heatmap.showVolumeProfile': bool({
     section: 'heatmap',
@@ -1932,7 +1939,7 @@ export const SCHEMA = {
     label: 'Volume profile on the right',
     help: 'Show the visible-range volume profile next to the price axis.',
     default: true,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- DOM (P27)
@@ -2547,6 +2554,238 @@ export const SCHEMA = {
     wired: false,
   }),
 
+  // ---------------------------------------------------------------- Layout (P25 / P37)
+  'layout.snapToGrid': bool({
+    section: 'layout',
+    group: 'Grid',
+    label: 'Snap windows to grid',
+    help: 'Floating windows snap their position and size to the grid when you stop dragging or resizing them.',
+    default: true,
+    keywords: 'magnet align floating',
+  }),
+  'layout.gridSize': num({
+    section: 'layout',
+    group: 'Grid',
+    label: 'Grid size',
+    help: 'Size of one grid cell used by snapping.',
+    default: 8,
+    min: 2,
+    max: 64,
+    step: 1,
+    unit: 'px',
+  }),
+  'layout.gap': num({
+    section: 'layout',
+    group: 'Grid',
+    label: 'Gap between windows',
+    help: 'Space between docked windows.',
+    default: 4,
+    min: 0,
+    max: 16,
+    step: 1,
+    unit: 'px',
+    keywords: 'spacing gutter margin',
+  }),
+  'layout.lock': bool({
+    section: 'layout',
+    group: 'Grid',
+    label: 'Lock layout',
+    help: 'Windows can no longer be dragged to another place or dropped onto each other (splitters still resize).',
+    default: false,
+    keywords: 'freeze pin',
+  }),
+  'layout.headerDensity': oneOf({
+    section: 'layout',
+    group: 'Window headers',
+    label: 'Header density',
+    help: 'Height of every window header: compact (26 px) or normal (32 px).',
+    default: 'normal',
+    options: [
+      { value: 'compact', label: 'Compact' },
+      { value: 'normal', label: 'Normal' },
+    ],
+    keywords: 'title bar size',
+  }),
+  'layout.headerStyle': oneOf({
+    section: 'layout',
+    group: 'Window headers',
+    label: 'Header style',
+    help: 'How window headers look: flat on the window surface, raised (darker band) or outlined (separator line only).',
+    default: 'raised',
+    options: [
+      { value: 'raised', label: 'Raised' },
+      { value: 'flat', label: 'Flat' },
+      { value: 'outlined', label: 'Outlined' },
+    ],
+  }),
+  'layout.tabPosition': oneOf({
+    section: 'layout',
+    group: 'Window headers',
+    label: 'Layout tabs position',
+    help: 'Where the workspace layout tabs (one tab per layout) are shown.',
+    default: 'bottom',
+    options: [
+      { value: 'bottom', label: 'Bottom' },
+      { value: 'top', label: 'Top' },
+    ],
+  }),
+  'layout.ribbonHidden': bool({
+    section: 'layout',
+    group: 'Window headers',
+    label: 'Hide the ribbon',
+    help: 'Hides the module ribbon to gain space; every module stays available from the Command Palette (Ctrl+K). "Icons only" is in Appearance.',
+    default: false,
+    keywords: 'toolbar ribbon mode',
+  }),
+  'layout.openChart': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Charts open',
+    help: 'Whether a new chart window opens docked in the layout or floating above it.',
+    default: 'docked',
+    options: [
+      { value: 'docked', label: 'Docked' },
+      { value: 'floating', label: 'Floating' },
+      { value: 'window', label: 'New OS window — coming', disabled: true },
+    ],
+  }),
+  'layout.openDom': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'DOM windows open',
+    help: 'Whether a new DOM window opens docked or floating.',
+    default: 'docked',
+    options: [
+      { value: 'docked', label: 'Docked' },
+      { value: 'floating', label: 'Floating' },
+      { value: 'window', label: 'New OS window — coming', disabled: true },
+    ],
+  }),
+  'layout.openTape': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Tape windows open',
+    help: 'Whether a new Smart Tape / Bid-Ask Tape window opens docked or floating.',
+    default: 'docked',
+    options: [
+      { value: 'docked', label: 'Docked' },
+      { value: 'floating', label: 'Floating' },
+      { value: 'window', label: 'New OS window — coming', disabled: true },
+    ],
+  }),
+  'layout.openModule': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Other windows open',
+    help: 'Whether every other new window (tables, analytics, settings…) opens docked or floating.',
+    default: 'docked',
+    options: [
+      { value: 'docked', label: 'Docked' },
+      { value: 'floating', label: 'Floating' },
+      { value: 'window', label: 'New OS window — coming', disabled: true },
+    ],
+  }),
+  'layout.dockPlacement': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Docked placement',
+    help: 'Where a new docked window goes, relative to the active window.',
+    default: 'tab',
+    options: [
+      { value: 'tab', label: 'As a tab of the active window' },
+      { value: 'right', label: 'Split right' },
+      { value: 'below', label: 'Split down' },
+    ],
+  }),
+  'layout.floatPlacement': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Floating placement',
+    help: 'Where a new floating window appears.',
+    default: 'cascade',
+    options: [
+      { value: 'cascade', label: 'Cascade' },
+      { value: 'center', label: 'Centre' },
+      { value: 'top-left', label: 'Top left' },
+    ],
+  }),
+  'layout.newWindowWidth': num({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Default width',
+    help: 'Width of a new floating window (also used by Detach).',
+    default: 820,
+    min: 240,
+    max: 4000,
+    step: 10,
+    unit: 'px',
+  }),
+  'layout.newWindowHeight': num({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Default height',
+    help: 'Height of a new floating window (also used by Detach).',
+    default: 520,
+    min: 160,
+    max: 3000,
+    step: 10,
+    unit: 'px',
+  }),
+  'layout.linkRed': color({
+    section: 'layout',
+    group: 'Link groups',
+    label: 'Red group colour',
+    help: 'Swatch of the red link group in window headers and the link-group manager. Empty = default.',
+    keywords: 'link colour',
+  }),
+  'layout.linkGreen': color({
+    section: 'layout',
+    group: 'Link groups',
+    label: 'Green group colour',
+    help: 'Swatch of the green link group. Empty = default.',
+    keywords: 'link colour',
+  }),
+  'layout.linkBlue': color({
+    section: 'layout',
+    group: 'Link groups',
+    label: 'Blue group colour',
+    help: 'Swatch of the blue link group. Empty = default.',
+    keywords: 'link colour',
+  }),
+  'layout.linkYellow': color({
+    section: 'layout',
+    group: 'Link groups',
+    label: 'Yellow group colour',
+    help: 'Swatch of the yellow link group. Empty = default.',
+    keywords: 'link colour',
+  }),
+  'layout.linkPurple': color({
+    section: 'layout',
+    group: 'Link groups',
+    label: 'Purple group colour',
+    help: 'Swatch of the purple link group. Empty = default.',
+    keywords: 'link colour',
+  }),
+  'layout.restoreMonitors': bool({
+    section: 'layout',
+    group: 'Multi-monitor',
+    label: 'Restore window positions',
+    help: 'When a workspace loads, put the main window and floating windows back where they were saved. A window whose monitor is missing moves to the primary monitor, fully visible.',
+    default: true,
+    keywords: 'screen display second monitor',
+  }),
+  'layout.restoreMode': oneOf({
+    section: 'layout',
+    group: 'Multi-monitor',
+    label: 'Restore mode',
+    help: 'Exact keeps saved positions and sizes (only moved when off-screen); Fit to screens scales them to the current screen and window size.',
+    default: 'exact',
+    options: [
+      { value: 'exact', label: 'Exact' },
+      { value: 'fit', label: 'Fit to screens' },
+    ],
+  }),
+
   // ---------------------------------------------------------------- Custom modules (P43)
   'modules.disabled': custom<string[]>({
     section: 'modules',
@@ -2575,21 +2814,19 @@ export const SCHEMA = {
     section: 'about',
     group: 'Updates',
     label: 'Check for updates',
-    help: 'Look for a newer HT Flow release at start-up. Off by default (no network call is made); the updater arrives with the installer.',
+    help: 'Look for a newer HT Flow release on GitHub at start-up. Off by default (no network call is made until you turn it on). "Check for updates" in the Command Palette always works on demand. Builds without an updater key, and the web build, show "Updates unavailable in this build".',
     default: false,
-    wired: false,
   }),
   'about.updateChannel': oneOf({
     section: 'about',
     group: 'Updates',
     label: 'Update channel',
-    help: 'Which releases the updater offers.',
+    help: 'Which releases the updater offers: Stable (published releases) or Beta (pre-releases, may be less tested).',
     default: 'stable',
     options: [
       { value: 'stable', label: 'Stable' },
-      { value: 'beta', label: 'Beta — coming', disabled: true },
+      { value: 'beta', label: 'Beta' },
     ],
-    wired: false,
   }),
 } satisfies Record<string, SettingDef>;
 

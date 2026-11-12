@@ -17,6 +17,8 @@ import {
 } from '../../state/log';
 import { fmtDateTime } from '../../state/format';
 import { ABOUT_LINKS, BUNDLED_LIBRARIES } from './licenses';
+import { useReportDialog } from '../../platform/crash';
+import { checkForUpdates } from '../../platform/updates';
 import type { EditorProps } from './editors';
 
 // ------------------------------------------------------------------ data provider priority
@@ -246,6 +248,14 @@ export function AboutPanel() {
             {l.label}
           </a>
         ))}
+      </div>
+      <div className="row gap8">
+        <Button size="sm" onClick={() => void checkForUpdates()} data-testid="about-check-updates">
+          Check for updates
+        </Button>
+        <Button size="sm" onClick={() => useReportDialog.getState().show()}>
+          Report a problem…
+        </Button>
       </div>
       <div className="st-sub-head">Open-source libraries bundled with HT Flow</div>
       <table className="tbl" data-testid="licence-table">

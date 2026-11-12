@@ -1,5 +1,6 @@
 import type { ChartLayer, PointerHandler } from '@htflow/chart-engine';
 import {
+  DerivativesLog,
   IndicatorScene,
   PaneSpacerLayer,
   tfClassOf,
@@ -41,6 +42,8 @@ registerChartExtension({
     if (!ctx.series()) return;
     contexts.set(ctx.windowId, ctx);
     const store = ctx.store;
+    const derivatives = new DerivativesLog();
+    const detachFeeds = derivatives.attach(store);
     const data: BarData = {
       get bars() {
         return ctx.series()?.bars ?? [];
@@ -50,6 +53,16 @@ registerChartExtension({
       },
       tickSize: store.instrument.tickSize,
       tradesBetween: (a, b) => store.tradesBetween(a, b),
+      derivatives,
+      depth: {
+        get version() {
+          const d = store.depth;
+          return d.length ? d[d.length - 1]!.t % 1e6 : 0;
+        },
+        get columns() {
+          return store.depth;
+        },
+      },
     };
     const scene = new IndicatorScene(() => data, indicatorById);
     const core = ctx.core;
@@ -90,6 +103,7 @@ registerChartExtension({
     core.pointerHandlers.push(ph);
     return () => {
       unsub();
+      detachFeeds();
       if (contexts.get(ctx.windowId) === ctx) contexts.delete(ctx.windowId);
       core.pointerHandlers = core.pointerHandlers.filter((p) => p !== ph);
       for (const c of ctx.cores) c.setLayers(c.layers.filter((l) => !isOurs(l)));

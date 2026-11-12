@@ -72,7 +72,11 @@ export class IndicatorRuntime {
   count = 0;
   /** Stats for tests / debug overlay. */
   stats = { full: 0, incremental: 0, barsComputed: 0 };
+  /** Note from the last calc() of the last bar (shown in the legend), e.g. "no data from this feed". */
+  notice: string | null = null;
+  private pendingNotice: string | null = null;
   private version = Number.NaN;
+  private feedVersion = Number.NaN;
   private first: Bar | undefined;
   private anchor: Bar | undefined;
   private cap = 0;
@@ -104,13 +108,28 @@ export class IndicatorRuntime {
       trades: (i) => this.trades(i),
       tickSize: 1,
       state: undefined,
+      derivatives: undefined,
+      depth: undefined,
+      notice: (text) => {
+        this.pendingNotice = text;
+      },
     };
+  }
+
+  private feedKey(data: BarData): number {
+    return (data.derivatives?.version ?? 0) * 1e6 + (data.depth?.version ?? 0);
   }
 
   /** Brings results up to date with `data`. Cheap when nothing changed. */
   update(data: BarData): UpdateKind {
     const bars = data.bars;
-    if (data.version === this.version && bars.length === this.count && bars[0] === this.first) {
+    const fk = this.feedKey(data);
+    if (
+      data.version === this.version &&
+      fk === this.feedVersion &&
+      bars.length === this.count &&
+      bars[0] === this.first
+    ) {
       this.data = data;
       return 'none';
     }
@@ -124,6 +143,7 @@ export class IndicatorRuntime {
     }
     this.data = data;
     this.version = data.version;
+    this.feedVersion = fk;
     this.run(data, m - 1, n);
     this.stats.incremental++;
     return 'incremental';
@@ -133,6 +153,7 @@ export class IndicatorRuntime {
   recompute(data: BarData): void {
     this.data = data;
     this.version = data.version;
+    this.feedVersion = this.feedKey(data);
     this.ensure(data.bars.length);
     for (const o of Object.values(this.outputs)) {
       if (o instanceof SeriesOut) o.clear(0);
@@ -141,6 +162,7 @@ export class IndicatorRuntime {
     for (const b of this.bufs.values()) b.fill(Number.NaN);
     for (const s of this.srcs.values()) s.fill(Number.NaN);
     this.state = this.def.init?.(this.inputs);
+    this.notice = null;
     this.count = 0;
     this.run(data, 0, data.bars.length);
     this.stats.full++;
@@ -154,6 +176,8 @@ export class IndicatorRuntime {
     ctx.count = to;
     ctx.tickSize = data.tickSize;
     ctx.state = this.state;
+    ctx.derivatives = data.derivatives;
+    ctx.depth = data.depth;
     const outs = Object.values(this.outputs);
     for (const o of outs) if (o instanceof ListOut) o.truncate(from);
     for (let i = from; i < to; i++) {
@@ -168,7 +192,9 @@ export class IndicatorRuntime {
         if (o instanceof SeriesOut) o.clearAt(i);
         else o.cursor = i;
       }
+      this.pendingNotice = null;
       this.def.calc(ctx);
+      if (i === to - 1) this.notice = this.pendingNotice;
       this.stats.barsComputed++;
     }
     this.count = to;
@@ -236,7 +262,12 @@ export function computeIndicator(
   def: AnyIndicator,
   bars: readonly Bar[],
   raw?: RawInputs,
-  opts: { tickSize?: number; tradesBetween?: BarData['tradesBetween'] } = {},
+  opts: {
+    tickSize?: number;
+    tradesBetween?: BarData['tradesBetween'];
+    derivatives?: BarData['derivatives'];
+    depth?: BarData['depth'];
+  } = {},
 ): IndicatorRuntime {
   const rt = new IndicatorRuntime(def, raw);
   rt.recompute({
@@ -244,6 +275,8 @@ export function computeIndicator(
     version: 1,
     tickSize: opts.tickSize ?? 1,
     tradesBetween: opts.tradesBetween,
+    derivatives: opts.derivatives,
+    depth: opts.depth,
   });
   return rt;
 }

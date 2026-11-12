@@ -5,16 +5,25 @@ name: Release
 # release action then creates the tag on the commit the workflow ran on.
 # Unsigned builds (code signing is out of scope, see docs/BLOCKERS.md): Windows SmartScreen shows
 # "unknown publisher" on first run (More info → Run anyway).
+# Auto-update: when the repo secret TAURI_SIGNING_PRIVATE_KEY exists the build also writes minisign
+# signatures and this workflow publishes `latest.json` for tauri-plugin-updater; without it those
+# steps are skipped and the release only carries the installers. See docs/RELEASE.md.
 
 on:
   push:
     tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
         description: Tag to publish (created on the selected branch's commit if it does not exist)
         required: true
-        default: v0.1.0-preview
+        default: v0.1.0-preview.2
+      draft:
+        description: Create the release as a draft (review, then publish it by hand)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -22,9 +31,15 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # Optional. Absent secrets are empty strings and the signing steps below are skipped.
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  # Public key; may instead be committed in tauri.conf.json (plugins.updater.pubkey).
+  TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY || vars.TAURI_UPDATER_PUBKEY }}
 
 jobs:
   windows:
+    if: github.event_name != 'release'
     name: Build and publish Windows x64
     runs-on: windows-latest
     steps:
@@ -39,8 +54,26 @@ jobs:
         with:
           key: release
       - run: pnpm install --frozen-lockfile
-      - name: Tauri build (NSIS, per-user install)
-        run: pnpm --filter @htflow/desktop tauri build --bundles nsis
+      - name: Updater signing config (skipped without TAURI_SIGNING_PRIVATE_KEY)
+        id: signing
+        if: env.TAURI_SIGNING_PRIVATE_KEY != ''
+        shell: pwsh
+        run: |
+          $cfg = @{ bundle = @{ createUpdaterArtifacts = $true } }
+          if ($env:TAURI_UPDATER_PUBKEY) {
+            $cfg.plugins = @{ updater = @{ pubkey = $env:TAURI_UPDATER_PUBKEY } }
+          } else {
+            Write-Warning "TAURI_UPDATER_PUBKEY not set: builds are signed but the app cannot verify updates unless the key is committed in tauri.conf.json"
+          }
+          $path = Join-Path $env:RUNNER_TEMP 'tauri.release.conf.json'
+          $cfg | ConvertTo-Json -Depth 5 | Set-Content $path
+          "config=$path" >> $env:GITHUB_OUTPUT
+      - name: Tauri build (NSIS + MSI, per-user install)
+        shell: pwsh
+        run: |
+          $extra = @()
+          if ('${{ steps.signing.outputs.config }}') { $extra = @('--config', '${{ steps.signing.outputs.config }}') }
+          pnpm --filter @htflow/desktop tauri build --bundles nsis msi @extra
       - name: Portable zip (exe + portable marker)
         shell: pwsh
         run: |
@@ -53,6 +86,21 @@ jobs:
           Get-ChildItem target/release/bundle/nsis/*.exe | ForEach-Object {
             Copy-Item $_.FullName "dist/HTFlow-$tag-windows-x64-setup.exe"
           }
+          Get-ChildItem target/release/bundle/msi/*.msi | ForEach-Object {
+            Copy-Item $_.FullName "dist/HTFlow-$tag-windows-x64.msi"
+          }
+      - name: Updater manifest latest.json (skipped without signatures)
+        if: env.TAURI_SIGNING_PRIVATE_KEY != ''
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9A-Za-z.\-]+$') { throw "Unexpected tag: $tag" }
+          $setup = "dist/HTFlow-$tag-windows-x64-setup.exe"
+          Get-ChildItem target/release/bundle/nsis/*.exe.sig | ForEach-Object { Copy-Item $_.FullName "$setup.sig" }
+          Get-ChildItem target/release/bundle/msi/*.msi.sig | ForEach-Object { Copy-Item $_.FullName "dist/HTFlow-$tag-windows-x64.msi.sig" }
+          $notes = "docs/release-notes/$tag.md"
+          if (-not (Test-Path $notes)) { $notes = "docs/CHANGELOG.md" }
+          node scripts/release/latest-json.mjs --tag $tag --repo $env:GITHUB_REPOSITORY --installer $setup --notes $notes --out dist/latest.json
       - name: Release notes file
         id: notes
         shell: pwsh
@@ -69,7 +117,43 @@ jobs:
           name: HT Flow ${{ env.RELEASE_TAG }}
           body_path: ${{ steps.notes.outputs.path }}
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          # Always upload into a draft: on repositories with immutable releases, assets can only be
+          # added before a release is published. The next step publishes it (unless a draft was asked).
+          draft: true
           files: |
             dist/HTFlow-*-setup.exe
+            dist/HTFlow-*-setup.exe.sig
+            dist/HTFlow-*.msi
+            dist/HTFlow-*.msi.sig
             dist/HTFlow-*-portable.zip
-          fail_on_unmatched_files: true
+            dist/latest.json
+          fail_on_unmatched_files: false
+      - name: Publish the release
+        if: github.event.inputs.draft != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9A-Za-z.\-]+$') { throw "Unexpected tag: $tag" }
+          gh release edit $tag --repo $env:GITHUB_REPOSITORY --draft=false
+
+  # Beta channel: the updater's "beta" channel reads latest.json from a rolling pre-release called
+  # beta-channel. It is refreshed when a pre-release is published (so the assets it points to exist).
+  beta-manifest:
+    if: github.event_name == 'release' && github.event.release.prerelease
+    name: Refresh beta channel manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy latest.json to the beta-channel release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SRC_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if gh release download "$SRC_TAG" -p latest.json --dir . ; then
+            gh release view beta-channel >/dev/null 2>&1 || gh release create beta-channel --prerelease --title "Beta channel manifest" --notes "Rolling updater manifest for the beta channel. Do not delete."
+            gh release upload beta-channel latest.json --clobber
+          else
+            echo "No latest.json on $SRC_TAG (unsigned release); beta channel unchanged."
+          fi
