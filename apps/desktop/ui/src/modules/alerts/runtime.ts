@@ -73,6 +73,29 @@ alerts.onFire(({ alert, message, px }) => {
     });
 });
 
+/**
+ * Fires an ad-hoc alert through the same actions as engine alerts (toast, sound, activity log).
+ * Used by chart drawings with "alert on cross" (P12).
+ */
+export function notify(o: {
+  title: string;
+  body: string;
+  instrumentId?: string;
+  popup?: boolean;
+  sound?: boolean;
+  log?: boolean;
+}): void {
+  const inst = o.instrumentId ? instrumentById(o.instrumentId) : undefined;
+  if (o.popup ?? true) toast('warning', `Alert: ${o.title}`, o.body, 8000);
+  if (o.sound ?? true) beep();
+  if (o.log ?? true)
+    activityLog.add({
+      type: 'alert',
+      account: inst?.symbol ?? 'Alerts',
+      message: `${o.title} — ${o.body}`,
+    });
+}
+
 /* ---------------- market wiring ---------------- */
 
 const attached = new WeakSet<MarketStore>();

@@ -1,12 +1,37 @@
-import { Copy, Eye, EyeOff, Lock, MoreHorizontal, Pencil, Trash2, Unlock } from 'lucide-react';
-import { Button, Checkbox, Dialog, Field, NumberInput, Select, toast } from '@htflow/ui-kit';
+import {
+  Bell,
+  BellOff,
+  Copy,
+  Eye,
+  EyeOff,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Unlock,
+} from 'lucide-react';
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  Field,
+  NumberInput,
+  Select,
+  Slider,
+  toast,
+} from '@htflow/ui-kit';
 import { formatPrice, specKey, specLabel, TIMEFRAME_PRESETS } from '@htflow/market-data';
 import {
+  ALERT_TRIGGERS,
+  alertChannels,
+  alertTrigger,
   drawingName,
   positionStats,
   prop,
+  supportsAlert,
   SWATCHES,
   toolDef,
+  triggersFor,
   type Dash,
   type Drawing,
   type FibLevel,
@@ -15,7 +40,17 @@ import type { ChartWindowState } from '@htflow/workspace';
 import { useWindows } from '../../state/windows';
 import { hub, paper, PAPER_ACCOUNT } from '../../state/market';
 import type { ModuleViewProps } from '../registry';
-import { activeChartId, controllers, mutate, readDrawings, useDrawUi } from './store';
+import { EmojiPicker } from './emoji';
+import {
+  activeChartId,
+  controllers,
+  mutate,
+  mutateSelection,
+  readDrawings,
+  runToolCommand,
+  selectionOf,
+  useDrawUi,
+} from './store';
 
 const patchOne = (windowId: string, id: string, fn: (d: Drawing) => Drawing) =>
   mutate(windowId, (items) => items.map((d) => (d.id === id ? fn(d) : d)));
@@ -23,8 +58,25 @@ const removeOne = (windowId: string, id: string) => {
   mutate(windowId, (items) => items.filter((d) => d.id !== id));
   if (useDrawUi.getState().selected[windowId] === id) useDrawUi.getState().select(windowId, null);
 };
-const setStyle = (windowId: string, id: string, s: Partial<Drawing['style']>) =>
-  patchOne(windowId, id, (d) => ({ ...d, style: { ...d.style, ...s } }));
+/** Style edits apply to the whole multi-selection when the edited drawing is part of it. */
+const setStyle = (windowId: string, id: string, s: Partial<Drawing['style']>) => {
+  const sel = selectionOf(windowId);
+  if (sel.length > 1 && sel.includes(id))
+    mutateSelection(windowId, (d) => ({ ...d, style: { ...d.style, ...s } }));
+  else patchOne(windowId, id, (d) => ({ ...d, style: { ...d.style, ...s } }));
+};
+/** Same for any other drawing patch (lock, extend, alert…). */
+const patchGroup = (windowId: string, id: string, fn: (d: Drawing) => Drawing) => {
+  const sel = selectionOf(windowId);
+  if (sel.length > 1 && sel.includes(id)) mutateSelection(windowId, fn);
+  else patchOne(windowId, id, fn);
+};
+const removeSelection = (windowId: string, id: string) => {
+  const sel = selectionOf(windowId);
+  const ids = new Set(sel.length > 1 && sel.includes(id) ? sel : [id]);
+  mutate(windowId, (items) => items.filter((d) => !(ids.has(d.id) && !d.locked)));
+  useDrawUi.getState().select(windowId, null);
+};
 
 function instrumentOf(instrumentId: string) {
   return hub.peek(instrumentId)?.instrument ?? null;
@@ -46,9 +98,12 @@ export function DrawingsOverlay({
   state: ChartWindowState;
 }) {
   const selId = useDrawUi((s) => s.selected[windowId] ?? null);
+  const multi = useDrawUi((s) => s.multi[windowId]);
+  const nSel = multi && multi.length ? multi.length : selId ? 1 : 0;
   const tool = useDrawUi((s) => s.tool[windowId] ?? null);
   const showBar = useDrawUi((s) => s.prefs.toolbar);
   const editing = useDrawUi((s) => s.editing);
+  const prefsOpen = useDrawUi((s) => s.prefsOpen) && activeChartId() === windowId;
   const items = readDrawings(windowId);
   const d = items.find((x) => x.id === selId) ?? null;
   const def = tool ? toolDef(tool) : null;
@@ -67,7 +122,9 @@ export function DrawingsOverlay({
           aria-label="Drawing style"
           onContextMenu={(e) => e.stopPropagation()}
         >
-          <span className="dr-name">{toolDef(d.type)?.label}</span>
+          <span className="dr-name" data-testid="dr-name">
+            {nSel > 1 ? `${nSel} selected` : toolDef(d.type)?.label}
+          </span>
           <input
             type="color"
             aria-label="Colour"
@@ -107,23 +164,51 @@ export function DrawingsOverlay({
             aria-label={d.locked ? 'Unlock' : 'Lock'}
             title={d.locked ? 'Unlock' : 'Lock'}
             aria-pressed={d.locked}
-            onClick={() => patchOne(windowId, d.id, (x) => ({ ...x, locked: !x.locked }))}
+            onClick={() => patchGroup(windowId, d.id, (x) => ({ ...x, locked: !d.locked }))}
           >
             {d.locked ? <Lock size={14} /> : <Unlock size={14} />}
           </button>
+          {nSel === 1 && supportsAlert(d.type) && (
+            <button
+              className="dr-btn"
+              aria-label="Alert on cross"
+              title="Alert on cross / enter / exit"
+              aria-pressed={d.alert}
+              onClick={() => patchOne(windowId, d.id, (x) => ({ ...x, alert: !x.alert }))}
+            >
+              {d.alert ? <Bell size={14} /> : <BellOff size={14} />}
+            </button>
+          )}
+          {nSel > 1 && (
+            <button
+              className="dr-btn"
+              aria-label="Alert on cross"
+              title="Alert on cross / enter / exit (lines, channels, rectangles)"
+              aria-pressed={d.alert}
+              onClick={() =>
+                mutateSelection(windowId, (x) =>
+                  supportsAlert(x.type) ? { ...x, alert: !d.alert } : x,
+                )
+              }
+            >
+              {d.alert ? <Bell size={14} /> : <BellOff size={14} />}
+            </button>
+          )}
+          {nSel === 1 && (
+            <button
+              className="dr-btn"
+              aria-label="Clone"
+              title="Clone"
+              onClick={() => controllers.get(windowId)?.ctrl.clone(d.id)}
+            >
+              <Copy size={14} />
+            </button>
+          )}
           <button
             className="dr-btn"
-            aria-label="Clone"
-            title="Clone"
-            onClick={() => controllers.get(windowId)?.ctrl.clone(d.id)}
-          >
-            <Copy size={14} />
-          </button>
-          <button
-            className="dr-btn"
-            aria-label="Delete drawing"
+            aria-label={nSel > 1 ? 'Delete selected drawings' : 'Delete drawing'}
             title="Delete (Del)"
-            onClick={() => removeOne(windowId, d.id)}
+            onClick={() => removeSelection(windowId, d.id)}
           >
             <Trash2 size={14} />
           </button>
@@ -140,6 +225,7 @@ export function DrawingsOverlay({
       {editing?.windowId === windowId && (
         <PropertiesDialog windowId={windowId} id={editing.id} state={state} />
       )}
+      {prefsOpen && <PrefsDialog windowId={windowId} />}
     </div>
   );
 }
@@ -157,7 +243,8 @@ function PropertiesDialog({
   const close = () => useDrawUi.getState().edit(null);
   if (!d) return null;
   const def = toolDef(d.type);
-  const upd = (fn: (x: Drawing) => Drawing) => patchOne(windowId, id, fn);
+  const upd = (fn: (x: Drawing) => Drawing) => patchGroup(windowId, id, fn);
+  const nSel = selectionOf(windowId).includes(id) ? selectionOf(windowId).length : 1;
   const st = (s: Partial<Drawing['style']>) => setStyle(windowId, id, s);
   const setProp = (k: string, v: number | string | boolean) =>
     upd((x) => ({ ...x, props: { ...x.props, [k]: v } }));
@@ -170,7 +257,10 @@ function PropertiesDialog({
   }));
   const allTf = d.visibleOn === 'all';
   const isPos = def?.group === 'risk';
-  const isProfile = ['volume-profile', 'fixed-vp', 'anchored-vp'].includes(d.type);
+  const isProfile = ['volume-profile', 'fixed-vp', 'anchored-vp', 'zigzag-vp'].includes(d.type);
+  const canAlert = supportsAlert(d.type);
+  const trigs = triggersFor(d.type);
+  const ch = alertChannels(d);
   const inst = instrumentOf(state.instrumentId);
   const placeOrder = () => {
     if (!inst || d.anchors.length < 3) return;
@@ -203,6 +293,11 @@ function PropertiesDialog({
   return (
     <Dialog open onOpenChange={(o) => !o && close()} title={def?.label ?? 'Drawing'} width={460}>
       <div className="col gap12 dr-props">
+        {nSel > 1 && (
+          <div className="muted" data-testid="dr-group-note">
+            Style and option changes apply to all {nSel} selected drawings.
+          </div>
+        )}
         <div className="dr-swatches" role="radiogroup" aria-label="Colour">
           {SWATCHES.map((c) => (
             <button
@@ -287,6 +382,165 @@ function PropertiesDialog({
             label="Hidden"
           />
         </div>
+        {d.type === 'emoji' && (
+          <div>
+            <div className="ht-menu-label">Emoji</div>
+            <EmojiPicker
+              value={prop<string>(d, 'glyph', '⭐')}
+              onPick={(g) => setProp('glyph', g)}
+            />
+            <div className="dr-grid">
+              <Field label="Size px">
+                <NumberInput
+                  value={prop(d, 'size', 20)}
+                  min={8}
+                  max={96}
+                  onChange={(v) => setProp('size', v)}
+                />
+              </Field>
+            </div>
+          </div>
+        )}
+        {canAlert && (
+          <div className="dr-alert" data-testid="dr-alert-section">
+            <div className="ht-menu-label">Alert</div>
+            <Checkbox
+              checked={d.alert}
+              onChange={(v) => upd((x) => ({ ...x, alert: v }))}
+              label={
+                trigs.includes('cross') && trigs.length === 1
+                  ? 'Alert on cross'
+                  : 'Alert on cross / enter / exit'
+              }
+            />
+            {d.alert && (
+              <div className="dr-grid">
+                {trigs.length > 1 && (
+                  <Field label="Trigger">
+                    <Select
+                      aria-label="Alert trigger"
+                      value={alertTrigger(d)}
+                      onChange={(v) => setProp('alertOn', v)}
+                      options={ALERT_TRIGGERS.filter((t) => trigs.includes(t.value)).map((t) => ({
+                        value: t.value,
+                        label: t.label,
+                      }))}
+                    />
+                  </Field>
+                )}
+                <Checkbox
+                  checked={ch.toast}
+                  onChange={(v) => setProp('alertToast', v)}
+                  label="Popup (toast)"
+                />
+                <Checkbox
+                  checked={ch.sound}
+                  onChange={(v) => setProp('alertSound', v)}
+                  label="Sound"
+                />
+                <Checkbox
+                  checked={ch.log}
+                  onChange={(v) => setProp('alertLog', v)}
+                  label="Activity log"
+                />
+                <Checkbox
+                  checked={ch.once}
+                  onChange={(v) => setProp('alertOnce', v)}
+                  label="Only once"
+                />
+              </div>
+            )}
+          </div>
+        )}
+        {d.type === 'regression-channel' && (
+          <div className="dr-grid">
+            <Field label="Outer band σ">
+              <NumberInput
+                value={prop(d, 'sigma', 2)}
+                min={0.1}
+                max={10}
+                step={0.25}
+                precision={2}
+                onChange={(v) => setProp('sigma', v)}
+              />
+            </Field>
+            <Field label="Inner band σ (0 = off)">
+              <NumberInput
+                value={prop(d, 'sigma2', 0)}
+                min={0}
+                max={10}
+                step={0.25}
+                precision={2}
+                onChange={(v) => setProp('sigma2', v)}
+              />
+            </Field>
+          </div>
+        )}
+        {d.type === 'anchored-vwap' && (
+          <div className="dr-grid">
+            <Field label="Band 1 × σ (0 = off)">
+              <NumberInput
+                value={prop(d, 'band1', 1)}
+                min={0}
+                max={10}
+                step={0.25}
+                precision={2}
+                onChange={(v) => setProp('band1', v)}
+              />
+            </Field>
+            <Field label="Band 2 × σ (0 = off)">
+              <NumberInput
+                value={prop(d, 'band2', 2)}
+                min={0}
+                max={10}
+                step={0.25}
+                precision={2}
+                onChange={(v) => setProp('band2', v)}
+              />
+            </Field>
+          </div>
+        )}
+        {d.type === 'zigzag-vp' && (
+          <div className="dr-grid">
+            <Field label="Reversal (ticks)">
+              <NumberInput
+                value={prop(d, 'reversal', 20)}
+                min={1}
+                max={5000}
+                onChange={(v) => setProp('reversal', v)}
+              />
+            </Field>
+            <Checkbox
+              checked={prop(d, 'showZigzag', true)}
+              onChange={(v) => setProp('showZigzag', v)}
+              label="Show ZigZag line"
+            />
+            <Checkbox
+              checked={prop(d, 'legLabels', false)}
+              onChange={(v) => setProp('legLabels', v)}
+              label="Leg size labels"
+            />
+          </div>
+        )}
+        {d.type === 'cvd-correlation' && (
+          <div className="dr-grid">
+            <Checkbox
+              checked={prop(d, 'showCvd', true)}
+              onChange={(v) => setProp('showCvd', v)}
+              label="Draw CVD line"
+            />
+            <Field label="Weak correlation below">
+              <NumberInput
+                value={prop(d, 'corrWarn', 0.3)}
+                min={-1}
+                max={1}
+                step={0.05}
+                precision={2}
+                onChange={(v) => setProp('corrWarn', v)}
+              />
+            </Field>
+          </div>
+        )}
         {isPos && (
           <div className="dr-grid">
             <Field label="Quantity">
@@ -413,8 +667,8 @@ function PropertiesDialog({
           </div>
         </div>
         <div className="row gap8">
-          <Button variant="destructive" onClick={() => (removeOne(windowId, id), close())}>
-            Delete
+          <Button variant="destructive" onClick={() => (removeSelection(windowId, id), close())}>
+            {nSel > 1 ? `Delete ${nSel}` : 'Delete'}
           </Button>
           <div className="grow" />
           <Button variant="primary" onClick={close}>
@@ -432,6 +686,7 @@ export function ObjectsList(_props: ModuleViewProps) {
   useWindows((s) => s.windows);
   useWindows((s) => s.activeId);
   const selected = useDrawUi((s) => s.selected);
+  const multiSel = useDrawUi((s) => s.multi);
   const windowId = activeChartId();
   const win = windowId ? useWindows.getState().windows[windowId] : null;
   const items = windowId ? [...readDrawings(windowId)].sort((a, b) => b.z - a.z) : [];
@@ -455,8 +710,19 @@ export function ObjectsList(_props: ModuleViewProps) {
             {items.map((d) => (
               <tr
                 key={d.id}
-                data-selected={selected[windowId] === d.id || undefined}
-                onClick={() => useDrawUi.getState().select(windowId, d.id)}
+                data-selected={
+                  selected[windowId] === d.id || multiSel[windowId]?.includes(d.id) || undefined
+                }
+                onClick={(e) => {
+                  const ui = useDrawUi.getState();
+                  if (e.shiftKey || e.ctrlKey) {
+                    const cur = selectionOf(windowId);
+                    ui.selectMany(
+                      windowId,
+                      cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id],
+                    );
+                  } else ui.select(windowId, d.id);
+                }}
               >
                 <td>
                   <span className="dr-dot" style={{ background: d.style.color }} />
@@ -503,5 +769,109 @@ export function ObjectsList(_props: ModuleViewProps) {
         {!items.length && <div className="tbl-empty">No drawings on this chart</div>}
       </div>
     </div>
+  );
+}
+
+/** Drawing preferences: magnet (presets + pixel slider), snap, keep drawing, toolbar, magnifier. */
+function PrefsDialog({ windowId }: { windowId: string }) {
+  const p = useDrawUi((s) => s.prefs);
+  const set = useDrawUi.getState().setPrefs;
+  const lens = useDrawUi((s) => !!s.lens[windowId]);
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && useDrawUi.getState().openPrefs(false)}
+      title="Drawing preferences"
+      width={420}
+    >
+      <div className="col gap12 dr-props" data-testid="drawing-prefs">
+        <Checkbox
+          checked={p.magnet}
+          onChange={(v) => set({ magnet: v })}
+          label="Magnet to OHLC / cluster prices"
+        />
+        <Field label={`Magnet sensitivity: ${p.magnetPx} px`}>
+          <div className="row gap8">
+            <Slider
+              label="Magnet sensitivity"
+              value={p.magnetPx}
+              min={2}
+              max={40}
+              step={1}
+              onChange={(v) => set({ magnet: true, magnetPx: v })}
+            />
+            <NumberInput
+              value={p.magnetPx}
+              min={2}
+              max={40}
+              onChange={(v) => set({ magnet: true, magnetPx: v })}
+            />
+          </div>
+        </Field>
+        <div className="row gap8 dr-presets" role="group" aria-label="Magnet presets">
+          <Button size="xs" aria-pressed={!p.magnet} onClick={() => set({ magnet: false })}>
+            Off
+          </Button>
+          {[4, 8, 12, 16, 24].map((n) => (
+            <Button
+              key={n}
+              size="xs"
+              aria-pressed={p.magnet && p.magnetPx === n}
+              onClick={() => set({ magnet: true, magnetPx: n })}
+            >
+              {n} px
+            </Button>
+          ))}
+        </div>
+        <div className="dr-grid">
+          <Checkbox
+            checked={p.snapTicks}
+            onChange={(v) => set({ snapTicks: v })}
+            label="Snap to ticks"
+          />
+          <Checkbox
+            checked={p.keep}
+            onChange={(v) => set({ keep: v })}
+            label="Keep drawing (stay in tool)"
+          />
+          <Checkbox
+            checked={p.toolbar}
+            onChange={(v) => set({ toolbar: v })}
+            label="Style toolbar"
+          />
+          <Checkbox
+            checked={lens}
+            onChange={() => runToolCommand('magnifier', windowId)}
+            label="Magnifier on (M)"
+          />
+        </div>
+        <Field label={`Magnifier zoom: ${p.lensZoom}×`}>
+          <Slider
+            label="Magnifier zoom"
+            value={p.lensZoom}
+            min={1.5}
+            max={8}
+            step={0.5}
+            onChange={(v) => set({ lensZoom: v })}
+          />
+        </Field>
+        <Field label={`Magnifier size: ${p.lensSize} px`}>
+          <Slider
+            label="Magnifier size"
+            value={p.lensSize}
+            min={60}
+            max={300}
+            step={10}
+            onChange={(v) => set({ lensSize: v })}
+          />
+        </Field>
+        <div className="row gap8">
+          <div className="grow" />
+          <Button variant="primary" onClick={() => useDrawUi.getState().openPrefs(false)}>
+            Done
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }
