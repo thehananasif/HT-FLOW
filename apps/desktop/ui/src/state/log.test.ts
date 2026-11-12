@@ -18,13 +18,13 @@ describe('LogBuffer', () => {
 
   it('ids increase monotonically even after eviction', () => {
     const b = new LogBuffer(2);
-    const ids = [1, 2, 3, 4].map(() => b.add('info', 's', 'x').id);
+    const ids = [1, 2, 3, 4].map(() => b.add('info', 's', 'x')!.id);
     expect(ids).toEqual([1, 2, 3, 4]);
   });
 
   it('rejects invalid capacity and defaults a blank source', () => {
     expect(() => new LogBuffer(0)).toThrow();
-    expect(new LogBuffer(5).add('warn', '  ', 'x').source).toBe('app');
+    expect(new LogBuffer(5).add('warn', '  ', 'x')!.source).toBe('app');
   });
 
   it('notifies subscribers, changes snapshot identity and supports unsubscribe', () => {
@@ -104,5 +104,16 @@ describe('formatting', () => {
     const cyc: Record<string, unknown> = {};
     cyc.self = cyc;
     expect(stringifyArgs([cyc])).toBe('[object Object]');
+  });
+});
+
+describe('LogBuffer.configure (Settings → Logs)', () => {
+  it('drops messages below the minimum level and trims to the new capacity', () => {
+    const b = new LogBuffer(10);
+    b.configure({ minLevel: 'warn' });
+    expect(b.add('info', 's', 'dropped')).toBeNull();
+    for (let i = 0; i < 5; i++) b.add('error', 's', String(i));
+    b.configure({ capacity: 3 });
+    expect(b.snapshot().map((e) => e.message)).toEqual(['2', '3', '4']);
   });
 });

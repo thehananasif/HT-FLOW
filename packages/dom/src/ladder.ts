@@ -75,6 +75,8 @@ export class DomLadder {
   /** Ticks per row (price grouping 1, 2, 5, 10). */
   grouping = 1;
   bigSize = Infinity;
+  /** Book levels drawn per side (Settings → DOM levels). 0 = all. */
+  maxLevels = 0;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -169,18 +171,25 @@ export class DomLadder {
       for (let k = 0; k < g; k++) s += m.get(px + k) ?? 0;
       return s;
     };
+    const bb = book.bestBid;
+    const ba = book.bestAsk;
+    const lim = this.maxLevels;
+    const bidAt = (px: number) =>
+      lim > 0 && px <= bb && px <= bb - lim * g ? 0 : sizeAt(book.bids, px);
+    const askAt = (px: number) =>
+      lim > 0 && px >= ba && px >= ba + lim * g ? 0 : sizeAt(book.asks, px);
     let maxBook = 0;
     let maxToday = 0;
     let maxRecent = 0;
     for (let r = 0; r < rows; r++) {
       const px = this.pxAtRow(r);
-      maxBook = Math.max(maxBook, sizeAt(book.bids, px), sizeAt(book.asks, px));
+      maxBook = Math.max(maxBook, bidAt(px), askAt(px));
       maxToday = Math.max(maxToday, sizeAt(model.session, px));
       maxRecent = Math.max(maxRecent, sizeAt(model.recentBuys, px), sizeAt(model.recentSells, px));
     }
     const ordersAt = new Map<number, Order[]>();
     for (const o of f.orders) {
-      const opx = o.type === 'stop' ? o.stopPx! : o.px!;
+      const opx = o.type === 'limit' ? o.px! : (o.stopPx ?? o.px!);
       const k = Math.floor(opx / g) * g;
       const arr = ordersAt.get(k) ?? [];
       arr.push(o);
@@ -194,8 +203,8 @@ export class DomLadder {
       const px = this.pxAtRow(r);
       const y = this.headerHeight + r * this.rowHeight;
       const h = this.rowHeight - 1;
-      const bid = sizeAt(book.bids, px);
-      const ask = sizeAt(book.asks, px);
+      const bid = bidAt(px);
+      const ask = askAt(px);
       const isAskSide = px >= bestAsk;
       const isBidSide = px <= bestBid;
       for (const c of this.colX) {
@@ -215,7 +224,7 @@ export class DomLadder {
               ctx.font = `600 12px ${this.font}`;
               ctx.textAlign = 'right';
               ctx.fillText(
-                `${os[0]!.type === 'stop' ? 'S' : 'L'} ${formatCompact(q)}`,
+                `${os[0]!.type === 'limit' ? 'L' : 'S'} ${formatCompact(q)}`,
                 cx + cw - 10,
                 y + h / 2,
               );
