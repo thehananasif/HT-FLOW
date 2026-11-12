@@ -7,3 +7,4 @@ export * from './simulator';
 export * from './instruments';
 export * from './mockFeed';
 export * from './marketStore';
+export * from './tpo';

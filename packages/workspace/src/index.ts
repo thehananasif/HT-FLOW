@@ -10,13 +10,27 @@ export const LINK_COLORS: Record<LinkColor, string> = {
   purple: '#B07CF0',
 };
 
-export type ChartTemplateId = 'candles-vp' | 'footprint' | 'liquidity-map' | 'order-flow-dark';
+export type ChartTemplateId =
+  | 'candles-vp'
+  | 'footprint'
+  | 'liquidity-map'
+  | 'order-flow-dark'
+  | 'order-flow-light'
+  | 'imbalance'
+  | 'tpo'
+  | 'onchart-liquidity'
+  | 'mtf'
+  | 'volume-histogram'
+  | 'cot'
+  | 'delta-profile';
 
 export interface ChartTemplateDef {
   id: ChartTemplateId;
   label: string;
   /** Short label for header chips. */
   short: string;
+  /** Additional built-in template (template menu / palette only, not the toolbar's main chips). */
+  more?: boolean;
 }
 
 export const CHART_TEMPLATES: ChartTemplateDef[] = [
@@ -24,19 +38,23 @@ export const CHART_TEMPLATES: ChartTemplateDef[] = [
   { id: 'footprint', label: 'Footprint chart', short: 'Footprint' },
   { id: 'liquidity-map', label: 'Liquidity Map', short: 'Liquidity Map' },
   { id: 'order-flow-dark', label: 'Order Flow (Dark)', short: 'Order Flow (Dark)' },
+  { id: 'order-flow-light', label: 'Order Flow (Light)', short: 'Order Flow (Light)', more: true },
+  { id: 'imbalance', label: 'Imbalance Chart', short: 'Imbalance', more: true },
+  { id: 'tpo', label: 'TPO Chart', short: 'TPO', more: true },
+  {
+    id: 'onchart-liquidity',
+    label: 'On-Chart Liquidity Map',
+    short: 'On-Chart Liquidity',
+    more: true,
+  },
+  { id: 'mtf', label: 'Multi-timeframe Chart', short: 'Multi-timeframe', more: true },
+  { id: 'volume-histogram', label: 'Volume Histogram', short: 'Volume Histogram', more: true },
+  { id: 'cot', label: 'COT Chart', short: 'COT', more: true },
+  { id: 'delta-profile', label: 'Delta Profile', short: 'Delta Profile', more: true },
 ];
 
 /** Built-in templates still to be built (shown disabled in the template menu; see docs/FEATURES.md). */
-export const PENDING_TEMPLATES = [
-  'Order Flow (Light)',
-  'Imbalance Chart',
-  'TPO Chart',
-  'On-Chart Liquidity Map',
-  'Multi-timeframe Chart',
-  'Volume Histogram',
-  'COT Chart',
-  'Delta Profile',
-];
+export const PENDING_TEMPLATES: string[] = [];
 
 /**
  * Bar type of a chart (structural copy of @htflow/market-data BarSpec: time, tick, volume, delta,

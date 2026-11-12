@@ -537,7 +537,7 @@ export function Dashboard({ version }: { version: string }) {
         {singleChart && firstChart?.kind === 'chart' && (
           <div className="tb-group">
             <span className="muted">Main chart</span>
-            {CHART_TEMPLATES.map((t) => (
+            {CHART_TEMPLATES.filter((t) => !t.more).map((t) => (
               <Chip
                 key={t.id}
                 selected={firstChart.template === t.id}
