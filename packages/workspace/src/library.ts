@@ -50,12 +50,17 @@ export function validateName(
   const n = name.trim();
   if (!n) return 'Enter a name';
   if (n.length > LIMITS.name) return `At most ${LIMITS.name} characters`;
-  if (lib.items.some((w) => w.meta.id !== exceptId && w.meta.name.toLowerCase() === n.toLowerCase()))
+  if (
+    lib.items.some((w) => w.meta.id !== exceptId && w.meta.name.toLowerCase() === n.toLowerCase())
+  )
     return 'A workspace with this name already exists';
   return null;
 }
 
-export function findWorkspace(lib: WorkspaceLibrary, id: string | null): StoredWorkspace | undefined {
+export function findWorkspace(
+  lib: WorkspaceLibrary,
+  id: string | null,
+): StoredWorkspace | undefined {
   return id ? lib.items.find((w) => w.meta.id === id) : undefined;
 }
 
@@ -101,7 +106,10 @@ export function updateWorkspaceDoc(
     ...lib,
     items: lib.items.map((w) =>
       w.meta.id === id
-        ? { meta: { ...w.meta, updatedAt: now }, doc: { ...clone(doc), name: w.meta.name, savedAt: now } }
+        ? {
+            meta: { ...w.meta, updatedAt: now },
+            doc: { ...clone(doc), name: w.meta.name, savedAt: now },
+          }
         : w,
     ),
   };
@@ -139,7 +147,11 @@ export function renameWorkspace(
   return patchMeta(lib, id, { name }, now);
 }
 
-export function toggleFavourite(lib: WorkspaceLibrary, id: string, now = Date.now()): WorkspaceLibrary {
+export function toggleFavourite(
+  lib: WorkspaceLibrary,
+  id: string,
+  now = Date.now(),
+): WorkspaceLibrary {
   const w = findWorkspace(lib, id);
   return w ? patchMeta(lib, id, { favourite: !w.meta.favourite }, now) : lib;
 }
@@ -182,7 +194,9 @@ export function sortWorkspaces(items: StoredWorkspace[], sort: WorkspaceSort): S
     case 'created':
       return list.sort((a, b) => b.meta.createdAt - a.meta.createdAt || byName(a, b));
     case 'favourites':
-      return list.sort((a, b) => Number(b.meta.favourite) - Number(a.meta.favourite) || byName(a, b));
+      return list.sort(
+        (a, b) => Number(b.meta.favourite) - Number(a.meta.favourite) || byName(a, b),
+      );
   }
 }
 

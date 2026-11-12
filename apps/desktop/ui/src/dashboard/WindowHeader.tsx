@@ -18,6 +18,7 @@ import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
 import { chartHeaderItems } from '../charts/extensions';
 import { confirmAction } from '../state/confirm';
+import { WindowMenuButton } from '../modules/workspaces/WindowMenu';
 
 const QUICK_TF: BarSpec[] = [
   { kind: 'time', ms: 60_000 },
@@ -255,6 +256,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
           <Camera size={13} />
         </IconButton>
       )}
+      <WindowMenuButton id={id} />
       <IconButton
         label="Maximize"
         onClick={() => (props.api.isMaximized() ? props.api.exitMaximized() : props.api.maximize())}

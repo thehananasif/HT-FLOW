@@ -49,7 +49,9 @@ export function windowInstrument(s: WindowState): string | null {
 export function windowLink(s: WindowState): LinkColor {
   if (s.kind !== 'module') return s.link;
   const l = s.params?.link;
-  return typeof l === 'string' && (LINK_COLOR_IDS as string[]).includes(l) ? (l as LinkColor) : 'none';
+  return typeof l === 'string' && (LINK_COLOR_IDS as string[]).includes(l)
+    ? (l as LinkColor)
+    : 'none';
 }
 
 /** First link colour no window uses yet (falls back to red when all are taken). */
@@ -77,7 +79,8 @@ export function linkedWindowState(
   switch (kind) {
     case 'chart':
       state = chart(source.kind === 'chart' ? source.template : 'candles-vp');
-      if (source.kind === 'chart' && state.kind === 'chart') state.timeframe = { ...source.timeframe };
+      if (source.kind === 'chart' && state.kind === 'chart')
+        state.timeframe = { ...source.timeframe };
       break;
     case 'footprint':
       state = chart('footprint');

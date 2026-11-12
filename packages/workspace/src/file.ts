@@ -264,7 +264,10 @@ export function validateLayout(
 
 const DIRS = new Set(['right', 'below', 'left', 'above', 'within']);
 
-function validateSpecs(raw: unknown, windows: Record<string, WindowState>): PanelSpec[] | undefined {
+function validateSpecs(
+  raw: unknown,
+  windows: Record<string, WindowState>,
+): PanelSpec[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const out: PanelSpec[] = [];
   const seen = new Set<string>();
@@ -377,7 +380,8 @@ export function validateDisplay(raw: unknown): DisplaySnapshot | undefined {
 export function validateDoc(raw: unknown, warnings: string[] = []): WorkspaceDoc {
   if (!isObj(raw)) return fail('The workspace is not an object');
   const name = text(raw.name, LIMITS.name, 'Workspace name', 'Imported workspace');
-  if (!Array.isArray(raw.tabs) || raw.tabs.length === 0) return fail('The workspace has no layouts');
+  if (!Array.isArray(raw.tabs) || raw.tabs.length === 0)
+    return fail('The workspace has no layouts');
   if (raw.tabs.length > LIMITS.tabs) fail('The workspace has too many layouts');
   const tabs = raw.tabs.map((t, i) => validateTab(t, i, warnings));
   // Tab ids must be unique.
@@ -473,9 +477,7 @@ export function migrateFile(raw: unknown): { file: Record<string, unknown>; from
   } else if (raw.version === 1 && Array.isArray(raw.tabs)) version = 1;
   else return fail('Not an HT Flow workspace file');
   if (version > WORKSPACE_FILE_VERSION)
-    fail(
-      `This file was made by a newer HT Flow (format v${version}); update the app to open it`,
-    );
+    fail(`This file was made by a newer HT Flow (format v${version}); update the app to open it`);
   const from = version;
   while (version < WORKSPACE_FILE_VERSION) {
     cur = MIGRATIONS[version]!(cur);
@@ -493,7 +495,7 @@ export function parseWorkspaceFile(input: string, now = Date.now()): ParseResult
     if (input.length > LIMITS.fileBytes) fail('The file is larger than 5 MB');
     let parsed: unknown;
     try {
-      parsed = JSON.parse(input.replace(/^﻿/, ''));
+      parsed = JSON.parse(input.replace(/^\uFEFF/, ''));
     } catch {
       return fail('The file is not valid JSON');
     }

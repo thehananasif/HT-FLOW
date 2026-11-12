@@ -41,7 +41,8 @@ export const STARTER_WORKSPACES: StarterWorkspace[] = [
   {
     id: 'starter-scalping-nq',
     name: 'Scalping NQ',
-    description: 'NQ DOM, footprint and Smart Tape, all on the blue link group, Trading panel open.',
+    description:
+      'NQ DOM, footprint and Smart Tape, all on the blue link group, Trading panel open.',
     build: () =>
       doc('Scalping NQ', [
         tab(

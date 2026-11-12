@@ -11,7 +11,10 @@ import {
 
 describe('window operations', () => {
   it('clone keeps every setting and is independent', () => {
-    const src = chartState('mock:ESZ6', 'footprint', { link: 'red', ext: { drawings: { items: [1] } } });
+    const src = chartState('mock:ESZ6', 'footprint', {
+      link: 'red',
+      ext: { drawings: { items: [1] } },
+    });
     const c = cloneWindowState(src);
     expect(c).toEqual(src);
     (c as typeof src).ext!.drawings = null;
@@ -32,11 +35,23 @@ describe('window operations', () => {
     expect(r2.state).toMatchObject({ kind: 'chart', template: 'liquidity-map', link: 'green' });
 
     const t = linkedWindowState(windows.a!, 'tape', windows, 'x');
-    expect(t.state).toEqual({ kind: 'module', module: 'smart-tape', params: { instrumentId: 'mock:NQZ6', link: 'red' } });
+    expect(t.state).toEqual({
+      kind: 'module',
+      module: 'smart-tape',
+      params: { instrumentId: 'mock:NQZ6', link: 'red' },
+    });
     const o = linkedWindowState(t.state, 'options', windows, 'x');
-    expect(o.state).toMatchObject({ module: 'options-board', params: { instrumentId: 'mock:NQZ6', link: 'red' } });
+    expect(o.state).toMatchObject({
+      module: 'options-board',
+      params: { instrumentId: 'mock:NQZ6', link: 'red' },
+    });
 
-    const ch = linkedWindowState({ ...windows.a!, timeframe: { kind: 'tick', n: 500 } } as WindowState, 'chart', windows, 'x');
+    const ch = linkedWindowState(
+      { ...windows.a!, timeframe: { kind: 'tick', n: 500 } } as WindowState,
+      'chart',
+      windows,
+      'x',
+    );
     expect(ch.state).toMatchObject({ template: 'footprint', timeframe: { kind: 'tick', n: 500 } });
   });
 
@@ -44,7 +59,10 @@ describe('window operations', () => {
     const windows: Record<string, WindowState> = {
       a: chartState('mock:NQZ6', 'footprint', { link: 'red' }),
       b: domState('mock:NQZ6', { link: 'red' }),
-      c: setWindowLink({ kind: 'module', module: 'smart-tape', params: { instrumentId: 'mock:ESZ6' } }, 'blue'),
+      c: setWindowLink(
+        { kind: 'module', module: 'smart-tape', params: { instrumentId: 'mock:ESZ6' } },
+        'blue',
+      ),
       d: { kind: 'module', module: 'news' },
     };
     const g = Object.fromEntries(linkGroups(windows).map((x) => [x.color, x]));

@@ -263,4 +263,3 @@ export function windowTitle(s: WindowState, symbol: string): string {
   if (s.kind === 'dom') return `${symbol} DOM`;
   return s.module;
 }
-

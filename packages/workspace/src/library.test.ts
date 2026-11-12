@@ -64,9 +64,12 @@ describe('workspace library', () => {
 
   it('keeps a bounded recent list', () => {
     let lib = emptyLibrary();
-    for (let i = 0; i < MAX_RECENT + 3; i++) lib = addWorkspace(lib, doc(), { name: `W${i}` }, i).lib;
+    for (let i = 0; i < MAX_RECENT + 3; i++)
+      lib = addWorkspace(lib, doc(), { name: `W${i}` }, i).lib;
     expect(lib.recent).toHaveLength(MAX_RECENT);
-    expect(lib.items.find((w) => w.meta.id === lib.recent[0])!.meta.name).toBe(`W${MAX_RECENT + 2}`);
+    expect(lib.items.find((w) => w.meta.id === lib.recent[0])!.meta.name).toBe(
+      `W${MAX_RECENT + 2}`,
+    );
   });
 
   it('unique names and validation', () => {

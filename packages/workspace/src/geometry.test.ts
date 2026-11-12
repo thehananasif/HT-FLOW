@@ -13,8 +13,24 @@ import {
 import { LAYOUT_PRESETS, domState, type MonitorInfo } from './model';
 import { STARTER_WORKSPACES } from './starters';
 
-const M1: MonitorInfo = { name: 'DISPLAY1', x: 0, y: 0, width: 1920, height: 1080, primary: true, scale: 1 };
-const M2: MonitorInfo = { name: 'DISPLAY2', x: 1920, y: 0, width: 2560, height: 1440, primary: false, scale: 1 };
+const M1: MonitorInfo = {
+  name: 'DISPLAY1',
+  x: 0,
+  y: 0,
+  width: 1920,
+  height: 1080,
+  primary: true,
+  scale: 1,
+};
+const M2: MonitorInfo = {
+  name: 'DISPLAY2',
+  x: 1920,
+  y: 0,
+  width: 2560,
+  height: 1440,
+  primary: false,
+  scale: 1,
+};
 
 describe('thumbnails', () => {
   it('splits tiles from specs and keeps them inside the unit square', () => {
@@ -55,7 +71,12 @@ describe('thumbnails', () => {
         },
       },
       panels: {},
-      floatingGroups: [{ data: { views: ['d'], id: '4' }, position: { left: 100, top: 50, width: 200, height: 100 } }],
+      floatingGroups: [
+        {
+          data: { views: ['d'], id: '4' },
+          position: { left: 100, top: 50, width: 200, height: 100 },
+        },
+      ],
     };
     const t = layoutTiles(layout, { a: domState('x') });
     expect(t.map((x) => x.id)).toEqual(['a', 'b', 'c', 'd']);
@@ -68,8 +89,18 @@ describe('thumbnails', () => {
 
 describe('snapping', () => {
   it('snaps rectangles to the grid', () => {
-    expect(snapRect({ x: 13, y: 22, width: 3, height: 95 }, 8)).toEqual({ x: 16, y: 24, width: 8, height: 96 });
-    expect(snapRect({ x: 13, y: 22, width: 3, height: 95 }, 0)).toEqual({ x: 13, y: 22, width: 3, height: 95 });
+    expect(snapRect({ x: 13, y: 22, width: 3, height: 95 }, 8)).toEqual({
+      x: 16,
+      y: 24,
+      width: 8,
+      height: 96,
+    });
+    expect(snapRect({ x: 13, y: 22, width: 3, height: 95 }, 0)).toEqual({
+      x: 13,
+      y: 22,
+      width: 3,
+      height: 95,
+    });
   });
 });
 
@@ -91,7 +122,11 @@ describe('multi-monitor restore', () => {
 
   it('keeps a window on its monitor when the monitor is still there', () => {
     const r = restoreBounds({ x: 2000, y: 100, width: 800, height: 600 }, M2, [M1, M2]);
-    expect(r).toEqual({ rect: { x: 2000, y: 100, width: 800, height: 600 }, monitor: 'DISPLAY2', moved: false });
+    expect(r).toEqual({
+      rect: { x: 2000, y: 100, width: 800, height: 600 },
+      monitor: 'DISPLAY2',
+      moved: false,
+    });
   });
 
   it('moves a window from a missing monitor to the same relative place on the primary, fully visible', () => {
@@ -128,7 +163,12 @@ describe('floating windows', () => {
 
   it('clamps floating windows into a smaller docking area', () => {
     const out = fitFloatingGroups(layout, { width: 800, height: 400 }) as typeof layout;
-    expect(out.floatingGroups[0]!.position).toEqual({ left: 400, top: 100, width: 400, height: 300 });
+    expect(out.floatingGroups[0]!.position).toEqual({
+      left: 400,
+      top: 100,
+      width: 400,
+      height: 300,
+    });
     expect(layout.floatingGroups[0]!.position.left).toBe(900); // input untouched
   });
 
@@ -142,7 +182,10 @@ describe('floating windows', () => {
   });
 
   it('computes screen bounds per floating window', () => {
-    const b = floatingScreenBounds(layout, { width: 1000, height: 600 }, { x: 1920, y: 40 }, [M1, M2]);
+    const b = floatingScreenBounds(layout, { width: 1000, height: 600 }, { x: 1920, y: 40 }, [
+      M1,
+      M2,
+    ]);
     expect(b.a).toEqual({ x: 2820, y: 540, width: 400, height: 300, monitor: 'DISPLAY2' });
     expect(b.b!.x).toBe(1920 + 890);
   });

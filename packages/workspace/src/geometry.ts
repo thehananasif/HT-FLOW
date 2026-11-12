@@ -106,9 +106,17 @@ export function layoutTiles(layout: unknown, windows: Record<string, WindowState
     const w = (typeof p.width === 'number' ? p.width : 300) / W;
     const h = (typeof p.height === 'number' ? p.height : 200) / H;
     const x =
-      typeof p.left === 'number' ? p.left / W : typeof p.right === 'number' ? 1 - w - p.right / W : 0;
+      typeof p.left === 'number'
+        ? p.left / W
+        : typeof p.right === 'number'
+          ? 1 - w - p.right / W
+          : 0;
     const y =
-      typeof p.top === 'number' ? p.top / H : typeof p.bottom === 'number' ? 1 - h - p.bottom / H : 0;
+      typeof p.top === 'number'
+        ? p.top / H
+        : typeof p.bottom === 'number'
+          ? 1 - h - p.bottom / H
+          : 0;
     leaf(f.data, clamp01(x), clamp01(y), Math.min(1, w), Math.min(1, h), true);
   }
   return out;
@@ -200,7 +208,8 @@ export function restoreBounds(
   monitors: MonitorInfo[],
   mode: RestoreMode = 'exact',
 ): RestoreResult {
-  if (monitors.length === 0) return { rect: saved, monitor: savedMonitor?.name ?? '', moved: false };
+  if (monitors.length === 0)
+    return { rect: saved, monitor: savedMonitor?.name ?? '', moved: false };
   const primary = monitors.find((m) => m.primary) ?? monitors[0]!;
   const same =
     savedMonitor &&
@@ -249,7 +258,10 @@ export interface AnchoredBoxLike {
   height: number;
 }
 
-export function anchoredToRect(p: AnchoredBoxLike, container: { width: number; height: number }): Rect {
+export function anchoredToRect(
+  p: AnchoredBoxLike,
+  container: { width: number; height: number },
+): Rect {
   const width = p.width;
   const height = p.height;
   const x = typeof p.left === 'number' ? p.left : container.width - width - (p.right ?? 0);
@@ -267,7 +279,8 @@ export function fitFloatingGroups(
   container: { width: number; height: number },
   opts: { saved?: { width: number; height: number }; mode?: RestoreMode; grid?: number } = {},
 ): unknown {
-  if (!isObj(layout) || !Array.isArray(layout.floatingGroups) || container.width <= 0) return layout;
+  if (!isObj(layout) || !Array.isArray(layout.floatingGroups) || container.width <= 0)
+    return layout;
   const saved = opts.saved ?? container;
   const sx = opts.mode === 'fit' && saved.width > 0 ? container.width / saved.width : 1;
   const sy = opts.mode === 'fit' && saved.height > 0 ? container.height / saved.height : 1;

@@ -22,22 +22,35 @@ function layoutFor(ids: string[], kinds: Record<string, string>) {
     grid: {
       root: {
         type: 'branch',
-        data: ids.map((id) => ({ type: 'leaf', data: { views: [id], activeView: id, id: `g-${id}` }, size: 100 })),
+        data: ids.map((id) => ({
+          type: 'leaf',
+          data: { views: [id], activeView: id, id: `g-${id}` },
+          size: 100,
+        })),
         size: 400,
       },
       width: 800,
       height: 400,
       orientation: 'HORIZONTAL',
     },
-    panels: Object.fromEntries(ids.map((id) => [id, { id, contentComponent: kinds[id], title: id }])),
+    panels: Object.fromEntries(
+      ids.map((id) => [id, { id, contentComponent: kinds[id], title: id }]),
+    ),
   };
 }
 
 function sampleDoc(): WorkspaceDoc {
   const windows = {
-    'chart-1': chartState('mock:ESZ6', 'footprint', { link: 'blue', ext: { drawings: { items: [] } } }),
+    'chart-1': chartState('mock:ESZ6', 'footprint', {
+      link: 'blue',
+      ext: { drawings: { items: [] } },
+    }),
     'dom-1': domState('mock:ESZ6', { link: 'blue' }),
-    'mod-1': { kind: 'module' as const, module: 'smart-tape', params: { instrumentId: 'mock:ESZ6' } },
+    'mod-1': {
+      kind: 'module' as const,
+      module: 'smart-tape',
+      params: { instrumentId: 'mock:ESZ6' },
+    },
   };
   return {
     version: 1,
@@ -48,7 +61,11 @@ function sampleDoc(): WorkspaceDoc {
       {
         id: 't1',
         name: 'Main',
-        layout: layoutFor(Object.keys(windows), { 'chart-1': 'chart', 'dom-1': 'dom', 'mod-1': 'module' }),
+        layout: layoutFor(Object.keys(windows), {
+          'chart-1': 'chart',
+          'dom-1': 'dom',
+          'mod-1': 'module',
+        }),
         windows,
         tradingPanel: true,
       },
@@ -91,7 +108,14 @@ describe('.htworkspace round trip', () => {
   it('every starter workspace is a valid file', () => {
     for (const s of STARTER_WORKSPACES) {
       const ws: StoredWorkspace = {
-        meta: { id: s.id, name: s.name, description: s.description, favourite: false, createdAt: 0, updatedAt: 0 },
+        meta: {
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          favourite: false,
+          createdAt: 0,
+          updatedAt: 0,
+        },
         doc: s.build(),
       };
       const r = parseWorkspaceFile(serializeWorkspaceFile(ws, NOW), NOW);
@@ -126,9 +150,17 @@ describe('migrations', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.migratedFrom).toBe(2);
-    expect(r.workspace.meta).toMatchObject({ description: 'old', favourite: true, name: 'My desk' });
+    expect(r.workspace.meta).toMatchObject({
+      description: 'old',
+      favourite: true,
+      name: 'My desk',
+    });
     expect(r.workspace.doc.display?.main.width).toBe(1920);
-    expect(r.workspace.doc.display?.monitors[0]).toMatchObject({ name: 'DISPLAY1', primary: true, scale: 1 });
+    expect(r.workspace.doc.display?.monitors[0]).toMatchObject({
+      name: 'DISPLAY1',
+      primary: true,
+      scale: 1,
+    });
     expect((r.workspace.doc as unknown as Record<string, unknown>).mainWindow).toBeUndefined();
   });
 
@@ -147,7 +179,10 @@ describe('hostile files', () => {
     JSON.stringify({ format: 'htworkspace', version: 3, workspace: { meta: { name: 'x' }, doc } });
 
   it('rejects garbage, empty and over-size input', () => {
-    expect(parseWorkspaceFile('not json')).toEqual({ ok: false, error: 'The file is not valid JSON' });
+    expect(parseWorkspaceFile('not json')).toEqual({
+      ok: false,
+      error: 'The file is not valid JSON',
+    });
     expect(parseWorkspaceFile('')).toMatchObject({ ok: false });
     expect(parseWorkspaceFile('null')).toMatchObject({ ok: false });
     expect(parseWorkspaceFile(' '.repeat(LIMITS.fileBytes + 1))).toMatchObject({
@@ -159,7 +194,10 @@ describe('hostile files', () => {
   it('does not pollute prototypes', () => {
     const text =
       '{"format":"htworkspace","version":3,"__proto__":{"polluted":1},"workspace":{"meta":{"name":"p","constructor":{"prototype":{"bad":1}}},"doc":' +
-      JSON.stringify(sampleDoc()).replace('{"version":1', '{"__proto__":{"isAdmin":true},"version":1') +
+      JSON.stringify(sampleDoc()).replace(
+        '{"version":1',
+        '{"__proto__":{"isAdmin":true},"version":1',
+      ) +
       '}}';
     const r = parseWorkspaceFile(text, NOW);
     expect(r.ok).toBe(true);
@@ -191,8 +229,12 @@ describe('hostile files', () => {
 
   it('rejects unknown window kinds, chart types, bad instruments and module ids', () => {
     expect(() => validateWindow({ kind: 'evil' })).toThrow(/unknown window kind/);
-    expect(() => validateWindow({ ...chartState('x', 'footprint'), template: 'nope' })).toThrow(/chart type/);
-    expect(() => validateWindow({ ...chartState('x', 'footprint'), instrumentId: '<script>' })).toThrow(/instrument/);
+    expect(() => validateWindow({ ...chartState('x', 'footprint'), template: 'nope' })).toThrow(
+      /chart type/,
+    );
+    expect(() =>
+      validateWindow({ ...chartState('x', 'footprint'), instrumentId: '<script>' }),
+    ).toThrow(/instrument/);
     expect(() => validateWindow({ kind: 'module', module: '../../etc' })).toThrow(/module id/);
     expect(() => validateWindow({ kind: 'module', module: 42 })).toThrow(/module id/);
   });
@@ -230,7 +272,9 @@ describe('hostile files', () => {
       parseWorkspaceFile(wrap({ ...doc, tabs: [{ ...doc.tabs[0], layout: null, windows: many }] })),
     ).toMatchObject({ ok: false });
     expect(
-      parseWorkspaceFile(wrap({ ...doc, tabs: [{ ...doc.tabs[0], windows: { 'bad id!': domState('x') } }] })),
+      parseWorkspaceFile(
+        wrap({ ...doc, tabs: [{ ...doc.tabs[0], windows: { 'bad id!': domState('x') } }] }),
+      ),
     ).toMatchObject({ ok: false });
   });
 
@@ -257,7 +301,10 @@ describe('hostile files', () => {
 
   it('fixes duplicate tab ids and an unknown active tab', () => {
     const doc = sampleDoc();
-    const r = parseWorkspaceValue({ ...doc, activeTab: 'zzz', tabs: [doc.tabs[0], doc.tabs[0]] }, NOW);
+    const r = parseWorkspaceValue(
+      { ...doc, activeTab: 'zzz', tabs: [doc.tabs[0], doc.tabs[0]] },
+      NOW,
+    );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const ids = r.workspace.doc.tabs.map((t) => t.id);
@@ -273,7 +320,12 @@ describe('hostile files', () => {
 
 describe('helpers', () => {
   it('tiles windows without a layout', () => {
-    const specs = specsFromWindows({ a: domState('x'), b: domState('x'), c: domState('x'), d: domState('x') });
+    const specs = specsFromWindows({
+      a: domState('x'),
+      b: domState('x'),
+      c: domState('x'),
+      d: domState('x'),
+    });
     expect(specs.map((s) => s.position?.dir ?? null)).toEqual([null, 'right', 'below', 'right']);
   });
   it('makes Windows-safe file names', () => {
