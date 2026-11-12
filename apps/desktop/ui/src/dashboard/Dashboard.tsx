@@ -318,12 +318,13 @@ export function Dashboard({ version }: { version: string }) {
     void backend.saveSettings('workspace', next);
   };
 
+  /** Opens a window as a tab over the active one, or in its own split when `dir` is given. */
   const openWindow = useCallback(
-    (state: WindowState) => {
+    (state: WindowState, dir: 'within' | 'right' | 'below' | 'left' | 'above' = 'within') => {
       const api = apiRef.current;
       if (!api) return;
       const active = api.activePanel;
-      addPanel(newId(state.kind), state, active ? { ref: active.id, dir: 'within' } : undefined);
+      addPanel(newId(state.kind), state, active ? { ref: active.id, dir } : undefined);
     },
     [addPanel],
   );
@@ -448,15 +449,22 @@ export function Dashboard({ version }: { version: string }) {
           if (m.id === 'chart') openWindow(chartState(inst(), 'footprint'));
           else if (m.id === 'smart-dom') openWindow(domState(inst()));
           else if (m.id === 'heatmap') openWindow(chartState(inst(), 'liquidity-map'));
-          else openWindow({ kind: 'module', module: m.id });
+          else openWindow({ kind: 'module', module: m.id }, m.id === 'replay' ? 'right' : 'within');
         },
       })),
     ];
     const un = registerCommands(cmds);
     const unk = installHotkeys();
     // Modules outside the ribbon (e.g. the drawings Objects List) open through this event.
-    const onOpen = (e: Event) =>
-      openWindow({ kind: 'module', module: String((e as CustomEvent).detail) });
+    // detail: a module id, or { module, position } where position is a split direction hint.
+    const onOpen = (e: Event) => {
+      const d = (e as CustomEvent).detail as string | { module?: unknown; position?: unknown };
+      const module = String(typeof d === 'object' && d ? d.module : d);
+      const pos = typeof d === 'object' && d ? d.position : undefined;
+      const dir =
+        pos === 'right' || pos === 'below' || pos === 'left' || pos === 'above' ? pos : 'within';
+      openWindow({ kind: 'module', module }, dir);
+    };
     window.addEventListener('htflow:open-module', onOpen);
     return () => {
       un();

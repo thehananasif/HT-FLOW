@@ -30,7 +30,6 @@ import {
   EXT_ID,
   loadPrefs,
   openObjectsList,
-  mutate,
   mutateSelection,
   readDrawings,
   runToolCommand,
@@ -528,6 +527,3 @@ window.addEventListener('keydown', (e) => {
   const ctrl = ctrlOf();
   if (ctrl && (ctrl.creating || ctrl.host.tool()) && ctrl.onKey(e)) e.preventDefault();
 });
-
-// Referenced so tree-shaking keeps the helpers wired for dialogs.
-void mutate;
