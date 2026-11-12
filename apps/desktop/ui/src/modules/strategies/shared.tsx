@@ -52,6 +52,10 @@ export function specValue(spec: BarSpec): string {
       return `d${spec.n}`;
     case 'range':
       return `r${spec.ticks}`;
+    default:
+      // Other bar kinds (Renko, range variants, reversal, …) are not offered in the backtest
+      // picker; keep a stable key so a saved selection still round-trips.
+      return `x:${JSON.stringify(spec)}`;
   }
 }
 
