@@ -2,8 +2,15 @@
 
 ## Unreleased — round 3
 
+### Changed
+
+- Paper maker fills now pay the maker fee (taker rate if unset) instead of half the taker rate.
+- Positions / Orders row actions and Flatten all / Cancel all ask for confirmation by default (Settings → Common → skip table confirmations).
+
 ### Added
 
+- Trading v2 (P17): iceberg, MIT, trailing stop, stop-limit; ATM templates and editor; chart order / position / bracket lines with drag-to-modify; multiple paper accounts; order confirmations.
+- Settings (P27 / P43): Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy, Logs, Custom modules and About sections; many existing settings wired into tables, journal, tape, DOM, toasts and the shell.
 - UI kit v2 (P02): ColorPicker v2 and GradientEditor, Combobox, FontPicker, LineStylePicker, MenuSlider, Sheet, virtualized Table, TreeView, SplitPane; ribbon hide / reorder with Customize ribbon dialog.
 - Remaining modules (P28): Web Pages, Logs (with in-app log buffer), Following Manager (local, sharing blocked), User Guide (F1), guided tour, sample replay session.
 

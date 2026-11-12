@@ -81,3 +81,72 @@ test('settings: token colour + hotkey rebinding, export JSON, new hotkey works',
     .toBe('#123456');
   expect(errors).toEqual([]);
 });
+
+test('settings: Chart + About pages, DOM setting applies, RTL flag, modules, privacy', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'settings2');
+
+  await page.locator('body').click({ position: { x: 5, y: 300 } });
+  await page.keyboard.press('Control+Comma');
+  const win = page.getByTestId('settings-window');
+  await expect(win).toBeVisible();
+
+  // Chart page: defaults, colour field validation, reset.
+  await win.getByRole('button', { name: 'Chart', exact: true }).click();
+  await expect(win.getByRole('heading', { name: 'Chart' })).toBeVisible();
+  await expect(win.getByTestId('setting-chart.crosshairStyle')).toBeVisible();
+  const up = win.getByLabel('Up candle body', { exact: true });
+  await up.fill('nope');
+  await expect(win.getByText('Use #RRGGBB')).toBeVisible();
+  await up.fill('#00ff88');
+  await expect(win.getByText('Use #RRGGBB')).toHaveCount(0);
+  await win.getByLabel('Reset Up candle body').click();
+  await expect(up).toHaveValue('');
+
+  // DOM page: change the row height, apply, and it is in the export.
+  await win.getByRole('button', { name: 'DOM', exact: true }).click();
+  const row = win.getByLabel('Row height', { exact: true });
+  await row.fill('30');
+  await row.blur();
+  await win.getByRole('button', { name: 'Apply', exact: true }).click();
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    win.getByTestId('settings-export').click(),
+  ]);
+  const json = JSON.parse(readFileSync((await dl.path())!, 'utf8'));
+  expect(json.values['dom.rowHeight']).toBe(30);
+  expect(json.values['privacy.telemetry']).toBe('off');
+
+  // RTL flag mirrors the document direction; Urdu is listed as coming.
+  await win.getByRole('button', { name: 'General', exact: true }).click();
+  const dir = win.getByLabel('Layout direction (RTL preview)', { exact: true });
+  await dir.selectOption('rtl');
+  await win.getByRole('button', { name: 'Apply', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await dir.selectOption('auto');
+  await win.getByRole('button', { name: 'Apply', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(win.getByRole('option', { name: /Urdu.*coming/ })).toBeDisabled();
+
+  // Custom modules: registered modules listed; Settings itself cannot be disabled.
+  await win.getByRole('button', { name: 'Custom modules', exact: true }).click();
+  await expect(win.getByTestId('module-list')).toBeVisible();
+  await expect(win.getByLabel('Enable Settings', { exact: true })).toBeDisabled();
+  await win.getByLabel('Module folder path').fill('C:\\HTFlow\\modules');
+  await win.getByRole('button', { name: 'Add module folder' }).click();
+  await expect(win.getByTestId('module-folders')).toContainText('C:\\HTFlow\\modules');
+
+  // About page: version and licences.
+  await win.getByRole('button', { name: 'About & updates', exact: true }).click();
+  await expect(win.getByTestId('about-panel')).toBeVisible();
+  await expect(win.getByTestId('licence-table')).toContainText('React');
+  await expect(win.getByTestId('licence-table')).toContainText('MIT');
+
+  // Privacy: telemetry is fixed off.
+  await win.getByRole('button', { name: 'Privacy & security', exact: true }).click();
+  await expect(win.getByLabel('Telemetry', { exact: true })).toHaveValue('off');
+  expect(errors).toEqual([]);
+});

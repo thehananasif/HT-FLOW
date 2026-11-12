@@ -2,6 +2,8 @@ import { DropdownMenu, MenuTrigger, type MenuEntry } from '@htflow/ui-kit';
 import { useWindows } from '../../state/windows';
 import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../../state/instruments';
 import { isTauri } from '../../backend';
+import { fmtClock } from '../../state/format';
+import { getSetting } from '../../state/settings';
 
 /* Shared helpers for the tape / analytics module windows (smart-tape, bidask-tape, all-prices,
  * market-pressure, price-change, dom-pressure, delta-divergence). */
@@ -74,12 +76,9 @@ export function InstrumentPicker({
   );
 }
 
-/** HH:MM:SS.mmm (local time). */
-export function fmtTime(ts: number, ms = true): string {
-  const d = new Date(ts);
-  const p = (n: number, w = 2) => String(n).padStart(w, '0');
-  const s = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-  return ms ? `${s}.${p(Math.floor(ts % 1000), 3)}` : s;
+/** Trade time in the application time zone / clock format; milliseconds follow Settings → Tape. */
+export function fmtTime(ts: number, ms = getSetting('tape.showMs')): string {
+  return fmtClock(ts, { ms });
 }
 
 export function fmtDuration(ms: number): string {
