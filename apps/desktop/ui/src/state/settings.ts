@@ -2814,21 +2814,19 @@ export const SCHEMA = {
     section: 'about',
     group: 'Updates',
     label: 'Check for updates',
-    help: 'Look for a newer HT Flow release at start-up. Off by default (no network call is made); the updater arrives with the installer.',
+    help: 'Look for a newer HT Flow release on GitHub at start-up. Off by default (no network call is made until you turn it on). "Check for updates" in the Command Palette always works on demand. Builds without an updater key, and the web build, show "Updates unavailable in this build".',
     default: false,
-    wired: false,
   }),
   'about.updateChannel': oneOf({
     section: 'about',
     group: 'Updates',
     label: 'Update channel',
-    help: 'Which releases the updater offers.',
+    help: 'Which releases the updater offers: Stable (published releases) or Beta (pre-releases, may be less tested).',
     default: 'stable',
     options: [
       { value: 'stable', label: 'Stable' },
-      { value: 'beta', label: 'Beta — coming', disabled: true },
+      { value: 'beta', label: 'Beta' },
     ],
-    wired: false,
   }),
 } satisfies Record<string, SettingDef>;
 

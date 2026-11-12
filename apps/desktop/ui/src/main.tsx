@@ -4,6 +4,7 @@ import 'dockview/dist/styles/dockview.css';
 import { applyTheme } from '@htflow/ui-kit';
 import './styles/app.css';
 import { App } from './App';
+import { ErrorBoundary } from './platform/ErrorBoundary';
 // Plugins register themselves on import (modules/*/index.tsx, feeds/*.ts).
 import './feeds/load';
 import './modules/load';
@@ -18,6 +19,8 @@ window.addEventListener('contextmenu', (e) => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

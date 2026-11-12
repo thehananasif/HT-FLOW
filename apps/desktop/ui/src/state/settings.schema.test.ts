@@ -121,7 +121,8 @@ describe('enums', () => {
       expect(validateSetting('general.language', v).ok).toBe(false);
     }
     expect(validateSetting('general.rtl', 'rtl').ok).toBe(true);
-    expect(validateSetting('about.updateChannel', 'beta').ok).toBe(false);
+    expect(validateSetting('about.updateChannel', 'beta').ok).toBe(true);
+    expect(validateSetting('about.updateChannel', 'nightly').ok).toBe(false);
   });
 });
 
