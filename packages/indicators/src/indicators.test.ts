@@ -421,19 +421,36 @@ function makeFeeds(trades: Trade[]) {
     evs.push({
       ts: t,
       run: () =>
-        log.addFunding({ kind: 'funding', ts: t, rate: ((n++ % 5) - 2) * 0.0001, nextTs: t + 600_000, markPrice: px(t) }),
+        log.addFunding({
+          kind: 'funding',
+          ts: t,
+          rate: ((n++ % 5) - 2) * 0.0001,
+          nextTs: t + 600_000,
+          markPrice: px(t),
+        }),
     });
   let oi = 1_000_000;
   for (let t = t0 + 1000, k = 0; t <= t1; t += 20_000, k++) {
-    oi += ((k * 37) % 11 - 5) * 1000;
+    oi += (((k * 37) % 11) - 5) * 1000;
     const v = oi;
-    evs.push({ ts: t, run: () => log.addOpenInterest({ kind: 'open_interest', ts: t, oi: v, value: v * 1000 }) });
+    evs.push({
+      ts: t,
+      run: () => log.addOpenInterest({ kind: 'open_interest', ts: t, oi: v, value: v * 1000 }),
+    });
   }
   for (let t = t0 + 5000, k = 0; t <= t1; t += 97_000, k++)
     evs.push({
       ts: t,
       run: () =>
-        log.addLiquidations([{ kind: 'liquidation', ts: t, side: k % 2 ? 'buy' : 'sell', px: px(t) + (k % 3), qty: 5 + (k % 7) * 20 }]),
+        log.addLiquidations([
+          {
+            kind: 'liquidation',
+            ts: t,
+            side: k % 2 ? 'buy' : 'sell',
+            px: px(t) + (k % 3),
+            qty: 5 + (k % 7) * 20,
+          },
+        ]),
     });
   for (let t = t0; t <= t1; t += 1000) {
     const p = px(t);
@@ -448,7 +465,13 @@ function makeFeeds(trades: Trade[]) {
           pxs.push(p + 1 + d);
           qs.push(1 + ((t / 1000 + d * 7) % 5) * (d === 4 ? 30 : 4));
         }
-        depth.columns.push({ t, bestBid: p, bestAsk: p + 1, pxs: Int32Array.from(pxs), qtys: Float32Array.from(qs) });
+        depth.columns.push({
+          t,
+          bestBid: p,
+          bestAsk: p + 1,
+          pxs: Int32Array.from(pxs),
+          qtys: Float32Array.from(qs),
+        });
         depth.version++;
       },
     });

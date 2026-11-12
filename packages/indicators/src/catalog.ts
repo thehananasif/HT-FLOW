@@ -32,6 +32,11 @@ function rows(category: IndicatorCategory, group: string | undefined, list: Row[
   }));
 }
 
+const OPTIONS_NOTE =
+  'Needs an options chain in the indicator context: @htflow/options analytics exist but the SDK has no chain provider yet (host-supplied, not derivable from bars)';
+const COT_NOTE =
+  'No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data';
+
 export const CATALOG: CatalogEntry[] = [
   ...rows('volume-orderflow', undefined, [
     ['Active Volume', 'active-volume'],
@@ -80,16 +85,16 @@ export const CATALOG: CatalogEntry[] = [
     ['Sweeps Tracker', 'sweeps-tracker'],
   ]),
   ...rows('options', undefined, [
-    ['Options Board (on-chart strikes/OI)', undefined, undefined, 'Options data (P18)'],
-    ['Options Position', undefined, undefined, 'Options data (P18)'],
-    ['Volatility Smile', undefined, undefined, 'Options data (P18)'],
-    ['Options Risk Profile', undefined, undefined, 'Options data (P18)'],
+    ['Options Board (on-chart strikes/OI)', undefined, undefined, OPTIONS_NOTE],
+    ['Options Position', undefined, undefined, OPTIONS_NOTE],
+    ['Volatility Smile', undefined, undefined, OPTIONS_NOTE],
+    ['Options Risk Profile', undefined, undefined, OPTIONS_NOTE],
   ]),
   ...rows('cot', undefined, [
-    ['COT', undefined, undefined, 'CFTC COT data source'],
-    ['COT Commercials / Non-Commercials', undefined, undefined, 'CFTC COT data source'],
-    ['COT Institutional Net Positions', undefined, undefined, 'CFTC COT data source'],
-    ['COT High/Low', undefined, undefined, 'CFTC COT data source'],
+    ['COT', undefined, undefined, COT_NOTE],
+    ['COT Commercials / Non-Commercials', undefined, undefined, COT_NOTE],
+    ['COT Institutional Net Positions', undefined, undefined, COT_NOTE],
+    ['COT High/Low', undefined, undefined, COT_NOTE],
   ]),
   ...rows('crypto', undefined, [
     ['Funding Rate Tracker', 'funding-rate'],
@@ -97,8 +102,18 @@ export const CATALOG: CatalogEntry[] = [
     ['Open Interest (crypto aggregate)', 'open-interest'],
   ]),
   ...rows('trading', undefined, [
-    ['Account Info Display'],
-    ['Position Sizing Tracker'],
+    [
+      'Account Info Display',
+      undefined,
+      undefined,
+      'Needs the trading account (balance, margin) in the indicator context',
+    ],
+    [
+      'Position Sizing Tracker',
+      undefined,
+      undefined,
+      'Needs account equity and the instrument tick value in the indicator context',
+    ],
     ['Trading Session Visualizer', 'session-visualizer'],
   ]),
   ...rows('samples', undefined, [
@@ -191,7 +206,12 @@ export const CATALOG: CatalogEntry[] = [
     ['Accelerator Oscillator', 'accelerator'],
     ['CMO', 'cmo'],
     ['CFO', 'cfo'],
-    ['CMS'],
+    [
+      'CMS',
+      undefined,
+      undefined,
+      'Not defined in Appendix B (abbreviation is ambiguous); needs a spec decision',
+    ],
     ['Coppock Curve', 'coppock'],
     ['DeMarker', 'demarker'],
     ['Detrended Price Oscillator', 'dpo'],
@@ -245,7 +265,12 @@ export const CATALOG: CatalogEntry[] = [
     ['Fair Value Gaps (FVG)', 'fvg'],
     ['Order Blocks', 'order-blocks'],
     ['Liquidity Sweeps', 'liquidity-sweeps'],
-    ['Margin Zones'],
+    [
+      'Margin Zones',
+      undefined,
+      undefined,
+      'Not defined in Appendix B (no formula given); needs a spec decision',
+    ],
     ['Daily Lines', 'daily-lines'],
     ['Daily/Weekly/Monthly High-Low', 'period-high-low'],
     ['Previous Session OHLC', 'prev-session-ohlc'],
@@ -263,7 +288,12 @@ export const CATALOG: CatalogEntry[] = [
     ['Beta', undefined, undefined, 'Second-instrument input'],
     ['Z-Score', 'zscore'],
     ['Seasonality', 'seasonality'],
-    ['Custom Formula (expression editor)'],
+    [
+      'Custom Formula (expression editor)',
+      undefined,
+      undefined,
+      'Needs an expression parser and editor UI (not built)',
+    ],
   ]),
   // Variants (Appendix B: "parameter variants listed in the Indicators dialog").
   ...rows(

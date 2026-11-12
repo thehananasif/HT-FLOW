@@ -1,5 +1,5 @@
 import type { Bar, Cluster } from '@htflow/market-data';
-import type { SeriesOut} from './buffers';
+import type { SeriesOut } from './buffers';
 import { isSeriesKind } from './buffers';
 import { titleOf } from './config';
 import { input } from './inputs';
