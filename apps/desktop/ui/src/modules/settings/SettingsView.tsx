@@ -12,6 +12,7 @@ import {
   HelpCircle,
   Info,
   Keyboard,
+  LayoutTemplate,
   Lock,
   Palette,
   Puzzle,
@@ -76,6 +77,7 @@ import {
 const ICONS: Record<SectionId, ReactNode> = {
   general: <Settings2 size={15} />,
   appearance: <Palette size={15} />,
+  layout: <LayoutTemplate size={15} />,
   chart: <CandlestickChart size={15} />,
   footprint: <Table2 size={15} />,
   heatmap: <Flame size={15} />,

@@ -1,0 +1,240 @@
+/* Workspaces window (P25 / P37). Tokens from @htflow/ui-kit. */
+.wsm-win {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ht-surface1);
+  font-size: 12px;
+}
+.wsm-win > .ht-tabs {
+  flex: none;
+  padding: 0 8px;
+}
+.wsm-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wsm-pane > .ht-split {
+  flex: 1;
+  min-height: 0;
+}
+.wsm-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--ht-border);
+}
+.wsm-autosave {
+  font-size: 11px;
+}
+.wsm-recent {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.wsm-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+.wsm-h {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ht-text-tertiary);
+}
+.wsm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.wsm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--ht-surface2);
+  border: 1px solid var(--ht-border);
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 0;
+}
+.wsm-card:hover {
+  border-color: var(--ht-text-tertiary);
+}
+.wsm-card[aria-selected='true'] {
+  border-color: var(--ht-text-primary);
+}
+.wsm-card:focus-visible {
+  outline: 1px solid var(--ht-accent);
+  outline-offset: 1px;
+}
+.wsm-card--starter {
+  cursor: default;
+}
+.wsm-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--ht-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.wsm-tile {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--ht-bg);
+  border-radius: 4px;
+  background: var(--ht-surface3);
+}
+.wsm-tile--chart {
+  background: color-mix(in srgb, var(--ht-info) 28%, var(--ht-surface2));
+}
+.wsm-tile--dom {
+  background: color-mix(in srgb, var(--ht-text-primary) 10%, var(--ht-surface2));
+}
+.wsm-tile--module {
+  background: color-mix(in srgb, var(--ht-special) 22%, var(--ht-surface2));
+}
+.wsm-tile--float {
+  border: 1px solid var(--ht-text-secondary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.wsm-card-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.wsm-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ht-text-primary);
+}
+.wsm-star {
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+}
+.wsm-star[aria-pressed='true'] {
+  color: var(--ht-warning);
+}
+.wsm-card-desc {
+  color: var(--ht-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wsm-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ht-text-tertiary);
+  font-size: 11px;
+}
+.wsm-selbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-top: 1px solid var(--ht-border);
+}
+.wsm-sel-name {
+  font-weight: 600;
+  color: var(--ht-text-primary);
+}
+.wsm-tree {
+  height: 100%;
+  overflow: auto;
+  padding: 6px;
+}
+.wsm-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wsm-node-detail {
+  color: var(--ht-text-tertiary);
+  font-size: 11px;
+}
+.wsm-node-detail.wsm-open {
+  color: var(--ht-up);
+}
+.wsm-side {
+  height: 100%;
+  overflow: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wsm-node-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ht-divider);
+}
+.wsm-summary {
+  border-collapse: collapse;
+}
+.wsm-summary td {
+  padding: 2px 12px 2px 0;
+  height: 20px;
+}
+.wsm-summary td:first-child {
+  color: var(--ht-text-secondary);
+}
+.wsm-summary td:last-child {
+  text-align: right;
+  color: var(--ht-text-primary);
+}
+.wsm-templates {
+  font-size: 11px;
+}
+.wsm-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.wsm-links-table {
+  flex: none;
+  padding: 6px 10px 0;
+}
+.wsm-members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wsm-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  border-bottom: 1px solid var(--ht-divider);
+}

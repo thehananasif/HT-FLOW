@@ -38,6 +38,7 @@ import {
   windowTitle,
   type ChartTemplateId,
   type LayoutPresetId,
+  type PanelSpec,
   type WindowState,
   type WorkspaceDoc,
   type WorkspaceTab,
@@ -61,6 +62,22 @@ import { TradingPanel } from '../trading/TradingPanel';
 import { ModuleWindow } from './ModuleWindow';
 import { risk, riskStore } from '../modules/risk/engine';
 import { WindowHeader } from './WindowHeader';
+import { setWorkspaceHost } from '../modules/workspaces/host';
+import { WorkspaceMenu } from '../modules/workspaces/menu';
+import { readOpenWindowDetail, type OpenDir } from '../modules/workspaces/windowActions';
+import {
+  attachDockBehaviour,
+  defaultFloatingRect,
+  isFloating,
+  placeNewWindow,
+  toggleFloating,
+} from '../modules/layout-settings/apply';
+import {
+  captureDisplay,
+  installDisplayTracking,
+  prepareLayout,
+  restoreMainWindow,
+} from '../modules/layout-settings/display';
 
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
 const components = { chart: ChartWindow, dom: DomWindow, module: ModuleWindow };
@@ -83,6 +100,7 @@ function title(s: WindowState) {
 export function Dashboard({ version }: { version: string }) {
   const session = useSession((s) => s.session)!;
   const apiRef = useRef<DockviewApi | null>(null);
+  const dockHostRef = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<WorkspaceDoc>({
     version: 1,
     name: 'Crypto + Futures',
@@ -131,6 +149,7 @@ export function Dashboard({ version }: { version: string }) {
       layout: api.toJSON(),
       windows: useWindows.getState().windows,
       tradingPanel: useWindows.getState().tradingPanel,
+      specs: undefined,
     };
   };
 
@@ -143,11 +162,32 @@ export function Dashboard({ version }: { version: string }) {
       ...d,
       tabs: d.tabs.map((x) => (x.id === t.id ? t : x)),
       savedAt: Date.now(),
+      display: captureDisplay(t.layout, dockHostRef.current), // multi-monitor restore
     };
     docRef.current = next;
     setDoc(next);
     void backend.saveSettings('workspace', next);
   }, []);
+
+  /** Builds panels from specs (presets, starter workspaces, imported files without a layout). */
+  const buildSpecs = useCallback(
+    (specs: PanelSpec[]) => {
+      const api = apiRef.current;
+      if (!api) return;
+      for (const s of specs) addPanel(s.id, s.state, s.position);
+      // Initial split sizes (editable afterwards by dragging splitters).
+      for (const s of specs) {
+        if (!s.size || !s.position) continue;
+        const panel = api.getPanel(s.id);
+        if (!panel) continue;
+        if (s.position.dir === 'right' || s.position.dir === 'left')
+          panel.api.setSize({ width: Math.round(api.width * s.size) });
+        else if (s.position.dir === 'below' || s.position.dir === 'above')
+          panel.api.setSize({ height: Math.round(api.height * s.size) });
+      }
+    },
+    [addPanel],
+  );
 
   const applyPreset = useCallback(
     (id: LayoutPresetId, instrumentId = activeInstrument() ?? DEFAULT_INSTRUMENT) => {
@@ -157,22 +197,13 @@ export function Dashboard({ version }: { version: string }) {
       loading.current = true;
       api.clear();
       useWindows.getState().setAll({});
-      const specs = p.build(instrumentId);
-      for (const s of specs) addPanel(s.id, s.state, s.position);
-      // Initial split sizes (editable afterwards by dragging splitters).
-      for (const s of specs) {
-        if (!s.size || !s.position) continue;
-        const panel = api.getPanel(s.id);
-        const total = api.width;
-        if (panel && (s.position.dir === 'right' || s.position.dir === 'left'))
-          panel.api.setSize({ width: Math.round(total * s.size) });
-      }
+      buildSpecs(p.build(instrumentId));
       useWindows.getState().setTradingPanel(p.tradingPanel);
       setPreset(id);
       loading.current = false;
       save();
     },
-    [addPanel, save],
+    [buildSpecs, save],
   );
 
   const restoreTab = useCallback(
@@ -183,7 +214,14 @@ export function Dashboard({ version }: { version: string }) {
       try {
         useWindows.getState().setAll(tab.windows);
         api.clear();
-        if (tab.layout) api.fromJSON(tab.layout as Parameters<DockviewApi['fromJSON']>[0]);
+        if (tab.layout) {
+          // Floating windows are clamped / scaled into today's docking area (multi-monitor restore).
+          const layout = prepareLayout(tab.layout, docRef.current.display, {
+            width: api.width,
+            height: api.height,
+          });
+          api.fromJSON(layout as Parameters<DockviewApi['fromJSON']>[0]);
+        } else if (tab.specs?.length) buildSpecs(tab.specs);
         useWindows.getState().setTradingPanel(tab.tradingPanel);
       } catch (e) {
         console.warn('Workspace restore failed, applying default preset', e);
@@ -192,12 +230,50 @@ export function Dashboard({ version }: { version: string }) {
       }
       loading.current = false;
     },
-    [applyPreset],
+    [applyPreset, buildSpecs],
+  );
+
+  /** Replaces the whole workspace (Workspaces manager → Load / import / starter). */
+  const loadDoc = useCallback(
+    (d: WorkspaceDoc) => {
+      docRef.current = d;
+      setDoc(d);
+      restoreTab(d.tabs.find((t) => t.id === d.activeTab) ?? d.tabs[0]!);
+      void restoreMainWindow(d.display);
+      void backend.saveSettings('workspace', d);
+    },
+    [restoreTab],
   );
 
   const onReady = useCallback(
     (e: DockviewReadyEvent) => {
       apiRef.current = e.api;
+      // Layout settings (gap, lock, snapping) and the Workspaces manager bridge (P25 / P37).
+      attachDockBehaviour(e.api, theme);
+      installDisplayTracking();
+      setWorkspaceHost({
+        snapshot: () => {
+          const t = snapshotTab();
+          const d = docRef.current;
+          return {
+            ...d,
+            tabs: t ? d.tabs.map((x) => (x.id === t.id ? t : x)) : d.tabs,
+            savedAt: Date.now(),
+            display: captureDisplay(t?.layout ?? null, dockHostRef.current),
+          };
+        },
+        load: loadDoc,
+        rename: (name) => {
+          const next = { ...docRef.current, name };
+          docRef.current = next;
+          setDoc(next);
+          void backend.saveSettings('workspace', next);
+        },
+        focusWindow: (id) => e.api.getPanel(id)?.api.setActive(),
+        closeWindow: (id) => e.api.getPanel(id)?.api.close(),
+        isFloating: (id) => isFloating(e.api, id),
+        toggleFloating: (id) => toggleFloating(e.api, id),
+      });
       e.api.onDidRemovePanel((p) => {
         if (!loading.current) useWindows.getState().remove(p.id);
       });
@@ -218,7 +294,10 @@ export function Dashboard({ version }: { version: string }) {
               // "Default layout": the active layout tab is reset, other saved tabs are kept.
               docRef.current = { ...saved, activeTab: active.id };
               applyPreset('dom-chart-panel', DEFAULT_INSTRUMENT);
-            } else restoreTab(active);
+            } else {
+              restoreTab(active);
+              void restoreMainWindow(saved.display);
+            }
           } else {
             const tab: WorkspaceTab = {
               id: newId('tab'),
@@ -241,7 +320,7 @@ export function Dashboard({ version }: { version: string }) {
         },
       );
     },
-    [applyPreset, restoreTab, save],
+    [applyPreset, restoreTab, save, loadDoc],
   );
 
   // Persist on window-state changes and every 60 s (P25 autosave).
@@ -270,7 +349,7 @@ export function Dashboard({ version }: { version: string }) {
     docRef.current = next;
     setDoc(next);
     const target = tabs.find((t) => t.id === id)!;
-    if (target.layout) restoreTab(target);
+    if (target.layout || target.specs?.length) restoreTab(target);
     else applyPreset('single');
     void backend.saveSettings('workspace', next);
   };
@@ -318,15 +397,16 @@ export function Dashboard({ version }: { version: string }) {
     void backend.saveSettings('workspace', next);
   };
 
-  /** Opens a window as a tab over the active one, or in its own split when `dir` is given. */
+  /** New windows open docked or floating as Layout settings say (callers may override). */
   const openWindow = useCallback(
-    (state: WindowState, dir: 'within' | 'right' | 'below' | 'left' | 'above' = 'within') => {
+    (state: WindowState, opts: { ref?: string; dir?: OpenDir; floating?: boolean } = {}) => {
       const api = apiRef.current;
       if (!api) return;
-      const active = api.activePanel;
-      addPanel(newId(state.kind), state, active ? { ref: active.id, dir } : undefined);
+      const id = newId(state.kind);
+      useWindows.getState().add(id, state);
+      placeNewWindow(api, { id, state, title: title(state), ...opts });
     },
-    [addPanel],
+    [],
   );
 
   const split = useCallback(
@@ -345,7 +425,12 @@ export function Dashboard({ version }: { version: string }) {
     const api = apiRef.current;
     const active = api?.activePanel;
     if (!api || !active) return;
-    api.addFloatingGroup(active, { position: { left: 120, top: 80 }, width: 820, height: 520 });
+    const r = defaultFloatingRect(api); // Layout settings → default size / placement
+    api.addFloatingGroup(active, {
+      position: { left: r.x, top: r.y },
+      width: r.width,
+      height: r.height,
+    });
   }, []);
 
   const setMainChart = (tpl: ChartTemplateId) => {
@@ -448,7 +533,8 @@ export function Dashboard({ version }: { version: string }) {
         run: () => {
           if (m.id === 'chart') openWindow(chartState(inst(), 'footprint'));
           else if (m.id === 'smart-dom') openWindow(domState(inst()));
-          else openWindow({ kind: 'module', module: m.id }, m.id === 'replay' ? 'right' : 'within');
+          else
+            openWindow({ kind: 'module', module: m.id }, m.id === 'replay' ? { dir: 'right' } : {});
         },
       })),
     ];
@@ -460,17 +546,16 @@ export function Dashboard({ version }: { version: string }) {
       const d = (e as CustomEvent).detail as string | { module?: unknown; position?: unknown };
       const module = String(typeof d === 'object' && d ? d.module : d);
       const pos = typeof d === 'object' && d ? d.position : undefined;
+      // An explicit split hint wins; otherwise the window opens where Layout settings say.
       const dir =
-        pos === 'right' || pos === 'below' || pos === 'left' || pos === 'above' ? pos : 'within';
-      openWindow({ kind: 'module', module }, dir);
+        pos === 'right' || pos === 'below' || pos === 'left' || pos === 'above' ? pos : undefined;
+      openWindow({ kind: 'module', module }, dir ? { dir } : {});
     };
     window.addEventListener('htflow:open-module', onOpen);
-    // Chart menu: Clone window / Create linked window (detail: { state, ref?, dir? }).
+    // Any window (chart, DOM, tape, module) — Clone / Create linked window use this (P25).
     const onOpenWindow = (e: Event) => {
-      const d = (e as CustomEvent<{ state: WindowState; ref?: string; dir?: 'right' | 'below' }>)
-        .detail;
-      if (d.ref) addPanel(newId(d.state.kind), d.state, { ref: d.ref, dir: d.dir ?? 'right' });
-      else openWindow(d.state);
+      const d = readOpenWindowDetail((e as CustomEvent).detail);
+      if (d) openWindow(d.state, { ref: d.ref, dir: d.dir, floating: d.floating });
     };
     window.addEventListener('htflow:open-window', onOpenWindow);
     return () => {
@@ -512,32 +597,9 @@ export function Dashboard({ version }: { version: string }) {
             FLOW
           </span>
         </div>
-        <DropdownMenu
-          items={[
-            { kind: 'label', id: 'l', label: 'Workspace' },
-            {
-              id: 'r',
-              label: `Rename "${doc.name}"…`,
-              onSelect: () => {
-                const n = window.prompt('Workspace name', doc.name);
-                if (n) {
-                  const next = { ...docRef.current, name: n };
-                  docRef.current = next;
-                  setDoc(next);
-                  void backend.saveSettings('workspace', next);
-                }
-              },
-            },
-            {
-              id: 'reset',
-              label: 'Reset to default layout',
-              onSelect: () => applyPreset('dom-chart-panel'),
-            },
-            { kind: 'separator', id: 's' },
-            { id: 'more', label: 'Workspaces manager (P37)', disabled: true },
-          ]}
+        <WorkspaceMenu
           trigger={
-            <button className="tb-workspace">
+            <button className="tb-workspace" data-testid="workspace-menu">
               <span className="muted">Workspace:</span> {doc.name} ▾
             </button>
           }
@@ -597,7 +659,7 @@ export function Dashboard({ version }: { version: string }) {
       </TitleBar>
       <Ribbon compact={ribbonCompact} />
       <div className="workspace-row">
-        <div className="dock-host">
+        <div className="dock-host" ref={dockHostRef}>
           <DockviewReact
             components={components}
             defaultTabComponent={WindowHeader}

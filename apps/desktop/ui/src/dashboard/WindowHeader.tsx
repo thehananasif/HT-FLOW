@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { IDockviewPanelHeaderProps } from 'dockview';
 import { Camera, Maximize2, Settings2, X } from 'lucide-react';
 import { Badge, Chip, DropdownMenu, IconButton, MenuTrigger } from '@htflow/ui-kit';
@@ -19,6 +20,7 @@ import { chartHeaderItems } from '../charts/extensions';
 import { openChartSettings, templateMenuItems } from '../charts/headerMenu';
 import { TimeframeHeader } from '../charts/timeframes/TimeframeDialog';
 import { confirmAction } from '../state/confirm';
+import { WindowMenuButton } from '../modules/workspaces/WindowMenu';
 
 /** Closes a window, asking first when Settings → General → Confirmations requires it. */
 function closeWindow(api: IDockviewPanelHeaderProps['api']): void {
@@ -143,6 +145,15 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
 export function WindowHeader(props: IDockviewPanelHeaderProps) {
   const id = props.api.id;
   const s = useWindows((st) => st.windows[id]);
+  // Re-render when panels join / leave the group (tab form vs full-width header).
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const c = props.containerApi;
+    const subs = [c.onDidAddPanel, c.onDidRemovePanel, c.onDidMovePanel].map((ev) =>
+      ev(() => bump((x) => x + 1)),
+    );
+    return () => subs.forEach((d) => d.dispose());
+  }, [props.containerApi]);
   const multi = (props.api.group?.panels.length ?? 1) > 1;
   if (!s) return <div className="win-hdr">{props.api.title}</div>;
   const inst = s.kind !== 'module' ? instrumentById(s.instrumentId) : undefined;
@@ -218,6 +229,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
           <Camera size={13} />
         </IconButton>
       )}
+      <WindowMenuButton id={id} />
       <IconButton
         label="Maximize"
         onClick={() => (props.api.isMaximized() ? props.api.exitMaximized() : props.api.maximize())}
