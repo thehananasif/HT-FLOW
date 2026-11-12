@@ -359,6 +359,8 @@ export class StrategyRunner {
   }
 
   private makeContext(): StrategyContext<InputDefs, unknown> {
+    // Getters on a plain object read the runner's live state.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
     const { instrument } = this.host;
     return {

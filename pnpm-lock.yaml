@@ -95,6 +95,9 @@ importers:
       '@htflow/replay':
         specifier: workspace:*
         version: link:../../packages/replay
+      '@htflow/strategy':
+        specifier: workspace:*
+        version: link:../../packages/strategy
       '@htflow/tape':
         specifier: workspace:*
         version: link:../../packages/tape

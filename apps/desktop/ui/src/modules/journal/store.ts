@@ -81,6 +81,19 @@ export const journalStore = {
     changed();
     return trip;
   },
+  /** Adds finished trips from elsewhere (e.g. backtests) with tags; known ids are skipped. */
+  importTrips(list: readonly RoundTrip[], tags: JournalTag[] = []): number {
+    const fresh = list.filter((t) => !known.has(t.id));
+    for (const t of fresh) {
+      known.add(t.id);
+      if (tags.length) meta = { ...meta, [t.id]: { ...emptyMeta(), tags } };
+    }
+    if (fresh.length) {
+      trips = [...trips, ...fresh];
+      changed();
+    }
+    return fresh.length;
+  },
   remove(id: string): void {
     trips = trips.filter((t) => t.id !== id);
     changed();
