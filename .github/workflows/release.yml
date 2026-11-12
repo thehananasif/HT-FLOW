@@ -1,6 +1,8 @@
 name: Release
 
-# Push a tag like v0.1.0-preview to build Windows installers and publish a GitHub Release.
+# Build Windows installers and publish a GitHub Release, either by pushing a tag like v0.1.0-preview
+# or by running this workflow manually (Actions → Release → Run workflow) with a new tag name: the
+# release action then creates the tag on the commit the workflow ran on.
 # Unsigned builds (code signing is out of scope, see docs/BLOCKERS.md): Windows SmartScreen shows
 # "unknown publisher" on first run (More info → Run anyway).
 
@@ -10,8 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing tag to (re)build and publish
+        description: Tag to publish (created on the selected branch's commit if it does not exist)
         required: true
+        default: v0.1.0-preview
 
 permissions:
   contents: write
@@ -26,8 +29,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RELEASE_TAG }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -64,6 +65,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
           name: HT Flow ${{ env.RELEASE_TAG }}
           body_path: ${{ steps.notes.outputs.path }}
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
