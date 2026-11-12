@@ -26,7 +26,7 @@ export function RiskStrip({ instrumentId }: { instrumentId: string }) {
     <div className="sdom-risk" data-testid="dom-risk" title="Risk limits (Risk window)">
       <span className={cls(st.dailyLossUsed)}>
         Day {money(st.dayPnl)}
-        {r.dailyLossLimit.enabled && <em> / −{money(r.dailyLossLimit.value).slice(1)}</em>}
+        {r.dailyLossLimit.enabled && <em> / {money(-r.dailyLossLimit.value)}</em>}
       </span>
       <span className={r.maxPositionSize.enabled ? cls(pos / Math.max(1, maxPos)) : ''}>
         Pos {pos}

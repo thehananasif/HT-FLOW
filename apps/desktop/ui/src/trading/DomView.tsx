@@ -60,7 +60,7 @@ export function effectiveTemplate(t: DomTemplate, v: SettingsValues): DomTemplat
 function columnLabels(t: DomTemplate): Partial<Record<DomColumnId, string>> {
   const b = t.behaviour;
   return {
-    volume: b.volumeScope === 'range' ? `Vol ${b.rangeMinutes}m` : 'Vol Session',
+    volume: b.volumeScope === 'range' ? `Vol ${b.rangeMinutes}m` : 'Vol S',
     bidChg: `Δ ${b.limitSeconds}s`,
     askChg: `Δ ${b.limitSeconds}s`,
   };

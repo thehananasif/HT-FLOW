@@ -353,7 +353,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
       {
         key: 'width',
         header: 'Width',
-        width: 92,
+        width: 112,
         render: (c) => (
           <NumberInput
             aria-label={`${columnLabel(c.id)} width`}
