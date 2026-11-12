@@ -71,7 +71,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [~] Connector traits (MarketDataProvider / HistoryProvider / ExecutionProvider) — the UI-side `FeedSource` interface exists; Rust trait objects pending
 - [x] Binance USDⓈ-M Futures: aggTrade + depth@100ms, REST snapshot + sequence sync (U / u / pu), gap detection → resync, reconnect with backoff 0.5 s → 30 s + jitter, ping/pong, no-data watchdog
 - [x] Bybit v5 linear (`crates/connectors/bybit`): publicTrade + orderbook.200, snapshot / delta sequence check with re-subscribe on gap, ping 20 s, reconnect with backoff; REST instruments-info, book, recent trades; recorded-message tests (`bybit-linear:` feed, desktop only)
-- [ ] Binance spot, COIN-M; OKX; Bitget; Kraken; Bitfinex; Phemex; WhiteBIT; Deribit (options); OI / funding / liquidations streams; rate limits; clock-skew correction (NTP)
+- [x] Shared connector framework (`crates/connectors/common`): WS driver (subscribe, heartbeat, reconnect 0.5 → 30 s + jitter, snapshot fallback), integer-tick L2 book with CRC32 checksum support, REST token-bucket rate limits, clock-skew correction, `MarketApi` trait; one-line venue registry in `market_cmds.rs`
+- [x] Connectors: OKX swap (seqId + checksum), Binance spot / COIN-M / USDⓈ-M (rebuilt on the driver; proper aggTrades time-range backfill), Deribit (change_id chain; options chain via `market_options_chain`), Bitget v2, Kraken Futures, Bitfinex (spot + F0), Phemex, WhiteBIT; funding / open interest / liquidations as `MarketEvent::Stats` with `onFunding` / `onOpenInterest` / `onLiquidation` on the store; recorded-message tests for every venue
+- [ ] Not run against live exchanges; stats not recorded in the tick store; Phemex / WhiteBIT gaps undetectable; short REST history on Phemex / WhiteBIT / Bitfinex; OKX / Bybit / Kraken / Phemex spot, OKX dated futures, BitMEX; quote / bookTicker event; Deribit chain not wired into the Options Board yet
 - [!] Rithmic, CQG, dxFeed, Interactive Brokers, Tradovate, Alpaca — need user credentials / SDKs (see BLOCKERS)
 - [ ] CSV / Parquet importer, "Custom WebSocket" JSON-mapping connector
 - [x] Connections window (P32): per-connection status, latency colours, msgs/s, accounts, Connect / Disconnect / Edit / remove, Connect all / Disconnect all, auto-connect on start, summary cards; two-step add-connection wizard (provider tree with spec groups, FREE / YOUR ACCOUNT tags, per-type forms, Test connection, credentials in the vault)
@@ -93,10 +95,10 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Incremental + bulk bar builder (same code path), per-price clusters: bid vol, ask vol, total, delta, trades, max single trade
 - [x] Time (seconds / minutes / hours / daily / weekly), Tick, Volume, Delta, Range bar types with the preset matrix
 - [x] Property test: bulk vs incremental identical for every preset bar type (seeded data)
-- [ ] Range X / XV / Z / US variants, Renko, Reversal, Order Flow, Cumulative Trades; Heikin-Ashi, Point & Figure, Kagi, Line Break
-- [~] Timeframe dialog — header quick chips (M1 / M5 / H1) + full preset menu by row; "Configure" (custom presets) and disabled-chip logic pending
-- [ ] Sessions RTH / ETH / custom per instrument (session selector is in the UI but not applied); time-at-price per cluster
-- [ ] Acceptance: 10M ticks → M1 cluster bars < 1 s (not benchmarked yet)
+- [x] Bar types Range X / XV / Z / US (UniRenko-style), Renko, Reversal, Order Flow, Cumulative Trades; derived Heikin-Ashi, Point & Figure, Kagi, Line Break; every type a deterministic per-trade state machine (bulk = incremental = typed-array path); rules in `docs/ARCHITECTURE.md`
+- [x] Timeframe dialog: rows × chips with disabled chips (feed capabilities), Configure (add / remove chips per bar type, pin favourites to the header), saved per user; custom chip rename pending
+- [x] Sessions RTH / ETH / 24h / custom (open / close / time zone / days) applied to bars via catalog session rules; time-at-price per cluster
+- [x] Acceptance: 10M ticks → M1 cluster bars ≈ 460 ms standalone (≈ 1.2 s with the full suite in parallel); benchmark test
 
 ## P08 — Chart engine core
 
@@ -104,18 +106,18 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Shared time axis, right price axis, auto-scale + manual drag on price axis, double-click axis reset, wheel = zoom time, Ctrl + wheel = zoom price, Shift + wheel = scroll, drag = pan, Shift + drag = vertical move
 - [x] Crosshair with price / time tags, last-price line + coloured tag, bid / ask lines, session breaks with labels, dashed grid, OHLCV legend, debug overlay (render ms)
 - [x] Mouse modes: Pointer, Crosshair, Zoom (drag box), Scroll, ZoomXY
-- [ ] Global / Sync crosshair, multiple resizable panes, log / percent / indexed / inverted scales, gaps on/off, time-zone selection, countdown timer, high / low marks, watermark, data window panel, alerts lines
+- [x] Global / link-group crosshair sync with snap, resizable sub-panes (drag / reset / maximise), linear / log / percent / indexed / inverted scales, axis left / right / both, gaps on / off, per-chart time zone and 12 / 24 h, bar countdown (replay clock aware), watermark, high / low marks, session background, data window panel with layer values, lazy left-scroll history loading (simulated feed)
 - [x] Display modes: Footprint modes (Alt+V / T / B / D), Bars, Candles, Transparent candles, Line, Area, Hidden (right-click → Mode)
 - [x] Level-of-detail: footprint collapses to candles below 20 px slot width (configurable)
 - [x] Window header: link-group dot, instrument, timeframe chips + menu, lots, template menu, Indicators (disabled), Live / Sim badge, snapshot camera (copy PNG), maximize, settings, close; bottom bar: go-to-latest, session selector, history info, DOM Trader, Trading Panel
-- [ ] Compare / overlay instrument, calendar "go to date", pin, alerts button
+- [x] Compare / overlay instruments (normalised %), Go to date (Ctrl+G, loads older history), pin (keeps instrument across link-group changes); lazy history and session filtering on live / replay feeds pending
 - [ ] Acceptance: 8 charts at 60 fps with 1M ticks; Playwright test for every mouse mode / shortcut
 
 ## P09 — Chart templates
 
 - [x] Built-in templates: Japanese Candlesticks with Volume Profile, Footprint chart, Liquidity Map, Order Flow (Dark) — switching re-renders from the same data
-- [ ] Order Flow (Light), Imbalance Chart, TPO Chart, On-Chart Liquidity Map, Multi-timeframe Chart, Volume Histogram, COT Chart (listed disabled in the template menu)
-- [ ] User templates as JSON: save as / rename / duplicate / delete / export / import / default per instrument class / favourites; style presets (White, Light, Dark, Black, …)
+- [x] Order Flow (Light), Imbalance Chart, TPO Chart (letters / blocks, VA, POC, IB, single prints, split / merge), On-Chart Liquidity Map, Multi-timeframe Chart (boxes / side by side / stacked), Volume Histogram, Delta Profile, COT Chart (bundled sample data, labelled); per-template Style dialogs
+- [x] User templates as JSON (`.httemplate`): save as / rename / duplicate / delete / overwrite / export / import, default per instrument class, favourites; style presets White, Light, Dark, Black, Dark footprint, Footprint statistic, Imbalance, MarketResearch, MultiTimeFrame
 
 ## P10 — Footprint / cluster engine
 
@@ -163,9 +165,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Auto-centre with manual scroll (wheel) and re-centre (double-click / C), price grouping 1 / 2 / 5 / 10, depth bars, current price row, spread line
 - [x] One-click trading: left-click = buy limit, right-click = sell limit, Ctrl = stop; click Orders column = cancel at price; footer: reverse, cancel all / bids / asks, MKT buy / sell, Flatten all, Trading Panel, lock trading
 - [x] DOM Trader: compact DOM docked right of any chart (bottom-bar toggle)
-- [ ] Column toggle / reorder / resize / colours, Volume-at-price visible range, last trade size, delta at price, cumulative depth, notes, limit tracking, iceberg markers, VA / POC marks, P&L at price, pulled / stacked flashes, drag orders to modify, lot presets
-- [ ] 13 templates (Basic Extended … Prop DOM) + template designer
-- [ ] Acceptance: 20 updates / ms burst without frame drops
+- [x] Smart DOM v2 columns: toggle / drag reorder / resize / per-column colours; volume at price (session or rolling), last trade size, delta at price, Σ bid / Σ ask, price notes, limit tracking with queue estimate, stops / iceberg markers, VA / POC, P&L at price, pulled / stacked flashes; drag-to-modify orders, grouping, centring modes
+- [x] 13 templates (Basic Extended … Prop DOM with risk strip) + template designer (columns, style, behaviour; JSON import / export); ~75 palette commands
+- [x] Acceptance: 20 updates / ms bursts, model + full 18-column draw: mean ≈ 0.5–1.4 ms, p95 ≈ 1–6 ms per frame (budget 16.7 ms); benchmark test
 
 ## P16 — Smart Tape, Bid/Ask Tape, All Prices
 
@@ -203,7 +205,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [ ] XLSX export; inline order modify (price prompt today); Connect account button (no broker connector yet)
 - [x] Trading Activity: fills, brackets, cancels, rejections, locks / unlocks, risk warnings, alert firings, connection errors; 90-day / 5,000-event rolling log per user; `activityLog.add()` API
 - [x] Trading Journal (P36): R multiple, expectancy ($ and R), long / short win rate, break-evens, commission, max DD ($, %, date), best setup, equity curve with drawdown, calendar heatmap, MAE / MFE from the tape, tags / notes / rating / image attachments, manual entries, CSV export; validated against 500 paper trades
-- [ ] Automatic chart snapshots at entry / exit; Trading Strategies
+- [x] Automatic chart snapshots at entry / exit attached to journal trades (per chart: strategy trades / all / off); backtest trades import into the journal tagged `backtest`
 
 ## P21 — Market analytics tools
 
@@ -251,7 +253,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Web Pages (tabbed iframe browser, bookmarks, claims `htflow:open-url` in the web build), Logs (in-app ring buffer capturing console errors and unhandled rejections; level / source filters, search, pause, copy, export, clear), User Guide (18 searchable articles, shortcuts table, F1), guided tour (once per profile, restartable from the palette), "Load sample replay session" (fixed seeded hour on CLZ6)
 - [~] Following Manager: full UI with a local list and sample feed; sharing and sync BLOCKED (needs a server)
-- [ ] Web Pages in the desktop app needs a native child webview (the CSP blocks iframes; links open in the system browser); chart strategies + backtests; snapshots to journal
+- [x] Strategies (P42): `@htflow/strategy` SDK (typed inputs, onBar / onTrade / onBook / onFill, indicators, footprint helpers, order API with brackets / trailing / ATM), 5 example strategies, deterministic backtester on replay datasets with slippage / commission, Sharpe / Sortino / Monte-Carlo DD, grid optimiser (Web Worker) with heatmap and walk-forward; Strategies window; chart strategies with markers and live paper trading
+- [~] VPS runner: UI with demo runner and protocol spec in `modules/strategies/README.md`; BLOCKED (needs your own runner binary + SSH transport)
+- [ ] Web Pages in the desktop app needs a native child webview (links open in the system browser); strategy code editor, `.ts` / `.py` / `.htstrat` loading, Python runner, no-code rule builder
 
 ## P29 — QA, performance & hardening
 
@@ -267,7 +271,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Stage 1 Connect (Binance Futures) · [x] Stage 2 Normalise (ticks) · [x] Stage 3 Book builder with sequence check
 - [~] Stage 4 Event bus — bounded channel per subscription; slow consumer never blocks the socket (drops to snapshot mode); lock-free ring buffer pending
-- [ ] Stage 5 Recorder (tick store)
+- [x] Stage 5 Recorder (tick store)
 - [~] Stage 6 History merge — history then live on one chart; gap detection, dedupe at the seam and lazy left-scroll loading pending
 - [x] Stage 7 Aggregator (shared series per instrument + bar type) — in TypeScript on the UI side today
 - [ ] Stage 8 Indicator engine (worker pool)
@@ -280,9 +284,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [~] P31 Trading workspace v2 — template switch keeps zoom; legend lines; session separators; stats rows; DOM Trader; status pills per connection. Pending: Snapshots in template menu, "Load days", "◂ Load 1 more day", previous-session profile on the left
 - [x] P32 Connections window — see P05
-- [~] P33 Chart types — 4 of 12 renderers (+ bars / line / area / transparent)
-- [ ] P34 Chart settings window
-- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
+- [x] P33 Chart types — all template renderers plus Renko, P&F (X / O), Kagi, Line Break, Heikin-Ashi, range variants
+- [x] P34 Chart settings window (Ctrl+S): Visual / Footprint / Trading / Templates tabs, ~150 rows, live apply, Cancel reverts, JSON export / import; global Settings act as defaults
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [~] P42 Strategies + backtests done, VPS runner blocked · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 

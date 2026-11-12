@@ -4,11 +4,18 @@
 
 ### Changed
 
+- Smart DOM benchmark asserts the spec's 60 fps budget at p95 (16.7 ms) and a mean under 4 ms, instead of a p95 under 8 ms that failed only under CPU contention.
+- "Binance" in the Connections catalog now means Binance spot; "Binance COIN-M" is a new entry.
 - Paper maker fills now pay the maker fee (taker rate if unset) instead of half the taker rate.
 - Positions / Orders row actions and Flatten all / Cancel all ask for confirmation by default (Settings → Common → skip table confirmations).
 
 ### Added
 
+- Chart engine v2 (P08 / P26 / P34 / P09): crosshair sync, resizable panes, log / % / indexed / inverted scales, gaps, per-chart time zone, countdown, watermark, high / low marks, compare overlays, data window, Go to date, pin, lazy history; Chart Settings window (Ctrl+S); JSON chart templates and style presets; context-aware chart menu.
+- Chart types and aggregation (P07 / P33 / P09): Range X / XV / Z / US, Renko, Reversal, Order Flow, Cumulative Trades, Heikin-Ashi, P&F, Kagi, Line Break; sessions applied to bars; time-at-price; timeframe dialog with Configure; Order Flow (Light), Imbalance, TPO, On-Chart Liquidity Map, Multi-timeframe, Volume Histogram, Delta Profile and COT (sample data) templates.
+- Smart DOM v2 (P15): 18 configurable columns, 13 templates, template designer, notes, iceberg and pulled / stacked detection, drag-to-modify orders.
+- Crypto connectors (P05): shared driver framework; OKX, Binance spot / COIN-M, Deribit (with options chain), Bitget, Kraken Futures, Bitfinex, Phemex, WhiteBIT; funding / open interest / liquidations streams; Binance time-range backfill.
+- Strategies (P28 / P42): strategy SDK, 5 example strategies, deterministic backtester, optimiser with heatmap and walk-forward, Strategies window, chart strategies, journal snapshots; VPS runner UI (blocked).
 - Trading v2 (P17): iceberg, MIT, trailing stop, stop-limit; ATM templates and editor; chart order / position / bracket lines with drag-to-modify; multiple paper accounts; order confirmations.
 - Settings (P27 / P43): Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy, Logs, Custom modules and About sections; many existing settings wired into tables, journal, tape, DOM, toasts and the shell.
 - UI kit v2 (P02): ColorPicker v2 and GradientEditor, Combobox, FontPicker, LineStylePicker, MenuSlider, Sheet, virtualized Table, TreeView, SplitPane; ribbon hide / reorder with Customize ribbon dialog.
