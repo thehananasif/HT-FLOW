@@ -151,6 +151,8 @@ function watchAlerts(ctx: ChartExtensionContext): () => void {
 function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
   const { ctrl } = ensure(ctx);
   const name = toolDef(d.type)?.label ?? 'Drawing';
+  const sel = selectionOf(ctx.windowId);
+  const inGroup = sel.length > 1 && sel.includes(d.id);
   return [
     { kind: 'separator', id: 'dr-s0' },
     { kind: 'label', id: 'dr-l', label: name },
@@ -184,10 +186,9 @@ function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
     { id: 'dr-back', label: 'Send to back', onSelect: () => ctrl.sendToBack(d.id) },
     {
       id: 'dr-del',
-      label: selectionOf(ctx.windowId).length > 1 ? 'Delete selected drawings' : 'Delete drawing',
+      label: inGroup ? 'Delete selected drawings' : 'Delete drawing',
       shortcut: 'Del',
-      onSelect: () =>
-        void (selectionOf(ctx.windowId).length > 1 ? ctrl.removeSelected() : ctrl.remove(d.id)),
+      onSelect: () => void (inGroup ? ctrl.removeSelected() : ctrl.remove(d.id)),
     },
   ];
 }
@@ -244,8 +245,7 @@ registerChartExtension({
     const ui = useDrawUi.getState();
     const v = ctx.core.view;
     const hit = v?.crosshair ? ctrl.hitAt(v, v.crosshair.x, v.crosshair.y) : null;
-    // Right-click target joins the selection unless it is already part of a (multi-)selection.
-    if (hit && !selectionOf(ctx.windowId).includes(hit.d.id)) ui.select(ctx.windowId, hit.d.id);
+    // menu() runs while the chart renders: it must not change the selection (hover would select).
     const active = ui.tool[ctx.windowId] ?? null;
     const p = ui.prefs;
     return [
