@@ -81,6 +81,7 @@ export const LIVE_VENUES = [
   'bybit-linear',
   'okx-swap',
   'deribit',
+  'bitget',
 ] as const;
 
 // ------------------------------------------------------------------ venue control (Connections)

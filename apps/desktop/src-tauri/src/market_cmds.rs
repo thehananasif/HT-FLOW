@@ -139,6 +139,7 @@ impl Default for Clients {
                 clock: ClockSkew::default(),
             }),
             Arc::new(htflow_connector_okx::Okx::default()),
+            Arc::new(htflow_connector_bitget::Bitget::default()),
         ];
         Self {
             apis: list.into_iter().map(|a| (a.venue(), a)).collect(),
@@ -609,6 +610,7 @@ mod tests {
             "binance-spot",
             "okx-swap",
             "deribit",
+            "bitget",
         ] {
             assert_eq!(c.parse(v).unwrap().id(), v);
         }
