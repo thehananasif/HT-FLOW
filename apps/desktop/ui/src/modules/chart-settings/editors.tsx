@@ -10,6 +10,7 @@ import {
   Select,
   Slider,
   Toggle,
+  theme,
   type LineDash,
 } from '@htflow/ui-kit';
 import {
@@ -19,6 +20,27 @@ import {
   type LineValue,
   type RowDef,
 } from '../../charts/settings/schema';
+
+/** Effective theme colour shown for an empty ("Theme") colour value. */
+function themeFallback(key: string): string {
+  const t = theme();
+  const k = key.toLowerCase();
+  const pick =
+    k.includes('background') || k.endsWith('.bg')
+      ? t.chartBg
+      : k.includes('down') || k.includes('bid') || k.includes('sell') || k.includes('neg')
+        ? t.down
+        : k.includes('up') || k.includes('ask') || k.includes('buy') || k.includes('pos')
+          ? t.up
+          : k.startsWith('grid')
+            ? t.grid
+            : k.startsWith('crosshair')
+              ? t.textTertiary
+              : k.includes('main')
+                ? t.cluster
+                : t.textSecondary;
+  return pick.slice(0, 7).toUpperCase();
+}
 
 const toDash = (s: LineDashName): LineDash =>
   s === 'dash' ? 'dashed' : s === 'dot' ? 'dotted' : 'solid';
@@ -76,7 +98,7 @@ export function RowEditor({
         <ColorEditor
           label={label}
           value={String(value ?? '')}
-          fallback="#808080"
+          fallback={themeFallback(row.key)}
           onChange={onChange}
         />
       );
@@ -159,7 +181,7 @@ export function RowEditor({
           <ColorEditor
             label={`${label} colour`}
             value={l.color}
-            fallback="#808080"
+            fallback={themeFallback(row.key)}
             onChange={(color) => onChange({ ...l, color })}
           />
           <LineStylePicker
