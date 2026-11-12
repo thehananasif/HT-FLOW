@@ -179,7 +179,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Paper engine: market orders walk the live book (partial levels), limits rest and fill when the tape trades through, stops trigger on last trade, IOC / FOK, reduce-only, lock trading, commissions, realized / unrealized PnL
 - [x] Brackets with multiple targets: SL + N take-profits (OCO), stop shrinks as targets fill, stop fill cancels targets
 - [x] Trading from chart: right-click Buy / Sell Limit or Stop at cursor price
-- [ ] Iceberg, MIT, trailing stop, stop-limit UI, ATM templates (auto-breakeven, trailing steps), trailing / ATR SL types, TP units $/% / points, drag orders on chart, position line on chart, confirmations, multiple paper accounts, reset account UI
+- [x] Order types: iceberg (display qty, refills), MIT, trailing stop (ticks / % / ATR, tightens only), stop-limit; per-account slippage on triggered orders; separate maker / taker fees (maker rebates allowed)
+- [x] ATM templates (`packages/trading/src/atm.ts`): SL ticks / $ / % / ATR / trailing, up to 8 weighted targets in $ / % / points / ticks, auto-breakeven, trailing steps, 5 presets; ATM & Trading Setup window (editor, JSON import / export); picker in Trading Panel, DOM and DOM Trader
+- [x] Chart trading (chart extension): position line with live P&L and ✕ close, draggable working-order and SL / TP lines with ✕ cancel, B / S fill markers, right-click order menu; all styles configurable
+- [x] Multiple paper accounts (create, rename, starting balance and currency, reset, delete); order confirmations per order type; account picker shows the routed account (replay); minimal options positions model in the engine
+- [ ] Chart right-click Buy / Sell and Dashboard Flatten / Breakeven still use the default paper account without ATM; risk engine covers the default account only; options model not connected to the Options Board; saved accounts keep settings, not balances / positions; OCO checkbox inert
 - [x] Tests: bracket with 3 targets fills correctly; PnL matches hand calculation
 
 ## P18 — Options Board & analytics
@@ -239,8 +243,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Typed settings store (82 settings: defaults, validation, help, reset per setting / section / all, modified markers), saved per user, JSON export / import with per-key validation; `useSetting` / `getSetting` / `onSettingChange` API
 - [x] Settings window (Ctrl+,, palette, "Settings: <section>"): search, draft with Cancel / Apply / OK; General, Appearance (5 themes, 29-token editor, UI scale, font size, icons-only ribbon, theme JSON), Hot keys (record, conflicts, scopes, presets, export / import), Sounds (7 events, volume, preview, own .wav / .mp3), Time zones (exchange clocks and trading hours), Commission (rules by account / instrument, applied to paper trading), Data delays (status-bar pills), Performance (FPS overlay), Common settings groups
-- [~] Many stored settings are not read by any module yet (date format, start-up workspace, confirmations, renderer, Common settings except notification position) — see the settings schema `wired` flag
-- [ ] Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy, Logs, About sections; per-chart Settings (Ctrl+S); P43 Custom Modules page; languages other than English; exact maker fee (engine charges half taker); "Open settings folder" needs a native command; UI scale does not grow chart canvases
+- [x] Settings wired: date format / 24h / app time zone in tables, journal, tape and divergence; first day of week; start-up workspace; autosave; confirmations (flatten, close window, exit, table actions); notifications show / duration / max; DOM levels, row height, auto-centre, big lot; tape ms; RTL flag; clear caches on logout; log level and buffer size
+- [x] Sections Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy & security (telemetry off, clear caches / logs, reset all), Logs (viewer), Custom modules (P43: enable / disable modules, module folders placeholder), About & updates (licences, links); about 150 new keys; RTL preview flag
+- [ ] Chart / footprint / heatmap / trading / data / alerts / risk keys are defined but not yet read by those modules (`wired: false`); max candles and default load days not wired; mask accounts / hide balances / number format stored only; native log files, settings folder, module-folder loading and updater need the native core; per-chart Settings (Ctrl+S) in progress; languages other than English
 
 ## P28 — Remaining modules
 
@@ -277,7 +282,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] P32 Connections window — see P05
 - [~] P33 Chart types — 4 of 12 renderers (+ bars / line / area / transparent)
 - [ ] P34 Chart settings window
-- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission done; languages, custom modules pending)
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [ ] P42 Strategies + VPS runner · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 
