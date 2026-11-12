@@ -4,11 +4,11 @@ import { LiquidityTracker, TrackerSync } from './detectors';
 import { syntheticHistory } from './synthetic';
 
 /** Book with 10 lots on 95..100 (bids) and 101..106 (asks) plus extra levels. */
-function column(t: number, extra: Record<number, number> = {}): DepthColumn {
+function column(t: number, extra: Record<number, number | undefined> = {}): DepthColumn {
   const lv = new Map<number, number>();
   for (let p = 95; p <= 106; p++) lv.set(p, 10);
   for (const [p, q] of Object.entries(extra)) {
-    if (q <= 0) lv.delete(Number(p));
+    if (q === undefined || q <= 0) lv.delete(Number(p));
     else lv.set(Number(p), q);
   }
   return {
@@ -33,7 +33,7 @@ const trade = (ts: number, px: number, qty: number, side: 'buy' | 'sell'): Trade
 function run(
   tracker: LiquidityTracker,
   n: number,
-  extra: (t: number) => Record<number, number>,
+  extra: (t: number) => Record<number, number | undefined>,
   trades: (t: number) => Trade[] = () => [],
 ) {
   for (let k = 0; k < n; k++) {

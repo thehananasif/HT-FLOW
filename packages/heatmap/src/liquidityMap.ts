@@ -109,6 +109,12 @@ export interface HeatmapSettings {
   historyMinutes: number;
   /** Size at the crosshair level next to the cursor. */
   crosshairReadout: boolean;
+  /** Ticks shown above / below the touch when auto-scaling (0 = 60 % of the visible spread). */
+  rangeLevels: number;
+  /** Book levels per side drawn (0 = all). */
+  levelsLimit: number;
+  /** Traded-volume profile of the visible range behind the DOM column. */
+  volumeProfile: boolean;
 }
 
 export const DEFAULT_HEATMAP: HeatmapSettings = {
@@ -165,6 +171,9 @@ export const DEFAULT_HEATMAP: HeatmapSettings = {
   spoofColor: '#C77DFF',
   historyMinutes: 0,
   crosshairReadout: false,
+  rangeLevels: 0,
+  levelsLimit: 0,
+  volumeProfile: false,
 };
 
 /** What is under the pointer (tooltip). */
@@ -317,6 +326,8 @@ export class LiquidityMapLayer implements ChartLayer {
       if (c.bestAsk > hi) hi = c.bestAsk;
     }
     if (!Number.isFinite(lo)) return null;
+    const L = this.settings.rangeLevels;
+    if (L > 0) return [lo - L, hi + L];
     const span = Math.max(30, hi - lo);
     return [lo - span * 0.6, hi + span * 0.6];
   }
@@ -384,7 +395,7 @@ export class LiquidityMapLayer implements ChartLayer {
     if (s.bubbles) this.drawBubbles(v, visibleTrades());
     else this.placed = [];
     if (s.volume) this.drawVolume(v, visibleTrades());
-    if (s.domColumn) this.drawDom(v);
+    if (s.domColumn) this.drawDom(v, s.volumeProfile ? visibleTrades().list : null);
     if (s.crosshairReadout && v.crosshair) this.drawReadout(v);
     this.stats.drawMs = performance.now() - t0;
   }
@@ -443,6 +454,7 @@ export class LiquidityMapLayer implements ChartLayer {
             ? { lut: this.lifeLut, maxAgeMs: s.lifetimeMaxSec * 1000 }
             : null,
         lookback: s.lifetime ? Math.ceil(s.lifetimeMaxSec / colSec) : 0,
+        maxLevels: s.levelsLimit,
       });
     } else {
       this.buf.pixels.fill(lut32Of(this.lut)[0]!);
@@ -780,7 +792,7 @@ export class LiquidityMapLayer implements ChartLayer {
     ctx.restore();
   }
 
-  private drawDom(v: ChartView): void {
+  private drawDom(v: ChartView, profile: readonly Trade[] | null): void {
     const s = this.settings;
     const b = this.book();
     const { ctx, palette: p } = v;
@@ -792,12 +804,31 @@ export class LiquidityMapLayer implements ChartLayer {
     const hi = Math.ceil(v.priceMax);
     const rowTicks = Math.max(1, Math.ceil(14 / Math.max(1e-6, v.tickPx)));
     const rowH = rowTicks * v.tickPx;
+    if (profile && profile.length) {
+      // Traded volume per row, drawn from the right edge behind the resting sizes.
+      const vp = new Map<number, number>();
+      let vmax = 0;
+      for (const t of profile) {
+        const k = Math.floor(t.px / rowTicks) * rowTicks;
+        const q = (vp.get(k) ?? 0) + t.qty;
+        vp.set(k, q);
+        if (q > vmax) vmax = q;
+      }
+      ctx.fillStyle = rgba(p.volume || '#808080', 0.35);
+      for (const [px, q] of vp) {
+        if (px + rowTicks < lo || px > hi) continue;
+        const w = (q / vmax) * (r.w * 0.6);
+        ctx.fillRect(r.x + r.w - w, v.yOf(px + rowTicks - 0.5) + 1, w, Math.max(1, rowH - 2));
+      }
+    }
+    const lim = s.levelsLimit > 0 ? s.levelsLimit : Infinity;
     let max = 0;
     const rows: { px: number; q: number; ask: boolean }[] = [];
     for (let k = Math.floor(lo / rowTicks) * rowTicks; k <= hi; k += rowTicks) {
       let q = 0;
       let ask = false;
       for (let px = k; px < k + rowTicks; px++) {
+        if (px <= b.bestBid - lim || px >= b.bestAsk + lim) continue;
         const a = b.asks.get(px);
         const bd = b.bids.get(px);
         if (a) {

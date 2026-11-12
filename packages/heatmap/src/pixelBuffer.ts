@@ -40,6 +40,8 @@ export interface HeatFrame {
   lifetime: { lut: Uint32Array; maxAgeMs: number } | null;
   /** Slots looked back before i0 so ages of old orders are known (lifetime mode). */
   lookback: number;
+  /** Only levels within this many ticks of the touch (0 = all). */
+  maxLevels?: number;
 }
 
 const SCALE_STEPS = 1024;
@@ -149,9 +151,12 @@ export class HeatBuffer {
       const pxs = c.pxs;
       const qs = c.qtys;
       const t = c.t;
+      const lim = f.maxLevels && f.maxLevels > 0 ? f.maxLevels : 0;
+      const minPx = lim ? c.bestBid - lim + 1 : -Infinity;
+      const maxPx = lim ? c.bestAsk + lim - 1 : Infinity;
       for (let k = 0; k < pxs.length; k++) {
         const px = pxs[k]!;
-        if (px < bottom || px > top) continue;
+        if (px < bottom || px > top || px < minPx || px > maxPx) continue;
         const q = qs[k]!;
         if (q <= 0 || q < f.minSize) continue;
         const off = top - px;
