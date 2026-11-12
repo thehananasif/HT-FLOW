@@ -393,8 +393,8 @@ impl Bitfinex {
             .await?;
         let rows = v.as_array().cloned().unwrap_or_default();
         let (mut b, mut a) = book_rows(spec, &rows)?;
-        b.sort_by(|x, y| y.0.cmp(&x.0));
-        a.sort_by(|x, y| x.0.cmp(&y.0));
+        b.sort_by_key(|x| std::cmp::Reverse(x.0));
+        a.sort_by_key(|x| x.0);
         Ok((b, a))
     }
 

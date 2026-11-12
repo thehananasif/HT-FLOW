@@ -207,7 +207,7 @@ pub fn load_index(path: &Path) -> Result<FileIndex, StoreError> {
     let mut next = FILE_HEADER_LEN;
     let idx_bytes = fs::read(index_path(path)).unwrap_or_default();
     let idx_whole = idx_bytes.len().is_multiple_of(INDEX_ENTRY_LEN);
-    for chunk in idx_bytes.chunks_exact(INDEX_ENTRY_LEN) {
+    for chunk in idx_bytes.as_chunks::<INDEX_ENTRY_LEN>().0 {
         let e = IndexEntry::decode(chunk);
         if e.offset != next || e.end() > file_len || e.count == 0 {
             break;

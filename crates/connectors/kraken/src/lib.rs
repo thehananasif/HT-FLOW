@@ -361,8 +361,8 @@ impl KrakenFutures {
             .ok_or_else(|| ConnectorError::Api("kraken: empty book".into()))?;
         let mut bids = htflow_connector_common::levels(&spec.tick, &b.bids)?;
         let mut asks = htflow_connector_common::levels(&spec.tick, &b.asks)?;
-        bids.sort_by(|a, b| b.0.cmp(&a.0));
-        asks.sort_by(|a, b| a.0.cmp(&b.0));
+        bids.sort_by_key(|l| std::cmp::Reverse(l.0));
+        asks.sort_by_key(|l| l.0);
         Ok((bids, asks))
     }
 
