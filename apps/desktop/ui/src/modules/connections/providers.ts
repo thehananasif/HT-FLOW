@@ -152,7 +152,11 @@ export const PROVIDERS: Provider[] = [
     testSymbol: 'BTCUSDT',
     market: 'USDT perpetuals (hedged)',
   }),
-  crypto('whitebit', 'Whitebit', ['Trades', 'L2 depth']),
+  crypto('whitebit', 'Whitebit', ['Trades', 'L2 depth', 'Funding', 'OI'], {
+    venue: 'whitebit',
+    testSymbol: 'BTC_PERP',
+    market: 'Perpetuals and spot',
+  }),
   {
     id: 'ht-sim',
     name: 'HT Sim (15-min delayed)',

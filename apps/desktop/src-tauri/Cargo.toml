@@ -22,6 +22,7 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 htflow-connector-binance.workspace = true
 htflow-connector-common.workspace = true
 htflow-connector-okx.workspace = true
+htflow-connector-whitebit.workspace = true
 htflow-connector-phemex.workspace = true
 htflow-connector-bitfinex.workspace = true
 htflow-connector-kraken.workspace = true
