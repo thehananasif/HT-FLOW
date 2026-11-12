@@ -458,12 +458,21 @@ export function Dashboard({ version }: { version: string }) {
     const onOpen = (e: Event) =>
       openWindow({ kind: 'module', module: String((e as CustomEvent).detail) });
     window.addEventListener('htflow:open-module', onOpen);
+    // Chart menu: Clone window / Create linked window (detail: { state, ref?, dir? }).
+    const onOpenWindow = (e: Event) => {
+      const d = (e as CustomEvent<{ state: WindowState; ref?: string; dir?: 'right' | 'below' }>)
+        .detail;
+      if (d.ref) addPanel(newId(d.state.kind), d.state, { ref: d.ref, dir: d.dir ?? 'right' });
+      else openWindow(d.state);
+    };
+    window.addEventListener('htflow:open-window', onOpenWindow);
     return () => {
       un();
       unk();
       window.removeEventListener('htflow:open-module', onOpen);
+      window.removeEventListener('htflow:open-window', onOpenWindow);
     };
-  }, [applyPreset, openWindow, split, detach]);
+  }, [applyPreset, openWindow, split, detach, addPanel]);
 
   // Auto-lock after idle (P03 setting; default 30 min).
   useEffect(() => {

@@ -90,6 +90,11 @@ export interface FeedSource {
   readonly kind: 'mock' | 'live' | 'replay';
   /** Loads previous data (tick store / backfill / simulated). */
   history(): Promise<HistoryData>;
+  /**
+   * Optional: older trades in [before - spanMs, before) for lazy left-scroll loading. `anchorPx`
+   * is the first loaded trade price so simulated feeds can stitch seamlessly.
+   */
+  historyBefore?(before: number, spanMs: number, anchorPx?: number): Promise<Trade[]>;
   subscribe(listener: (batch: EventBatch) => void): () => void;
   onStatus(listener: (status: FeedStatus) => void): () => void;
   start(): void;
