@@ -147,7 +147,11 @@ export const PROVIDERS: Provider[] = [
     testSymbol: 'BTC-USDT-SWAP',
     market: 'Perpetual swaps',
   }),
-  crypto('phemex', 'Phemex', ['Trades', 'L2 depth']),
+  crypto('phemex', 'Phemex', ['Trades', 'L2 depth', 'Funding', 'OI'], {
+    venue: 'phemex',
+    testSymbol: 'BTCUSDT',
+    market: 'USDT perpetuals (hedged)',
+  }),
   crypto('whitebit', 'Whitebit', ['Trades', 'L2 depth']),
   {
     id: 'ht-sim',
