@@ -95,6 +95,27 @@ const cmds: Command[] = [
     group: 'Analysis',
     run: withHeatmap((a) => a.patch({ volume: true, volumeCalc: c })),
   })),
+  ...(['linear', 'log', 'sqrt'] as const).map((sc): Command => ({
+    id: `heatmap.scale.${sc}`,
+    label: `Heatmap: ${sc} scale`,
+    group: 'Analysis',
+    keywords: 'heatmap scale intensity',
+    run: withHeatmap((a) => a.patch({ scale: sc })),
+  })),
+  ...(['volume', 'delta'] as const).map((c): Command => ({
+    id: `heatmap.bubbleCalc.${c}`,
+    label: `Heatmap: bubbles sized by ${c}`,
+    group: 'Analysis',
+    run: withHeatmap((a) => a.patch({ bubbles: true, bubbleCalc: c })),
+  })),
+  {
+    id: 'heatmap.bbaMode',
+    label: 'Heatmap: best bid / ask as separate lines or mid',
+    group: 'Analysis',
+    run: withHeatmap((a) =>
+      a.patch({ bestBidAsk: true, bbaMode: a.settings().bbaMode === 'mid' ? 'bid-ask' : 'mid' }),
+    ),
+  },
   ...Object.keys(GRADIENTS).map((g): Command => ({
     id: `heatmap.gradient.${g}`,
     label: `Heatmap: colour ${GRADIENT_LABELS[g] ?? g}`,

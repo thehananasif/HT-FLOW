@@ -163,7 +163,7 @@ export const DEFAULT_HEATMAP: HeatmapSettings = {
   lifetimeOld: '#F5D547',
   lifetimeMaxSec: 120,
   icebergs: false,
-  icebergRatio: 1.5,
+  icebergRatio: 2,
   icebergColor: '#7FF0FF',
   spoofs: false,
   spoofMinSize: 0,

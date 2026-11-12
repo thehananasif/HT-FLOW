@@ -207,8 +207,8 @@ function startThree(
   el.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.55);
   sun.position.set(1, 2, 1.5);
   scene.add(sun);
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
@@ -257,7 +257,7 @@ function startThree(
     }
     const pos = mesh.geometry.attributes.position as ThreeNs.BufferAttribute;
     const col = mesh.geometry.attributes.color as ThreeNs.BufferAttribute;
-    const hScale = 0.6 * latest.current.height;
+    const hScale = 0.45 * latest.current.height;
     // PlaneGeometry vertices: row-major from the far edge (−z after rotation) to the near edge.
     for (let r = 0; r < s.rows; r++) {
       const row = s.rows - 1 - r; // far edge = highest price
@@ -341,7 +341,7 @@ function startIsometric(el: HTMLDivElement, latest: Latest, cam: CamRef, dirty: 
     ctx.fillRect(0, 0, W, H);
     const c = cam.current;
     const scale = (Math.min(W, H) * 0.95) / c.dist;
-    const hScale = 0.6 * latest.current.height;
+    const hScale = 0.45 * latest.current.height;
     // Downsample so the fallback stays interactive.
     const stepC = Math.max(1, Math.ceil(s.cols / 90));
     const stepR = Math.max(1, Math.ceil(s.rows / 60));

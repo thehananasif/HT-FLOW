@@ -79,6 +79,20 @@ test('Heatmap: open from the ribbon, change gradient, toggle bubbles and 3D', as
     await full.getByLabel(label).check();
   await full.getByRole('button', { name: 'Done' }).click();
 
+  // Left toolbar: draw a rectangle and see it in the objects list.
+  const tools = win.getByRole('toolbar', { name: 'Drawing tools' });
+  await tools.getByRole('button', { name: 'Rectangle' }).click();
+  const area = (await win.getByTestId('chart-heatmap').boundingBox())!;
+  await page.mouse.move(area.x + area.width * 0.3, area.y + area.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(area.x + area.width * 0.45, area.y + area.height * 0.45, { steps: 5 });
+  await page.mouse.up();
+  await tools.getByRole('button', { name: 'Objects list' }).click();
+  await expect(
+    win.getByRole('dialog', { name: 'Objects list' }).getByText('Rectangle'),
+  ).toBeVisible();
+  await tools.getByRole('button', { name: 'Objects list' }).click();
+
   // 6. Toggle 3D on and off.
   await win.getByTestId('heatmap-3d-toggle').click();
   await expect(win).toHaveAttribute('data-mode3d', 'on');
@@ -98,7 +112,9 @@ test('Heatmap: open from the ribbon, change gradient, toggle bubbles and 3D', as
 
   // 7. Commands are in the Command Palette.
   await page.keyboard.press('Control+k');
-  await page.keyboard.type('Heatmap: toggle 3D');
+  const search = page.getByRole('dialog', { name: 'Command palette' }).getByRole('textbox');
+  await expect(search).toBeFocused();
+  await search.fill('Heatmap: toggle 3D');
   await expect(page.getByRole('option', { name: /Heatmap: toggle 3D mode/ })).toBeVisible();
   await page.keyboard.press('Escape');
 

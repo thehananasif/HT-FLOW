@@ -47,6 +47,8 @@ export interface DetectorOptions {
   icebergRatio: number;
   /** Minimum traded volume for an iceberg. */
   icebergMinTraded: number;
+  /** Times the level must refill after trading through it. */
+  icebergMinRefills: number;
   /** Keep at most this many events of each kind. */
   maxEvents: number;
 }
@@ -59,8 +61,9 @@ export const DEFAULT_DETECTOR: DetectorOptions = {
   pullRatio: 0.2,
   maxTradedRatio: 0.1,
   minDistanceTicks: 1,
-  icebergRatio: 1.5,
+  icebergRatio: 2,
   icebergMinTraded: 5,
+  icebergMinRefills: 2,
   maxEvents: 2000,
 };
 
@@ -181,6 +184,7 @@ export class LiquidityTracker {
   private checkIceberg(st: LevelState, px: number, t: number): void {
     const o = this.opts;
     if (st.traded < o.icebergMinTraded || st.traded < st.max * o.icebergRatio) return;
+    if (st.refills < o.icebergMinRefills) return;
     if (st.iceberg) {
       st.iceberg.traded = st.traded;
       st.iceberg.refills = st.refills;

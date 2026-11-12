@@ -134,7 +134,7 @@ export class SyntheticBook {
       const px = this.mid + side * r.int(5, 60);
       this.walls.push({
         px,
-        qty: o.baseSize * r.range(12, 30),
+        qty: Math.round(o.baseSize * r.range(12, 30)),
         until: this.t + r.range(20_000, 240_000),
       });
     }
@@ -145,7 +145,7 @@ export class SyntheticBook {
       const side = r.next() < 0.5 ? -1 : 1;
       this.spoof = {
         px: this.mid + side * r.int(3, 8),
-        qty: o.baseSize * r.range(15, 35),
+        qty: Math.round(o.baseSize * r.range(15, 35)),
         until: this.t + r.range(1000, 3000),
       };
     }
