@@ -448,7 +448,6 @@ export function Dashboard({ version }: { version: string }) {
         run: () => {
           if (m.id === 'chart') openWindow(chartState(inst(), 'footprint'));
           else if (m.id === 'smart-dom') openWindow(domState(inst()));
-          else if (m.id === 'heatmap') openWindow(chartState(inst(), 'liquidity-map'));
           else openWindow({ kind: 'module', module: m.id }, m.id === 'replay' ? 'right' : 'within');
         },
       })),

@@ -1110,7 +1110,7 @@ export const SCHEMA = {
       { value: 'high-performance', label: 'Discrete (high performance)' },
       { value: 'low-power', label: 'Integrated (low power)' },
     ],
-    wired: false,
+    wired: true,
   }),
   'common.heatmapFpsMode': oneOf({
     section: 'common',
@@ -1123,7 +1123,7 @@ export const SCHEMA = {
       { value: 'auto', label: 'Auto' },
       { value: 'manual', label: 'Manual' },
     ],
-    wired: false,
+    wired: true,
   }),
   'common.heatmapFpsCap': num({
     section: 'common',
@@ -1136,7 +1136,7 @@ export const SCHEMA = {
     max: 240,
     step: 5,
     unit: 'fps',
-    wired: false,
+    wired: true,
   }),
   'common.heatmapStartupLevels': num({
     section: 'common',
@@ -1148,7 +1148,7 @@ export const SCHEMA = {
     min: 10,
     max: 1000,
     step: 10,
-    wired: false,
+    wired: true,
   }),
   'common.backupDays': num({
     section: 'common',
@@ -1222,7 +1222,7 @@ export const SCHEMA = {
     min: 0,
     max: 1000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'common.strategiesUnusedDays': num({
     section: 'common',
@@ -1818,7 +1818,7 @@ export const SCHEMA = {
       { value: 'blue-red', label: 'Blue to red' },
       { value: 'viridis', label: 'Viridis' },
     ],
-    wired: false,
+    wired: true,
   }),
   'heatmap.contrast': num({
     section: 'heatmap',
@@ -1830,7 +1830,7 @@ export const SCHEMA = {
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'heatmap.opacity': num({
     section: 'heatmap',
@@ -1842,7 +1842,7 @@ export const SCHEMA = {
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'heatmap.normalization': oneOf({
     section: 'heatmap',
@@ -1854,7 +1854,7 @@ export const SCHEMA = {
       { value: 'visible', label: 'Visible window' },
       { value: 'session', label: 'Whole session' },
     ],
-    wired: false,
+    wired: true,
   }),
   'heatmap.minSize': num({
     section: 'heatmap',
@@ -1865,7 +1865,7 @@ export const SCHEMA = {
     min: 0,
     max: 1_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'heatmap.smoothing': bool({
     section: 'heatmap',
@@ -1873,7 +1873,7 @@ export const SCHEMA = {
     label: 'Smooth between snapshots',
     help: 'Interpolate colours between depth snapshots instead of drawing hard steps.',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'heatmap.historyMinutes': num({
     section: 'heatmap',
@@ -1885,7 +1885,7 @@ export const SCHEMA = {
     max: 1440,
     step: 5,
     unit: 'min',
-    wired: false,
+    wired: true,
   }),
   'heatmap.showBestBidAsk': bool({
     section: 'heatmap',
@@ -1893,7 +1893,7 @@ export const SCHEMA = {
     label: 'Best bid / ask lines',
     help: 'Draw the best bid and best ask over the heatmap.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'heatmap.showTradeBubbles': bool({
     section: 'heatmap',
@@ -1901,7 +1901,7 @@ export const SCHEMA = {
     label: 'Trade bubbles',
     help: 'Draw executed trades as bubbles sized by volume.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'heatmap.bubbleScale': num({
     section: 'heatmap',
@@ -1913,7 +1913,7 @@ export const SCHEMA = {
     max: 400,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'heatmap.bubbleMinSize': num({
     section: 'heatmap',
@@ -1924,7 +1924,7 @@ export const SCHEMA = {
     min: 0,
     max: 1_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'heatmap.showVolumeProfile': bool({
     section: 'heatmap',
@@ -1932,7 +1932,7 @@ export const SCHEMA = {
     label: 'Volume profile on the right',
     help: 'Show the visible-range volume profile next to the price axis.',
     default: true,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- DOM (P27)

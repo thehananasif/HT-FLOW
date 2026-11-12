@@ -36,6 +36,7 @@
     "lucide-react": "^0.544.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "three": "0.170.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -43,6 +44,7 @@
     "@tauri-apps/cli": "^2.8.0",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
+    "@types/three": "0.170.0",
     "@vitejs/plugin-react": "^5.0.4",
     "vite": "^7.1.7"
   }
