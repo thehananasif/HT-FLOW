@@ -19,7 +19,7 @@ on:
       tag:
         description: Tag to publish (created on the selected branch's commit if it does not exist)
         required: true
-        default: v0.1.0-preview
+        default: v0.1.0-preview.2
       draft:
         description: Create the release as a draft (review, then publish it by hand)
         type: boolean
@@ -117,7 +117,9 @@ jobs:
           name: HT Flow ${{ env.RELEASE_TAG }}
           body_path: ${{ steps.notes.outputs.path }}
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
-          draft: ${{ github.event.inputs.draft == 'true' }}
+          # Always upload into a draft: on repositories with immutable releases, assets can only be
+          # added before a release is published. The next step publishes it (unless a draft was asked).
+          draft: true
           files: |
             dist/HTFlow-*-setup.exe
             dist/HTFlow-*-setup.exe.sig
@@ -126,6 +128,15 @@ jobs:
             dist/HTFlow-*-portable.zip
             dist/latest.json
           fail_on_unmatched_files: false
+      - name: Publish the release
+        if: github.event.inputs.draft != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9A-Za-z.\-]+$') { throw "Unexpected tag: $tag" }
+          gh release edit $tag --repo $env:GITHUB_REPOSITORY --draft=false
 
   # Beta channel: the updater's "beta" channel reads latest.json from a rolling pre-release called
   # beta-channel. It is refreshed when a pre-release is published (so the assets it points to exist).

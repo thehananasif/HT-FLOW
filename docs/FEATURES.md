@@ -38,6 +38,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [!] Detach to a separate OS window / multi-monitor — floating in-app window today (see BLOCKERS)
 - [x] Right Trading Panel slot, status bar, Command Palette (Ctrl+K) searching commands, symbols, layouts and modules
 - [~] Command Palette searching indicators and settings — those modules do not exist yet
+- [x] Command Palette focuses its search box synchronously when it opens, so keystrokes no longer reach the chart underneath
 - [x] Dev-only "UI Gallery" page (`?gallery`) showing every component in its states
 
 ## P03 — Local accounts: Create account / Login
@@ -136,8 +137,12 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Depth-history heat texture (one pixel per column × price row, scaled without smoothing), column size 250 ms / 1 s / 5 s
 - [x] Gradient presets + LUT, brightness, upper / lower cut-off percentiles (98 / 20), linear / log / sqrt scale
 - [x] Trade bubbles (aggregated per column and side, Lots ≥ filter 1 / 2 / 5 / 10 / 100), stepped best-price line (green up / red down), right DOM column with sizes, prices and highlighted current price
-- [ ] Standalone Heatmap window as a separate module, quick-settings popover sections with help icons, custom gradient editor, normalise per column, bubble pie / dominant styles and tooltip, volume bars, 3D mode (three.js), full settings dialog (large-order outline, order lifetime colours, icebergs, spoof flashes), left drawing toolbar
-- [ ] Acceptance: CL-like replay at 30 fps; 3D toggle
+- [x] Standalone Heatmap module (`modules/heatmap`): quick-settings popover and a full settings dialog, gradient presets with a custom gradient editor, normalise per column, bubble styles (plain / pie / dominant) with tooltip, volume bars, large-order outline, order lifetime colours, left drawing toolbar, snapshot, reset view / settings
+- [x] Order features: iceberg and spoof detection with tunable thresholds (ratio, min size, max life) and colours
+- [x] 3D mode: three.js surface with a Canvas2D isometric fallback when WebGL is not available; colour and camera controls
+- [x] `heatmap.*` settings wired into the window; palette commands (toggle 3D, quick settings, full settings, normalise, volume bars, stress test, reset view / settings, snapshot, objects)
+- [x] Tests: model and detector tests, benchmark, CL-like stress feed
+- [ ] Acceptance: CL-like replay at 30 fps on a real Windows machine (the stress test and a light perf smoke test exist; not measured on hardware)
 
 ## P12 — Drawing tools
 
@@ -157,8 +162,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P14 — Indicator catalog (280+)
 
-- [~] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`); 63 implementations, 143 entries usable (incl. presets); each indicator tested against hand-computed values and incremental = full recompute
-- [ ] 138 pending entries: Order Book / COT / Options / Crypto Metrics need data sources; 14 MTF variants; the rest not written yet
+- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 262 implemented (181 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
+- [x] SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper (last closed bar or forming bar)
+- [ ] 19 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Custom Formula needs an expression editor; Custom script (`.htind`) needs a code editor; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
 
 ## P15 — Smart DOM
 
@@ -237,7 +243,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Workspace saved per user (encrypted settings): every window's state + dockview layout; autosave on change and every 60 s; restore on start
 - [x] Layout tabs at the bottom (each tab = saved layout), add / rename (double-click) / close
 - [x] Link groups (none / red / green / blue / yellow / purple): changing the instrument in one window changes the whole group
-- [ ] Save / load / duplicate / export / import workspaces, starter workspaces, layout settings, "Create linked window", "Clone window", multi-monitor restore
+- [x] Workspaces manager window and ribbon / title-bar menu: save, save as, rename, load, duplicate, delete, export / import; library with autosave; 8 starter workspaces (Scalping NQ, Crypto Flow, Futures, Multi-Chart 2×2, Heatmap + DOM, Options Desk, Analysis, Replay practice); palette command for each action
+- [x] `.htworkspace` files (`@htflow/workspace`): versioned JSON envelope (v1 → v3 migrations), validation with warnings, tested
+- [x] "Create linked window" and "Clone window" from the window ⋯ menu (charts, DOM, tape and module windows); Float / Dock
+- [x] Multi-monitor restore: windows are placed on the monitor that held them and moved on-screen when that monitor is gone (setting `layout.restoreMonitors`)
+- [ ] Opening a workspace in a separate OS window (see BLOCKERS)
 
 ## P26 — Chart right-click menu
 
@@ -261,13 +271,20 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P29 — QA, performance & hardening
 
-- [ ] Full audit, benchmarks vs targets, 8-hour soak, crash reporter, accessibility pass, security review
+- [x] Local crash reporter: panic hook and UI error boundary write redacted reports to `<data>\crashes\`; nothing is sent anywhere; unit tests
+- [x] `docs/SECURITY.md` (threat model, network surface, checks)
+- [ ] Full audit, benchmarks vs targets, 8-hour soak, accessibility pass
 - [x] CSP set for the WebView; IPC allow-list via Tauri capabilities; secrets never logged (Debug impls redact)
 
 ## P30 — Windows installer & release
 
 - [x] NSIS per-user installer (no admin) built in CI; app icon (original artwork)
-- [ ] MSI, portable zip (portable mode is supported at runtime via a `portable` marker file), shortcuts, file associations (.htprofile, .htworkspace, .htind, .htidea), uninstall keep/remove data, auto-update via GitHub Releases + signed manifest, release notes, code-signing notes
+- [x] MSI (WiX) next to the NSIS installer; portable zip (`HT Flow.exe` + `portable` marker, data in `data\` next to the exe)
+- [x] File associations (.htprofile, .htworkspace, .htind, .htidea, .httemplate); opening a file starts HT Flow or hands it to the running instance
+- [x] Uninstall asks whether to keep or remove user data (updates always keep it)
+- [x] Updater via `tauri-plugin-updater` and `latest.json` from GitHub Releases; Stable and Beta channels (Beta reads a rolling `beta-channel` release); Command Palette "Check for updates"; only active when signing secrets are set
+- [x] Release workflow (uploads into a draft, then publishes), installer smoke test, `docs/RELEASE.md`, release notes, code-signing notes
+- [ ] Updater signing key (`TAURI_SIGNING_PRIVATE_KEY`) and code signing — see BLOCKERS
 
 ## Section 6 — Live pipeline
 
@@ -288,7 +305,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] P32 Connections window — see P05
 - [x] P33 Chart types — all template renderers plus Renko, P&F (X / O), Kagi, Line Break, Heikin-Ashi, range variants
 - [x] P34 Chart settings window (Ctrl+S): Visual / Footprint / Trading / Templates tabs, ~150 rows, live apply, Cancel reverts, JSON export / import; global Settings act as defaults
-- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [ ] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [~] P42 Strategies + backtests done, VPS runner blocked · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [x] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [~] P42 Strategies + backtests done, VPS runner blocked · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 

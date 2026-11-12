@@ -8,9 +8,19 @@
 - "Binance" in the Connections catalog now means Binance spot; "Binance COIN-M" is a new entry.
 - Paper maker fills now pay the maker fee (taker rate if unset) instead of half the taker rate.
 - Positions / Orders row actions and Flatten all / Cancel all ask for confirmation by default (Settings → Common → skip table confirmations).
+- Indicators (P14): catalog now has 262 of 281 entries implemented (was 143 usable). 19 stay pending (see `docs/INDICATORS.md`).
+
+### Fixed
+
+- Command Palette focuses its search box in the same commit that opens it, so keystrokes no longer reach the chart underneath.
 
 ### Added
 
+- Heatmap (P11): standalone Heatmap module with quick settings, full settings, gradient presets and editor, per-column normalisation, bubble styles, volume bars, iceberg and spoof detection, left drawing toolbar, 3D mode (three.js with an isometric Canvas2D fallback), wired `heatmap.*` settings and palette commands.
+- Workspaces (P25 / P37): Workspaces manager window and menu (save, save as, rename, duplicate, delete, export / import), `.htworkspace` files with validation and migrations, library with autosave, 8 starter workspaces, Layout Settings window with `layout.*` settings, Create linked window and Clone window, multi-monitor restore.
+- Indicators batch 2 (P14): 119 new indicator entries, SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper.
+- Installer and release (P29 / P30): MSI next to the NSIS installer, portable zip, file associations (.htprofile, .htworkspace, .htind, .htidea, .httemplate), keep / remove data prompt on uninstall, updater with Stable and Beta channels (active only when signing secrets exist), release workflow, installer smoke test.
+- Local crash reporter with redaction (nothing is sent), `docs/SECURITY.md` and `docs/RELEASE.md`.
 - Drawings and replay gaps (P12 / P24): alert on cross, multi-select, emoji picker, magnet slider, new tools (ZigZag VP, CVD correlation, Magnifier, Remove indicators), drawings on both Order Flow panes; replay ghost bars, replay-time fills, B / S tags, calendar markers, per-template bookmarks, own split.
 - Chart engine v2 (P08 / P26 / P34 / P09): crosshair sync, resizable panes, log / % / indexed / inverted scales, gaps, per-chart time zone, countdown, watermark, high / low marks, compare overlays, data window, Go to date, pin, lazy history; Chart Settings window (Ctrl+S); JSON chart templates and style presets; context-aware chart menu.
 - Chart types and aggregation (P07 / P33 / P09): Range X / XV / Z / US, Renko, Reversal, Order Flow, Cumulative Trades, Heikin-Ashi, P&F, Kagi, Line Break; sessions applied to bars; time-at-price; timeframe dialog with Configure; Order Flow (Light), Imbalance, TPO, On-Chart Liquidity Map, Multi-timeframe, Volume Histogram, Delta Profile and COT (sample data) templates.
