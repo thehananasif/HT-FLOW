@@ -1,5 +1,6 @@
 import type { Bar, Trade } from '@htflow/market-data';
 import type { ListOut, SeriesOut } from './buffers';
+import type { DepthData, DerivativesData } from './feeds';
 
 /** Appendix B categories (plus user scripts). */
 export type IndicatorCategory =
@@ -289,6 +290,10 @@ export interface BarData {
   tickSize: number;
   /** Trades in [from, to] ms — needed by tape-based indicators (Big Trades, Speed of Tape). */
   tradesBetween?(from: number, to: number): readonly Trade[];
+  /** Funding / open interest / liquidation history (derivatives venues only). */
+  derivatives?: DerivativesData;
+  /** Resting-depth columns (store.depth) for order-book indicators. */
+  depth?: DepthData;
 }
 
 export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = undefined> {
@@ -311,6 +316,12 @@ export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = unde
   tickSize: number;
   /** Indicator state from init(); reset on every full recompute. Commit to it only when `final`. */
   state: S;
+  /** Derivatives feed (undefined when the host has none). */
+  derivatives: DerivativesData | undefined;
+  /** Resting-depth columns (undefined when the host has none). */
+  depth: DepthData | undefined;
+  /** Shows a short note next to the legend title (e.g. "no data from this feed"); null clears it. */
+  notice(text: string | null): void;
 }
 
 export interface IndicatorMeta {
