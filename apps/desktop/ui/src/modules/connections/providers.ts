@@ -133,7 +133,11 @@ export const PROVIDERS: Provider[] = [
     testSymbol: 'BTC-PERPETUAL',
     market: 'Perpetuals, futures, options chain',
   }),
-  crypto('kraken', 'Kraken', ['Trades', 'L2 depth']),
+  crypto('kraken', 'Kraken', PERP, {
+    venue: 'kraken-futures',
+    testSymbol: 'PF_XBTUSD',
+    market: 'Futures (flexible perpetuals)',
+  }),
   crypto('okx', 'OKX', PERP, {
     venue: 'okx-swap',
     testSymbol: 'BTC-USDT-SWAP',
