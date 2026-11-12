@@ -26,10 +26,12 @@ import { LiquidityMapLayer } from '@htflow/heatmap';
 import { specLabel, type BarSeries, type BarSpec, type MarketStore } from '@htflow/market-data';
 import type { ChartWindowState } from '@htflow/workspace';
 import { chartExtensions, type ChartExtensionContext } from './extensions';
+import { globalChartOptions } from './settings/globals';
 
 /** Named layers that Chart settings (P34) configure in place. */
 export interface ChartLayers {
   candles?: CandlesLayer;
+  profiles?: PeriodProfilesLayer;
   legend?: LegendLayer;
   lastPrice?: LastPriceLayer;
   volume?: VolumePaneLayer;
@@ -145,10 +147,14 @@ export function buildChart(
   switch (state.template) {
     case 'candles-vp': {
       const c = mk(hosts[0]!);
-      c.slotWidth = 9;
+      const g = globalChartOptions();
+      c.slotWidth = g.barSpacing;
+      c.options.rightMargin = g.rightMarginBars;
+      c.rightOffset = g.rightMarginBars;
       c.setSource(barSource(series()));
       c.valueAt = closeAt;
       const profiles = new PeriodProfilesLayer(series);
+      L.profiles = profiles;
       profiles.periodMs = spec.kind === 'time' && spec.ms >= 3_600_000 ? 86_400_000 : 3_600_000;
       L.sessions = new SessionSeparatorLayer(series);
       L.candles = new CandlesLayer(series);

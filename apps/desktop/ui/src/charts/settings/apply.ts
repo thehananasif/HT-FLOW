@@ -188,7 +188,7 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
   const fmtVol = volumeFormatter(s, inst, lastPrice);
   if (L.legend) {
     L.legend.opts = {
-      show: true,
+      show: sBool(s, 'main.legend'),
       title: sBool(s, 'main.legendTitle'),
       ohlc: sBool(s, 'main.ohlcValues'),
       byCandle: sBool(s, 'main.ohlcByCandle'),
@@ -248,6 +248,7 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
     L.highLow.visible = sBool(s, 'marks.highLow');
     L.highLow.color = sStr(s, 'marks.highLowColor');
   }
+  if (L.profiles) L.profiles.valueAreaPct = sNum(s, 'fp.vaPct') / 100;
   if (L.footprint) {
     const fs = L.footprint.settings;
     fs.autoCandleWidth = sBool(s, 'other.autoTransform') ? sNum(s, 'other.autoTransformWidth') : 0;

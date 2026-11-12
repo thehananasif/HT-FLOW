@@ -6,7 +6,7 @@
 import type { AssetClass } from '@htflow/market-data';
 import { CHART_TEMPLATES, type ChartTemplateId, type ChartWindowState } from '@htflow/workspace';
 import { diffFromDefaults, normalizeSettings, type ChartSettings } from './settings/schema';
-import { extState, SETTINGS_EXT } from './settings/state';
+import { baseSettings, chartSettings, extState, SETTINGS_EXT } from './settings/state';
 import { STYLE_PRESETS } from './presets';
 
 export const TEMPLATE_KIND = 'htflow.chart-template';
@@ -93,7 +93,7 @@ export function captureState(s: ChartWindowState): ChartTemplateState {
     footprintMode: s.footprintMode,
     heatColumnMs: s.heatColumnMs,
     minLots: s.minLots,
-    settings: diffFromDefaults(normalizeSettings(e.settings)),
+    settings: diffFromDefaults(chartSettings(s)),
     ...(e.panes ? { panes: { ...e.panes } } : {}),
     ...(Object.keys(ext).length ? { ext } : {}),
   };
@@ -127,9 +127,10 @@ export function applyTemplate(
   for (const k of TEMPLATE_EXT_KEYS) {
     if (st.ext && k in st.ext) ext[k] = structuredClone(st.ext[k]);
   }
+  const base = baseSettings();
   ext[SETTINGS_EXT] = {
     ...cur,
-    settings: diffFromDefaults(normalizeSettings(st.settings)),
+    settings: diffFromDefaults(normalizeSettings(st.settings), base),
     panes: st.panes ? { ...st.panes } : undefined,
     templateId: t.id,
   };

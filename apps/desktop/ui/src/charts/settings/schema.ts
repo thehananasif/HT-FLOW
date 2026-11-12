@@ -228,6 +228,7 @@ export const TABS: TabDef[] = [
         id: 'main',
         label: 'Main',
         rows: [
+          bool('main.legend', 'Legend', true, 'Instrument title and OHLC values at the top left.'),
           color(
             'main.background',
             'Background',
@@ -437,7 +438,7 @@ export const TABS: TabDef[] = [
         id: 'grid',
         label: 'Grid',
         rows: [
-          line('grid.line', 'Grid style', { color: '', style: 'dash', width: 1 }),
+          line('grid.line', 'Grid style', { color: '', style: 'solid', width: 1 }),
           bool('grid.horizontal', 'Horizontal grid', true),
           bool('grid.vertical', 'Vertical grid', true),
           enm(
@@ -1054,8 +1055,10 @@ export function validateValue(row: RowDef, v: unknown): unknown {
 }
 
 /** Full settings: defaults overlaid with every valid stored value (invalid / unknown keys dropped). */
-export function normalizeSettings(raw: unknown): ChartSettings {
-  const out: ChartSettings = structuredClone(DEFAULTS);
+export function normalizeSettings(raw: unknown, base: ChartSettings = DEFAULTS): ChartSettings {
+  const out: ChartSettings = structuredClone(
+    base === DEFAULTS ? DEFAULTS : { ...DEFAULTS, ...base },
+  );
   if (!raw || typeof raw !== 'object') return out;
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     const row = ROW_BY_KEY.get(k);
@@ -1067,11 +1070,11 @@ export function normalizeSettings(raw: unknown): ChartSettings {
 }
 
 /** Only the keys that differ from the defaults (what is stored). */
-export function diffFromDefaults(s: ChartSettings): ChartSettings {
+export function diffFromDefaults(s: ChartSettings, base: ChartSettings = DEFAULTS): ChartSettings {
   const out: ChartSettings = {};
   for (const [k, v] of Object.entries(s)) {
     if (!ROW_BY_KEY.has(k)) continue;
-    if (JSON.stringify(v) !== JSON.stringify(DEFAULTS[k])) out[k] = v;
+    if (JSON.stringify(v) !== JSON.stringify(base[k] ?? DEFAULTS[k])) out[k] = v;
   }
   return out;
 }

@@ -1,5 +1,6 @@
 import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import { useWindows } from '../../state/windows';
+import { globalChartDefaults } from './globals';
 import {
   diffFromDefaults,
   normalizeSettings,
@@ -36,7 +37,12 @@ export function extState(s: ChartWindowState | undefined): ChartExtState {
 
 /** Full (normalised) settings of a chart window. */
 export function chartSettings(s: ChartWindowState | undefined): ChartSettings {
-  return normalizeSettings(extState(s).settings);
+  return normalizeSettings(extState(s).settings, baseSettings());
+}
+
+/** Schema defaults with the global Settings → Chart / Footprint defaults applied. */
+export function baseSettings(): ChartSettings {
+  return normalizeSettings(globalChartDefaults());
 }
 
 function chartWindow(id: string): ChartWindowState | undefined {
@@ -56,7 +62,8 @@ export function patchChartExt(windowId: string, p: Partial<ChartExtState>): void
 
 /** Replaces all settings of a chart (stores only the non-default keys). */
 export function setChartSettings(windowId: string, s: ChartSettings): void {
-  patchChartExt(windowId, { settings: diffFromDefaults(normalizeSettings(s)) });
+  const base = baseSettings();
+  patchChartExt(windowId, { settings: diffFromDefaults(normalizeSettings(s, base), base) });
 }
 
 /** Sets one validated setting; returns false for unknown keys or invalid values. */

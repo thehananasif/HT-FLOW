@@ -317,12 +317,10 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
               shortcut: m.shortcut,
               checked: c.state.template === 'footprint' && c.state.footprintMode === m.id,
               onSelect: () =>
-                useWindows
-                  .getState()
-                  .patch(id, {
-                    template: 'footprint',
-                    footprintMode: m.id,
-                  } as Partial<WindowState>),
+                useWindows.getState().patch(id, {
+                  template: 'footprint',
+                  footprintMode: m.id,
+                } as Partial<WindowState>),
             })),
             sep('fps'),
             {

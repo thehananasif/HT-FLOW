@@ -15,7 +15,15 @@ import { DomTrader } from '../trading/DomView';
 import { chartExtensions } from './extensions';
 import { applyChartSettings } from './settings/apply';
 import { normalizeSettings, sBool, sStr, type ChartSettings } from './settings/schema';
-import { extState, patchChartExt, setChartSetting, type CompareItem } from './settings/state';
+import {
+  baseSettings,
+  extState,
+  patchChartExt,
+  setChartSetting,
+  type CompareItem,
+} from './settings/state';
+import { globalChartOptions } from './settings/globals';
+import { useSettingsStore } from '../state/settings';
 import { onChartAction, publishCrosshair, subscribeCrosshair, type CrosshairSync } from './bus';
 import { installChartCommands, openChartSettings } from './commands';
 import { buildChartMenu } from './menu';
@@ -90,10 +98,12 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   const isSplit = s.template === 'order-flow-dark';
   const ext = extState(s);
   const settingsKey = JSON.stringify(ext.settings ?? {});
+  // Global Settings → Chart / Footprint act as defaults under the chart's own values.
+  const globals = useSettingsStore((st) => st.values);
   const settings: ChartSettings = useMemo(
-    () => normalizeSettings(ext.settings),
+    () => normalizeSettings(ext.settings, baseSettings()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settingsKey],
+    [settingsKey, globals],
   );
   const panesKey = JSON.stringify(ext.panes ?? {});
   const compare = useMemo(() => ext.compare ?? [], [JSON.stringify(ext.compare ?? [])]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -154,6 +164,11 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     unsubs.push(
       main.onScrollPastStart(() => {
         if (store.loadingOlder || store.historyExhausted) return;
+        const bars = h.series()?.bars.length ?? 0;
+        if (bars >= globalChartOptions().maxCandles) {
+          setOlderNote('Max candles per chart reached (Settings → Common)');
+          return;
+        }
         if (!store.olderLoader) {
           setOlderNote('No older history from this feed');
           return;
