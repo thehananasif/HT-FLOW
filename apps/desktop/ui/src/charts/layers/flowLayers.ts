@@ -1,13 +1,8 @@
 import { barsRange, type ChartLayer, type ChartView } from '@htflow/chart-engine';
 import { diagonalImbalances, mergeRows, stackedZones } from '@htflow/footprint';
 import { buildLut, GRADIENTS, heatIndex, percentile } from '@htflow/heatmap';
-import {
-  BarSeries,
-  formatCompact,
-  type Bar,
-  type DepthColumn,
-  type MarketStore,
-} from '@htflow/market-data';
+import type { BarSeries } from '@htflow/market-data';
+import { formatCompact, type Bar, type DepthColumn, type MarketStore } from '@htflow/market-data';
 import { alpha } from '@htflow/ui-kit';
 import { withColors, type ChartTypeSettings } from './settings';
 
@@ -83,7 +78,10 @@ export class VolumeHistogramLayer implements ChartLayer {
         const isMax = st.highlightMax && r.px === maxPx;
         if (isMax) ctx.fillStyle = alpha(p.warning, 0.85);
         else if (st.colorBy === 'delta')
-          ctx.fillStyle = alpha(r.delta >= 0 ? p.up : p.down, 0.25 + 0.5 * (Math.abs(r.delta) / r.vol || 0));
+          ctx.fillStyle = alpha(
+            r.delta >= 0 ? p.up : p.down,
+            0.25 + 0.5 * (Math.abs(r.delta) / r.vol || 0),
+          );
         else ctx.fillStyle = alpha(p.volume, 0.75);
         ctx.fillRect(x0 + 3, y, len, rowH);
         if (showText) {
@@ -301,7 +299,11 @@ export class CvdPaneLayer implements ChartLayer {
     ctx.fillStyle = p.textSecondary;
     ctx.font = v.font(10);
     ctx.textAlign = 'left';
-    ctx.fillText(`CVD ${formatCompact(cvd[Math.min(v.i1, cvd.length - 1)] ?? 0)}`, r.x + 6, r.y + 10);
+    ctx.fillText(
+      `CVD ${formatCompact(cvd[Math.min(v.i1, cvd.length - 1)] ?? 0)}`,
+      r.x + 6,
+      r.y + 10,
+    );
   }
 }
 
@@ -385,7 +387,12 @@ export class MtfBoxesLayer implements ChartLayer {
         ctx.fillRect(x0, yo, x1 - x0, Math.max(1, yc - yo));
         ctx.strokeStyle = alpha(col, Math.min(1, fade * 3));
         ctx.lineWidth = 1;
-        ctx.strokeRect(Math.round(x0) + 0.5, Math.round(v.yOf(h.h)) + 0.5, x1 - x0, v.yOf(h.l) - v.yOf(h.h));
+        ctx.strokeRect(
+          Math.round(x0) + 0.5,
+          Math.round(v.yOf(h.h)) + 0.5,
+          x1 - x0,
+          v.yOf(h.l) - v.yOf(h.h),
+        );
         if (x1 - x0 > 40) {
           ctx.fillStyle = alpha(p.textSecondary, 0.8);
           ctx.font = v.font(9);

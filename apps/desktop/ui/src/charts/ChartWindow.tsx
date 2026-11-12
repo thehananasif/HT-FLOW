@@ -23,6 +23,7 @@ import { useMarketStore, useStoreTicker } from './useMarket';
 import { SideTools } from './SideTools';
 import { DomTrader } from '../trading/DomView';
 import { chartExtensions } from './extensions';
+import { SessionSelect } from './timeframes/TimeframeDialog';
 
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 
@@ -312,17 +313,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
         >
           ◂▸
         </button>
-        <Select
-          small
-          aria-label="Trading session"
-          value="eth"
-          onChange={() => {}}
-          options={[
-            { value: 'eth', label: 'ETH' },
-            { value: 'rth', label: 'RTH' },
-            { value: '24h', label: '24h' },
-          ]}
-        />
+        <SessionSelect windowId={id} s={s} />
         <span className="muted">
           {s.template === 'liquidity-map'
             ? `Brightness 100 · Cut-off 98/20 · ${store.depth.length} columns`

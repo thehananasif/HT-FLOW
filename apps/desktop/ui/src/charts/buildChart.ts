@@ -20,6 +20,7 @@ import { LiquidityMapLayer } from '@htflow/heatmap';
 import { specLabel, type BarSpec, type MarketStore } from '@htflow/market-data';
 import type { ChartWindowState } from '@htflow/workspace';
 import { chartExtensions, type ChartExtensionContext } from './extensions';
+import { buildExtraTemplate, templateHasBars } from './layers/templates';
 
 export interface ChartHandle {
   cores: ChartCore[];
@@ -198,11 +199,23 @@ export function buildChart(
       };
       break;
     }
+    default:
+      update = buildExtraTemplate({
+        hosts,
+        store,
+        state,
+        palette,
+        spec,
+        series,
+        mk,
+        cores,
+        unsubs,
+      });
   }
 
   // Chart extensions (indicators, drawings, …) attach to the core that shows bars.
   const main = cores[0]!;
-  const hasBars = state.template !== 'liquidity-map';
+  const hasBars = templateHasBars(state.template);
   const extCtx = new Map<string, ChartExtensionContext>();
   for (const ext of chartExtensions()) {
     const ctx: ChartExtensionContext = {
