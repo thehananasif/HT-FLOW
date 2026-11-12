@@ -34,7 +34,12 @@ export interface DomColumnDef {
 
 /** Every column the ladder can draw, in the default order. */
 export const COLUMN_DEFS: DomColumnDef[] = [
-  { id: 'notes', label: 'Notes', width: 90, description: 'Your text note per price (click to edit).' },
+  {
+    id: 'notes',
+    label: 'Notes',
+    width: 90,
+    description: 'Your text note per price (click to edit).',
+  },
   {
     id: 'orders',
     label: 'Orders',
@@ -53,7 +58,12 @@ export const COLUMN_DEFS: DomColumnDef[] = [
     width: 70,
     description: 'Your stop orders and detected iceberg refills (×count, hidden size).',
   },
-  { id: 'pnl', label: 'P&L', width: 70, description: 'P&L of the open position if closed at the price.' },
+  {
+    id: 'pnl',
+    label: 'P&L',
+    width: 70,
+    description: 'P&L of the open position if closed at the price.',
+  },
   {
     id: 'volume',
     label: 'Volume',
@@ -63,15 +73,30 @@ export const COLUMN_DEFS: DomColumnDef[] = [
   { id: 'delta', label: 'Delta', width: 64, description: 'Buy minus sell volume at the price.' },
   { id: 'lastSize', label: 'Last', width: 52, description: 'Size of the last trade at the price.' },
   { id: 'vapoc', label: 'VA', width: 34, description: 'Value area band, POC and VAH / VAL marks.' },
-  { id: 'cumBid', label: 'Σ Bid', width: 70, description: 'Cumulative bid depth from the best bid.' },
+  {
+    id: 'cumBid',
+    label: 'Σ Bid',
+    width: 70,
+    description: 'Cumulative bid depth from the best bid.',
+  },
   { id: 'bidChg', label: 'Limit Δ', width: 54, description: 'Bid size change over the window.' },
   { id: 'bid', label: 'Bid', width: 90, description: 'Bid size with depth bar. Left-click buys.' },
   { id: 'sells', label: 'Sells', width: 56, description: 'Recent sell-aggressor executions.' },
   { id: 'price', label: 'Price', width: 84, description: 'Price ladder.' },
   { id: 'buys', label: 'Buys', width: 56, description: 'Recent buy-aggressor executions.' },
-  { id: 'ask', label: 'Ask', width: 90, description: 'Ask size with depth bar. Right-click sells.' },
+  {
+    id: 'ask',
+    label: 'Ask',
+    width: 90,
+    description: 'Ask size with depth bar. Right-click sells.',
+  },
   { id: 'askChg', label: 'Limit Δ', width: 54, description: 'Ask size change over the window.' },
-  { id: 'cumAsk', label: 'Σ Ask', width: 70, description: 'Cumulative ask depth from the best ask.' },
+  {
+    id: 'cumAsk',
+    label: 'Σ Ask',
+    width: 70,
+    description: 'Cumulative ask depth from the best ask.',
+  },
 ];
 
 export const COLUMN_IDS = COLUMN_DEFS.map((c) => c.id);
@@ -503,7 +528,8 @@ export function parseTemplates(json: string, newId: () => string): DomTemplate[]
   } catch {
     throw new Error('Not valid JSON');
   }
-  const list = isObj(raw) && Array.isArray(raw.templates) ? raw.templates : Array.isArray(raw) ? raw : [raw];
+  const list =
+    isObj(raw) && Array.isArray(raw.templates) ? raw.templates : Array.isArray(raw) ? raw : [raw];
   const out = list.filter(isObj).map((t) => {
     const s = sanitizeTemplate(t);
     return { ...s, id: newId(), builtin: false };
@@ -523,7 +549,11 @@ export function toggleColumn(t: DomTemplate, id: DomColumnId, visible?: boolean)
 }
 
 /** Moves column `id` to the position of `before` (or to the end when `before` is null). */
-export function moveColumn(t: DomTemplate, id: DomColumnId, before: DomColumnId | null): DomTemplate {
+export function moveColumn(
+  t: DomTemplate,
+  id: DomColumnId,
+  before: DomColumnId | null,
+): DomTemplate {
   if (id === before) return t;
   const col = t.columns.find((c) => c.id === id);
   if (!col) return t;

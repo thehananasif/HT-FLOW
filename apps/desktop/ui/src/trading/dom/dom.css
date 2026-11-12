@@ -1,0 +1,164 @@
+/* Smart DOM v2 (P15): header, note editor, column drop marker, risk strip, template designer. */
+.dom-trader {
+  flex-direction: column;
+}
+.sdom-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--ht-divider);
+  font-size: 11px;
+  color: var(--ht-text-secondary);
+}
+.sdom-head .grow {
+  flex: 1;
+}
+.sdom-head .ht-seg button {
+  height: 20px;
+  font-size: 11px;
+}
+.sdom-hbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ht-text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sdom-hbtn:hover {
+  background: var(--ht-surface2);
+}
+.sdom-hbtn-k {
+  color: var(--ht-text-tertiary);
+}
+.sdom-lots {
+  display: inline-flex;
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sdom-lot {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ht-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.sdom-lot + .sdom-lot {
+  border-left: 1px solid var(--ht-border);
+}
+.sdom-lot.on {
+  background: var(--ht-text-primary);
+  color: var(--ht-bg);
+}
+.sdom-risk {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ht-text-secondary);
+}
+.sdom-risk em {
+  font-style: normal;
+  color: var(--ht-text-tertiary);
+}
+.sdom-risk .warn {
+  color: var(--ht-warning);
+}
+.sdom-risk .bad {
+  color: var(--ht-down);
+}
+.sdom-drop {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ht-text-primary);
+  pointer-events: none;
+}
+.sdom-note-input {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border: 1px solid var(--ht-text-primary);
+  border-radius: 2px;
+  background: var(--ht-surface1);
+  color: var(--ht-text-primary);
+  font-size: 11px;
+  outline: none;
+}
+.sdom-designer {
+  height: 520px;
+  display: flex;
+}
+.sdom-designer > * {
+  flex: 1;
+}
+.sdom-d-list,
+.sdom-d-edit {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 8px;
+}
+.sdom-d-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sdom-d-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.sdom-d-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.sdom-d-foot .grow {
+  flex: 1;
+}
+.sdom-d-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  align-items: start;
+}
+.sdom-d-palette {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+.sdom-d-pal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ht-text-secondary);
+}
+.sdom-optcolor {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}

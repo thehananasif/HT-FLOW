@@ -57,6 +57,14 @@ function rgba(hex: string, a: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
+/** Price an order sits at on the ladder: limit price for limits, trigger price otherwise. */
+export const orderPx = (o: Pick<Order, 'type' | 'px' | 'stopPx'>): number | undefined =>
+  o.type === 'limit' ? o.px : (o.stopPx ?? o.px);
+
+/** Stop, stop-limit, MIT and trailing orders (triggered at a price) — shown as S / STP. */
+export const isStopLike = (o: Pick<Order, 'type'>): boolean =>
+  o.type !== 'limit' && o.type !== 'market';
+
 const fmtSigned = (v: number) => (v > 0 ? '+' : v < 0 ? '−' : '') + formatCompact(Math.abs(v));
 
 /**
@@ -71,6 +79,8 @@ export class DomLadder {
   paused = false;
   /** Ticks per row (price grouping 1, 2, 5, 10). */
   grouping = 1;
+  /** Book levels drawn per side (Settings → DOM levels). 0 = all. */
+  maxLevels = 0;
   /** Override labels per column (e.g. "Vol (S)"). */
   labels: Partial<Record<DomColumnId, string>> = {};
   private width = 0;
@@ -95,7 +105,11 @@ export class DomLadder {
     return this.template.style.headerHeight;
   }
 
-  resize(w: number, h: number, dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1): void {
+  resize(
+    w: number,
+    h: number,
+    dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+  ): void {
     this.dpr = dpr;
     this.width = w;
     this.height = h;
@@ -148,7 +162,10 @@ export class DomLadder {
 
   rowOfPx(px: number): number {
     const half = Math.floor(this.rows / 2);
-    return half - Math.round((Math.floor(px / this.grouping) * this.grouping - this.centerPx) / this.grouping);
+    return (
+      half -
+      Math.round((Math.floor(px / this.grouping) * this.grouping - this.centerPx) / this.grouping)
+    );
   }
 
   hitTest(x: number, y: number): DomHit | null {
@@ -254,6 +271,11 @@ export class DomLadder {
       return s;
     };
     const has = (id: DomColumnId) => this.boxes.some((b) => b.id === id);
+    const lim = this.maxLevels;
+    const bidAt = (px: number) =>
+      lim > 0 && px <= book.bestBid - lim * g ? 0 : sizeAt(book.bids, px);
+    const askAt = (px: number) =>
+      lim > 0 && px >= book.bestAsk + lim * g ? 0 : sizeAt(book.asks, px);
     const vol = model.volume;
     let maxBook = 0;
     let maxVol = 0;
@@ -261,7 +283,7 @@ export class DomLadder {
     let maxDelta = 0;
     for (let r = 0; r < rows; r++) {
       const px = this.pxAtRow(r);
-      maxBook = Math.max(maxBook, sizeAt(book.bids, px), sizeAt(book.asks, px));
+      maxBook = Math.max(maxBook, bidAt(px), askAt(px));
       maxVol = Math.max(maxVol, sizeAt(vol, px));
       maxRecent = Math.max(maxRecent, sizeAt(model.recentBuys, px), sizeAt(model.recentSells, px));
       if (has('delta')) {
@@ -270,7 +292,8 @@ export class DomLadder {
         maxDelta = Math.max(maxDelta, Math.abs(d));
       }
     }
-    const cum = has('cumBid') || has('cumAsk') ? cumulativeDepth(book.bids, book.asks, botPx, topPx) : null;
+    const cum =
+      has('cumBid') || has('cumAsk') ? cumulativeDepth(book.bids, book.asks, botPx, topPx) : null;
     const cumAt = (side: 'bid' | 'ask', px: number) => {
       if (!cum) return 0;
       // Group row: bid total down to the lowest tick of the group, ask total up to the highest.
@@ -291,7 +314,7 @@ export class DomLadder {
     const va = has('vapoc') ? model.valueArea() : null;
     const ordersAt = new Map<number, Order[]>();
     for (const o of f.orders) {
-      const opx = o.type === 'stop' || o.type === 'stop-limit' ? o.stopPx : o.px;
+      const opx = orderPx(o);
       if (opx === undefined) continue;
       const k = Math.floor(opx / g) * g;
       const arr = ordersAt.get(k);
@@ -317,8 +340,8 @@ export class DomLadder {
       const y = hh + r * rh;
       const h = rh - 1;
       const midY = y + h / 2;
-      const bid = sizeAt(book.bids, px);
-      const ask = sizeAt(book.asks, px);
+      const bid = bidAt(px);
+      const ask = askAt(px);
       const isAskSide = px + g - 1 >= bestAsk;
       const isBidSide = px <= bestBid;
       for (const b of this.boxes) {
@@ -340,7 +363,7 @@ export class DomLadder {
               ctx.fillStyle = buy ? p.buy : p.sell;
               this.font(ctx, 600, fs);
               ctx.textAlign = 'right';
-              const kind = os.some((o) => o.type === 'stop' || o.type === 'stop-limit') ? 'S' : 'L';
+              const kind = os.some(isStopLike) ? 'S' : 'L';
               ctx.fillText(`${kind} ${formatCompact(q)}`, cx + cw - 9, midY, cw - 10);
             } else if (pos && Math.floor(pos.avgPx / g) * g === px) {
               ctx.fillStyle = p.position;
@@ -375,7 +398,7 @@ export class DomLadder {
             break;
           }
           case 'markers': {
-            const stops = ordersAt.get(px)?.filter((o) => o.type === 'stop' || o.type === 'stop-limit');
+            const stops = ordersAt.get(px)?.filter(isStopLike);
             const ice = model.iceberg('bid', px) ?? model.iceberg('ask', px);
             this.font(ctx, 600, fs - 1);
             if (ice) {
@@ -559,11 +582,7 @@ export class DomLadder {
               ctx.fillStyle = col;
               this.font(ctx, 700, Math.max(8, fs - 2));
               ctx.textAlign = side === 'bid' ? 'left' : 'right';
-              ctx.fillText(
-                fmtSigned(fl.amount),
-                side === 'bid' ? cx + 4 : cx + cw - 4,
-                midY,
-              );
+              ctx.fillText(fmtSigned(fl.amount), side === 'bid' ? cx + 4 : cx + cw - 4, midY);
             }
             const ice = model.iceberg(side, px);
             if (ice) {
@@ -593,7 +612,8 @@ export class DomLadder {
           case 'askChg': {
             let ch = 0;
             for (let k = 0; k < g; k++)
-              ch += b.id === 'bidChg' ? model.bidChange(px + k, book) : model.askChange(px + k, book);
+              ch +=
+                b.id === 'bidChg' ? model.bidChange(px + k, book) : model.askChange(px + k, book);
             if (Math.abs(ch) > 1e-9) {
               ctx.fillStyle = c.fg ?? (ch > 0 ? p.text : p.textDim);
               this.font(ctx, 400, fs - 1);

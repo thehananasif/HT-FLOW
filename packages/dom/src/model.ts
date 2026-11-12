@@ -368,8 +368,8 @@ export class DomModel {
     this.limits.clear();
     const seen = new Set<string>();
     for (const ord of orders) {
-      const isStop = ord.type === 'stop' || ord.type === 'stop-limit';
-      const px = isStop ? ord.stopPx : ord.px;
+      const isStop = ord.type !== 'limit' && ord.type !== 'market';
+      const px = ord.type === 'limit' ? ord.px : (ord.stopPx ?? ord.px);
       if (px === undefined) continue;
       const rest = ord.qty - ord.filled;
       let l = this.limits.get(px);

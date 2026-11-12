@@ -18,6 +18,8 @@ import { hub, paper, pnlTick } from '../../state/market';
 import { allInstruments, instrumentById } from '../../state/instruments';
 import { downloadText, toCsv } from '../../components/DataTable.utils';
 import { registerModule } from '../registry';
+import { fmtClock, fmtDate, useTimeFormat } from '../../state/format';
+import { useSetting } from '../../state/settings';
 import { journalStore, type JournalTag, type TagKind } from './store';
 import './styles.css';
 
@@ -42,11 +44,9 @@ const px = (id: string, v: number) => {
   const i = instrumentById(id);
   return i ? formatPrice(v, i) : String(v);
 };
-const dateTime = (ts: number) => {
-  const d = new Date(ts);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getDate())} ${MONTHS[d.getMonth()]} ${p(d.getHours())}:${p(d.getMinutes())}`;
-};
+/** Date and time in the formats / zone chosen in Settings. */
+const dateTime = (ts: number) => `${fmtDate(ts)} ${fmtClock(ts, { seconds: false })}`;
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const hold = (ms: number) =>
   ms < 60_000
     ? `${Math.round(ms / 1000)} s`
@@ -164,7 +164,10 @@ function Calendar({ trips }: { trips: RoundTrip[] }) {
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-  const lead = (first.getDay() + 6) % 7;
+  const firstDay = useSetting('general.firstDayOfWeek'); // Settings → General
+  const startIdx = firstDay === 'sunday' ? 6 : firstDay === 'saturday' ? 5 : 0; // index in DOW
+  const dows = [...DOW.slice(startIdx), ...DOW.slice(0, startIdx)];
+  const lead = (((first.getDay() + 6) % 7) - startIdx + 7) % 7;
   const daily = useMemo(() => dailyPnl(trips, localDayKey), [trips]);
   const key = (d: number) =>
     `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -189,7 +192,7 @@ function Calendar({ trips }: { trips: RoundTrip[] }) {
         </button>
       </div>
       <div className="jr-cal-grid">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+        {dows.map((d) => (
           <span key={d} className="jr-cal-dow">
             {d}
           </span>
@@ -480,6 +483,7 @@ interface Params {
 }
 
 function Journal({ params, setParams }: { params: Params; setParams(p: Partial<Params>): void }) {
+  useTimeFormat();
   const all = useJournal();
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'date', dir: -1 });
   const [selected, setSelected] = useState<string | null>(null);
@@ -687,7 +691,7 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
             money(-s.maxDrawdown, 2),
             Number.isNaN(s.maxDrawdownTs)
               ? '—'
-              : `${pct(s.maxDrawdownPct)} · ${new Date(s.maxDrawdownTs).getDate()} ${MONTHS[new Date(s.maxDrawdownTs).getMonth()]}`,
+              : `${pct(s.maxDrawdownPct)} · ${fmtDate(s.maxDrawdownTs)}`,
             s.maxDrawdown > 0 ? 'down' : '',
           )}
           {card(

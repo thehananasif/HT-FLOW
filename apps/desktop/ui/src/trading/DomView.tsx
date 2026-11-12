@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
 import { ChevronDown, Columns3, Lock, Pencil, StickyNote } from 'lucide-react';
 import {
@@ -6,16 +6,23 @@ import {
   DomLadder,
   DomModel,
   moveColumn,
+  orderPx,
   resizeColumn,
   toggleColumn,
   type DomColumnId,
   type DomTemplate,
 } from '@htflow/dom';
 import { formatPrice } from '@htflow/market-data';
-import { DropdownMenu, SegmentedControl, Select, toast, type MenuEntry } from '@htflow/ui-kit';
+import { DropdownMenu, SegmentedControl, Select, type MenuEntry } from '@htflow/ui-kit';
 import type { DomWindowState } from '@htflow/workspace';
 import { useWindows } from '../state/windows';
-import { paper, PAPER_ACCOUNT, pnlTick } from '../state/market';
+import { paper, pnlTick } from '../state/market';
+import { getSettings, useSettingsStore, type SettingsValues } from '../state/settings';
+import { useAtmTemplates } from './atmStore';
+import { setPrefs, tradingPrefs, useTradingPrefs } from './prefs';
+import { usePaperTick } from './TradingPanel';
+import { domActions } from './dom/actions';
+import './trading.css';
 import { useMarketStore } from '../charts/useMarket';
 import { domStore, useDomStore } from './dom/store';
 import { TemplateDesigner, openDesigner, useDesigner } from './dom/TemplateDesigner';
@@ -29,6 +36,25 @@ type Drag =
   | { kind: 'reorder'; id: DomColumnId; startX: number; x: number; moved: boolean }
   | { kind: 'order'; fromPx: number; toPx: number; moved: boolean }
   | null;
+
+const SETTINGS_DEFAULT_ROW = 22;
+const SETTINGS_DEFAULT_FONT = 12;
+
+/**
+ * Global Settings → DOM applied on top of the template: auto-centre off forces manual centring,
+ * a big-lot threshold fills in when the template has none, and a row height / font size changed
+ * from its default overrides every template. Levels per side go to `ladder.maxLevels`.
+ */
+export function effectiveTemplate(t: DomTemplate, v: SettingsValues): DomTemplate {
+  const style = { ...t.style };
+  const behaviour = { ...t.behaviour };
+  if (!v['dom.autoCenter']) style.centring = 'manual';
+  if (v['dom.rowHeight'] !== SETTINGS_DEFAULT_ROW) style.rowHeight = v['dom.rowHeight'];
+  if (v['dom.fontSize'] !== SETTINGS_DEFAULT_FONT) style.fontSize = v['dom.fontSize'];
+  if (!behaviour.bigSize && v['dom.bigLotThreshold'] > 0)
+    behaviour.bigSize = v['dom.bigLotThreshold'];
+  return { ...t, style, behaviour };
+}
 
 /** Volume / Limit Δ column labels reflect the template's behaviour. */
 function columnLabels(t: DomTemplate): Partial<Record<DomColumnId, string>> {
@@ -55,7 +81,9 @@ function Ladder({
   windowId?: string;
 }) {
   useDomStore();
-  const template = domStore.get(templateId);
+  const raw = domStore.get(templateId);
+  const settings = useSettingsStore((st) => st.values);
+  const template = useMemo(() => effectiveTemplate(raw, settings), [raw, settings]);
   const store = useMarketStore(instrumentId);
   const ref = useRef<HTMLCanvasElement>(null);
   const ladder = useRef<DomLadder | null>(null);
@@ -63,8 +91,9 @@ function Ladder({
   const dirty = useRef(true);
   const lotsRef = useRef(lots);
   lotsRef.current = lots;
-  const tplRef = useRef(template);
-  tplRef.current = template;
+  // Edits (resize / reorder) apply to the stored template, not the settings-adjusted one.
+  const tplRef = useRef(raw);
+  tplRef.current = raw;
   const drag = useRef<Drag>(null);
   const [dropX, setDropX] = useState<number | null>(null);
   const [note, setNote] = useState<{ px: number; top: number; left: number; w: number } | null>(
@@ -75,8 +104,15 @@ function Ladder({
   useEffect(() => {
     const c = ref.current!;
     const l = new DomLadder(c);
-    l.setTemplate(tplRef.current);
+    l.setTemplate(effectiveTemplate(tplRef.current, getSettings()));
     l.labels = columnLabels(tplRef.current);
+    l.maxLevels = getSettings()['common.domLevels'];
+    const unSettings = useSettingsStore.subscribe((st, prev) => {
+      if (st.values !== prev.values) {
+        l.maxLevels = st.values['common.domLevels'];
+        dirty.current = true;
+      }
+    });
     ladder.current = l;
     const syncAttr = () =>
       setLayoutAttr(JSON.stringify({ header: l.headerHeight, row: l.rowHeight, cols: l.layout }));
@@ -91,6 +127,7 @@ function Ladder({
     const unsub = store.subscribe(() => (dirty.current = true));
     const unsubPaper = paper.subscribe(() => (dirty.current = true));
     const unsubNotes = domStore.subscribe(() => (dirty.current = true));
+    const unsubPrefs = tradingPrefs.subscribe(() => (dirty.current = true));
     let lastDraw = 0;
     // Draws at most once per animation frame, and only when something changed (or flashes fade).
     const frame = (ts: number) => {
@@ -101,7 +138,7 @@ function Ladder({
       dirty.current = false;
       lastDraw = ts;
       const now = store.lastTs || Date.now();
-      const orders = paper.workingOrders(PAPER_ACCOUNT, instrumentId);
+      const orders = domActions.orders(instrumentId);
       model.current.update(store.trades, store.book, now, orders);
       const d = drag.current;
       l.draw({
@@ -110,7 +147,7 @@ function Ladder({
         instrument: store.instrument,
         lastPx: store.lastTrade?.px ?? Number.NaN,
         orders,
-        position: paper.position(PAPER_ACCOUNT, instrumentId),
+        position: domActions.position(instrumentId),
         pnlPerTick: pnlTick(instrumentId),
         notes: domStore.notes(instrumentId),
         now,
@@ -135,6 +172,8 @@ function Ladder({
       unsub();
       unsubPaper();
       unsubNotes();
+      unsubPrefs();
+      unSettings();
       if (windowId && domControllers.get(windowId) === ctl) domControllers.delete(windowId);
     };
   }, [store, instrumentId, windowId]);
@@ -182,24 +221,21 @@ function Ladder({
 
   const saveTemplate = (t: DomTemplate) => domStore.save(t);
 
-  const place = (px: number, side: 'buy' | 'sell', stop: boolean) => {
-    const o = paper.place({
-      accountId: PAPER_ACCOUNT,
+  const place = (px: number, side: 'buy' | 'sell', stop: boolean) =>
+    domActions.place({
       instrumentId,
       side,
       type: stop ? 'stop' : 'limit',
       qty: lotsRef.current,
-      px: stop ? undefined : px,
-      stopPx: stop ? px : undefined,
+      px,
     });
-    if (o.status === 'rejected') toast('error', 'Order rejected', o.reason);
-  };
 
   const ordersAtPx = (px: number) => {
     const g = ladder.current?.grouping ?? 1;
-    return paper
-      .workingOrders(PAPER_ACCOUNT, instrumentId)
-      .filter((o) => Math.floor((o.type === 'stop' ? o.stopPx! : o.px!) / g) * g === px);
+    return domActions.orders(instrumentId).filter((o) => {
+      const opx = orderPx(o);
+      return opx !== undefined && Math.floor(opx / g) * g === px;
+    });
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -280,14 +316,8 @@ function Ladder({
       const os = ordersAtPx(d.fromPx);
       if (d.moved && d.toPx !== d.fromPx) {
         // Drag to modify: move every working order at the source price to the target price.
-        for (const o of os) {
-          const ok =
-            o.type === 'stop' || o.type === 'stop-limit'
-              ? paper.modify(o.id, { stopPx: d.toPx })
-              : paper.modify(o.id, { px: d.toPx });
-          if (!ok) toast('error', 'Order not modified');
-        }
-      } else os.forEach((o) => paper.cancel(o.id));
+        for (const o of os) domActions.move(o, d.toPx + (orderPx(o)! - d.fromPx));
+      } else os.forEach((o) => domActions.cancel(o));
       return;
     }
     const hit = l.hitTest(x, y);
@@ -340,7 +370,12 @@ function Ladder({
           key={note.px}
           label={formatPrice(note.px, store.instrument)}
           initial={domStore.notes(instrumentId).get(note.px) ?? ''}
-          style={{ top: note.top, left: note.left, width: note.w, height: template.style.rowHeight }}
+          style={{
+            top: note.top,
+            left: note.left,
+            width: note.w,
+            height: template.style.rowHeight,
+          }}
           onDone={(text) => {
             if (text !== null) domStore.setNote(instrumentId, note.px, text);
             setNote(null);
@@ -451,7 +486,11 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
         onChange={(v) => domStore.save({ ...template, behaviour: { ...b, volumeScope: v } })}
         options={[
           { value: 'session', label: 'Session', title: 'Volume / delta / VA for the session' },
-          { value: 'range', label: `${b.rangeMinutes}m`, title: 'Volume / delta / VA for the rolling range' },
+          {
+            value: 'range',
+            label: `${b.rangeMinutes}m`,
+            title: 'Volume / delta / VA for the rolling range',
+          },
         ]}
       />
       <Select
@@ -459,7 +498,10 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
         aria-label="Price grouping"
         value={String(s.grouping)}
         onChange={(v) => patch({ grouping: Number(v) })}
-        options={[1, 2, 5, 10].map((g) => ({ value: String(g), label: `${g} tick${g > 1 ? 's' : ''}` }))}
+        options={[1, 2, 5, 10].map((g) => ({
+          value: String(g),
+          label: `${g} tick${g > 1 ? 's' : ''}`,
+        }))}
       />
       <div className="sdom-lots" role="group" aria-label="Lot presets">
         {b.lotPresets.map((q) => (
@@ -498,13 +540,21 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
 export function DomWindow(props: IDockviewPanelProps) {
   const id = props.api.id;
   const s = useWindows((st) => st.windows[id]) as DomWindowState | undefined;
+  if (!s || s.kind !== 'dom') return null;
+  return <DomWindowBody id={id} s={s} />;
+}
+
+function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
+  usePaperTick();
   useDomStore();
   const designer = useDesigner();
-  if (!s || s.kind !== 'dom') return null;
   const inst = s.instrumentId;
   const template = domStore.get(smartDomExt(s).template);
-  const pos = paper.position(PAPER_ACCOUNT, inst);
+  const pos = domActions.position(inst);
+  const account = domActions.account(inst);
   const act = (fn: () => void) => () => fn();
+  const market = (side: 'buy' | 'sell') =>
+    domActions.place({ instrumentId: inst, side, type: 'market', qty: s.lots });
   return (
     <div
       className="dom-window"
@@ -512,7 +562,7 @@ export function DomWindow(props: IDockviewPanelProps) {
       onMouseDown={() => useWindows.getState().setActive(id)}
     >
       <DomHeader id={id} s={s} template={template} />
-      {template.behaviour.showRiskLimits && <div className="sdom-risk-gap" />}
+      <AtmStrip />
       <Ladder
         instrumentId={inst}
         lots={s.lots}
@@ -521,59 +571,31 @@ export function DomWindow(props: IDockviewPanelProps) {
         windowId={id}
       />
       <div className="dom-foot-row">
-        <button title="Reverse position" onClick={act(() => paper.reverse(PAPER_ACCOUNT, inst))}>
+        <button title="Reverse position" onClick={act(() => domActions.reverse(inst))}>
           × R
         </button>
         <button title="Position PnL" disabled>
           PnL
         </button>
-        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst))}>
+        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
-        <button
-          title="Buy market"
-          onClick={act(() =>
-            paper.place({
-              accountId: PAPER_ACCOUNT,
-              instrumentId: inst,
-              side: 'buy',
-              type: 'market',
-              qty: s.lots,
-            }),
-          )}
-        >
+        <button title="Buy market" onClick={act(() => market('buy'))}>
           MKT
         </button>
-        <button
-          title="Cancel buy orders"
-          onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst, 'buy'))}
-        >
+        <button title="Cancel buy orders" onClick={act(() => domActions.cancelAll(inst, 'buy'))}>
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst))}>
+        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
-        <button
-          title="Sell market"
-          onClick={act(() =>
-            paper.place({
-              accountId: PAPER_ACCOUNT,
-              instrumentId: inst,
-              side: 'sell',
-              type: 'market',
-              qty: s.lots,
-            }),
-          )}
-        >
+        <button title="Sell market" onClick={act(() => market('sell'))}>
           MKT
         </button>
-        <button
-          title="Cancel sell orders"
-          onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst, 'sell'))}
-        >
+        <button title="Cancel sell orders" onClick={act(() => domActions.cancelAll(inst, 'sell'))}>
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => paper.cancelAll(PAPER_ACCOUNT, inst))}>
+        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
       </div>
@@ -587,8 +609,8 @@ export function DomWindow(props: IDockviewPanelProps) {
         </button>
         <button
           className="ht-btn ht-btn--sm grow"
-          onClick={() => paper.flattenAll(PAPER_ACCOUNT)}
-          disabled={!pos.qty && !paper.workingOrders(PAPER_ACCOUNT).length}
+          onClick={() => domActions.flatten(inst)}
+          disabled={!pos.qty && !paper.workingOrders(account).length}
         >
           Flatten all
         </button>
@@ -602,7 +624,7 @@ export function DomWindow(props: IDockviewPanelProps) {
           className="ht-icon-btn"
           aria-label="Lock trading"
           title="Lock trading"
-          onClick={() => paper.setLocked(PAPER_ACCOUNT, !paper.accounts.get(PAPER_ACCOUNT)!.locked)}
+          onClick={() => domActions.toggleLock(inst)}
         >
           <Lock size={13} />
         </button>
@@ -616,7 +638,37 @@ export function DomWindow(props: IDockviewPanelProps) {
 export function DomTrader({ instrumentId, lots }: { instrumentId: string; lots: number }) {
   return (
     <div className="dom-trader">
+      <AtmStrip compact />
       <Ladder instrumentId={instrumentId} lots={lots} grouping={1} templateId="basic" />
+    </div>
+  );
+}
+
+/** SL / TP toggle + ATM template picker shared with the Trading Panel. */
+function AtmStrip({ compact }: { compact?: boolean }) {
+  const prefs = useTradingPrefs();
+  const templates = useAtmTemplates();
+  return (
+    <div className="ot-dom-atm" data-testid="dom-atm">
+      <label className="row gap6 center-y" title="Attach SL / TP to new orders">
+        <input
+          type="checkbox"
+          checked={prefs.bracketOn}
+          onChange={(e) => setPrefs({ bracketOn: e.target.checked })}
+          aria-label="SL/TP on DOM orders"
+        />
+        {compact ? 'ATM' : 'SL/TP'}
+      </label>
+      <Select
+        small
+        value={templates.some((t) => t.id === prefs.atmId) ? prefs.atmId : ''}
+        onChange={(v) => setPrefs({ atmId: v, bracketOn: true })}
+        options={[
+          { value: '', label: 'Custom' },
+          ...templates.map((t) => ({ value: t.id, label: t.name })),
+        ]}
+        aria-label="DOM ATM template"
+      />
     </div>
   );
 }

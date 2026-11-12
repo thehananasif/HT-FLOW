@@ -32,8 +32,9 @@ export function computeValueArea(volume: ReadonlyMap<number, number>, pct = 0.7)
     if (v <= 0) continue;
     if (
       v > best ||
-      (v === best && (Math.abs(px - mid) < Math.abs(poc - mid) ||
-        (Math.abs(px - mid) === Math.abs(poc - mid) && px < poc)))
+      (v === best &&
+        (Math.abs(px - mid) < Math.abs(poc - mid) ||
+          (Math.abs(px - mid) === Math.abs(poc - mid) && px < poc)))
     ) {
       best = v;
       poc = px;

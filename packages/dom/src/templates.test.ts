@@ -48,11 +48,10 @@ describe('built-in templates', () => {
 describe('template serialization', () => {
   it('round-trips through export / import as custom templates with new ids', () => {
     let n = 0;
-    const src = setColumnColors(
-      resizeColumn(BUILTIN_TEMPLATES[5]!, 'bid', 120),
-      'bid',
-      { bg: '#101010', accent: '#00FF00' },
-    );
+    const src = setColumnColors(resizeColumn(BUILTIN_TEMPLATES[5]!, 'bid', 120), 'bid', {
+      bg: '#101010',
+      accent: '#00FF00',
+    });
     const json = serializeTemplates([src]);
     const [back] = parseTemplates(json, () => `custom-${++n}`);
     expect(back!.id).toBe('custom-1');
