@@ -1,0 +1,73 @@
+name: Release
+
+# Push a tag like v0.1.0-preview to build Windows installers and publish a GitHub Release.
+# Unsigned builds (code signing is out of scope, see docs/BLOCKERS.md): Windows SmartScreen shows
+# "unknown publisher" on first run (More info → Run anyway).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build and publish
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  windows:
+    name: Build and publish Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+      - run: pnpm install --frozen-lockfile
+      - name: Tauri build (NSIS, per-user install)
+        run: pnpm --filter @htflow/desktop tauri build --bundles nsis
+      - name: Portable zip (exe + portable marker)
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9A-Za-z.\-]+$') { throw "Unexpected tag: $tag" }
+          New-Item -ItemType Directory -Force -Path dist/portable | Out-Null
+          Copy-Item target/release/htflow-desktop.exe "dist/portable/HT Flow.exe"
+          New-Item -ItemType File -Force -Path dist/portable/portable | Out-Null
+          Compress-Archive -Path dist/portable/* -DestinationPath "dist/HTFlow-$tag-windows-x64-portable.zip"
+          Get-ChildItem target/release/bundle/nsis/*.exe | ForEach-Object {
+            Copy-Item $_.FullName "dist/HTFlow-$tag-windows-x64-setup.exe"
+          }
+      - name: Release notes file
+        id: notes
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9A-Za-z.\-]+$') { throw "Unexpected tag: $tag" }
+          $file = "docs/release-notes/$tag.md"
+          if (-not (Test-Path $file)) { $file = "docs/CHANGELOG.md" }
+          "path=$file" >> $env:GITHUB_OUTPUT
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: HT Flow ${{ env.RELEASE_TAG }}
+          body_path: ${{ steps.notes.outputs.path }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          files: |
+            dist/HTFlow-*-setup.exe
+            dist/HTFlow-*-portable.zip
+          fail_on_unmatched_files: true
