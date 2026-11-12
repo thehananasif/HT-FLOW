@@ -1,8 +1,11 @@
 /**
  * In-app log (P28 Logs window). A bounded ring buffer any module can write to with
  * `log.info('chart', 'message')`, plus capture of `console.error`, `window.onerror` and
- * unhandled promise rejections. Pure (no React); the Logs window subscribes to it.
+ * unhandled promise rejections. The Logs window and Settings → Logs read it; Settings sets the
+ * minimum level and buffer size through `logBuffer.configure`.
  */
+import { useSyncExternalStore } from 'react';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export const LOG_LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error'];
@@ -34,11 +37,27 @@ export class LogBuffer {
   private seq = 0;
   private listeners = new Set<() => void>();
 
-  constructor(readonly capacity = DEFAULT_CAPACITY) {
+  /** Messages below this level are dropped (Settings → Logs → level). */
+  minLevel: LogLevel = 'debug';
+
+  constructor(public capacity = DEFAULT_CAPACITY) {
     if (!Number.isInteger(capacity) || capacity < 1) throw new Error('capacity must be >= 1');
   }
 
-  add(level: LogLevel, source: string, message: string, ts = Date.now()): LogEntry {
+  /** Applies Settings → Logs (level and in-memory buffer size). */
+  configure(opts: { minLevel?: LogLevel; capacity?: number }): void {
+    if (opts.minLevel) this.minLevel = opts.minLevel;
+    if (opts.capacity !== undefined && Number.isInteger(opts.capacity) && opts.capacity >= 1) {
+      this.capacity = opts.capacity;
+      if (this.items.length > this.capacity) {
+        this.items = this.items.slice(this.items.length - this.capacity);
+        this.emit();
+      }
+    }
+  }
+
+  add(level: LogLevel, source: string, message: string, ts = Date.now()): LogEntry | null {
+    if (RANK[level] < RANK[this.minLevel]) return null;
     const e: LogEntry = { id: ++this.seq, ts, level, source: source.trim() || 'app', message };
     const next = [...this.items, e];
     // Copy-on-write so snapshot() identity changes with content (React external-store safe).
@@ -118,6 +137,29 @@ export function stringifyArgs(args: readonly unknown[]): string {
 }
 
 export const logBuffer = new LogBuffer();
+
+/** True when a message of `level` is recorded under the configured `threshold`. */
+export function levelEnabled(level: LogLevel, threshold: LogLevel): boolean {
+  return RANK[level] >= RANK[threshold];
+}
+
+export function clearLog(): void {
+  logBuffer.clear();
+}
+
+/** Plain-text export of the buffer (or of `entries`). */
+export function logText(entries: readonly LogEntry[] = logBuffer.snapshot()): string {
+  return entriesToText(entries);
+}
+
+/** React hook over the shared buffer, selector style: `useLogStore((s) => s.entries)`. */
+export function useLogStore<T>(select: (s: { entries: LogEntry[] }) => T): T {
+  const entries = useSyncExternalStore(
+    (fn) => logBuffer.subscribe(fn),
+    () => logBuffer.snapshot(),
+  );
+  return select({ entries });
+}
 
 export const log = {
   debug: (source: string, message: string) => logBuffer.add('debug', source, message),
