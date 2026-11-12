@@ -139,6 +139,7 @@ impl Default for Clients {
                 clock: ClockSkew::default(),
             }),
             Arc::new(htflow_connector_okx::Okx::default()),
+            Arc::new(htflow_connector_bitfinex::Bitfinex::default()),
             Arc::new(htflow_connector_kraken::KrakenFutures::default()),
             Arc::new(htflow_connector_bitget::Bitget::default()),
         ];
@@ -610,6 +611,7 @@ mod tests {
             "binance-coinm",
             "binance-spot",
             "okx-swap",
+            "bitfinex",
             "kraken-futures",
             "deribit",
             "bitget",

@@ -116,7 +116,11 @@ export const PROVIDERS: Provider[] = [
     testSymbol: 'BTCUSD_PERP',
     market: 'COIN-M',
   }),
-  crypto('bitfinex', 'Bitfinex', ['Trades', 'L2 depth']),
+  crypto('bitfinex', 'Bitfinex', PERP, {
+    venue: 'bitfinex',
+    testSymbol: 'tBTCF0:USTF0',
+    market: 'Perpetuals and spot',
+  }),
   crypto('bitget', 'Bitget', PERP, {
     venue: 'bitget',
     testSymbol: 'BTCUSDT',

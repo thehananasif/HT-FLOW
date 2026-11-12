@@ -2,8 +2,14 @@ import type { Instrument } from '@htflow/market-data';
 import { registerFeedProvider } from './registry';
 import { createLiveFeed, liveInstruments } from '../state/liveFeed';
 
-/** One built-in instrument row: [symbol, tick, price decimals, qty decimals]. */
-export type VenueRow = [symbol: string, tick: number, pricePrecision: number, qtyPrecision: number];
+/** One built-in instrument row: [symbol, tick, price decimals, qty decimals, display suffix?]. */
+export type VenueRow = [
+  symbol: string,
+  tick: number,
+  pricePrecision: number,
+  qtyPrecision: number,
+  suffix?: string,
+];
 
 export interface LiveVenue {
   /** Rust venue id, also the instrument id prefix (`okx-swap` → `okx-swap:BTC-USDT-SWAP`). */
@@ -20,10 +26,16 @@ export interface LiveVenue {
 
 /** Instruments of a live venue (exported for tests and the catalog). */
 export function venueInstruments(v: LiveVenue): Instrument[] {
-  return liveInstruments(`${v.venue}:`, v.exchange, v.rows, v.suffix ?? 'Perpetual').map((i) => ({
-    ...i,
-    currency: v.currency ?? i.currency,
-  }));
+  return v.rows
+    .flatMap(([symbol, tick, pp, qp, suffix]) =>
+      liveInstruments(
+        `${v.venue}:`,
+        v.exchange,
+        [[symbol, tick, pp, qp]],
+        suffix ?? v.suffix ?? 'Perpetual',
+      ),
+    )
+    .map((i) => ({ ...i, currency: v.currency ?? i.currency }));
 }
 
 /**

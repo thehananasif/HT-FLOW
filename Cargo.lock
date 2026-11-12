@@ -1370,6 +1370,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "htflow-connector-bitfinex"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "htflow-connector-bitget"
 version = "0.1.0"
 dependencies = [
@@ -1469,6 +1481,7 @@ dependencies = [
  "futures-util",
  "htflow-auth",
  "htflow-connector-binance",
+ "htflow-connector-bitfinex",
  "htflow-connector-bitget",
  "htflow-connector-bybit",
  "htflow-connector-common",

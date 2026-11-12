@@ -80,6 +80,7 @@ export const LIVE_VENUES = [
   'binance-spot',
   'bybit-linear',
   'okx-swap',
+  'bitfinex',
   'kraken-futures',
   'deribit',
   'bitget',
