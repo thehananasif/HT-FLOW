@@ -91,10 +91,12 @@ test('Smart DOM: switch template, toggle a column, add a price note, save a cust
   // Commands are in the palette.
   await page.keyboard.press('Control+k');
   await page.getByPlaceholder('Search commands, symbols, layouts…').fill('use template Prop DOM');
-  await expect(
-    page.getByRole('option', { name: /Smart DOM: use template Prop DOM/ }),
-  ).toBeVisible();
-  await page.keyboard.press('Enter');
+  const useProp = page.getByRole('option', { name: /Smart DOM: use template Prop DOM/ });
+  await expect(useProp).toBeVisible();
+  // Click the exact command (Enter runs whichever row is selected, which can shift while the
+  // list re-renders on a busy machine), then make sure the palette closed and the ladder switched.
+  await useProp.click();
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0);
   await expect(ladder).toHaveAttribute('data-template', 'prop');
   await expect(page.getByTestId('dom-risk')).toBeVisible();
 
