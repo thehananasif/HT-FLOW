@@ -111,7 +111,6 @@ const STATIC_COMMANDS: Command[] = [
     id: `workspace.starter.${s.id}`,
     label: `Workspace: Starter — ${s.name}`,
     group: 'Layout',
-    keywords: s.description,
     run: () => void ensureLibrary().then(() => addStarter(s.id)),
   })),
 ];

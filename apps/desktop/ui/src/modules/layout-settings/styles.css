@@ -38,6 +38,20 @@
   display: none;
 }
 
+/* ---- groups with several tabs: give the tab strip room (each tab sizes to its title) ---- */
+.dockview-theme-htflow .dv-tabs-and-actions-container:not(.dv-single-tab) .dv-scrollable {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.dockview-theme-htflow .dv-tabs-and-actions-container:not(.dv-single-tab) .dv-tab {
+  /* size containment (used by single full-width headers) would collapse a tab to 0 px */
+  container-type: normal;
+  flex: none;
+}
+.dockview-theme-htflow .dv-tabs-and-actions-container:not(.dv-single-tab) .win-hdr--tab {
+  width: auto;
+}
+
 /* ---- the window ---- */
 .ls-win {
   height: 100%;

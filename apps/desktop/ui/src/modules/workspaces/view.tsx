@@ -679,11 +679,9 @@ function LinksPane() {
                 for (const id of group.windowIds) {
                   const w = useWindows.getState().windows[id];
                   if (w?.kind === 'module')
-                    useWindows
-                      .getState()
-                      .patch(id, {
-                        params: { ...(w.params ?? {}), instrumentId: v },
-                      } as Partial<WindowState>);
+                    useWindows.getState().patch(id, {
+                      params: { ...(w.params ?? {}), instrumentId: v },
+                    } as Partial<WindowState>);
                 }
               }}
             />

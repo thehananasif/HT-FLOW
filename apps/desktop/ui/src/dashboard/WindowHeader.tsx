@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { IDockviewPanelHeaderProps } from 'dockview';
 import { Camera, Maximize2, Settings2, X } from 'lucide-react';
 import { Badge, Chip, DropdownMenu, IconButton, MenuTrigger, type MenuEntry } from '@htflow/ui-kit';
@@ -181,6 +182,15 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
 export function WindowHeader(props: IDockviewPanelHeaderProps) {
   const id = props.api.id;
   const s = useWindows((st) => st.windows[id]);
+  // Re-render when panels join / leave the group (tab form vs full-width header).
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const c = props.containerApi;
+    const subs = [c.onDidAddPanel, c.onDidRemovePanel, c.onDidMovePanel].map((ev) =>
+      ev(() => bump((x) => x + 1)),
+    );
+    return () => subs.forEach((d) => d.dispose());
+  }, [props.containerApi]);
   const multi = (props.api.group?.panels.length ?? 1) > 1;
   if (!s) return <div className="win-hdr">{props.api.title}</div>;
   const inst = s.kind !== 'module' ? instrumentById(s.instrumentId) : undefined;

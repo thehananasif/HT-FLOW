@@ -278,7 +278,7 @@ const toggle = (k: 'layout.snapToGrid' | 'layout.lock' | 'layout.ribbonHidden') 
 registerCommands([
   {
     id: 'layout.snap-toggle',
-    label: 'Layout: Toggle snap to grid',
+    label: 'Layout: Toggle window snapping',
     group: 'Layout',
     ...toggle('layout.snapToGrid'),
   },
