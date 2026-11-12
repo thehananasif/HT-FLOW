@@ -68,7 +68,7 @@ export const DEFAULT_CHART_TYPE_SETTINGS: ChartTypeSettings = {
   volumeHistogram: { colorBy: 'delta', widthPct: 90, showValues: true, highlightMax: true },
   imbalance: { ratio: 300, minVolume: 0, stacked: 3, extendZones: true },
   liquidity: { gradient: 'classic', opacity: 70, upperCut: 98 },
-  orderFlowLight: { bigTrade: 5, showCvd: true, showBubbles: true },
+  orderFlowLight: { bigTrade: 20, showCvd: true, showBubbles: true },
   cot: { commercials: true, nonCommercials: true, nonReportable: true, openInterest: false },
   pnf: { style: 'glyphs' },
   kagi: { yangWidth: 3, yinWidth: 1 },

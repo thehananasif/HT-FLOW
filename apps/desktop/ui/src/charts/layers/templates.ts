@@ -88,9 +88,13 @@ export function buildExtraTemplate(b: TemplateBuildCtx): (s: ChartWindowState) =
   switch (b.state.template) {
     case 'order-flow-light': {
       const c = b.mk(b.hosts[0]!);
-      const setPalette = c.setPalette.bind(c);
-      c.setPalette = () => setPalette(LIGHT_PALETTE);
-      setPalette(LIGHT_PALETTE);
+      // Light variant whatever the app theme: theme changes must not replace this palette.
+      Object.defineProperty(c, 'palette', {
+        get: () => LIGHT_PALETTE,
+        set: () => {},
+        configurable: true,
+      });
+      c.invalidate();
       c.slotWidth = 110;
       c.options.rightMargin = 1;
       c.rightOffset = 0.6;

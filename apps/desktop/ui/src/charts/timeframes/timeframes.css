@@ -18,8 +18,8 @@
   align-items: center;
 }
 .tf-chip-wrap {
-  position: relative;
   display: inline-flex;
+  align-items: center;
 }
 .tf-chip-wrap .ht-chip:disabled {
   opacity: 0.35;
@@ -41,12 +41,9 @@
   cursor: pointer;
 }
 .tf-chip-x {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 14px;
-  height: 14px;
-  border-radius: 7px;
+  width: 16px;
+  height: 22px;
+  margin-left: 1px;
 }
 .tf-chip-add {
   width: 22px;
