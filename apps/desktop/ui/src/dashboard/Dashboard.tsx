@@ -44,7 +44,7 @@ import {
 } from '@htflow/workspace';
 import { backend, BackendError } from '../backend';
 import { useSession } from '../state/session';
-import { getSetting } from '../state/settings';
+import { getSetting, settingsReady, useSetting } from '../state/settings';
 import { activeInstrument, useWindows } from '../state/windows';
 import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../state/instruments';
 import { paper, PAPER_ACCOUNT } from '../state/market';
@@ -207,31 +207,39 @@ export function Dashboard({ version }: { version: string }) {
         if (timer) clearTimeout(timer);
         timer = setTimeout(save, 800);
       });
-      void backend.loadSettings<WorkspaceDoc>('workspace').then((saved) => {
-        if (saved && saved.tabs?.length) {
-          docRef.current = saved;
-          setDoc(saved);
-          restoreTab(saved.tabs.find((t) => t.id === saved.activeTab) ?? saved.tabs[0]!);
-        } else {
-          const tab: WorkspaceTab = {
-            id: newId('tab'),
-            name: 'DOM + Footprint',
-            layout: null,
-            windows: {},
-            tradingPanel: true,
-          };
-          const d: WorkspaceDoc = {
-            version: 1,
-            name: 'Crypto + Futures',
-            activeTab: tab.id,
-            tabs: [tab],
-            savedAt: 0,
-          };
-          docRef.current = d;
-          setDoc(d);
-          applyPreset('dom-chart-panel', DEFAULT_INSTRUMENT);
-        }
-      });
+      // The start-up choice lives in Settings → General, which loads together with the profile.
+      void Promise.all([backend.loadSettings<WorkspaceDoc>('workspace'), settingsReady()]).then(
+        ([saved]) => {
+          if (saved && saved.tabs?.length) {
+            docRef.current = saved;
+            setDoc(saved);
+            const active = saved.tabs.find((t) => t.id === saved.activeTab) ?? saved.tabs[0]!;
+            if (getSetting('general.startupWorkspace') === 'default') {
+              // "Default layout": the active layout tab is reset, other saved tabs are kept.
+              docRef.current = { ...saved, activeTab: active.id };
+              applyPreset('dom-chart-panel', DEFAULT_INSTRUMENT);
+            } else restoreTab(active);
+          } else {
+            const tab: WorkspaceTab = {
+              id: newId('tab'),
+              name: 'DOM + Footprint',
+              layout: null,
+              windows: {},
+              tradingPanel: true,
+            };
+            const d: WorkspaceDoc = {
+              version: 1,
+              name: 'Crypto + Futures',
+              activeTab: tab.id,
+              tabs: [tab],
+              savedAt: 0,
+            };
+            docRef.current = d;
+            setDoc(d);
+            applyPreset('dom-chart-panel', DEFAULT_INSTRUMENT);
+          }
+        },
+      );
     },
     [applyPreset, restoreTab, save],
   );
@@ -241,10 +249,11 @@ export function Dashboard({ version }: { version: string }) {
     const t = setTimeout(save, 500);
     return () => clearTimeout(t);
   }, [windows, tradingPanel, save]);
+  const autosaveSec = useSetting('general.autosaveSec'); // Settings → General
   useEffect(() => {
-    const i = setInterval(save, 60_000);
+    const i = setInterval(save, autosaveSec * 1000);
     return () => clearInterval(i);
-  }, [save]);
+  }, [save, autosaveSec]);
 
   // Keep dockview tab titles in sync with window state.
   useEffect(() => {

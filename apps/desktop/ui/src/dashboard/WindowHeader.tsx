@@ -17,6 +17,17 @@ import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
 import { chartHeaderItems } from '../charts/extensions';
 import { TimeframeHeader } from '../charts/timeframes/TimeframeDialog';
+import { confirmAction } from '../state/confirm';
+
+/** Closes a window, asking first when Settings → General → Confirmations requires it. */
+function closeWindow(api: IDockviewPanelHeaderProps['api']): void {
+  const w = useWindows.getState().windows[api.id];
+  void confirmAction(
+    'closeWindow',
+    { title: 'Close window', body: `Close "${api.title}"?`, confirmLabel: 'Close' },
+    { module: w?.kind === 'module' },
+  ).then((ok) => ok && api.close());
+}
 
 function LinkDot({ id, link }: { id: string; link: LinkColor }) {
   const patch = useWindows((s) => s.patch);
@@ -142,7 +153,11 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
           <span className="hdr-link" style={{ background: LINK_COLORS[s.link] }} />
         )}
         {windowTitle(s, inst?.symbol ?? '')}
-        <button className="ht-icon-btn" aria-label="Close window" onClick={() => props.api.close()}>
+        <button
+          className="ht-icon-btn"
+          aria-label="Close window"
+          onClick={() => closeWindow(props.api)}
+        >
           <X size={13} />
         </button>
       </div>
@@ -212,7 +227,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
       <IconButton label="Settings" disabled title="Chart settings window arrives in P34">
         <Settings2 size={13} />
       </IconButton>
-      <IconButton label="Close window" onClick={() => props.api.close()}>
+      <IconButton label="Close window" onClick={() => closeWindow(props.api)}>
         <X size={14} />
       </IconButton>
     </div>

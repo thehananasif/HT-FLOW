@@ -1,19 +1,59 @@
 import type { OrderBook, Side, Trade } from '@htflow/market-data';
 import {
   pnlPerTick,
+  visibleQty,
   type Account,
+  type BracketSpec,
   type Fill,
   type InstrumentEconomics,
+  type OptionPosition,
+  type OptionTradeRequest,
   type Order,
   type OrderRequest,
   type Position,
+  type TrailSpec,
 } from './types';
 
 export interface PaperEngineDeps {
   book(instrumentId: string): OrderBook | undefined;
   economics(instrumentId: string): InstrumentEconomics;
   now?(): number;
+  /** Live ATR in ticks for ATR-based trailing stops (falls back to the order's captured value). */
+  atr?(instrumentId: string): number | undefined;
+  /** Last traded price in ticks (reference for trailing stops placed without a stop price). */
+  last?(instrumentId: string): number | undefined;
 }
+
+/** Fields of an account the user may edit (name, currency, starting balance, fees). */
+export type AccountPatch = Partial<
+  Pick<
+    Account,
+    | 'name'
+    | 'currency'
+    | 'startingBalance'
+    | 'commissionPerUnit'
+    | 'takerFee'
+    | 'makerFee'
+    | 'slippageTicks'
+  >
+>;
+
+/** Mark-to-model hook for options: premium per unit, or undefined to keep the last mark. */
+export type OptionMarkModel = (pos: OptionPosition) => number | undefined;
+
+/** Live ATM management attached to an entry order once it fills (breakeven, trailing steps). */
+interface ManagedBracket {
+  entryId: string;
+  accountId: string;
+  instrumentId: string;
+  dir: 1 | -1;
+  avg: number;
+  breakeven?: { trigger: number; offset: number };
+  steps: { trigger: number; stopOffset: number }[];
+  beDone: boolean;
+}
+
+const isWorking = (o: Order) => o.status === 'working' || o.status === 'partial';
 
 type Listener = () => void;
 
@@ -54,6 +94,16 @@ export class PaperEngine {
     string,
     { accountId: string; instrumentId: string; spec: NonNullable<OrderRequest['bracket']> }
   >();
+  private managed = new Map<string, ManagedBracket>();
+  private options = new Map<string, OptionPosition>();
+  readonly optionFills: (OptionTradeRequest & {
+    ts: number;
+    commission: number;
+    realized: number;
+  })[] = [];
+  private optionModel: OptionMarkModel | null = null;
+  /** Stop / MIT / trailing orders that became market orders (slippage applies to their fills). */
+  private triggered = new Set<string>();
   private listeners = new Set<Listener>();
   /** Run in order before every new order is accepted; the first reason returned rejects it. */
   readonly preTradeChecks: PreTradeCheck[] = [];
@@ -118,14 +168,59 @@ export class PaperEngine {
     return acc;
   }
 
+  /** Renames / re-configures an account. A new starting balance applies on the next reset. */
+  updateAccount(id: string, patch: AccountPatch): boolean {
+    const a = this.accounts.get(id);
+    if (!a) return false;
+    if (patch.name !== undefined && !patch.name.trim()) return false;
+    if (patch.startingBalance !== undefined && !(patch.startingBalance >= 0)) return false;
+    Object.assign(a, patch);
+    if (patch.name !== undefined) a.name = patch.name.trim();
+    this.emit();
+    return true;
+  }
+
+  renameAccount(id: string, name: string): boolean {
+    return this.updateAccount(id, { name });
+  }
+
+  /** Sets the starting balance (and currency) and resets the account to it. */
+  setStartingBalance(id: string, balance: number, currency?: string): boolean {
+    if (
+      !this.updateAccount(
+        id,
+        currency ? { startingBalance: balance, currency } : { startingBalance: balance },
+      )
+    )
+      return false;
+    this.resetAccount(id);
+    return true;
+  }
+
+  /** Deletes an account with its orders, positions and options (fills stay in the history). */
+  deleteAccount(id: string): boolean {
+    if (!this.accounts.has(id)) return false;
+    this.clearAccountState(id);
+    this.accounts.delete(id);
+    this.emit();
+    return true;
+  }
+
+  private clearAccountState(id: string): void {
+    for (const [k, o] of this.orders) if (o.accountId === id) this.orders.delete(k);
+    for (const k of [...this.positions.keys()])
+      if (k.startsWith(id + '|')) this.positions.delete(k);
+    for (const [k, b] of this.brackets) if (b.accountId === id) this.brackets.delete(k);
+    for (const [k, m] of this.managed) if (m.accountId === id) this.managed.delete(k);
+    for (const [k, p] of this.options) if (p.accountId === id) this.options.delete(k);
+  }
+
   resetAccount(id: string): void {
     const a = this.accounts.get(id);
     if (!a) return;
     a.balance = a.startingBalance;
     a.locked = false;
-    for (const [k, o] of this.orders) if (o.accountId === id) this.orders.delete(k);
-    for (const k of [...this.positions.keys()])
-      if (k.startsWith(id + '|')) this.positions.delete(k);
+    this.clearAccountState(id);
     this.emit();
   }
 
@@ -197,7 +292,10 @@ export class PaperEngine {
       updatedAt: t,
       role: req.bracket ? 'entry' : undefined,
       tag: req.tag,
+      atm: req.bracket?.atm,
     };
+    if (req.displayQty !== undefined) order.displayQty = req.displayQty;
+    if (req.trail) order.trail = { ...req.trail };
     const reject = (reason: string) => {
       order.status = 'rejected';
       order.reason = reason;
@@ -210,8 +308,27 @@ export class PaperEngine {
     if (!(req.qty > 0)) return reject('Quantity must be > 0');
     if ((req.type === 'limit' || req.type === 'stop-limit') && req.px === undefined)
       return reject('Limit price required');
-    if ((req.type === 'stop' || req.type === 'stop-limit') && req.stopPx === undefined)
-      return reject('Stop price required');
+    if (
+      (req.type === 'stop' || req.type === 'stop-limit' || req.type === 'mit') &&
+      req.stopPx === undefined
+    )
+      return reject(req.type === 'mit' ? 'Trigger price required' : 'Stop price required');
+    if (req.displayQty !== undefined) {
+      if (req.type !== 'limit') return reject('Iceberg needs a limit order');
+      if (!(req.displayQty > 0)) return reject('Display quantity must be > 0');
+      if (req.displayQty >= req.qty) order.displayQty = undefined; // nothing hidden
+    }
+    if (req.type === 'trailing-stop') {
+      if (!req.trail || !(req.trail.amount > 0)) return reject('Trailing distance required');
+      const dist = this.trailDistance(order, req.stopPx ?? this.refPx(req.instrumentId, req.side));
+      if (!(dist > 0)) return reject('Trailing distance unavailable (no ATR)');
+      if (req.stopPx === undefined) {
+        const ref = this.refPx(req.instrumentId, req.side);
+        if (Number.isNaN(ref)) return reject('No market data');
+        order.trailRef = ref;
+        order.stopPx = req.side === 'sell' ? ref - dist : ref + dist;
+      } else order.trailRef = req.side === 'sell' ? req.stopPx + dist : req.stopPx - dist;
+    }
     if (order.reduceOnly) {
       const pos = this.position(req.accountId, req.instrumentId);
       const reduces = (pos.qty > 0 && req.side === 'sell') || (pos.qty < 0 && req.side === 'buy');
@@ -262,14 +379,61 @@ export class PaperEngine {
   }
 
   /** Moves a working order (drag on DOM/chart). */
-  modify(orderId: string, changes: { px?: number; stopPx?: number; qty?: number }): boolean {
+  modify(
+    orderId: string,
+    changes: { px?: number; stopPx?: number; qty?: number; displayQty?: number },
+  ): boolean {
     const o = this.orders.get(orderId);
     if (!o || (o.status !== 'working' && o.status !== 'partial')) return false;
-    Object.assign(o, changes);
+    if (changes.qty !== undefined && !(changes.qty > o.filled)) return false;
+    const { stopPx, ...rest } = changes;
+    Object.assign(o, rest);
+    if (stopPx !== undefined) this.setStop(o, stopPx);
     o.updatedAt = this.now();
     if (o.type === 'limit') this.fillAgainstBook(o, o.px!);
     this.emit();
     return true;
+  }
+
+  /** Moves a stop trigger; a trailing stop keeps trailing from the new level. */
+  private setStop(o: Order, stopPx: number): void {
+    if (o.type === 'trailing-stop' && o.trail && o.trailRef !== undefined) {
+      // Dragging a trailing stop changes its distance to the new gap from the best price.
+      const gap = (o.side === 'sell' ? 1 : -1) * (o.trailRef - stopPx);
+      if (gap > 0) {
+        const t = o.trail;
+        if (t.kind === 'ticks') t.amount = gap;
+        else if (t.kind === 'percent' && o.trailRef) t.amount = (gap / Math.abs(o.trailRef)) * 100;
+        else if (t.kind === 'atr') {
+          const atr = this.deps.atr?.(o.instrumentId) ?? t.atrTicks;
+          if (atr && atr > 0) t.amount = gap / atr;
+        }
+      } else o.trailRef = stopPx; // dragged past the best price: trail from the stop itself
+    }
+    o.stopPx = stopPx;
+    o.updatedAt = this.now();
+  }
+
+  /** Reference price for a new order: last trade, else the touch on the order's side. */
+  private refPx(instrumentId: string, side: Side): number {
+    const last = this.deps.last?.(instrumentId);
+    if (last !== undefined && !Number.isNaN(last)) return last;
+    const b = this.deps.book(instrumentId);
+    if (!b) return Number.NaN;
+    const px = side === 'buy' ? b.bestAsk : b.bestBid;
+    return Number.isNaN(px) ? b.mid : px;
+  }
+
+  /** Trailing distance in whole ticks (>= 1), or NaN when it cannot be computed. */
+  private trailDistance(o: Pick<Order, 'instrumentId' | 'trail'>, refPx: number): number {
+    const t: TrailSpec | undefined = o.trail;
+    if (!t) return Number.NaN;
+    let d: number;
+    if (t.kind === 'ticks') d = t.amount;
+    else if (t.kind === 'percent') d = (Math.abs(refPx) * t.amount) / 100;
+    else d = t.amount * (this.deps.atr?.(o.instrumentId) ?? t.atrTicks ?? Number.NaN);
+    if (!Number.isFinite(d) || d <= 0) return Number.NaN;
+    return Math.max(1, Math.round(d));
   }
 
   flatten(accountId: string, instrumentId: string): void {
@@ -312,8 +476,10 @@ export class PaperEngine {
     const p = this.position(accountId, instrumentId);
     if (p.qty === 0) return;
     const be = p.qty > 0 ? Math.ceil(p.avgPx) : Math.floor(p.avgPx);
-    const stops = this.workingOrders(accountId, instrumentId).filter((o) => o.type === 'stop');
-    if (stops.length) for (const s of stops) s.stopPx = be;
+    const stops = this.workingOrders(accountId, instrumentId).filter(
+      (o) => o.type === 'stop' || o.type === 'trailing-stop',
+    );
+    if (stops.length) for (const s of stops) this.setStop(s, be);
     else
       this.place({
         accountId,
@@ -331,29 +497,93 @@ export class PaperEngine {
   onTrade(instrumentId: string, t: Trade): void {
     let changed = false;
     for (const o of this.orders.values()) {
-      if (o.instrumentId !== instrumentId || (o.status !== 'working' && o.status !== 'partial'))
-        continue;
-      if (o.type === 'stop' || o.type === 'stop-limit') {
+      if (o.instrumentId !== instrumentId || !isWorking(o)) continue;
+      if (o.type === 'trailing-stop') {
+        // Follow the best price, never loosen, then trigger like a stop.
+        const dist = this.trailDistance(o, t.px);
+        const ref = o.trailRef ?? t.px;
+        const better = o.side === 'sell' ? t.px > ref : t.px < ref;
+        if (better) o.trailRef = t.px;
+        if (Number.isFinite(dist) && o.trailRef !== undefined) {
+          const want = o.side === 'sell' ? o.trailRef - dist : o.trailRef + dist;
+          const tighter = o.side === 'sell' ? want > o.stopPx! : want < o.stopPx!;
+          if (tighter) {
+            o.stopPx = want;
+            o.updatedAt = this.now();
+            changed = true;
+          }
+        }
+      }
+      if (o.type === 'stop' || o.type === 'stop-limit' || o.type === 'trailing-stop') {
         const hit = o.side === 'buy' ? t.px >= o.stopPx! : t.px <= o.stopPx!;
         if (!hit) continue;
-        if (o.type === 'stop') {
-          o.type = 'market';
-          this.fillAgainstBook(o, Infinity, t.px);
-        } else {
+        if (o.type === 'stop-limit') {
           o.type = 'limit';
           this.fillAgainstBook(o, o.px!);
+        } else {
+          o.type = 'market';
+          this.triggered.add(o.id);
+          this.fillAgainstBook(o, Infinity, t.px);
         }
+        changed = true;
+      } else if (o.type === 'mit') {
+        // Market-if-touched: a buy triggers at or below the trigger, a sell at or above.
+        const hit = o.side === 'buy' ? t.px <= o.stopPx! : t.px >= o.stopPx!;
+        if (!hit) continue;
+        o.type = 'market';
+        this.triggered.add(o.id);
+        this.fillAgainstBook(o, Infinity, t.px);
         changed = true;
       } else if (o.type === 'limit') {
         // Conservative queue model: fill only when the tape trades through the limit.
         const through = o.side === 'buy' ? t.px < o.px! : t.px > o.px!;
         if (through) {
-          this.execute(o, o.qty - o.filled, o.px!, 'maker');
+          // An iceberg fills one display slice per trade-through, then refills at the back of
+          // the queue (the next slice needs another trade through the price).
+          const q = visibleQty(o);
+          this.execute(o, q, o.px!, 'maker');
+          if (isWorking(o) && o.displayQty) o.refills = (o.refills ?? 0) + 1;
           changed = true;
         }
       }
     }
+    if (this.manageBrackets(instrumentId, t.px)) changed = true;
     if (changed) this.emit();
+  }
+
+  /** ATM auto-breakeven and trailing steps: tighten bracket stops as profit grows. */
+  private manageBrackets(instrumentId: string, px: number): boolean {
+    let changed = false;
+    for (const [id, m] of this.managed) {
+      if (m.instrumentId !== instrumentId) continue;
+      const children = [...this.orders.values()].filter((o) => o.parentId === id && isWorking(o));
+      if (!children.length) {
+        this.managed.delete(id);
+        continue;
+      }
+      const profit = (px - m.avg) * m.dir;
+      let target: number | null = null;
+      const consider = (offset: number) => {
+        const p = m.avg + m.dir * offset;
+        const rounded = m.dir > 0 ? Math.ceil(p - 1e-9) : Math.floor(p + 1e-9);
+        if (target === null || (m.dir > 0 ? rounded > target : rounded < target)) target = rounded;
+      };
+      if (m.breakeven && profit >= m.breakeven.trigger) {
+        consider(m.breakeven.offset);
+        m.beDone = true;
+      }
+      for (const s of m.steps) if (profit >= s.trigger) consider(s.stopOffset);
+      if (target === null) continue;
+      for (const sl of children) {
+        if (sl.role !== 'sl' || sl.stopPx === undefined) continue;
+        const tighter = m.dir > 0 ? target > sl.stopPx : target < sl.stopPx;
+        if (tighter) {
+          this.setStop(sl, target);
+          changed = true;
+        }
+      }
+    }
+    return changed;
   }
 
   private fillAgainstBook(o: Order, limit: number, fallbackPx?: number): void {
@@ -389,6 +619,9 @@ export class PaperEngine {
     if (qty <= 0) return;
     const acc = this.accounts.get(o.accountId)!;
     const econ = this.deps.economics(o.instrumentId);
+    // Slippage model: triggered stop / MIT / trailing fills give up `slippageTicks`.
+    if (liquidity === 'taker' && acc.slippageTicks && this.triggered.has(o.id))
+      px += (o.side === 'buy' ? 1 : -1) * acc.slippageTicks;
     const pos = this.position(o.accountId, o.instrumentId);
     const signed = o.side === 'buy' ? qty : -qty;
     let realized = 0;
@@ -406,8 +639,8 @@ export class PaperEngine {
       pos.realized += realized;
     }
     const notional = econ.tickValue > 0 ? 0 : px * econ.tickSize * qty;
-    const commission =
-      acc.commissionPerUnit * qty + acc.takerFee * notional * (liquidity === 'taker' ? 1 : 0.5);
+    const feeRate = liquidity === 'taker' ? acc.takerFee : (acc.makerFee ?? acc.takerFee);
+    const commission = acc.commissionPerUnit * qty + feeRate * notional;
     acc.balance += realized - commission;
     o.avgFillPx = (o.avgFillPx * o.filled + px * qty) / (o.filled + qty);
     o.filled += qty;
@@ -430,6 +663,7 @@ export class PaperEngine {
     this.fills.push(fill);
     if (this.postFillHooks.length) this.pendingFills.push(fill);
     if (o.status === 'filled') {
+      this.triggered.delete(o.id);
       if (o.oco)
         for (const x of this.orders.values())
           if (x.oco === o.oco && x.id !== o.id) this.reduceOco(x, o);
@@ -458,7 +692,7 @@ export class PaperEngine {
     sibling.updatedAt = this.now();
   }
 
-  private attachBracket(entry: Order, spec: NonNullable<OrderRequest['bracket']>): void {
+  private attachBracket(entry: Order, spec: BracketSpec): void {
     const dir = entry.side === 'buy' ? 1 : -1;
     const exitSide: Side = entry.side === 'buy' ? 'sell' : 'buy';
     const avg = entry.avgFillPx;
@@ -484,25 +718,214 @@ export class PaperEngine {
       oco: group,
       parentId: entry.id,
       tag: entry.tag,
+      atm: entry.atm,
       ...o,
     });
-    if (spec.slTicks) {
-      const sl = mk({
-        type: 'stop',
-        stopPx: Math.round(avg - dir * spec.slTicks),
-        qty: entry.qty,
-        role: 'sl',
-      });
+    if (spec.slTicks || spec.slTrail) {
+      let sl: Order;
+      if (spec.slTrail) {
+        const trail = { ...spec.slTrail };
+        const dist = this.trailDistance({ instrumentId: entry.instrumentId, trail }, avg);
+        const start = spec.slTicks ?? (Number.isFinite(dist) ? dist : 0);
+        const stopPx = Math.round(avg - dir * start);
+        sl = mk({
+          type: 'trailing-stop',
+          stopPx,
+          trail,
+          trailRef: Number.isFinite(dist) ? stopPx + dir * dist : avg,
+          qty: entry.qty,
+          role: 'sl',
+        });
+      } else
+        sl = mk({
+          type: 'stop',
+          stopPx: Math.round(avg - dir * spec.slTicks!),
+          qty: entry.qty,
+          role: 'sl',
+        });
       this.orders.set(sl.id, sl);
     }
     const tps = spec.tpTicks ?? [];
     if (tps.length) {
-      const per = entry.qty / tps.length;
+      const qtys = splitQty(
+        entry.qty,
+        spec.tpQty?.length === tps.length ? spec.tpQty : undefined,
+        tps.length,
+      );
       tps.forEach((ticks, i) => {
-        const q = i === tps.length - 1 ? entry.qty - per * (tps.length - 1) : per;
-        const tp = mk({ type: 'limit', px: Math.round(avg + dir * ticks), qty: q, role: 'tp' });
+        if (!(qtys[i]! > 0)) return;
+        const tp = mk({
+          type: 'limit',
+          px: Math.round(avg + dir * ticks),
+          qty: qtys[i]!,
+          role: 'tp',
+        });
         this.orders.set(tp.id, tp);
       });
     }
+    if (spec.breakeven || spec.trailSteps?.length) {
+      this.managed.set(entry.id, {
+        entryId: entry.id,
+        accountId: entry.accountId,
+        instrumentId: entry.instrumentId,
+        dir,
+        avg,
+        breakeven: spec.breakeven,
+        steps: [...(spec.trailSteps ?? [])].sort((a, b) => a.trigger - b.trigger),
+        beDone: false,
+      });
+    }
   }
+
+  /** ATM state of a bracket (for UI badges): whether auto-breakeven has fired. */
+  bracketState(entryId: string): { breakevenDone: boolean } | undefined {
+    const m = this.managed.get(entryId);
+    return m ? { breakevenDone: m.beDone } : undefined;
+  }
+
+  // ------------------------------------------------------------------ options (minimal model)
+
+  /** Sets the mark-to-model hook used by optionUnrealized / markOptions. */
+  setOptionMarkModel(fn: OptionMarkModel | null): void {
+    this.optionModel = fn;
+  }
+
+  optionPositions(accountId?: string): OptionPosition[] {
+    return [...this.options.values()].filter(
+      (p) => p.qty !== 0 && (!accountId || p.accountId === accountId),
+    );
+  }
+
+  /**
+   * Buys or sells option contracts at a premium. Buying debits premium × qty × multiplier against
+   * the position (shown as premiumFlow), selling credits it; closing books realized PnL into the
+   * balance like a futures position, so balance = start + realized − commissions stays true.
+   */
+  tradeOption(req: OptionTradeRequest): OptionPosition | string {
+    const acc = this.accounts.get(req.accountId);
+    if (!acc) return 'Unknown account';
+    if (acc.locked) return 'Trading locked';
+    if (!(req.qty > 0)) return 'Quantity must be > 0';
+    if (!(req.premium >= 0)) return 'Premium must be >= 0';
+    if (!(req.strike > 0)) return 'Strike must be > 0';
+    const mult = req.multiplier ?? 1;
+    const key = `${req.accountId}|${req.underlyingId}|${req.right}|${req.strike}|${req.expiry}`;
+    let p = this.options.get(key);
+    if (!p) {
+      p = {
+        id: nextId('op'),
+        accountId: req.accountId,
+        underlyingId: req.underlyingId,
+        right: req.right,
+        strike: req.strike,
+        expiry: req.expiry,
+        qty: 0,
+        avgPremium: 0,
+        multiplier: mult,
+        realized: 0,
+      };
+      this.options.set(key, p);
+    }
+    const signed = req.side === 'buy' ? req.qty : -req.qty;
+    let realized = 0;
+    if (p.qty === 0 || Math.sign(p.qty) === Math.sign(signed)) {
+      const n = p.qty + signed;
+      p.avgPremium = (p.avgPremium * Math.abs(p.qty) + req.premium * req.qty) / Math.abs(n);
+      p.qty = n;
+    } else {
+      const closing = Math.min(Math.abs(p.qty), req.qty);
+      realized = (req.premium - p.avgPremium) * Math.sign(p.qty) * closing * p.multiplier;
+      const n = p.qty + signed;
+      if (n !== 0 && Math.sign(n) !== Math.sign(p.qty)) p.avgPremium = req.premium;
+      if (n === 0) p.avgPremium = 0;
+      p.qty = n;
+      p.realized += realized;
+    }
+    const commission = acc.commissionPerUnit * req.qty;
+    acc.balance += realized - commission;
+    p.mark = req.premium;
+    this.optionFills.push({ ...req, multiplier: mult, ts: this.now(), commission, realized });
+    this.emit();
+    return p;
+  }
+
+  /** Net premium paid (> 0) or received (< 0) for the open contracts of a position. */
+  premiumFlow(p: OptionPosition): number {
+    return p.qty * p.avgPremium * p.multiplier;
+  }
+
+  /** Re-marks every open option through the model hook (mark-to-model). */
+  markOptions(): void {
+    if (!this.optionModel) return;
+    for (const p of this.options.values()) {
+      if (!p.qty) continue;
+      const m = this.optionModel(p);
+      if (m !== undefined && Number.isFinite(m)) p.mark = m;
+    }
+    this.emit();
+  }
+
+  optionUnrealized(accountId: string): number {
+    let u = 0;
+    for (const p of this.optionPositions(accountId)) {
+      const m = this.optionModel?.(p) ?? p.mark;
+      if (m !== undefined) u += (m - p.avgPremium) * p.qty * p.multiplier;
+    }
+    return u;
+  }
+
+  /** Settles an expiring option at intrinsic value against the underlying price (price units). */
+  expireOption(id: string, underlyingPx: number): boolean {
+    const p = [...this.options.values()].find((x) => x.id === id);
+    if (!p || !p.qty) return false;
+    const intrinsic =
+      p.right === 'call'
+        ? Math.max(0, underlyingPx - p.strike)
+        : Math.max(0, p.strike - underlyingPx);
+    const r = this.tradeOption({
+      accountId: p.accountId,
+      underlyingId: p.underlyingId,
+      right: p.right,
+      strike: p.strike,
+      expiry: p.expiry,
+      side: p.qty > 0 ? 'sell' : 'buy',
+      qty: Math.abs(p.qty),
+      premium: intrinsic,
+      multiplier: p.multiplier,
+    });
+    return typeof r !== 'string';
+  }
+}
+
+/**
+ * Splits `total` across `n` targets by weights (even when omitted). Whole-lot totals stay whole
+ * (largest remainder); fractional totals split proportionally. The sum always equals `total`.
+ */
+export function splitQty(total: number, weights: number[] | undefined, n: number): number[] {
+  if (n <= 0) return [];
+  const w =
+    weights && weights.length === n && weights.every((x) => x >= 0) && weights.some((x) => x > 0)
+      ? weights
+      : Array.from({ length: n }, () => 1);
+  const sum = w.reduce((a, b) => a + b, 0);
+  if (!weights) {
+    // Legacy even split (fractional allowed), remainder on the last target.
+    const per = total / n;
+    return w.map((_, i) => (i === n - 1 ? total - per * (n - 1) : per));
+  }
+  if (Number.isInteger(total)) {
+    const raw = w.map((x) => (total * x) / sum);
+    const out = raw.map(Math.floor);
+    let left = total - out.reduce((a, b) => a + b, 0);
+    const order = raw.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0]);
+    for (const [, i] of order) {
+      if (left <= 0) break;
+      out[i]! += 1;
+      left--;
+    }
+    return out;
+  }
+  const out = w.map((x) => (total * x) / sum);
+  out[n - 1] = total - out.slice(0, n - 1).reduce((a, b) => a + b, 0);
+  return out;
 }

@@ -1,18 +1,31 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  Activity,
   BadgeDollarSign,
+  Bell,
+  CandlestickChart,
   Clock,
+  Database,
   Download,
+  Flame,
   Gauge,
   HelpCircle,
+  Info,
   Keyboard,
+  Lock,
   Palette,
+  Puzzle,
   RotateCcw,
+  ScrollText,
   Settings2,
+  ShieldAlert,
   SlidersHorizontal,
+  Table2,
   Timer,
+  TrendingUp,
   Upload,
   Volume2,
+  Rows3,
 } from 'lucide-react';
 import { Button, NumberInput, Toggle, Tooltip, toast } from '@htflow/ui-kit';
 import {
@@ -25,6 +38,7 @@ import {
   getSettings,
   importSettings,
   parseSettingsFile,
+  resetAllSettings,
   sameValue,
   sectionKeys,
   setSettings,
@@ -39,6 +53,16 @@ import {
 import { useSession } from '../../state/session';
 import { HOTKEY_PRESETS } from './model';
 import { applyAppearance } from './effects';
+import { clearLocalCaches } from './effects';
+import { askConfirm } from '../../state/confirm';
+import { clearLog, type LogLevel } from '../../state/log';
+import {
+  AboutPanel,
+  LogPanel,
+  ModuleFoldersEditor,
+  ModuleTogglesEditor,
+  ProvidersEditor,
+} from './panels';
 import {
   ClocksEditor,
   CommissionRulesEditor,
@@ -52,6 +76,19 @@ import {
 const ICONS: Record<SectionId, ReactNode> = {
   general: <Settings2 size={15} />,
   appearance: <Palette size={15} />,
+  chart: <CandlestickChart size={15} />,
+  footprint: <Table2 size={15} />,
+  heatmap: <Flame size={15} />,
+  dom: <Rows3 size={15} />,
+  tape: <Activity size={15} />,
+  trading: <TrendingUp size={15} />,
+  data: <Database size={15} />,
+  alerts: <Bell size={15} />,
+  risk: <ShieldAlert size={15} />,
+  privacy: <Lock size={15} />,
+  logs: <ScrollText size={15} />,
+  modules: <Puzzle size={15} />,
+  about: <Info size={15} />,
   hotkeys: <Keyboard size={15} />,
   sounds: <Volume2 size={15} />,
   timezones: <Clock size={15} />,
@@ -144,6 +181,8 @@ function Control({
           onChange={(e) => onChange(e.target.value)}
         />
       );
+    case 'color':
+      return <ColorControl label={d.label} value={value as string} onChange={onChange} />;
     case 'timezone':
       return (
         <select
@@ -170,6 +209,41 @@ function Control({
     case 'custom':
       return <span className="muted">{k}</span>;
   }
+}
+
+function ColorControl({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange(v: unknown): void;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => setText(value), [value]);
+  return (
+    <span className="st-color">
+      <input
+        type="color"
+        className="st-color-pick"
+        aria-label={`${label} picker`}
+        value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#808080'}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+      />
+      <input
+        className="ht-input st-hex"
+        aria-label={label}
+        placeholder="Theme"
+        spellCheck={false}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(e.target.value.trim());
+        }}
+      />
+    </span>
+  );
 }
 
 function Row({
@@ -362,6 +436,12 @@ export function SettingsView({
                 return <CommissionRulesEditor key={k} {...props} />;
               case 'clocks':
                 return <ClocksEditor key={k} {...props} />;
+              case 'providers':
+                return <ProvidersEditor key={k} {...props} />;
+              case 'moduleToggles':
+                return <ModuleTogglesEditor key={k} {...props} />;
+              case 'moduleFolders':
+                return <ModuleFoldersEditor key={k} {...props} />;
             }
             return null;
           })}
@@ -444,12 +524,7 @@ export function SettingsView({
               size="sm"
               variant="outline"
               onClick={() => {
-                try {
-                  sessionStorage.clear();
-                  void caches?.keys().then((ks) => ks.forEach((k) => void caches.delete(k)));
-                } catch {
-                  /* ignore */
-                }
+                clearLocalCaches();
                 toast('success', 'Cache cleared', 'Market data caches are rebuilt from the feeds.');
               }}
             >
@@ -470,6 +545,70 @@ export function SettingsView({
               Open settings folder
             </Button>
           </>
+        );
+      case 'privacy':
+        return (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="privacy-clear-cache"
+              onClick={() => {
+                clearLocalCaches();
+                toast('success', 'Caches cleared', 'Session and market-data caches were deleted.');
+              }}
+            >
+              Clear caches
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                clearLog();
+                toast('success', 'Logs cleared', 'The in-memory log was emptied.');
+              }}
+            >
+              Clear logs
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="privacy-reset-all"
+              onClick={() =>
+                void askConfirm({
+                  title: 'Reset all settings',
+                  body: 'Every setting on every page returns to its default. Your journal, alerts and layouts are not touched.',
+                  confirmLabel: 'Reset everything',
+                  danger: true,
+                }).then((ok) => {
+                  if (!ok) return;
+                  resetAllSettings();
+                  dirtyRef.current = false;
+                  setDraft(getSettings());
+                  toast('success', 'Settings reset', 'All settings are back to their defaults.');
+                })
+              }
+            >
+              Reset all settings…
+            </Button>
+          </>
+        );
+      case 'logs':
+        return (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              toast(
+                'info',
+                'Log folder',
+                `${draft['logs.folder']} — opening Explorer needs the native shell command (not available yet).`,
+                8000,
+              )
+            }
+          >
+            Open log folder
+          </Button>
         );
       default:
         return null;
@@ -632,6 +771,8 @@ export function SettingsView({
                 </div>
               )}
               {renderKeys(sectionKeys(section).filter((k) => k !== 'hotkeys.preset'))}
+              {section === 'about' && <AboutPanel />}
+              {section === 'logs' && <LogPanel level={draft['logs.level'] as LogLevel} />}
             </>
           )}
         </div>
