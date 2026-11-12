@@ -35,10 +35,22 @@ ctx.onmessage = (e: MessageEvent<OptimizeJob>) => {
     if (!def) throw new Error(`Unknown strategy ${job.strategyId}`);
     const data = fromPlainData(job.data);
     const opt = new Optimizer(def, job.base, job.ranges, data, job.config, job.objective);
-    while (!opt.step(100)) ctx.postMessage({ kind: 'progress', p: job.walkForward ? opt.progress() / 2 : opt.progress() });
+    while (!opt.step(100))
+      ctx.postMessage({
+        kind: 'progress',
+        p: job.walkForward ? opt.progress() / 2 : opt.progress(),
+      });
     let folds: WalkForward['folds'] | undefined;
     if (job.walkForward) {
-      const wf = new WalkForward(def, job.base, job.ranges, data, job.config, job.objective, job.walkForward);
+      const wf = new WalkForward(
+        def,
+        job.base,
+        job.ranges,
+        data,
+        job.config,
+        job.objective,
+        job.walkForward,
+      );
       while (!wf.step(100)) ctx.postMessage({ kind: 'progress', p: 0.5 + wf.progress() / 2 });
       folds = wf.folds;
     }

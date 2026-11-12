@@ -69,6 +69,7 @@ import {
   validColor,
 } from './shared';
 import { VpsPanel } from './vps';
+import { allTemplates } from '../../trading/atmStore';
 import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
 import './styles.css';
@@ -83,6 +84,8 @@ interface CostSetup {
   takerFee: number;
   slippageTicks: number;
   fillModel: FillModel;
+  /** ATM template id overriding the strategy's brackets ('' = strategy bracket). */
+  atm: string;
 }
 
 interface AxisSetup {
@@ -129,12 +132,13 @@ const IDLE: RunState = {
 };
 
 /** Run state per window (results are large: kept in memory, not in the workspace). */
-const useRuns = create<{ runs: Record<string, RunState>; set(id: string, p: Partial<RunState>): void }>(
-  (set, get) => ({
-    runs: {},
-    set: (id, p) => set({ runs: { ...get().runs, [id]: { ...(get().runs[id] ?? IDLE), ...p } } }),
-  }),
-);
+const useRuns = create<{
+  runs: Record<string, RunState>;
+  set(id: string, p: Partial<RunState>): void;
+}>((set, get) => ({
+  runs: {},
+  set: (id, p) => set({ runs: { ...get().runs, [id]: { ...(get().runs[id] ?? IDLE), ...p } } }),
+}));
 
 /** Actions of mounted windows, for the Command Palette (most recent first). */
 interface WindowActions {
@@ -161,6 +165,7 @@ function sanitizeCost(raw: unknown, def: AnyStrategy): CostSetup {
     takerFee: n(r.takerFee, 0, 0, 0.01),
     slippageTicks: Math.round(n(r.slippageTicks, DEFAULT_BACKTEST.slippageTicks, 0, 100)),
     fillModel: r.fillModel === 'tape' ? 'tape' : 'book',
+    atm: typeof r.atm === 'string' ? r.atm : '',
   };
 }
 
@@ -175,7 +180,12 @@ function defaultAxis(def: AnyStrategy, key: string | undefined, base: RawInputs)
   const d = def.inputs[k];
   const v = Number(base[k] ?? (d && 'default' in d ? d.default : 1));
   const step = d && (d.type === 'int' || d.type === 'float') ? d.step : 1;
-  return { key: k, from: Math.max(d && 'min' in d ? d.min : 0, v - 2 * step), to: v + 2 * step, step };
+  return {
+    key: k,
+    from: Math.max(d && 'min' in d ? d.min : 0, v - 2 * step),
+    to: v + 2 * step,
+    step,
+  };
 }
 
 function sanitizeOpt(raw: unknown, def: AnyStrategy, base: RawInputs): OptSetup {
@@ -185,7 +195,12 @@ function sanitizeOpt(raw: unknown, def: AnyStrategy, base: RawInputs): OptSetup 
     const d = defaultAxis(def, a?.key && keys.includes(a.key) ? a.key : fallback, base);
     const n = (v: unknown, x: number) => (typeof v === 'number' && Number.isFinite(v) ? v : x);
     if (!a || a.key !== d.key) return d;
-    return { key: d.key, from: n(a.from, d.from), to: n(a.to, d.to), step: Math.abs(n(a.step, d.step)) || d.step };
+    return {
+      key: d.key,
+      from: n(a.from, d.from),
+      to: n(a.to, d.to),
+      step: Math.abs(n(a.step, d.step)) || d.step,
+    };
   };
   return {
     x: axis(r.x, keys[0]),
@@ -211,9 +226,14 @@ const fmtTime = (ts: number) => new Date(ts).toISOString().slice(5, 19).replace(
 function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const p = state.params ?? {};
   const strategyId =
-    typeof p.strategyId === 'string' && strategyById(p.strategyId) ? p.strategyId : STRATEGIES[0]!.id;
+    typeof p.strategyId === 'string' && strategyById(p.strategyId)
+      ? p.strategyId
+      : STRATEGIES[0]!.id;
   const def = strategyById(strategyId)!;
-  const allInputs = (p.inputs && typeof p.inputs === 'object' ? p.inputs : {}) as Record<string, RawInputs>;
+  const allInputs = (p.inputs && typeof p.inputs === 'object' ? p.inputs : {}) as Record<
+    string,
+    RawInputs
+  >;
   const inputs = resolveInputs(def.inputs, allInputs[strategyId]) as RawInputs;
   const data = sanitizeData(p.data);
   const cost = sanitizeCost(p.cost, def);
@@ -248,6 +268,8 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
           takerFee: cost.takerFee,
           slippageTicks: cost.slippageTicks,
           fillModel: cost.fillModel,
+          atmTemplates: allTemplates(),
+          atmOverride: cost.atm || undefined,
         }
       : null;
 
@@ -406,7 +428,13 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 className="st-item"
                 aria-pressed={s.id === strategyId}
                 data-testid={`strategy-${s.id}`}
-                onClick={() => setParams({ strategyId: s.id, opt: undefined, cost: { ...cost, bars: specValue(s.bars ?? { kind: 'time', ms: 300_000 }) } })}
+                onClick={() =>
+                  setParams({
+                    strategyId: s.id,
+                    opt: undefined,
+                    cost: { ...cost, bars: specValue(s.bars ?? { kind: 'time', ms: 300_000 }) },
+                  })
+                }
               >
                 <span className="st-item-name">{s.name}</span>
                 <span className="st-item-cat">{s.category}</span>
@@ -419,7 +447,12 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
           <section className="st-setup" aria-label="Backtest setup">
             <p className="st-desc">{def.description}</p>
             <div className="st-subhead">Inputs</div>
-            <InputsForm defs={def.inputs} values={inputs} onChange={setInputs} testId="strategy-inputs" />
+            <InputsForm
+              defs={def.inputs}
+              values={inputs}
+              onChange={setInputs}
+              testId="strategy-inputs"
+            />
             <div className="st-subhead">Data</div>
             <div className="st-inputs">
               <label className="st-input-row">
@@ -428,7 +461,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   small
                   aria-label="Instrument"
                   value={data.instrumentId}
-                  options={instruments.map((i) => ({ value: i.id, label: `${i.symbol} · ${i.exchange}` }))}
+                  options={instruments.map((i) => ({
+                    value: i.id,
+                    label: `${i.symbol} · ${i.exchange}`,
+                  }))}
                   onChange={(instrumentId) => setData({ instrumentId, source: '' })}
                 />
               </label>
@@ -457,15 +493,35 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </label>
               <label className="st-input-row">
                 <span>From hour</span>
-                <NumberInput aria-label="From hour" value={data.fromHour} min={0} max={23} unit="UTC" onChange={(fromHour) => setData({ fromHour })} />
+                <NumberInput
+                  aria-label="From hour"
+                  value={data.fromHour}
+                  min={0}
+                  max={23}
+                  unit="UTC"
+                  onChange={(fromHour) => setData({ fromHour })}
+                />
               </label>
               <label className="st-input-row">
                 <span>Length</span>
-                <NumberInput aria-label="Hours" value={data.hours} min={1} max={720} unit="h" onChange={(hours) => setData({ hours })} />
+                <NumberInput
+                  aria-label="Hours"
+                  value={data.hours}
+                  min={1}
+                  max={720}
+                  unit="h"
+                  onChange={(hours) => setData({ hours })}
+                />
               </label>
               <label className="st-input-row">
                 <span>Bars</span>
-                <Select small aria-label="Bars" value={cost.bars} options={BAR_SPECS.map((b) => ({ value: b.value, label: b.label }))} onChange={(bars) => setCost({ bars })} />
+                <Select
+                  small
+                  aria-label="Bars"
+                  value={cost.bars}
+                  options={BAR_SPECS.map((b) => ({ value: b.value, label: b.label }))}
+                  onChange={(bars) => setCost({ bars })}
+                />
               </label>
             </div>
             <div className="st-subhead">Fills &amp; costs</div>
@@ -483,25 +539,74 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(fillModel) => setCost({ fillModel })}
                 />
               </label>
+              <label
+                className="st-input-row"
+                title="ATM template from the trading panel replaces the strategy's stop / targets"
+              >
+                <span>Exit management</span>
+                <Select
+                  small
+                  aria-label="Exit management"
+                  value={allTemplates().some((t) => t.id === cost.atm) ? cost.atm : ''}
+                  options={[
+                    { value: '', label: 'Strategy bracket' },
+                    ...allTemplates().map((t) => ({ value: t.id, label: `ATM: ${t.name}` })),
+                  ]}
+                  onChange={(atm) => setCost({ atm })}
+                />
+              </label>
               <label className="st-input-row">
                 <span>Commission</span>
-                <NumberInput aria-label="Commission" value={cost.commissionPerUnit} step={0.01} min={0} max={1000} unit="/side" onChange={(commissionPerUnit) => setCost({ commissionPerUnit })} />
+                <NumberInput
+                  aria-label="Commission"
+                  value={cost.commissionPerUnit}
+                  step={0.01}
+                  min={0}
+                  max={1000}
+                  unit="/side"
+                  onChange={(commissionPerUnit) => setCost({ commissionPerUnit })}
+                />
               </label>
               <label className="st-input-row">
                 <span>Taker fee</span>
-                <NumberInput aria-label="Taker fee" value={cost.takerFee} step={0.0001} min={0} max={0.01} onChange={(takerFee) => setCost({ takerFee })} />
+                <NumberInput
+                  aria-label="Taker fee"
+                  value={cost.takerFee}
+                  step={0.0001}
+                  min={0}
+                  max={0.01}
+                  onChange={(takerFee) => setCost({ takerFee })}
+                />
               </label>
               <label className="st-input-row">
                 <span>Slippage</span>
-                <NumberInput aria-label="Slippage" value={cost.slippageTicks} min={0} max={100} unit="ticks" onChange={(slippageTicks) => setCost({ slippageTicks })} />
+                <NumberInput
+                  aria-label="Slippage"
+                  value={cost.slippageTicks}
+                  min={0}
+                  max={100}
+                  unit="ticks"
+                  onChange={(slippageTicks) => setCost({ slippageTicks })}
+                />
               </label>
               <label className="st-input-row">
                 <span>Start balance</span>
-                <NumberInput aria-label="Start balance" value={cost.startingBalance} step={1000} min={100} max={1e9} onChange={(startingBalance) => setCost({ startingBalance })} />
+                <NumberInput
+                  aria-label="Start balance"
+                  value={cost.startingBalance}
+                  step={1000}
+                  min={100}
+                  max={1e9}
+                  onChange={(startingBalance) => setCost({ startingBalance })}
+                />
               </label>
             </div>
             <div className="st-run">
-              <Button data-testid="strategy-run" disabled={busy || !inst} onClick={() => void runBacktest()}>
+              <Button
+                data-testid="strategy-run"
+                disabled={busy || !inst}
+                onClick={() => void runBacktest()}
+              >
                 ▶ Run backtest
               </Button>
               {busy && (
@@ -520,7 +625,11 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 </span>
               </div>
             )}
-            {run.error && <p className="st-error" role="alert">{run.error}</p>}
+            {run.error && (
+              <p className="st-error" role="alert">
+                {run.error}
+              </p>
+            )}
           </section>
           <section className="st-results" aria-label="Results">
             <div className="st-results-head">
@@ -536,7 +645,13 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 ]}
               />
               <span className="grow" />
-              <Button size="xs" variant="secondary" disabled={!res} onClick={exportCsv} data-testid="strategy-export">
+              <Button
+                size="xs"
+                variant="secondary"
+                disabled={!res}
+                onClick={exportCsv}
+                data-testid="strategy-export"
+              >
                 Export CSV
               </Button>
               <Button
@@ -563,13 +678,19 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onRun={() => void optimise()}
                   onPick={(v) => {
                     setInputs(resolveInputs(def.inputs, { ...inputs, ...v }) as RawInputs);
-                    toast('info', 'Inputs applied', Object.entries(v).map(([k, x]) => `${k} = ${x}`).join(', '));
+                    toast(
+                      'info',
+                      'Inputs applied',
+                      Object.entries(v)
+                        .map(([k, x]) => `${k} = ${x}`)
+                        .join(', '),
+                    );
                   }}
                 />
               ) : !res ? (
                 <div className="st-empty">
-                  Pick a strategy, check the inputs and press <b>Run backtest</b>. Simulated history is
-                  generated offline; recorded tick-store data is used when available.
+                  Pick a strategy, check the inputs and press <b>Run backtest</b>. Simulated history
+                  is generated offline; recorded tick-store data is used when available.
                 </div>
               ) : rtab === 'summary' ? (
                 <Summary r={res} />
@@ -577,15 +698,25 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 <div className="st-equity">
                   <EquityCanvas result={res} style={style} />
                   <div className="st-style-row">
-                    <ColorSwatch label="Equity" value={style.equity} onChange={(equity) => setParams({ style: { ...style, equity } })} />
-                    <ColorSwatch label="Drawdown" value={style.drawdown} onChange={(drawdown) => setParams({ style: { ...style, drawdown } })} />
+                    <ColorSwatch
+                      label="Equity"
+                      value={style.equity}
+                      onChange={(equity) => setParams({ style: { ...style, equity } })}
+                    />
+                    <ColorSwatch
+                      label="Drawdown"
+                      value={style.drawdown}
+                      onChange={(drawdown) => setParams({ style: { ...style, drawdown } })}
+                    />
                   </div>
                 </div>
               ) : rtab === 'trades' ? (
                 <TradesTable r={res} />
               ) : (
                 <pre className="st-log" data-testid="strategy-log">
-                  {res.logs.length ? res.logs.map((l) => `${fmtTime(l.ts)}  ${l.text}`).join('\n') : 'No log lines.'}
+                  {res.logs.length
+                    ? res.logs.map((l) => `${fmtTime(l.ts)}  ${l.text}`).join('\n')
+                    : 'No log lines.'}
                 </pre>
               )}
             </div>
@@ -596,7 +727,17 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   );
 }
 
-function Stat({ label, value, cls, testId }: { label: string; value: string; cls?: string; testId?: string }) {
+function Stat({
+  label,
+  value,
+  cls,
+  testId,
+}: {
+  label: string;
+  value: string;
+  cls?: string;
+  testId?: string;
+}) {
   return (
     <div className="st-stat">
       <span>{label}</span>
@@ -613,13 +754,25 @@ function Summary({ r }: { r: BacktestResult }) {
   return (
     <div className="st-summary" data-testid="strategy-summary">
       <div className="st-stats">
-        <Stat label="Net P&L" value={signedMoney(s.netPnl, 2)} cls={tone(s.netPnl)} testId="strategy-net" />
+        <Stat
+          label="Net P&L"
+          value={signedMoney(s.netPnl, 2)}
+          cls={tone(s.netPnl)}
+          testId="strategy-net"
+        />
         <Stat label="Trades" value={String(s.trades)} testId="strategy-trades-count" />
         <Stat label="Win rate" value={pct(s.winRate)} />
         <Stat label="Profit factor" value={ratio(s.profitFactor)} />
         <Stat label="Expectancy" value={signedMoney(s.expectancy, 2)} cls={tone(s.expectancy)} />
-        <Stat label="Expectancy (R)" value={Number.isNaN(s.expectancyR) ? '—' : `${s.expectancyR.toFixed(2)} R`} />
-        <Stat label="Max drawdown" value={money(s.maxDrawdown, 2)} cls={s.maxDrawdown > 0 ? 'down' : ''} />
+        <Stat
+          label="Expectancy (R)"
+          value={Number.isNaN(s.expectancyR) ? '—' : `${s.expectancyR.toFixed(2)} R`}
+        />
+        <Stat
+          label="Max drawdown"
+          value={money(s.maxDrawdown, 2)}
+          cls={s.maxDrawdown > 0 ? 'down' : ''}
+        />
         <Stat label="Monte-Carlo DD 95%" value={money(s.monteCarloDd95, 2)} />
         <Stat label="Sharpe / trade" value={ratio(s.sharpe)} />
         <Stat label="Sortino / trade" value={ratio(s.sortino)} />
@@ -631,10 +784,11 @@ function Summary({ r }: { r: BacktestResult }) {
         <Stat label="Trades / day" value={(s.trades / days).toFixed(1)} />
       </div>
       <p className="st-muted tnum">
-        {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} UTC · {r.ticks.toLocaleString()} ticks ·{' '}
-        {r.barCount} bars · fills: {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks} tick
-        slippage · {money(r.config.commissionPerUnit, 2)}/side. Sharpe and Sortino use per-trade net P&L (not
-        annualised).
+        {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} UTC ·{' '}
+        {r.ticks.toLocaleString()} ticks · {r.barCount} bars · fills:{' '}
+        {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks} tick
+        slippage · {money(r.config.commissionPerUnit, 2)}/side. Sharpe and Sortino use per-trade net
+        P&L (not annualised).
       </p>
     </div>
   );
@@ -650,13 +804,37 @@ function TradesTable({ r }: { r: BacktestResult }) {
       header: 'Side',
       width: 56,
       sortable: true,
-      render: (t) => <span className={t.side === 'long' ? 'up' : 'down'}>{t.side === 'long' ? 'Long' : 'Short'}</span>,
+      render: (t) => (
+        <span className={t.side === 'long' ? 'up' : 'down'}>
+          {t.side === 'long' ? 'Long' : 'Short'}
+        </span>
+      ),
     },
     { key: 'qty', header: 'Qty', width: 44, numeric: true, sortable: true },
-    { key: 'entryTs', header: 'Entry', width: 118, sortable: true, render: (t) => fmtTime(t.entryTs) },
-    { key: 'entryPx', header: 'Price', width: 80, numeric: true, sortable: true, render: (t) => px(t.entryPx) },
+    {
+      key: 'entryTs',
+      header: 'Entry',
+      width: 118,
+      sortable: true,
+      render: (t) => fmtTime(t.entryTs),
+    },
+    {
+      key: 'entryPx',
+      header: 'Price',
+      width: 80,
+      numeric: true,
+      sortable: true,
+      render: (t) => px(t.entryPx),
+    },
     { key: 'exitTs', header: 'Exit', width: 118, sortable: true, render: (t) => fmtTime(t.exitTs) },
-    { key: 'exitPx', header: 'Price', width: 80, numeric: true, sortable: true, render: (t) => px(t.exitPx) },
+    {
+      key: 'exitPx',
+      header: 'Price',
+      width: 80,
+      numeric: true,
+      sortable: true,
+      render: (t) => px(t.exitPx),
+    },
     {
       key: 'net',
       header: 'Net',
@@ -665,15 +843,35 @@ function TradesTable({ r }: { r: BacktestResult }) {
       sortable: true,
       render: (t) => <span className={tone(t.net)}>{signedMoney(t.net, 2)}</span>,
     },
-    { key: 'r', header: 'R', width: 50, numeric: true, sortable: true, sortValue: (t) => t.r ?? -Infinity, render: (t) => (t.r === null ? '—' : t.r.toFixed(2)) },
+    {
+      key: 'r',
+      header: 'R',
+      width: 50,
+      numeric: true,
+      sortable: true,
+      sortValue: (t) => t.r ?? -Infinity,
+      render: (t) => (t.r === null ? '—' : t.r.toFixed(2)),
+    },
     { key: 'maeTicks', header: 'MAE', width: 48, numeric: true, sortable: true },
     { key: 'mfeTicks', header: 'MFE', width: 48, numeric: true, sortable: true },
     { key: 'entryLabel', header: 'Signal', sortable: true },
-    { key: 'exitReason', header: 'Exit', width: 70, sortable: true, render: (t) => t.exitLabel || t.exitReason },
+    {
+      key: 'exitReason',
+      header: 'Exit',
+      width: 70,
+      sortable: true,
+      render: (t) => t.exitLabel || t.exitReason,
+    },
   ];
   return (
     <div className="st-table" data-testid="strategy-trades">
-      <Table aria-label="Backtest trades" columns={columns} rows={r.trades} rowId={(t) => String(t.n)} empty="No trades" />
+      <Table
+        aria-label="Backtest trades"
+        columns={columns}
+        rows={r.trades}
+        rowId={(t) => String(t.n)}
+        empty="No trades"
+      />
     </div>
   );
 }
@@ -708,7 +906,11 @@ function OptimisePanel({
   const map = useMemo(() => (o ? heatmapOf(o.rows, o.xKey, o.yKey) : null), [o]);
   const ranked = useMemo(() => (o ? rankRows(o.rows).slice(0, 8) : []), [o]);
   const fmt = (v: number) =>
-    o?.objective === 'winRate' ? pct(v, 0) : o?.objective === 'netPnl' || o?.objective === 'expectancy' ? money(v) : v.toFixed(2);
+    o?.objective === 'winRate'
+      ? pct(v, 0)
+      : o?.objective === 'netPnl' || o?.objective === 'expectancy'
+        ? money(v)
+        : v.toFixed(2);
   const axis = (which: 'x' | 'y') => {
     const a = opt[which];
     const d = def.inputs[a.key];
@@ -722,11 +924,27 @@ function OptimisePanel({
           options={keys.map((k) => ({ value: k, label: def.inputs[k]!.label }))}
           onChange={(key) => setOpt({ [which]: defaultAxis(def, key, inputs) })}
         />
-        <NumberInput aria-label={`${which} from`} value={a.from} step={step} onChange={(from) => setOpt({ [which]: { ...a, from } })} />
+        <NumberInput
+          aria-label={`${which} from`}
+          value={a.from}
+          step={step}
+          onChange={(from) => setOpt({ [which]: { ...a, from } })}
+        />
         <span className="st-muted">→</span>
-        <NumberInput aria-label={`${which} to`} value={a.to} step={step} onChange={(to) => setOpt({ [which]: { ...a, to } })} />
+        <NumberInput
+          aria-label={`${which} to`}
+          value={a.to}
+          step={step}
+          onChange={(to) => setOpt({ [which]: { ...a, to } })}
+        />
         <span className="st-muted">step</span>
-        <NumberInput aria-label={`${which} step`} value={a.step} step={step} min={step} onChange={(s) => setOpt({ [which]: { ...a, step: s } })} />
+        <NumberInput
+          aria-label={`${which} step`}
+          value={a.step}
+          step={step}
+          min={step}
+          onChange={(s) => setOpt({ [which]: { ...a, step: s } })}
+        />
       </div>
     );
   };
@@ -744,37 +962,74 @@ function OptimisePanel({
         <div className="st-opt-row">
           <label className="st-input-row">
             <span>Objective</span>
-            <Select small aria-label="Objective" value={opt.objective} options={OBJECTIVES} onChange={(objective) => setOpt({ objective })} />
+            <Select
+              small
+              aria-label="Objective"
+              value={opt.objective}
+              options={OBJECTIVES}
+              onChange={(objective) => setOpt({ objective })}
+            />
           </label>
           <label className="st-input-row">
             <span>Walk-forward folds</span>
-            <NumberInput aria-label="Walk-forward folds" value={opt.folds} min={0} max={10} onChange={(folds) => setOpt({ folds })} />
+            <NumberInput
+              aria-label="Walk-forward folds"
+              value={opt.folds}
+              min={0}
+              max={10}
+              onChange={(folds) => setOpt({ folds })}
+            />
           </label>
           <label className="st-input-row">
             <span>In-sample</span>
-            <NumberInput aria-label="In-sample share" value={opt.inSample} step={0.05} min={0.5} max={0.9} onChange={(inSample) => setOpt({ inSample })} />
+            <NumberInput
+              aria-label="In-sample share"
+              value={opt.inSample}
+              step={0.05}
+              min={0.5}
+              max={0.9}
+              onChange={(inSample) => setOpt({ inSample })}
+            />
           </label>
-          <Checkbox checked={opt.folds > 0} onChange={(v) => setOpt({ folds: v ? Math.max(2, opt.folds) : 0 })} label="Walk-forward" />
+          <Checkbox
+            checked={opt.folds > 0}
+            onChange={(v) => setOpt({ folds: v ? Math.max(2, opt.folds) : 0 })}
+            label="Walk-forward"
+          />
           <span className="grow" />
           <span className="st-muted tnum">
             {combos} combinations (max {GRID_LIMITS.combos})
           </span>
-          <Button size="sm" disabled={busy || combos < 1} onClick={onRun} data-testid="strategy-optimise-run">
+          <Button
+            size="sm"
+            disabled={busy || combos < 1}
+            onClick={onRun}
+            data-testid="strategy-optimise-run"
+          >
             Optimise
           </Button>
         </div>
       </div>
       {map && o ? (
         <div className="st-opt-results">
-          <HeatmapCanvas map={map} style={style} format={fmt} onPick={(x, y) => onPick({ [map.xKey]: x, [map.yKey]: y })} />
+          <HeatmapCanvas
+            map={map}
+            style={style}
+            format={fmt}
+            onPick={(x, y) => onPick({ [map.xKey]: x, [map.yKey]: y })}
+          />
           <div className="st-opt-side">
             <div className="st-subhead">Best combinations</div>
             <table className="st-mini tnum">
               <tbody>
                 {ranked.map((r, i) => (
                   <tr key={i} onClick={() => onPick(r.inputs)} title="Use these inputs">
-                    <td>{o.xKey}={String(r.inputs[o.xKey])}</td>
-                    <td>{o.yKey}={String(r.inputs[o.yKey])}</td>
+                    <td>
+                      {o.xKey}={String(r.inputs[o.xKey])}
+                    </td>
+                    <td>
+                      {o.yKey}={String(r.inputs[o.yKey])}
+                    </td>
                     <td className={tone(r.stats.netPnl)}>{signedMoney(r.stats.netPnl)}</td>
                     <td>{r.stats.trades} tr</td>
                     <td>{Number.isFinite(r.score) ? fmt(r.score) : '—'}</td>
@@ -791,8 +1046,14 @@ function OptimisePanel({
                       <tr key={i}>
                         <td>#{i + 1}</td>
                         <td>{fmtTime(f.oosFrom).slice(6)}</td>
-                        <td>{f.best ? `${o.xKey}=${String(f.best[o.xKey])} ${o.yKey}=${String(f.best[o.yKey])}` : 'no trades in-sample'}</td>
-                        <td className={tone(f.oos?.stats.netPnl ?? 0)}>{f.oos ? signedMoney(f.oos.stats.netPnl) : '—'}</td>
+                        <td>
+                          {f.best
+                            ? `${o.xKey}=${String(f.best[o.xKey])} ${o.yKey}=${String(f.best[o.yKey])}`
+                            : 'no trades in-sample'}
+                        </td>
+                        <td className={tone(f.oos?.stats.netPnl ?? 0)}>
+                          {f.oos ? signedMoney(f.oos.stats.netPnl) : '—'}
+                        </td>
                         <td>{f.oos?.stats.trades ?? 0} tr</td>
                       </tr>
                     ))}
@@ -801,16 +1062,24 @@ function OptimisePanel({
               </>
             )}
             <div className="st-style-row">
-              <ColorSwatch label="Low" value={style.heatLow} onChange={(heatLow) => setStyle({ ...style, heatLow })} />
-              <ColorSwatch label="High" value={style.heatHigh} onChange={(heatHigh) => setStyle({ ...style, heatHigh })} />
+              <ColorSwatch
+                label="Low"
+                value={style.heatLow}
+                onChange={(heatLow) => setStyle({ ...style, heatLow })}
+              />
+              <ColorSwatch
+                label="High"
+                value={style.heatHigh}
+                onChange={(heatHigh) => setStyle({ ...style, heatHigh })}
+              />
             </div>
           </div>
         </div>
       ) : (
         <div className="st-empty">
-          Choose two numeric inputs and their ranges, then press <b>Optimise</b>. Each combination is a full
-          backtest on the selected data (in a Web Worker); walk-forward re-optimises on each in-sample window
-          and trades the winner out of sample.
+          Choose two numeric inputs and their ranges, then press <b>Optimise</b>. Each combination
+          is a full backtest on the selected data (in a Web Worker); walk-forward re-optimises on
+          each in-sample window and trades the winner out of sample.
         </div>
       )}
     </div>
@@ -843,7 +1112,12 @@ function LivePanel() {
         <Button size="sm" variant="secondary" onClick={() => attachToActiveChart()}>
           + Attach to active chart
         </Button>
-        <Button size="sm" variant="destructive" disabled={!liveRuns.list().length} onClick={() => stopAll()}>
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={!liveRuns.list().length}
+          onClick={() => stopAll()}
+        >
           Stop all
         </Button>
       </div>
@@ -855,7 +1129,15 @@ function LivePanel() {
         empty="No strategy attached to a chart. Use “Attach to active chart” or the chart's Strategy chip."
         columns={[
           { key: 'name', header: 'Strategy', render: (r) => strategyById(r.ext.strategyId!)?.name },
-          { key: 'inst', header: 'Instrument', width: 90, render: (r) => (r.w.kind === 'chart' ? instrumentById(r.w.instrumentId)?.symbol ?? r.w.instrumentId : '') },
+          {
+            key: 'inst',
+            header: 'Instrument',
+            width: 90,
+            render: (r) =>
+              r.w.kind === 'chart'
+                ? (instrumentById(r.w.instrumentId)?.symbol ?? r.w.instrumentId)
+                : '',
+          },
           { key: 'acc', header: 'Account', width: 80, render: () => 'Paper' },
           { key: 'on', header: 'Runs on', width: 70, render: () => 'This PC' },
           {
@@ -865,7 +1147,9 @@ function LivePanel() {
             render: (r) => {
               const run = liveRuns.get(r.id);
               return run ? (
-                <span className={run.status === 'error' ? 'down' : 'up'}>{run.status === 'error' ? 'Error' : 'Running'}</span>
+                <span className={run.status === 'error' ? 'down' : 'up'}>
+                  {run.status === 'error' ? 'Error' : 'Running'}
+                </span>
               ) : (
                 <span className="st-muted">Backtest</span>
               );
@@ -880,20 +1164,38 @@ function LivePanel() {
               const run = liveRuns.get(r.id);
               if (!run) return '—';
               const s = liveSummary(run);
-              return <span className={tone(s.today + s.openPnl)}>{signedMoney(s.today + s.openPnl, 2)}</span>;
+              return (
+                <span className={tone(s.today + s.openPnl)}>
+                  {signedMoney(s.today + s.openPnl, 2)}
+                </span>
+              );
             },
           },
-          { key: 'trades', header: 'Trades', width: 56, numeric: true, render: (r) => (liveRuns.get(r.id) ? liveSummary(liveRuns.get(r.id)!).trades : '—') },
+          {
+            key: 'trades',
+            header: 'Trades',
+            width: 56,
+            numeric: true,
+            render: (r) => (liveRuns.get(r.id) ? liveSummary(liveRuns.get(r.id)!).trades : '—'),
+          },
           {
             key: 'act',
             header: '',
             width: 150,
             render: (r) => (
               <span className="st-row-actions">
-                <Button size="xs" variant={liveRuns.get(r.id) ? 'secondary' : 'primary'} onClick={() => writeStrategyExt(r.id, { live: !r.ext.live })}>
+                <Button
+                  size="xs"
+                  variant={liveRuns.get(r.id) ? 'secondary' : 'primary'}
+                  onClick={() => writeStrategyExt(r.id, { live: !r.ext.live })}
+                >
                   {liveRuns.get(r.id) ? 'Stop' : 'Start'}
                 </Button>
-                <Button size="xs" variant="ghost" onClick={() => useStrategyDialog.getState().open(r.id)}>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => useStrategyDialog.getState().open(r.id)}
+                >
                   Edit
                 </Button>
               </span>

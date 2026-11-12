@@ -30,8 +30,8 @@ export interface OrderOpts {
   /** Free text shown in the trades list (e.g. the signal name). */
   label?: string;
   /**
-   * ATM template id. Resolved through `StrategyHost.atm` when the trading package exposes ATM
-   * templates; otherwise the bracket is used as is.
+   * ATM template id (packages/trading atm.ts), resolved through `RunnerHost.atm` at the order's
+   * price with the bars' ATR. Replaces `bracket` when the template resolves.
    */
   atm?: string;
 }
@@ -114,6 +114,12 @@ export interface StrategyContext<I extends InputDefs = InputDefs, S = unknown> {
   sellLimit(qty: number, px: number, opts?: OrderOpts): OrderHandle | null;
   buyStop(qty: number, stopPx: number, opts?: OrderOpts): OrderHandle | null;
   sellStop(qty: number, stopPx: number, opts?: OrderOpts): OrderHandle | null;
+  /** Market-if-touched: becomes a market order when price touches `px` (buy below / sell above). */
+  buyMit(qty: number, px: number, opts?: OrderOpts): OrderHandle | null;
+  sellMit(qty: number, px: number, opts?: OrderOpts): OrderHandle | null;
+  /** Trailing stop entry / exit that follows the best price at `trailTicks`. */
+  buyTrailingStop(qty: number, trailTicks: number, opts?: OrderOpts): OrderHandle | null;
+  sellTrailingStop(qty: number, trailTicks: number, opts?: OrderOpts): OrderHandle | null;
   cancel(orderId: string): boolean;
   cancelAll(): void;
   /** Closes the position at market and cancels working orders. */

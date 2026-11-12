@@ -11,6 +11,7 @@ import {
 import { STRATEGIES, strategyById } from './examples';
 import { asAnyStrategy, defineStrategy } from './types';
 import { input } from '@htflow/indicator-sdk';
+import { ATM_PRESETS } from '@htflow/trading';
 import { monteCarloDrawdown, sharpeRatio, sortinoRatio } from './metrics';
 
 const INST = { id: 'test:X', symbol: 'X', tickSize: 1, tickValue: 10, pricePrecision: 0 };
@@ -168,6 +169,41 @@ describe('backtester', () => {
         }).stats.trades,
     );
     expect(counts.some((n) => n > 0)).toBe(true);
+  });
+
+  it('replaces the bracket with an ATM template and supports native trailing stops', () => {
+    const atm = ATM_PRESETS.find((t) => t.id === 'preset-scalp')!;
+    const r = runBacktest(Scripted, undefined, data, {
+      ...CFG,
+      atmTemplates: [atm],
+      atmOverride: atm.id,
+    });
+    // Short at 108 with the template's 8-tick stop (116) instead of the strategy's 3 ticks.
+    const short = r.trades.find((t) => t.side === 'short')!;
+    expect(short.risk).toBe(80);
+    expect(short.exitReason).toBe('end');
+    const trailing = asAnyStrategy(
+      defineStrategy({
+        id: 'trail',
+        name: 'Trail',
+        category: 'custom',
+        description: 'test',
+        inputs: {},
+        onBar(ctx) {
+          if (ctx.index === 0) ctx.buy(1, { bracket: { stopTicks: 2, trailTicks: 2 } });
+        },
+      }),
+    );
+    // prettier-ignore
+    const up = tapeData([
+      [100, 'buy'], [100, 'buy'], // bar 0 → long at 100 + 1 = 101, trailing stop 2 ticks
+      [105, 'buy'], [106, 'buy'], [107, 'buy'], // stop trails up to 105
+      [104, 'sell'], // triggers: bid 104 − 1 slip = 103
+      [104, 'sell'],
+    ]);
+    const t = runBacktest(trailing, undefined, up, CFG).trades[0]!;
+    expect(t).toMatchObject({ side: 'long', entryPx: 101, exitReason: 'stop' });
+    expect(t.exitPx).toBeGreaterThan(101);
   });
 
   it('ignores orders outside the trading window and is flat at its end', () => {

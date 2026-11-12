@@ -17,7 +17,10 @@ import {
   type Trade,
 } from '@htflow/market-data';
 import {
+  atrTicks,
   pnlPerTick,
+  resolveAtm,
+  type AtmTemplate,
   type BracketSpec,
   type Fill,
   type Order,
@@ -50,8 +53,10 @@ export interface RunnerHost {
   window?: { from: number; to: number };
   /** Trades between two times (tape-based indicators, e.g. Big Trades). */
   tradesBetween?(from: number, to: number): readonly Trade[];
-  /** ATM template resolver (when the trading package provides templates). */
-  atm?(id: string): BracketOpts | undefined;
+  /** ATM templates by id (`opts.atm`); resolved at the current price with the bars' ATR. */
+  atm?(id: string): AtmTemplate | undefined;
+  /** ATM template applied to every bracketed entry instead of the strategy's own bracket. */
+  atmOverride?: string;
   onLog?(log: StrategyLog): void;
   /** Called after every closed bar (equity sampling). */
   onBarClosed?(index: number, bar: Bar): void;
@@ -77,8 +82,13 @@ export function toBracketSpec(b: BracketOpts | undefined): BracketSpec | undefin
       ? undefined
       : (Array.isArray(b.targetTicks) ? b.targetTicks : [b.targetTicks]).filter((x) => x > 0);
   const sl = b.stopTicks && b.stopTicks > 0 ? b.stopTicks : undefined;
-  if (!sl && !tp?.length) return undefined;
-  return { slTicks: sl, tpTicks: tp?.length ? tp : undefined };
+  const trail = b.trailTicks && b.trailTicks > 0 ? b.trailTicks : undefined;
+  if (!sl && !trail && !tp?.length) return undefined;
+  return {
+    slTicks: sl,
+    ...(trail ? { slTrail: { kind: 'ticks' as const, amount: trail } } : {}),
+    tpTicks: tp?.length ? tp : undefined,
+  };
 }
 
 /**
@@ -107,7 +117,6 @@ export class StrategyRunner {
   private cur = 0;
   private cvdPrefix: number[] = [];
   private inds = new Map<string, IndEntry>();
-  private trailing = new Map<string, number>();
   private book: OrderBook | null = null;
   private ctx: StrategyContext<InputDefs, unknown>;
   private windowClosed = false;
@@ -153,7 +162,6 @@ export class StrategyRunner {
     const n = bars.length;
     const lastClosed = bars[n - 1]!.closed ? n - 1 : n - 2;
     while (this.notified <= lastClosed) this.closeBar(this.notified++);
-    this.trail(t.px);
     if (this.def.onTrade) {
       this.cur = n - 1;
       this.def.onTrade(this.ctx, t);
@@ -248,8 +256,6 @@ export class StrategyRunner {
         if (c.parentId === o.id && c.role === 'sl' && c.stopPx !== undefined) {
           this.initialStops.set(o.id, c.stopPx);
           this.roles.set(c.id, 'sl');
-          const trail = this.trailing.get(o.id);
-          if (trail) this.trailing.set(c.id, trail);
         }
       for (const c of engine.orders.values())
         if (c.parentId === o.id && c.role) this.roles.set(c.id, c.role);
@@ -261,23 +267,6 @@ export class StrategyRunner {
     }
   }
 
-  /** Moves trailing stops toward the price. */
-  private trail(px: number): void {
-    if (!this.trailing.size) return;
-    const { engine } = this.host;
-    for (const [id, dist] of this.trailing) {
-      const o = engine.orders.get(id);
-      if (!o || o.role !== 'sl') continue;
-      if (o.status !== 'working' && o.status !== 'partial') {
-        this.trailing.delete(id);
-        continue;
-      }
-      const next = o.side === 'sell' ? px - dist : px + dist;
-      const better = o.side === 'sell' ? next > o.stopPx! : next < o.stopPx!;
-      if (better) engine.modify(o.id, { stopPx: next });
-    }
-  }
-
   private place(
     side: Side,
     type: OrderType,
@@ -285,10 +274,22 @@ export class StrategyRunner {
     px: number | undefined,
     stopPx: number | undefined,
     opts: OrderOpts = {},
+    trailTicks?: number,
   ): OrderHandle | null {
     if (!this.canTrade || !(qty > 0)) return null;
     const { engine, accountId, instrument } = this.host;
-    const bracketOpts = (opts.atm && this.host.atm?.(opts.atm)) || opts.bracket;
+    let bracket = toBracketSpec(opts.bracket);
+    const atmId = opts.atm ?? (opts.bracket ? this.host.atmOverride : undefined);
+    const tpl = atmId ? this.host.atm?.(atmId) : undefined;
+    if (tpl) {
+      const refPx = px ?? stopPx ?? this.last;
+      const spec = resolveAtm(tpl, {
+        econ: instrument,
+        refPx,
+        atrTicks: atrTicks(this.series.bars, tpl.atrPeriod),
+      });
+      if (spec.slTicks || spec.slTrail || spec.tpTicks?.length) bracket = spec;
+    }
     const o = engine.place({
       accountId,
       instrumentId: instrument.id,
@@ -298,11 +299,10 @@ export class StrategyRunner {
       px,
       stopPx,
       tag: this.tag,
-      bracket: toBracketSpec(bracketOpts),
+      ...(trailTicks ? { trail: { kind: 'ticks' as const, amount: trailTicks } } : {}),
+      bracket,
     });
     if (opts.label) this.labels.set(o.id, opts.label);
-    if (bracketOpts?.trailTicks && bracketOpts.trailTicks > 0)
-      this.trailing.set(o.id, bracketOpts.trailTicks);
     if (o.status === 'rejected') {
       this.log(`Order rejected: ${o.reason ?? 'unknown reason'}`);
       return null;
@@ -318,8 +318,6 @@ export class StrategyRunner {
       if (c.role) this.roles.set(c.id, c.role);
       if (c.role === 'sl' && c.stopPx !== undefined) {
         if (!this.initialStops.has(o.id)) this.initialStops.set(o.id, c.stopPx);
-        const trail = this.trailing.get(o.id);
-        if (trail) this.trailing.set(c.id, trail);
       }
     }
   }
@@ -408,6 +406,12 @@ export class StrategyRunner {
       sellLimit: (q, px, o) => self.place('sell', 'limit', q, px, undefined, o),
       buyStop: (q, px, o) => self.place('buy', 'stop', q, undefined, px, o),
       sellStop: (q, px, o) => self.place('sell', 'stop', q, undefined, px, o),
+      buyMit: (q, px, o) => self.place('buy', 'mit', q, undefined, px, o),
+      sellMit: (q, px, o) => self.place('sell', 'mit', q, undefined, px, o),
+      buyTrailingStop: (q, trail, o) =>
+        self.place('buy', 'trailing-stop', q, undefined, undefined, o, trail),
+      sellTrailingStop: (q, trail, o) =>
+        self.place('sell', 'trailing-stop', q, undefined, undefined, o, trail),
       cancel: (id) => {
         const o = self.host.engine.orders.get(id);
         return !!o && o.tag === self.tag && self.host.engine.cancel(id);

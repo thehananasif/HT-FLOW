@@ -14,6 +14,7 @@ import {
   netOf,
   pnlPerTick,
   roundTrips,
+  type AtmTemplate,
   type Fill,
   type RoundTrip,
 } from '@htflow/trading';
@@ -40,6 +41,10 @@ export interface BacktestConfig {
   fillModel: FillModel;
   /** Trading window: no orders outside it and flat at its end (walk-forward). */
   window?: { from: number; to: number };
+  /** ATM templates strategies may reference with `opts.atm` (plain data: worker-safe). */
+  atmTemplates?: AtmTemplate[];
+  /** Template id applied to every bracketed entry (exit management override). */
+  atmOverride?: string;
 }
 
 export const DEFAULT_BACKTEST: Omit<BacktestConfig, 'instrument' | 'bars'> = {
@@ -175,6 +180,8 @@ export class Backtest {
       instrument: inst,
       bars: this.config.bars,
       window: this.config.window,
+      atm: (id) => this.config.atmTemplates?.find((t) => t.id === id),
+      atmOverride: this.config.atmOverride,
       tradesBetween: (a, b) => this.tradesBetween(a, b),
       onBarClosed: (_i, bar) => this.sample(bar.tEnd, bar.c),
     });

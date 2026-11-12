@@ -3,6 +3,7 @@ import type { BarSpec, MarketStore } from '@htflow/market-data';
 import { StrategyRunner, strategyById, type StrategyLog } from '@htflow/strategy';
 import { roundTrips, netOf, type RoundTrip } from '@htflow/trading';
 import { paper, PAPER_ACCOUNT, pnlTick } from '../../state/market';
+import { templateById } from '../../trading/atmStore';
 import { toStrategyInstrument } from './shared';
 
 /** One strategy running live on paper from a chart (P42 "Run on paper", This PC). */
@@ -43,7 +44,13 @@ export const liveRuns = {
    * Starts (or restarts) a strategy on a chart's store. The runner first replays the store's
    * history with orders disabled (warm-up: bars, indicators, state), then trades live on paper.
    */
-  start(key: string, store: MarketStore, strategyId: string, inputs: RawInputs, bars: BarSpec): void {
+  start(
+    key: string,
+    store: MarketStore,
+    strategyId: string,
+    inputs: RawInputs,
+    bars: BarSpec,
+  ): void {
     this.stop(key);
     const def = strategyById(strategyId);
     if (!def) return;
@@ -54,6 +61,7 @@ export const liveRuns = {
       instrument: toStrategyInstrument(store.instrument),
       bars,
       tag,
+      atm: templateById,
       tradesBetween: (a, b) => store.tradesBetween(a, b),
       onLog: () => notify(),
     });

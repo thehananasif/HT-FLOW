@@ -32,7 +32,12 @@ const DEMO: VpsRunner = {
   user: 'htflow',
   keyRef: 'vault:ssh/demo',
   deployments: [
-    { strategyId: 'opening-range-breakout', instrumentId: 'mock:ESZ6', accountId: PAPER_ACCOUNT, at: 0 },
+    {
+      strategyId: 'opening-range-breakout',
+      instrumentId: 'mock:ESZ6',
+      accountId: PAPER_ACCOUNT,
+      at: 0,
+    },
   ],
   demo: true,
 };
@@ -77,7 +82,12 @@ export function VpsPanel() {
           <div className="st-card-head">
             <b>Runners</b>
             <span className="grow" />
-            <Button size="xs" variant="secondary" onClick={() => setDialog('add')} data-testid="vps-add">
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={() => setDialog('add')}
+              data-testid="vps-add"
+            >
               + Add runner
             </Button>
           </div>
@@ -105,7 +115,13 @@ export function VpsPanel() {
                   </span>
                 ),
               },
-              { key: 'dep', header: 'Strategies', width: 70, numeric: true, render: (r) => r.deployments.length },
+              {
+                key: 'dep',
+                header: 'Strategies',
+                width: 70,
+                numeric: true,
+                render: (r) => r.deployments.length,
+              },
             ]}
           />
         </section>
@@ -146,7 +162,12 @@ export function VpsPanel() {
             <Button size="sm" variant="secondary" onClick={() => notBuilt('Install runner')}>
               Install runner
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => setDialog('deploy')} data-testid="vps-deploy">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setDialog('deploy')}
+              data-testid="vps-deploy"
+            >
               Deploy strategy…
             </Button>
             <span className="grow" />
@@ -183,7 +204,11 @@ export function VpsPanel() {
           onClose={() => setDialog(null)}
           onDeploy={(d) => {
             if (!cur.demo)
-              save(list.map((r) => (r.id === cur.id ? { ...r, deployments: [...r.deployments, d] } : r)));
+              save(
+                list.map((r) =>
+                  r.id === cur.id ? { ...r, deployments: [...r.deployments, d] } : r,
+                ),
+              );
             notBuilt('Deploy');
           }}
         />
@@ -206,7 +231,11 @@ function AddRunner({ onClose, onSave }: { onClose(): void; onSave(r: VpsRunner):
           <Input value={name} onChange={(e) => setName(e.target.value.slice(0, 40))} />
         </Field>
         <Field label="Host" error={host && !valid ? 'Host name or IP address' : undefined}>
-          <Input value={host} placeholder="vps.example.com" onChange={(e) => setHost(e.target.value.trim())} />
+          <Input
+            value={host}
+            placeholder="vps.example.com"
+            onChange={(e) => setHost(e.target.value.trim())}
+          />
         </Field>
         <Field label="SSH port">
           <NumberInput value={port} min={1} max={65535} onChange={setPort} />
@@ -232,7 +261,15 @@ function AddRunner({ onClose, onSave }: { onClose(): void; onSave(r: VpsRunner):
           <Button
             disabled={!valid}
             onClick={() => {
-              onSave({ id: `vps-${Date.now().toString(36)}`, name, host, port, user, keyRef, deployments: [] });
+              onSave({
+                id: `vps-${Date.now().toString(36)}`,
+                name,
+                host,
+                port,
+                user,
+                keyRef,
+                deployments: [],
+              });
               onClose();
             }}
           >
@@ -258,17 +295,34 @@ function DeployDialog({
   const [instrumentId, setInst] = useState(insts[0]?.id ?? 'mock:ESZ6');
   const [accountId, setAcc] = useState(PAPER_ACCOUNT);
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} title={`Deploy to ${runner.name}`} width={420}>
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`Deploy to ${runner.name}`}
+      width={420}
+    >
       <div className="st-form" data-testid="vps-deploy-dialog">
         <div className="st-banner">{BLOCKED}</div>
         <Field label="Strategy">
-          <Select value={strategyId} options={STRATEGIES.map((s) => ({ value: s.id, label: s.name }))} onChange={setStrategy} />
+          <Select
+            value={strategyId}
+            options={STRATEGIES.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={setStrategy}
+          />
         </Field>
         <Field label="Instrument">
-          <Select value={instrumentId} options={insts.map((i) => ({ value: i.id, label: i.symbol }))} onChange={setInst} />
+          <Select
+            value={instrumentId}
+            options={insts.map((i) => ({ value: i.id, label: i.symbol }))}
+            onChange={setInst}
+          />
         </Field>
         <Field label="Account">
-          <Select value={accountId} options={[{ value: PAPER_ACCOUNT, label: 'Paper' }]} onChange={setAcc} />
+          <Select
+            value={accountId}
+            options={[{ value: PAPER_ACCOUNT, label: 'Paper' }]}
+            onChange={setAcc}
+          />
         </Field>
         <div className="st-dialog-foot">
           <span className="grow" />

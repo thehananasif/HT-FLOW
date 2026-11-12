@@ -337,7 +337,8 @@ registerChartExtension({
       if (f.instrumentId !== store.instrument.id) return;
       const ext = readStrategyExt(ctx.windowId);
       const tag = liveRuns.get(ctx.windowId)?.tag;
-      const ours = ext.snapshots === 'all' || (ext.snapshots === 'strategy' && !!tag && f.tag === tag);
+      const ours =
+        ext.snapshots === 'all' || (ext.snapshots === 'strategy' && !!tag && f.tag === tag);
       if (!ours) return;
       const url = capture(ctx.cores.map((c) => c.canvas));
       if (!url) return;
@@ -417,7 +418,11 @@ function HeaderChip({ windowId, state }: { windowId: string; state: ChartWindowS
     >
       <span className="st-chip-dot" data-status={status} />
       {def ? def.name.split(' ').slice(0, 2).join(' ') : 'Strategy'}
-      {def && <span className="st-chip-state">{status === 'live' ? 'Live' : status === 'error' ? 'Error' : 'Test'}</span>}
+      {def && (
+        <span className="st-chip-state">
+          {status === 'live' ? 'Live' : status === 'error' ? 'Error' : 'Test'}
+        </span>
+      )}
     </Chip>
   );
 }
@@ -451,7 +456,11 @@ function StrategyDialog({ windowId }: { windowId: string }) {
         {def && (
           <>
             <p className="st-muted">{def.description}</p>
-            <InputsForm defs={def.inputs} values={ext.inputs} onChange={(inputs) => set({ inputs })} />
+            <InputsForm
+              defs={def.inputs}
+              values={ext.inputs}
+              onChange={(inputs) => set({ inputs })}
+            />
             <div className="st-dialog-row">
               <Checkbox
                 checked={ext.history}
@@ -475,10 +484,26 @@ function StrategyDialog({ windowId }: { windowId: string }) {
               />
             </label>
             <div className="st-dialog-row st-colors">
-              <ColorSwatch label="Long" value={ext.style.long} onChange={(long) => set({ style: { ...ext.style, long } })} />
-              <ColorSwatch label="Short" value={ext.style.short} onChange={(short) => set({ style: { ...ext.style, short } })} />
-              <ColorSwatch label="Win" value={ext.style.win} onChange={(win) => set({ style: { ...ext.style, win } })} />
-              <ColorSwatch label="Loss" value={ext.style.loss} onChange={(loss) => set({ style: { ...ext.style, loss } })} />
+              <ColorSwatch
+                label="Long"
+                value={ext.style.long}
+                onChange={(long) => set({ style: { ...ext.style, long } })}
+              />
+              <ColorSwatch
+                label="Short"
+                value={ext.style.short}
+                onChange={(short) => set({ style: { ...ext.style, short } })}
+              />
+              <ColorSwatch
+                label="Win"
+                value={ext.style.win}
+                onChange={(win) => set({ style: { ...ext.style, win } })}
+              />
+              <ColorSwatch
+                label="Loss"
+                value={ext.style.loss}
+                onChange={(loss) => set({ style: { ...ext.style, loss } })}
+              />
             </div>
             <div className="st-dialog-row">
               <label className="st-input-row">
@@ -519,7 +544,11 @@ function StrategyDialog({ windowId }: { windowId: string }) {
               data-testid="chart-strategy-live"
               onClick={() => {
                 set({ live: !ext.live });
-                toast('info', ext.live ? 'Strategy stopped' : 'Strategy running on paper', def.name);
+                toast(
+                  'info',
+                  ext.live ? 'Strategy stopped' : 'Strategy running on paper',
+                  def.name,
+                );
               }}
             >
               {ext.live ? 'Stop live (paper)' : '▶ Run live on paper'}

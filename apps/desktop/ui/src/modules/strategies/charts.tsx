@@ -16,7 +16,10 @@ export const DEFAULT_STYLE: ResultStyle = {
   heatHigh: '#20C77A',
 };
 
-function useCanvas(draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, deps: unknown[]) {
+function useCanvas(
+  draw: (g: CanvasRenderingContext2D, w: number, h: number) => void,
+  deps: unknown[],
+) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -167,7 +170,9 @@ export function HeatmapCanvas({
           const v = map.cells[yi]![xi]!;
           const px = l + xi * cw;
           const py = t + (ny - 1 - yi) * ch;
-          g.fillStyle = Number.isNaN(v) ? empty : mix(style.heatLow, style.heatHigh, (v - map.min) / span);
+          g.fillStyle = Number.isNaN(v)
+            ? empty
+            : mix(style.heatLow, style.heatHigh, (v - map.min) / span);
           g.fillRect(px + 0.5, py + 0.5, cw - 1, ch - 1);
           if (cw > 44 && ch > 16 && !Number.isNaN(v)) {
             g.fillStyle = '#000';
@@ -185,11 +190,15 @@ export function HeatmapCanvas({
       g.textAlign = 'center';
       g.textBaseline = 'top';
       const stepX = Math.ceil(nx / Math.max(1, Math.floor((w - l) / 40)));
-      map.xs.forEach((v, i) => i % stepX === 0 && g.fillText(String(v), l + (i + 0.5) * cw, h - b + 5));
+      map.xs.forEach(
+        (v, i) => i % stepX === 0 && g.fillText(String(v), l + (i + 0.5) * cw, h - b + 5),
+      );
       g.textAlign = 'right';
       g.textBaseline = 'middle';
       const stepY = Math.ceil(ny / Math.max(1, Math.floor((h - b) / 16)));
-      map.ys.forEach((v, i) => i % stepY === 0 && g.fillText(String(v), l - 6, t + (ny - 1 - i + 0.5) * ch));
+      map.ys.forEach(
+        (v, i) => i % stepY === 0 && g.fillText(String(v), l - 6, t + (ny - 1 - i + 0.5) * ch),
+      );
     },
     [map, style, hover],
   );
