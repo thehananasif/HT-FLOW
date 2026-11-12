@@ -302,3 +302,22 @@ describe('feed capabilities', () => {
     expect(specUnavailableReason({ kind: 'time', ms: 60_000 }, barsOnly)).toBeNull();
   });
 });
+
+describe('clusters carry the bar totals (renderers never recompute)', () => {
+  it('cluster volume and delta equal bar volume and delta for every type', () => {
+    const feed = new MockFeed('CLZ6', { seed: 5, historyHours: 1, depthMinutes: 1, now: 1.7e12 });
+    const { trades } = feed.historySync();
+    for (const spec of TIMEFRAME_PRESETS.flatMap((r) => r.specs)) {
+      for (const b of BarSeries.build(spec, trades).bars) {
+        let vol = 0;
+        let delta = 0;
+        for (const c of b.clusters.values()) {
+          vol += c.bid + c.ask;
+          delta += c.ask - c.bid;
+        }
+        expect(vol).toBeCloseTo(b.vol, 6);
+        expect(delta).toBeCloseTo(b.delta, 6);
+      }
+    }
+  });
+});
