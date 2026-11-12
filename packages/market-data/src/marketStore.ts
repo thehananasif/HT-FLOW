@@ -13,8 +13,12 @@ import type {
   EventBatch,
   FeedSource,
   FeedStatus,
+  FundingStat,
   HistoryData,
   Instrument,
+  LiquidationStat,
+  MarketStat,
+  OpenInterestStat,
   Trade,
 } from './types';
 
@@ -63,6 +67,13 @@ export class MarketStore {
   private series = new Map<string, BarSeries>();
   private listeners = new Set<() => void>();
   private tradeListeners = new Set<(trades: Trade[]) => void>();
+  /** Latest funding / open interest, recent liquidations (live derivatives venues only). */
+  funding: FundingStat | null = null;
+  openInterest: OpenInterestStat | null = null;
+  liquidations: LiquidationStat[] = [];
+  private fundingListeners = new Set<(f: FundingStat) => void>();
+  private oiListeners = new Set<(o: OpenInterestStat) => void>();
+  private liqListeners = new Set<(l: LiquidationStat[]) => void>();
   private lastDepthT = 0;
   private readonly opts: Required<MarketStoreOptions>;
 
@@ -108,6 +119,7 @@ export class MarketStore {
         this.trades = this.trades.slice(Math.floor(this.opts.maxTrades * 0.1));
       }
     }
+    if (batch.stats?.length) this.ingestStats(batch.stats);
     this.lastTs = batch.ts;
     if (
       batch.ts - this.lastDepthT >= this.opts.depthIntervalMs &&
@@ -158,6 +170,43 @@ export class MarketStore {
       s.addAll(this.trades);
     }
     this.bump();
+  }
+
+  private ingestStats(stats: MarketStat[]): void {
+    const liq: LiquidationStat[] = [];
+    for (const s of stats) {
+      if (s.kind === 'funding') {
+        this.funding = s;
+        for (const l of this.fundingListeners) l(s);
+      } else if (s.kind === 'open_interest') {
+        this.openInterest = s;
+        for (const l of this.oiListeners) l(s);
+      } else liq.push(s);
+    }
+    if (liq.length) {
+      this.liquidations.push(...liq);
+      if (this.liquidations.length > 5000)
+        this.liquidations.splice(0, this.liquidations.length - 5000);
+      for (const l of this.liqListeners) l(liq);
+    }
+  }
+
+  /** Funding rate updates (live perpetuals). */
+  onFunding(fn: (f: FundingStat) => void): () => void {
+    this.fundingListeners.add(fn);
+    return () => this.fundingListeners.delete(fn);
+  }
+
+  /** Open interest updates (live futures / perpetuals). */
+  onOpenInterest(fn: (o: OpenInterestStat) => void): () => void {
+    this.oiListeners.add(fn);
+    return () => this.oiListeners.delete(fn);
+  }
+
+  /** Liquidations as they arrive. */
+  onLiquidation(fn: (l: LiquidationStat[]) => void): () => void {
+    this.liqListeners.add(fn);
+    return () => this.liqListeners.delete(fn);
   }
 
   setStatus(s: FeedStatus): void {

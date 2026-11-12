@@ -81,6 +81,48 @@ pub struct FeedStatus {
     pub message: Option<String>,
 }
 
+/// Derivatives statistics streamed next to trades and book (P05: OI, funding, liquidations).
+///
+/// Serialised with a `kind` tag (`funding`, `open_interest`, `liquidation`) for the UI streamer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MarketStat {
+    Funding {
+        ts_ns: i64,
+        /// Current funding rate per funding interval (0.0001 = 0.01 %).
+        rate: f64,
+        /// Next funding time, ns since epoch (0 when the venue does not say).
+        next_ts_ns: i64,
+        /// Mark price (venue units, not ticks; NaN when unknown).
+        mark_price: f64,
+    },
+    OpenInterest {
+        ts_ns: i64,
+        /// Open interest in the venue's contract / base units.
+        oi: f64,
+        /// Open interest in quote currency (NaN when unknown).
+        value: f64,
+    },
+    Liquidation {
+        ts_ns: i64,
+        /// Side of the liquidation order: `Sell` = a long was liquidated.
+        side: Side,
+        /// Price in ticks.
+        px: i64,
+        qty: f64,
+    },
+}
+
+impl MarketStat {
+    pub fn ts_ns(&self) -> i64 {
+        match self {
+            MarketStat::Funding { ts_ns, .. }
+            | MarketStat::OpenInterest { ts_ns, .. }
+            | MarketStat::Liquidation { ts_ns, .. } => *ts_ns,
+        }
+    }
+}
+
 /// Every event a connector emits onto the bus.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MarketEvent {
@@ -88,6 +130,7 @@ pub enum MarketEvent {
     Deltas(Vec<BookDelta>),
     Snapshot(BookSnapshot),
     Status(FeedStatus),
+    Stats(Vec<MarketStat>),
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]

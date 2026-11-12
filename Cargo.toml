@@ -7,6 +7,14 @@ members = [
     "crates/vault",
     "crates/connectors/binance",
     "crates/connectors/bybit",
+    "crates/connectors/common",
+    "crates/connectors/okx",
+    "crates/connectors/whitebit",
+    "crates/connectors/phemex",
+    "crates/connectors/bitfinex",
+    "crates/connectors/kraken",
+    "crates/connectors/bitget",
+    "crates/connectors/deribit",
     "crates/tick-store",
 ]
 
@@ -36,6 +44,14 @@ htflow-auth = { path = "crates/auth" }
 htflow-vault = { path = "crates/vault" }
 htflow-connector-binance = { path = "crates/connectors/binance" }
 htflow-connector-bybit = { path = "crates/connectors/bybit" }
+htflow-connector-common = { path = "crates/connectors/common" }
+htflow-connector-okx = { path = "crates/connectors/okx" }
+htflow-connector-whitebit = { path = "crates/connectors/whitebit" }
+htflow-connector-phemex = { path = "crates/connectors/phemex" }
+htflow-connector-bitfinex = { path = "crates/connectors/bitfinex" }
+htflow-connector-kraken = { path = "crates/connectors/kraken" }
+htflow-connector-bitget = { path = "crates/connectors/bitget" }
+htflow-connector-deribit = { path = "crates/connectors/deribit" }
 
 htflow-tick-store = { path = "crates/tick-store" }
 

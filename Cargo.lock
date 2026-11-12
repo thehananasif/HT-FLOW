@@ -1357,6 +1357,7 @@ name = "htflow-connector-binance"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "htflow-connector-common",
  "htflow-core-types",
  "rand 0.8.8",
  "reqwest 0.12.28",
@@ -1365,6 +1366,31 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-bitfinex"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-bitget"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
  "tracing",
 ]
 
@@ -1385,6 +1411,86 @@ dependencies = [
 ]
 
 [[package]]
+name = "htflow-connector-common"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-core-types",
+ "rand 0.8.8",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-deribit"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-kraken"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-okx"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-phemex"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "htflow-connector-whitebit"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "htflow-connector-common",
+ "htflow-core-types",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "htflow-core-types"
 version = "0.1.0"
 dependencies = [
@@ -1397,9 +1503,18 @@ name = "htflow-desktop"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "futures-util",
  "htflow-auth",
  "htflow-connector-binance",
+ "htflow-connector-bitfinex",
+ "htflow-connector-bitget",
  "htflow-connector-bybit",
+ "htflow-connector-common",
+ "htflow-connector-deribit",
+ "htflow-connector-kraken",
+ "htflow-connector-okx",
+ "htflow-connector-phemex",
+ "htflow-connector-whitebit",
  "htflow-core-types",
  "htflow-tick-store",
  "keyring",

@@ -1,0 +1,17 @@
+[package]
+name = "htflow-connector-kraken"
+description = "Kraken Futures public market data connector (trades, sequenced book, funding, OI, liquidations), free"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+htflow-connector-common.workspace = true
+htflow-core-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true

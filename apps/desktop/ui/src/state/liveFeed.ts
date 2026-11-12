@@ -7,6 +7,7 @@ import {
   type FeedStatus,
   type HistoryData,
   type Instrument,
+  type MarketStat,
   type Trade,
 } from '@htflow/market-data';
 import { isTauri } from '../backend';
@@ -19,6 +20,8 @@ interface WireBatch {
   /** [side (1 bid, -1 ask), px_ticks, qty] */
   bd: [number, number, number][];
   snap?: { bids: [number, number][]; asks: [number, number][] };
+  /** Funding / open interest / liquidations (Rust `MarketStat`, tagged by `kind`). */
+  ex?: WireStat[];
   st?: {
     state: FeedStatus['state'];
     latency_ms: number;
@@ -29,6 +32,30 @@ interface WireBatch {
     /** Being recorded to the tick store. */
     rec?: boolean;
   };
+}
+
+type WireStat =
+  | { kind: 'funding'; ts_ns: number; rate: number; next_ts_ns: number; mark_price: number | null }
+  | { kind: 'open_interest'; ts_ns: number; oi: number; value: number | null }
+  | { kind: 'liquidation'; ts_ns: number; side: 'buy' | 'sell'; px: number; qty: number };
+
+/** Rust stats → UI stats (ns → ms; NaN is serialised as null). */
+export function toStats(rows: WireStat[]): MarketStat[] {
+  const num = (v: number | null) => (v === null ? Number.NaN : v);
+  return rows.map((r): MarketStat => {
+    const ts = Math.floor(r.ts_ns / 1e6);
+    if (r.kind === 'funding')
+      return {
+        kind: 'funding',
+        ts,
+        rate: r.rate,
+        nextTs: Math.floor(r.next_ts_ns / 1e6),
+        markPrice: num(r.mark_price),
+      };
+    if (r.kind === 'open_interest')
+      return { kind: 'open_interest', ts, oi: r.oi, value: num(r.value) };
+    return { kind: 'liquidation', ts, side: r.side, px: r.px, qty: r.qty };
+  });
 }
 
 interface WireHistory {
@@ -47,7 +74,19 @@ const toTrades = (rows: WireBatch['tr']): Trade[] =>
   rows.map(([ts, px, qty, s, id]) => ({ ts, px, qty, side: side(s), id }));
 
 /** Live venues served by the Rust connectors. */
-export const LIVE_VENUES = ['binance-futures', 'bybit-linear'] as const;
+export const LIVE_VENUES = [
+  'binance-futures',
+  'binance-coinm',
+  'binance-spot',
+  'bybit-linear',
+  'okx-swap',
+  'whitebit',
+  'phemex',
+  'bitfinex',
+  'kraken-futures',
+  'deribit',
+  'bitget',
+] as const;
 
 // ------------------------------------------------------------------ venue control (Connections)
 
@@ -216,7 +255,8 @@ export class TauriLiveFeed implements FeedSource {
         batch = { ...batch, trades: batch.trades.filter((t) => !ids.has(t.id)) };
       }
     }
-    if (!batch.trades.length && !batch.deltas.length && !batch.snapshot) return;
+    if (!batch.trades.length && !batch.deltas.length && !batch.snapshot && !batch.stats?.length)
+      return;
     for (const l of this.listeners) l(batch);
   }
 
@@ -235,7 +275,7 @@ export class TauriLiveFeed implements FeedSource {
           message: m.st.message,
         });
       }
-      if (!m.tr.length && !m.bd.length && !m.snap) return;
+      if (!m.tr.length && !m.bd.length && !m.snap && !m.ex?.length) return;
       const deltas: BookDelta[] = m.bd.map(([s, px, qty]) => ({
         side: s > 0 ? 'buy' : 'sell',
         px,
@@ -243,6 +283,7 @@ export class TauriLiveFeed implements FeedSource {
       }));
       const batch: EventBatch = { ts: m.t, trades: toTrades(m.tr), deltas };
       if (m.snap) batch.snapshot = { ts: m.t, bids: m.snap.bids, asks: m.snap.asks };
+      if (m.ex?.length) batch.stats = toStats(m.ex);
       if (this.buffering) {
         // Bounded: if history takes very long, keep the newest ~2 minutes of batches.
         if (this.buffer.length > 8000) this.buffer.splice(0, 1000);

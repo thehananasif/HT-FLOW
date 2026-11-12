@@ -14,11 +14,6 @@ import {
   type Provider,
 } from './providers';
 
-const DEFAULT_SYMBOL: Record<string, string> = {
-  'binance-futures': 'BTCUSDT',
-  'bybit-linear': 'BTCUSDT',
-};
-
 function blank(p: Provider): ConnectionConfig {
   return {
     id: `${p.id}-${Date.now().toString(36)}`,
@@ -85,7 +80,7 @@ export function ConnectionWizard({
     try {
       const r = await invoke<{ ok: boolean; latencyMs: number; message: string }>('market_test', {
         venue: provider.venue,
-        symbol: DEFAULT_SYMBOL[provider.venue ?? ''] ?? 'BTCUSDT',
+        symbol: provider.testSymbol ?? 'BTCUSDT',
       });
       setTest({
         ok: r.ok,
