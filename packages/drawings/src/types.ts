@@ -131,7 +131,10 @@ export type ToolId =
   | 'price-range'
   // risk
   | 'long-position'
-  | 'short-position';
+  | 'short-position'
+  // commands
+  | 'magnifier'
+  | 'remove-indicators';
 
 export type PropValue = number | string | boolean;
 

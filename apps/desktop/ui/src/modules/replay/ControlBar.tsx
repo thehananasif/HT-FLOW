@@ -1,21 +1,34 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, SkipBack, StepBack, StepForward } from 'lucide-react';
 import { Button, Checkbox, Dialog, Field, Input, toast } from '@htflow/ui-kit';
 import type { BarSpec } from '@htflow/market-data';
-import { REPLAY_SPEEDS, type ReplayEngine } from '@htflow/replay';
+import type { ChartLayer, ChartView } from '@htflow/chart-engine';
+import { ghostBars, REPLAY_SPEEDS, type ReplayEngine } from '@htflow/replay';
+import { specKey, type Bar } from '@htflow/market-data';
 import type { ChartWindowState, WindowState } from '@htflow/workspace';
-import { registerChartExtension } from '../../charts/extensions';
+import { registerChartExtension, type ChartExtensionContext } from '../../charts/extensions';
 import { registerCommands } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
+import { paper } from '../../state/market';
 import {
+  hideFuture,
   isReplayId,
+  onReplaySession,
   replayEngine,
+  replayInstrument,
   replaySession,
+  setHideFuture,
   sourceIdOf,
   type ReplayConfig,
 } from '../../feeds/replay';
+import { allEvents, calendar } from '../calendar/store';
+import { timeToX } from '../calendar/chartLines';
+import { fillTags, savedStateOf, timelineEvents } from './logic';
 import {
   addTemplate,
+  onReplayDisplay,
+  replayDisplay,
+  useReplayDisplay,
   fmtClock,
   fmtHm,
   fromLocalInput,
@@ -56,6 +69,27 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
     return e.start + Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * span;
   };
   const pct = (t: number) => `${(((t - e.start) / span) * 100).toFixed(3)}%`;
+  const display = useReplayDisplay();
+  const [calTick, setCalTick] = useState(0);
+  useEffect(() => {
+    void calendar.ensureLoaded();
+    return calendar.subscribe(() => setCalTick((x) => x + 1));
+  }, []);
+  const events = useMemo(
+    () =>
+      display.timelineEvents
+        ? timelineEvents(
+            allEvents(calendar.get(), e.start),
+            e.start,
+            e.end,
+            replayInstrument(sourceIdOf(id)),
+            display.eventImpact,
+          )
+        : [],
+    // calTick re-evaluates when the calendar changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [display.timelineEvents, display.eventImpact, e.start, e.end, id, calTick],
+  );
   return (
     <div className="rp-timeline">
       <span className="tnum muted">{fmtHm(e.start)}</span>
@@ -87,6 +121,19 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
         )}
         <span className="rp-fill" style={{ width: `${frac * 100}%` }} />
         <span className="rp-thumb" style={{ left: `${frac * 100}%` }} />
+        {events.map((ev) => (
+          <span
+            key={ev.uid}
+            className={`rp-evt rp-evt--${ev.impact}`}
+            style={{ left: pct(ev.t) }}
+            title={`${ev.currency ? ev.currency + ' · ' : ''}${ev.title} · ${fmtHm(ev.t)}`}
+            data-testid="replay-event"
+            onPointerDown={(pe) => {
+              pe.stopPropagation();
+              replayControls.seek(id, ev.t);
+            }}
+          />
+        ))}
         {e.bookmarks.map((b) => (
           <span
             key={b.id}
@@ -255,6 +302,11 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
           label="Sync all windows"
         />
         <Checkbox
+          checked={hideFuture()}
+          onChange={(v) => setHideFuture(v)}
+          label="Hide future bars"
+        />
+        <Checkbox
           checked={!!e.loop}
           onChange={(v) => {
             const bm = e.bookmarks;
@@ -292,10 +344,132 @@ function configForChart(s: ChartWindowState): ReplayConfig {
   };
 }
 
+/** Faded future candles after the last real bar when "Hide future bars" is off. */
+class GhostLayer implements ChartLayer {
+  readonly id = 'replay-ghost';
+  private cache: { key: string; bars: Bar[] } | null = null;
+  constructor(private ctx: ChartExtensionContext) {}
+
+  draw(v: ChartView): void {
+    const st = this.ctx.state();
+    if (!isReplayId(st.instrumentId) || hideFuture()) return;
+    const e = replayEngine(st.instrumentId);
+    const series = this.ctx.series();
+    if (!e || !series || !series.bars.length) return;
+    const spec = specOf(st);
+    const last = series.bars[series.bars.length - 1]!;
+    const n = replayDisplay().ghostBars;
+    const key = `${specKey(spec)}|${n}|${last.t}|${spec.kind === 'time' ? '' : e.tradeIndex}`;
+    if (this.cache?.key !== key)
+      this.cache = {
+        key,
+        bars: ghostBars(e.dataset.trades, e.tradeIndex, spec, last.t, { maxBars: n }),
+      };
+    const bars = this.cache.bars;
+    if (!bars.length) return;
+    const { ctx, palette: p } = v;
+    const w = Math.max(1, Math.min(v.slotWidth * 0.7, 40));
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(v.plot.x, v.plot.y, v.plot.w, v.plot.h);
+    ctx.clip();
+    ctx.globalAlpha = replayDisplay().ghostOpacity;
+    const base = series.bars.length;
+    bars.forEach((b, k) => {
+      const x = v.xOf(base + k);
+      if (x < v.plot.x - w || x > v.plot.x + v.plot.w + w) return;
+      const col = b.c >= b.o ? p.up : p.down;
+      const yO = v.yOf(b.o);
+      const yC = v.yOf(b.c);
+      ctx.strokeStyle = col;
+      ctx.fillStyle = col;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x) + 0.5, v.yOf(b.h));
+      ctx.lineTo(Math.round(x) + 0.5, v.yOf(b.l));
+      ctx.stroke();
+      ctx.fillRect(x - w / 2, Math.min(yO, yC), w, Math.max(1, Math.abs(yC - yO)));
+    });
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = p.textTertiary;
+    const xs = v.xOf(base - 0.5);
+    ctx.beginPath();
+    ctx.moveTo(xs, v.plot.y);
+    ctx.lineTo(xs, v.plot.y + v.plot.h);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/** B / S fill tags on the bars where replay-routed orders filled. */
+class FillTagsLayer implements ChartLayer {
+  readonly id = 'replay-fills';
+  constructor(private ctx: ChartExtensionContext) {}
+
+  draw(v: ChartView): void {
+    const st = this.ctx.state();
+    const d = replayDisplay();
+    if (!d.fillTags || !isReplayId(st.instrumentId)) return;
+    const e = replayEngine(st.instrumentId);
+    const series = this.ctx.series();
+    if (!e || !series || !series.bars.length) return;
+    const tags = fillTags(paper.fills, st.instrumentId, e.time, d.tagQty);
+    if (!tags.length) return;
+    const barMs = st.timeframe.kind === 'time' ? st.timeframe.ms : null;
+    const { ctx, palette: p } = v;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(v.plot.x, v.plot.y, v.plot.w, v.plot.h);
+    ctx.clip();
+    ctx.font = v.font(d.tagSize, 700);
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    for (const t of tags) {
+      const x = timeToX(series.bars, t.ts, v, barMs);
+      if (x === null) continue;
+      const y = v.yOf(t.px);
+      const buy = t.side === 'buy';
+      const w = ctx.measureText(t.text).width + 8;
+      const h = d.tagSize + 6;
+      const ty = buy ? y + 6 + h / 2 : y - 6 - h / 2;
+      ctx.fillStyle = buy ? p.up : p.down;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - 4, buy ? ty - h / 2 : ty + h / 2);
+      ctx.lineTo(x + 4, buy ? ty - h / 2 : ty + h / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(x - w / 2, ty - h / 2, w, h);
+      ctx.fillStyle = '#000000';
+      ctx.fillText(t.text, x, ty);
+    }
+    ctx.restore();
+  }
+}
+
 registerChartExtension({
   id: 'replay',
   Overlay: ReplayOverlay,
+  layers: (ctx) => [new GhostLayer(ctx), new FillTagsLayer(ctx)],
+  attach: (ctx) => {
+    const redraw = () => ctx.cores.forEach((c) => c.invalidate());
+    const un1 = paper.subscribe(redraw);
+    const un2 = onReplayDisplay(redraw);
+    const un3 = onReplaySession(redraw);
+    return () => (un1(), un2(), un3());
+  },
   menu: (ctx) => [
+    ...(isReplayId(ctx.state().instrumentId)
+      ? [
+          {
+            id: 'replay-hide-future',
+            label: 'Hide future bars',
+            checked: hideFuture(),
+            onSelect: () => setHideFuture(!hideFuture()),
+          },
+        ]
+      : []),
     {
       id: 'replay-template',
       label: 'Add replay template',
@@ -305,7 +479,8 @@ registerChartExtension({
         const sym = ctx.store.instrument.symbol;
         void loadTemplates().then(() => {
           const name = `${sym} ${fmtHm(cfg.from)}–${fmtHm(cfg.to)}`;
-          addTemplate(name, cfg);
+          const eng = replayEngine(s.instrumentId);
+          addTemplate(name, cfg, eng ? savedStateOf(eng.bookmarks, eng.loop) : undefined);
           toast('success', 'Replay template saved', name);
         });
       },
@@ -360,6 +535,12 @@ function syncCommands(): void {
         group: 'Chart',
         shortcut: 'Shift+ArrowRight',
         run: run((id) => replayControls.stepTick(id)),
+      },
+      {
+        id: 'replay.hide-future',
+        label: 'Replay: toggle hide future bars (ghost candles)',
+        group: 'Chart',
+        run: () => setHideFuture(!hideFuture()),
       },
       ...REPLAY_SPEEDS.map((x, i) => ({
         id: `replay.speed.${i + 1}`,

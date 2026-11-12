@@ -125,7 +125,50 @@ export class PaperEngine {
   }
 
   private now(): number {
-    return this.deps.now?.() ?? Date.now();
+    const t = this.clockInst === undefined ? undefined : this.clock?.(this.clockInst);
+    return t ?? this.deps.now?.() ?? Date.now();
+  }
+
+  /**
+   * Per-instrument clock (replay): returns the time to stamp orders / fills of that instrument
+   * with, or undefined to use the normal clock. Orders on other instruments keep wall-clock time.
+   */
+  setClock(fn: ((instrumentId: string) => number | undefined) | null): void {
+    this.clock = fn;
+  }
+
+  private clock: ((instrumentId: string) => number | undefined) | null = null;
+  private clockInst: string | undefined;
+
+  private inClock<T>(instrumentId: string, fn: () => T): T {
+    const prev = this.clockInst;
+    this.clockInst = instrumentId;
+    try {
+      return fn();
+    } finally {
+      this.clockInst = prev;
+    }
+  }
+
+  place(req: OrderRequest): Order {
+    return this.inClock(req.instrumentId, () => this.placeInner(req));
+  }
+
+  onTrade(instrumentId: string, t: Trade): void {
+    this.inClock(instrumentId, () => this.onTradeInner(instrumentId, t));
+  }
+
+  cancel(orderId: string, silent = false): boolean {
+    const o = this.orders.get(orderId);
+    return this.inClock(o?.instrumentId ?? '', () => this.cancelInner(orderId, silent));
+  }
+
+  modify(
+    orderId: string,
+    changes: { px?: number; stopPx?: number; qty?: number; displayQty?: number },
+  ): boolean {
+    const o = this.orders.get(orderId);
+    return this.inClock(o?.instrumentId ?? '', () => this.modifyInner(orderId, changes));
   }
 
   subscribe(fn: Listener): () => void {
@@ -269,7 +312,7 @@ export class PaperEngine {
     return (markPx - p.avgPx) * pnlPerTick(this.deps.economics(instrumentId), p.qty);
   }
 
-  place(req: OrderRequest): Order {
+  private placeInner(req: OrderRequest): Order {
     const r = this.router?.(req.accountId, req.instrumentId);
     if (r) req = { ...req, accountId: r.accountId, tag: req.tag ?? r.tag };
     const acc = this.accounts.get(req.accountId);
@@ -358,7 +401,7 @@ export class PaperEngine {
     return order;
   }
 
-  cancel(orderId: string, silent = false): boolean {
+  private cancelInner(orderId: string, silent = false): boolean {
     const o = this.orders.get(orderId);
     if (!o || (o.status !== 'working' && o.status !== 'partial')) return false;
     o.status = 'cancelled';
@@ -379,7 +422,7 @@ export class PaperEngine {
   }
 
   /** Moves a working order (drag on DOM/chart). */
-  modify(
+  private modifyInner(
     orderId: string,
     changes: { px?: number; stopPx?: number; qty?: number; displayQty?: number },
   ): boolean {
@@ -494,7 +537,7 @@ export class PaperEngine {
   }
 
   /** Feed every live/replay trade through here (Live Pipeline stage 11). */
-  onTrade(instrumentId: string, t: Trade): void {
+  private onTradeInner(instrumentId: string, t: Trade): void {
     let changed = false;
     for (const o of this.orders.values()) {
       if (o.instrumentId !== instrumentId || !isWorking(o)) continue;

@@ -179,7 +179,7 @@ describe('geometry and hit-testing', () => {
   it('every ready tool builds shapes without throwing', () => {
     const s = BarSeries.build({ kind: 'time', ms: 60_000 }, trades());
     const P = proj(s);
-    for (const def of TOOLS.filter((t) => t.ready)) {
+    for (const def of TOOLS.filter((t) => t.ready && !t.command)) {
       const n = def.mode === 'click' ? 1 : Math.max(2, def.n || 4);
       const anchors = Array.from({ length: n }, (_, i) => ({
         t: (3 + i * 4) * 60_000,
