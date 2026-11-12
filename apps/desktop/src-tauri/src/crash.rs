@@ -73,7 +73,7 @@ fn redact_user_paths(text: &str) -> String {
                 let rest = &text[seg_start..];
                 let seg_len = rest
                     // Windows user names may contain spaces: stop only at separators / line end.
-                    .find(|c: char| matches!(c, '\\' | '/' | '"' | '\'' | ')' | ':' | '\n' | '\r'))
+                    .find(['\\', '/', '"', '\'', ')', ':', '\n', '\r'])
                     .unwrap_or(rest.len());
                 if seg_len > 0 {
                     out.push_str("<user>");
