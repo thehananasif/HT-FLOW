@@ -22,7 +22,7 @@ export interface VpsRunner {
 
 const KEY = 'strategies.vps';
 const BLOCKED =
-  'Requires your own VPS running the HT Flow Runner (headless Rust core over an SSH tunnel). The runner binary is not built yet, so nothing is sent anywhere.';
+  'Remote runs need a VPS running the HT Flow Runner (headless Rust core over an SSH tunnel). The runner binary is not built yet, so nothing is sent anywhere.';
 
 const DEMO: VpsRunner = {
   id: 'demo',
