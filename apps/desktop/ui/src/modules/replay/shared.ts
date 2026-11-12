@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_LAYERS, type ReplayEngine } from '@htflow/replay';
+import {
+  DEFAULT_DISPLAY,
+  normalizeBookmarks,
+  normalizeDisplay,
+  normalizeLoop,
+  sameSavedState,
+  savedStateOf,
+  type ReplayDisplay,
+  type SavedReplayState,
+} from './logic';
 import { backend } from '../../backend';
 import {
   onReplaySession,
   replayEngine,
   replaySession,
   type ReplayConfig,
+  type ReplaySession,
 } from '../../feeds/replay';
 
 /** Saved one-click practice sessions (P24 "Add replay template"). */
@@ -13,6 +24,9 @@ export interface ReplayTemplate {
   id: string;
   name: string;
   config: ReplayConfig;
+  /** Bookmarks and loop range, saved per template (P24). */
+  bookmarks?: SavedReplayState['bookmarks'];
+  loop?: SavedReplayState['loop'];
 }
 
 const KEY = 'replay.templates';
@@ -41,8 +55,14 @@ export function loadTemplates(): Promise<void> {
         ...t,
         config: {
           ...t.config,
-          layers: { ...DEFAULT_LAYERS, ...t.config.layers, hideFuture: true },
+          layers: {
+            ...DEFAULT_LAYERS,
+            ...t.config.layers,
+            hideFuture: t.config.layers?.hideFuture !== false,
+          },
         },
+        bookmarks: normalizeBookmarks(t.bookmarks, t.config.from, t.config.to),
+        loop: normalizeLoop(t.loop, t.config.from, t.config.to),
       }));
       tplListeners.forEach((l) => l());
     })
@@ -60,8 +80,86 @@ export function saveTemplates(next: ReplayTemplate[]): void {
   void backend.saveSettings(KEY, next).catch(() => {});
 }
 
-export function addTemplate(name: string, config: ReplayConfig): void {
-  saveTemplates([...templates, { id: `rt${Date.now().toString(36)}`, name, config }]);
+export function addTemplate(name: string, config: ReplayConfig, state?: SavedReplayState): void {
+  saveTemplates([
+    ...templates,
+    {
+      id: `rt${Date.now().toString(36)}`,
+      name,
+      config: { ...config, templateId: undefined },
+      bookmarks: state?.bookmarks ?? [],
+      loop: state?.loop ?? null,
+    },
+  ]);
+}
+
+/** Puts a template's saved bookmarks and loop range on a freshly started session. */
+export function applyTemplateState(s: ReplaySession, t: ReplayTemplate): void {
+  for (const e of s.engines.values()) {
+    const marks = normalizeBookmarks(t.bookmarks, e.start, e.end);
+    e.setBookmarks(marks.map((b, i) => ({ id: `tpl${i}`, t: b.t, label: b.label })));
+    e.setLoop(normalizeLoop(t.loop, e.start, e.end));
+  }
+}
+
+// Bookmarks and the loop range of a session started from a template are saved back to it.
+const bound = new WeakSet<ReplaySession>();
+function bindTemplateSession(): void {
+  const s = replaySession();
+  const id = s?.config.templateId;
+  if (!s || !id || bound.has(s)) return;
+  bound.add(s);
+  const e = s.group.primary;
+  e.onChange(() => {
+    if (replaySession() !== s) return;
+    const i = templates.findIndex((t) => t.id === id);
+    if (i < 0) return;
+    const cur = savedStateOf(e.bookmarks, e.loop);
+    const prev = savedStateOf(templates[i]!.bookmarks ?? [], templates[i]!.loop ?? null);
+    if (sameSavedState(cur, prev)) return;
+    saveTemplates(
+      templates.map((t, k) => (k === i ? { ...t, bookmarks: cur.bookmarks, loop: cur.loop } : t)),
+    );
+  });
+}
+onReplaySession(bindTemplateSession);
+
+// ------------------------------------------------------------------ display options
+
+const DISPLAY_KEY = 'replay.display';
+let display: ReplayDisplay = DEFAULT_DISPLAY;
+let displayLoaded = false;
+const displayListeners = new Set<() => void>();
+
+export function replayDisplay(): ReplayDisplay {
+  if (!displayLoaded) {
+    displayLoaded = true;
+    backend
+      .loadSettings<unknown>(DISPLAY_KEY)
+      .then((raw) => {
+        display = normalizeDisplay(raw);
+        displayListeners.forEach((l) => l());
+      })
+      .catch(() => {});
+  }
+  return display;
+}
+
+export function setReplayDisplay(patch: Partial<ReplayDisplay>): void {
+  display = normalizeDisplay({ ...display, ...patch });
+  displayListeners.forEach((l) => l());
+  void backend.saveSettings(DISPLAY_KEY, display).catch(() => {});
+}
+
+export function onReplayDisplay(fn: () => void): () => void {
+  displayListeners.add(fn);
+  return () => void displayListeners.delete(fn);
+}
+
+export function useReplayDisplay(): ReplayDisplay {
+  const [, set] = useState(0);
+  useEffect(() => onReplayDisplay(() => set((x) => x + 1)), []);
+  return replayDisplay();
 }
 
 export function useTemplates(): ReplayTemplate[] {

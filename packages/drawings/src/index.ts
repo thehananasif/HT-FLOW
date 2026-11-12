@@ -10,3 +10,6 @@ export * from './model';
 export * from './tools';
 export * from './render';
 export * from './controller';
+export * from './alertCross';
+export * from './selection';
+export * from './swing';

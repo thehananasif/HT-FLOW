@@ -45,6 +45,7 @@ export const MODULES: ModuleDef[] = [
   { id: 'replay', label: 'Replay', group: 'Social / Tools', phase: 'P24 / P35', hasMenu: true },
   { id: 'web-pages', label: 'Web Pages', group: 'Social / Tools', phase: 'P28', hasMenu: true },
   { id: 'logs', label: 'Logs', group: 'Social / Tools', phase: 'P28', hasMenu: true },
+  { id: 'drawing-objects', label: 'Objects List', group: 'Analysis', phase: 'P12' },
   { id: 'accounts', label: 'Accounts', group: 'Tables', phase: 'P40' },
   { id: 'positions', label: 'Positions', group: 'Tables', phase: 'P40' },
   { id: 'orders', label: 'Orders', group: 'Tables', phase: 'P40' },
