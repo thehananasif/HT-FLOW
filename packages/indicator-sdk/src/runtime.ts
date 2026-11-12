@@ -262,7 +262,12 @@ export function computeIndicator(
   def: AnyIndicator,
   bars: readonly Bar[],
   raw?: RawInputs,
-  opts: { tickSize?: number; tradesBetween?: BarData['tradesBetween'] } = {},
+  opts: {
+    tickSize?: number;
+    tradesBetween?: BarData['tradesBetween'];
+    derivatives?: BarData['derivatives'];
+    depth?: BarData['depth'];
+  } = {},
 ): IndicatorRuntime {
   const rt = new IndicatorRuntime(def, raw);
   rt.recompute({
@@ -270,6 +275,8 @@ export function computeIndicator(
     version: 1,
     tickSize: opts.tickSize ?? 1,
     tradesBetween: opts.tradesBetween,
+    derivatives: opts.derivatives,
+    depth: opts.depth,
   });
   return rt;
 }

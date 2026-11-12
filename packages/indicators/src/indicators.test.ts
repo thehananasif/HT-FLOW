@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DerivativesLog,
   IndicatorRuntime,
   SeriesOut,
   computeIndicator,
   type AnyIndicator,
 } from '@htflow/indicator-sdk';
-import { BarSeries, type Bar, type Trade } from '@htflow/market-data';
+import { BarSeries, type Bar, type DepthColumn, type Trade } from '@htflow/market-data';
 import { CATALOG, INDICATORS, catalogCounts, indicatorById, isImplemented } from './index';
 
 /** Bars from closes (o = previous close, h/l = ±1 around the body, simple clusters). */
@@ -397,34 +398,112 @@ function snapshot(rt: IndicatorRuntime): string {
   return JSON.stringify(o);
 }
 
+/** Simulated derivatives + depth feeds aligned with the trades; `upTo(ts)` releases events with time <= ts. */
+function makeFeeds(trades: Trade[]) {
+  const t0 = trades[0]!.ts;
+  const t1 = trades[trades.length - 1]!.ts;
+  const log = new DerivativesLog();
+  const depth = { version: 0, columns: [] as DepthColumn[] };
+  const px = (t: number) => {
+    let lo = 0;
+    let hi = trades.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (trades[mid]!.ts <= t) lo = mid;
+      else hi = mid - 1;
+    }
+    return trades[lo]!.px;
+  };
+  type Ev = { ts: number; run: () => void };
+  const evs: Ev[] = [];
+  let n = 0;
+  for (let t = t0; t <= t1; t += 600_000)
+    evs.push({
+      ts: t,
+      run: () =>
+        log.addFunding({ kind: 'funding', ts: t, rate: ((n++ % 5) - 2) * 0.0001, nextTs: t + 600_000, markPrice: px(t) }),
+    });
+  let oi = 1_000_000;
+  for (let t = t0 + 1000, k = 0; t <= t1; t += 20_000, k++) {
+    oi += ((k * 37) % 11 - 5) * 1000;
+    const v = oi;
+    evs.push({ ts: t, run: () => log.addOpenInterest({ kind: 'open_interest', ts: t, oi: v, value: v * 1000 }) });
+  }
+  for (let t = t0 + 5000, k = 0; t <= t1; t += 97_000, k++)
+    evs.push({
+      ts: t,
+      run: () =>
+        log.addLiquidations([{ kind: 'liquidation', ts: t, side: k % 2 ? 'buy' : 'sell', px: px(t) + (k % 3), qty: 5 + (k % 7) * 20 }]),
+    });
+  for (let t = t0; t <= t1; t += 1000) {
+    const p = px(t);
+    evs.push({
+      ts: t,
+      run: () => {
+        const pxs: number[] = [];
+        const qs: number[] = [];
+        for (let d = 0; d < 8; d++) {
+          pxs.push(p - d);
+          qs.push(1 + ((t / 1000 + d * 13) % 9) * (d === 3 ? 30 : 4));
+          pxs.push(p + 1 + d);
+          qs.push(1 + ((t / 1000 + d * 7) % 5) * (d === 4 ? 30 : 4));
+        }
+        depth.columns.push({ t, bestBid: p, bestAsk: p + 1, pxs: Int32Array.from(pxs), qtys: Float32Array.from(qs) });
+        depth.version++;
+      },
+    });
+  }
+  evs.sort((a, b) => a.ts - b.ts);
+  let at = 0;
+  return {
+    log,
+    depth,
+    upTo(ts: number) {
+      while (at < evs.length && evs[at]!.ts <= ts) evs[at++]!.run();
+    },
+  };
+}
+
 describe('incremental contract', () => {
   const trades = randomTrades(1600);
-  it.each(INDICATORS.map((d) => [d.id, d] as [string, AnyIndicator]))(
-    '%s: incremental == full',
-    (_id, def) => {
-      const series = new BarSeries({ kind: 'time', ms: 60_000 });
-      const between = (from: number, to: number) =>
-        trades.filter((t) => t.ts >= from && t.ts <= to);
-      const data = {
-        get bars() {
-          return series.bars;
-        },
-        get version() {
-          return series.version;
-        },
-        tickSize: 1,
-        tradesBetween: between,
-      };
-      const inc = new IndicatorRuntime(def);
-      for (let k = 0; k < trades.length; k++) {
-        series.add(trades[k]!);
-        if (k % 7 === 0 || k === trades.length - 1) inc.update(data);
-      }
-      const full = computeIndicator(def, series.bars, undefined, { tradesBetween: between });
-      expect(inc.stats.full).toBe(1);
-      expect(snapshot(inc)).toBe(snapshot(full));
-    },
-  );
+  const cases: [string, AnyIndicator, Record<string, string | number | boolean> | undefined][] = [];
+  for (const d of INDICATORS) {
+    cases.push([d.id, d, undefined]);
+    if (d.id.startsWith('mtf-')) {
+      cases.push([d.id + ' M5 live', d, { mtfTimeframe: 'M5', mtfMode: 'live' }]);
+      cases.push([d.id + ' M5 closed', d, { mtfTimeframe: 'M5', mtfMode: 'closed' }]);
+    }
+  }
+  it.each(cases)('%s: incremental == full', (_id, def, inputs) => {
+    const series = new BarSeries({ kind: 'time', ms: 60_000 });
+    const between = (from: number, to: number) => trades.filter((t) => t.ts >= from && t.ts <= to);
+    const feeds = makeFeeds(trades);
+    const data = {
+      get bars() {
+        return series.bars;
+      },
+      get version() {
+        return series.version;
+      },
+      tickSize: 1,
+      tradesBetween: between,
+      derivatives: feeds.log,
+      depth: feeds.depth,
+    };
+    const inc = new IndicatorRuntime(def, inputs);
+    for (let k = 0; k < trades.length; k++) {
+      series.add(trades[k]!);
+      feeds.upTo(trades[k]!.ts);
+      if (k % 7 === 0 || k === trades.length - 1) inc.update(data);
+    }
+    const full = computeIndicator(def, series.bars, inputs, {
+      tradesBetween: between,
+      derivatives: feeds.log,
+      depth: feeds.depth,
+    });
+    expect(inc.stats.full).toBe(1);
+    expect(snapshot(inc)).toBe(snapshot(full));
+  });
 });
 
 describe('catalog', () => {
