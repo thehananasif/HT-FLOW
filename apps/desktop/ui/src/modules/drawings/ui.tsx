@@ -108,7 +108,12 @@ export function DrawingsOverlay({
   const d = items.find((x) => x.id === selId) ?? null;
   const def = tool ? toolDef(tool) : null;
   return (
-    <div className="dr-overlay" data-testid="drawings-overlay" data-count={items.length}>
+    <div
+      className="dr-overlay"
+      data-testid="drawings-overlay"
+      data-count={items.length}
+      data-hotkey-scope="chart"
+    >
       {def && (
         <div className="dr-hint">
           {def.label}

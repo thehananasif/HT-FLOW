@@ -244,7 +244,8 @@ registerChartExtension({
     const ui = useDrawUi.getState();
     const v = ctx.core.view;
     const hit = v?.crosshair ? ctrl.hitAt(v, v.crosshair.x, v.crosshair.y) : null;
-    if (hit) ui.select(ctx.windowId, hit.d.id);
+    // Right-click target joins the selection unless it is already part of a (multi-)selection.
+    if (hit && !selectionOf(ctx.windowId).includes(hit.d.id)) ui.select(ctx.windowId, hit.d.id);
     const active = ui.tool[ctx.windowId] ?? null;
     const p = ui.prefs;
     return [
