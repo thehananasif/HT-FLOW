@@ -67,13 +67,10 @@ export const TF_CLASSES: { value: TfClass; label: string }[] = [
   { value: 'range', label: 'Range bars' },
 ];
 
-export function tfClassOf(
-  spec:
-    | { kind: 'time'; ms: number }
-    | { kind: 'tick' | 'volume' | 'delta'; n: number }
-    | { kind: 'range'; ticks: number },
-): TfClass {
-  if (spec.kind !== 'time') return spec.kind;
+export function tfClassOf(spec: { kind: string; ms?: number; [k: string]: unknown }): TfClass {
+  if (spec.kind === 'tick' || spec.kind === 'volume' || spec.kind === 'delta') return spec.kind;
+  if (spec.kind === 'orderflow' || spec.kind === 'cumtrades') return 'tick';
+  if (spec.ms === undefined) return 'range';
   if (spec.ms < MIN) return 'seconds';
   if (spec.ms < 60 * MIN) return 'minutes';
   if (spec.ms < DAY) return 'hours';

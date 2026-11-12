@@ -1,6 +1,7 @@
 export * from './types';
 export * from './expiry';
 export * from './sessions';
+export * from './sessionRules';
 export * from './search';
 export * from './prefs';
 export * from './catalog';

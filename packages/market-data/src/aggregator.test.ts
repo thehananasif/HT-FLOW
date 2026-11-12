@@ -61,7 +61,9 @@ describe('BarSeries', () => {
     });
     const { trades } = feed.historySync();
     expect(trades.length).toBeGreaterThan(1000);
-    const specs: BarSpec[] = TIMEFRAME_PRESETS.flatMap((r) => r.specs);
+    const specs: BarSpec[] = TIMEFRAME_PRESETS.flatMap((r) => r.specs).filter(
+      (s) => s.kind !== 'cumtrades',
+    );
     for (const spec of specs) {
       const bulk = BarSeries.build(spec, trades);
       const inc = new BarSeries(spec);

@@ -44,6 +44,7 @@ export interface ChartLayers {
   /** Palette overrides used only by the footprint layer (bid / ask / main / text colours). */
   footprintPalette?: PaletteOverride;
 }
+import { buildExtraTemplate, templateHasBars } from './layers/templates';
 
 export interface ChartHandle {
   cores: ChartCore[];
@@ -299,11 +300,23 @@ export function buildChart(
       };
       break;
     }
+    default:
+      update = buildExtraTemplate({
+        hosts,
+        store,
+        state,
+        palette,
+        spec,
+        series,
+        mk,
+        cores,
+        unsubs,
+      });
   }
 
   // Chart extensions (indicators, drawings, …) attach to the core that shows bars.
   const main = cores[0]!;
-  const hasBars = state.template !== 'liquidity-map';
+  const hasBars = templateHasBars(state.template);
   const extCtx = new Map<string, ChartExtensionContext>();
   for (const ext of chartExtensions()) {
     const ctx: ChartExtensionContext = {

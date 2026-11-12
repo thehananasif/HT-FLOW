@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
-import { ContextMenu, Select, toast, type MenuEntry } from '@htflow/ui-kit';
+import { ContextMenu, toast, type MenuEntry } from '@htflow/ui-kit';
 import { specLabel, type BarSpec, type MarketStore } from '@htflow/market-data';
 import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import type { ChartCore, HitInfo } from '@htflow/chart-engine';
@@ -45,6 +45,7 @@ import {
 import './chart-core.css';
 
 installChartCommands();
+import { SessionSelect } from './timeframes/TimeframeDialog';
 
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 const COMPARE_COLORS = ['#4FA3F7', '#B07CF0', '#E8B04B', '#BDBDBD', '#64C8D8'];
@@ -533,18 +534,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           >
             ◂▸
           </button>
-          <Select
-            small
-            aria-label="Trading session"
-            value={sStr(settings, 'session.trading')}
-            onChange={(v) => setChartSetting(id, 'session.trading', v)}
-            options={[
-              { value: '24h', label: '24h' },
-              { value: 'eth', label: 'ETH' },
-              { value: 'rth', label: 'RTH' },
-              { value: 'custom', label: 'Custom' },
-            ]}
-          />
+          <SessionSelect windowId={id} s={s} />
           <button
             className="ht-chip ht-chip--ghost"
             aria-label="Go to date"
