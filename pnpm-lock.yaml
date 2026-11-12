@@ -95,6 +95,9 @@ importers:
       '@htflow/replay':
         specifier: workspace:*
         version: link:../../packages/replay
+      '@htflow/strategy':
+        specifier: workspace:*
+        version: link:../../packages/strategy
       '@htflow/tape':
         specifier: workspace:*
         version: link:../../packages/tape
@@ -231,6 +234,24 @@ importers:
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../market-data
+
+  packages/strategy:
+    dependencies:
+      '@htflow/indicator-sdk':
+        specifier: workspace:*
+        version: link:../indicator-sdk
+      '@htflow/indicators':
+        specifier: workspace:*
+        version: link:../indicators
+      '@htflow/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+      '@htflow/replay':
+        specifier: workspace:*
+        version: link:../replay
+      '@htflow/trading':
+        specifier: workspace:*
+        version: link:../trading
 
   packages/tape:
     dependencies:
