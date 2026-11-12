@@ -29,18 +29,80 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": ["nsis", "msi"],
     "category": "Finance",
     "shortDescription": "Order-flow trading platform",
-    "longDescription": "HT Flow — footprint, liquidity map, DOM, tape and paper trading. Your account and data stay on this PC.",
-    "copyright": "© 2026 Hanan Asif",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "longDescription": "HT Flow \u2014 footprint, liquidity map, DOM, tape and paper trading. Your account and data stay on this PC.",
+    "copyright": "\u00a9 2026 Hanan Asif",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "startMenuFolder": "HT Flow",
+        "installerHooks": "./windows/installer-hooks.nsh"
       },
-      "webviewInstallMode": { "type": "downloadBootstrapper" }
+      "wix": {
+        "language": "en-US"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "publisher": "Hanan Asif",
+    "homepage": "https://github.com/thehananasif/HT-FLOW",
+    "license": "MIT",
+    "fileAssociations": [
+      {
+        "ext": ["htprofile"],
+        "name": "HT Flow Profile",
+        "description": "HT Flow encrypted profile",
+        "role": "Editor",
+        "mimeType": "application/vnd.htflow.profile+json"
+      },
+      {
+        "ext": ["htworkspace"],
+        "name": "HT Flow Workspace",
+        "description": "HT Flow workspace layout",
+        "role": "Editor",
+        "mimeType": "application/vnd.htflow.workspace+json"
+      },
+      {
+        "ext": ["htind"],
+        "name": "HT Flow Indicator",
+        "description": "HT Flow custom indicator",
+        "role": "Editor",
+        "mimeType": "application/vnd.htflow.indicator+json"
+      },
+      {
+        "ext": ["htidea"],
+        "name": "HT Flow Ideas",
+        "description": "HT Flow trade ideas",
+        "role": "Editor",
+        "mimeType": "application/vnd.htflow.idea+json"
+      },
+      {
+        "ext": ["httemplate"],
+        "name": "HT Flow Chart Template",
+        "description": "HT Flow chart template",
+        "role": "Editor",
+        "mimeType": "application/vnd.htflow.template+json"
+      }
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": ["https://github.com/thehananasif/HT-FLOW/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

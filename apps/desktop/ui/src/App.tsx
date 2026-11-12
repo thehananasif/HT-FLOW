@@ -5,6 +5,7 @@ import { useSession } from './state/session';
 import { LoginScreen } from './auth/LoginScreen';
 import { Dashboard } from './dashboard/Dashboard';
 import { Gallery } from './Gallery';
+import { PlatformHost } from './platform/PlatformHost';
 
 export function App() {
   const session = useSession((s) => s.session);
@@ -14,6 +15,7 @@ export function App() {
   return (
     <TooltipProvider>
       {gallery ? <Gallery /> : session ? <Dashboard version={version} /> : <LoginScreen />}
+      <PlatformHost />
       <Toaster />
     </TooltipProvider>
   );
