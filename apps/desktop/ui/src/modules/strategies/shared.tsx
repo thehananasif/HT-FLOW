@@ -154,9 +154,9 @@ export function InputsForm({
 }) {
   const resolved = resolveInputs(defs, values) as RawInputs;
   return (
-    <div className="st-inputs" data-testid={testId}>
+    <div className="stg-inputs" data-testid={testId}>
       {Object.entries(defs).map(([k, d]) => (
-        <label key={k} className="st-input-row" title={d.help}>
+        <label key={k} className="stg-input-row" title={d.help}>
           <span>{d.label}</span>
           <InputControl
             id={k}

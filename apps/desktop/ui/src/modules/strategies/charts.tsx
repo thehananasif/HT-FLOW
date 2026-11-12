@@ -124,7 +124,7 @@ export function EquityCanvas({ result, style }: { result: BacktestResult; style:
     },
     [result, style],
   );
-  return <canvas ref={ref} className="st-canvas" data-testid="strategy-equity" />;
+  return <canvas ref={ref} className="stg-canvas" data-testid="strategy-equity" />;
 }
 
 function mix(a: string, b: string, t: number): string {
@@ -211,10 +211,10 @@ export function HeatmapCanvas({
   };
   const hv = hover ? map.cells[hover.y]?.[hover.x] : undefined;
   return (
-    <div className="st-heat">
+    <div className="stg-heat">
       <canvas
         ref={ref}
-        className="st-canvas"
+        className="stg-canvas"
         data-testid="strategy-heatmap"
         onMouseMove={(e) => setHover(cellAt(e))}
         onMouseLeave={() => setHover(null)}
@@ -223,7 +223,7 @@ export function HeatmapCanvas({
           if (c) onPick(map.xs[c.x]!, map.ys[c.y]!);
         }}
       />
-      <div className="st-heat-foot tnum">
+      <div className="stg-heat-foot tnum">
         {hover ? (
           <>
             {map.xKey} = {map.xs[hover.x]} · {map.yKey} = {map.ys[hover.y]} ·{' '}

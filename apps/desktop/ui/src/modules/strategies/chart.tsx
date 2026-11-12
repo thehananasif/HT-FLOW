@@ -381,7 +381,7 @@ registerChartExtension({
     const n = history.get(windowId)?.result?.trades.length;
     return (
       <>
-        <span className="st-sr" data-testid="chart-strategy-state" data-live={ext.live}>
+        <span className="stg-sr" data-testid="chart-strategy-state" data-live={ext.live}>
           {ext.strategyId ?? 'none'}
           {n !== undefined ? ` ${n} trades` : ''}
         </span>
@@ -416,10 +416,10 @@ function HeaderChip({ windowId, state }: { windowId: string; state: ChartWindowS
       title={def ? `${def.name} — ${status}` : 'Attach a strategy'}
       onClick={() => useStrategyDialog.getState().open(windowId)}
     >
-      <span className="st-chip-dot" data-status={status} />
+      <span className="stg-chip-dot" data-status={status} />
       {def ? def.name.split(' ').slice(0, 2).join(' ') : 'Strategy'}
       {def && (
-        <span className="st-chip-state">
+        <span className="stg-chip-state">
           {status === 'live' ? 'Live' : status === 'error' ? 'Error' : 'Test'}
         </span>
       )}
@@ -439,8 +439,8 @@ function StrategyDialog({ windowId }: { windowId: string }) {
   const close = () => useStrategyDialog.getState().open(null);
   return (
     <Dialog open onOpenChange={(o) => !o && close()} title="Chart strategy" width={520}>
-      <div className="st-dialog" data-testid="chart-strategy-dialog">
-        <label className="st-input-row">
+      <div className="stg-dialog" data-testid="chart-strategy-dialog">
+        <label className="stg-input-row">
           <span>Strategy</span>
           <Select
             small
@@ -455,13 +455,13 @@ function StrategyDialog({ windowId }: { windowId: string }) {
         </label>
         {def && (
           <>
-            <p className="st-muted">{def.description}</p>
+            <p className="stg-muted">{def.description}</p>
             <InputsForm
               defs={def.inputs}
               values={ext.inputs}
               onChange={(inputs) => set({ inputs })}
             />
-            <div className="st-dialog-row">
+            <div className="stg-dialog-row">
               <Checkbox
                 checked={ext.history}
                 onChange={(history) => set({ history })}
@@ -469,7 +469,7 @@ function StrategyDialog({ windowId }: { windowId: string }) {
               />
               <Checkbox checked={ext.pnl} onChange={(pnl) => set({ pnl })} label="P&L per trade" />
             </div>
-            <label className="st-input-row">
+            <label className="stg-input-row">
               <span>Journal snapshots</span>
               <Select
                 small
@@ -483,7 +483,7 @@ function StrategyDialog({ windowId }: { windowId: string }) {
                 onChange={(snapshots) => set({ snapshots })}
               />
             </label>
-            <div className="st-dialog-row st-colors">
+            <div className="stg-dialog-row stg-colors">
               <ColorSwatch
                 label="Long"
                 value={ext.style.long}
@@ -505,8 +505,8 @@ function StrategyDialog({ windowId }: { windowId: string }) {
                 onChange={(loss) => set({ style: { ...ext.style, loss } })}
               />
             </div>
-            <div className="st-dialog-row">
-              <label className="st-input-row">
+            <div className="stg-dialog-row">
+              <label className="stg-input-row">
                 <span>Marker size</span>
                 <NumberInput
                   aria-label="Marker size"
@@ -516,7 +516,7 @@ function StrategyDialog({ windowId }: { windowId: string }) {
                   onChange={(size) => set({ style: { ...ext.style, size } })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>History opacity</span>
                 <NumberInput
                   aria-label="History opacity"
@@ -529,15 +529,15 @@ function StrategyDialog({ windowId }: { windowId: string }) {
               </label>
             </div>
             {res && (
-              <p className="st-muted tnum" data-testid="chart-strategy-summary">
+              <p className="stg-muted tnum" data-testid="chart-strategy-summary">
                 History: {res.stats.trades} trades · net {money(res.stats.netPnl)} · win rate{' '}
                 {(res.stats.winRate * 100).toFixed(0)}%
               </p>
             )}
-            {run?.error && <p className="st-error">{run.error}</p>}
+            {run?.error && <p className="stg-error">{run.error}</p>}
           </>
         )}
-        <div className="st-dialog-foot">
+        <div className="stg-dialog-foot">
           {def && (
             <Button
               variant={ext.live ? 'secondary' : 'primary'}

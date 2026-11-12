@@ -73,13 +73,13 @@ export function VpsPanel() {
   const cur = all.find((r) => r.id === sel) ?? DEMO;
   const st = mockStatus(cur);
   return (
-    <div className="st-vps" data-testid="strategy-vps">
-      <div className="st-banner" role="note" data-testid="vps-banner">
+    <div className="stg-vps" data-testid="strategy-vps">
+      <div className="stg-banner" role="note" data-testid="vps-banner">
         <b>Requires your own VPS runner.</b> {BLOCKED} Strategies run on This PC (paper) meanwhile.
       </div>
-      <div className="st-vps-grid">
-        <section className="st-card">
-          <div className="st-card-head">
+      <div className="stg-vps-grid">
+        <section className="stg-card">
+          <div className="stg-card-head">
             <b>Runners</b>
             <span className="grow" />
             <Button
@@ -110,7 +110,7 @@ export function VpsPanel() {
                 header: 'Status',
                 width: 90,
                 render: (r) => (
-                  <span className={mockStatus(r).online ? 'up' : 'st-muted'}>
+                  <span className={mockStatus(r).online ? 'up' : 'stg-muted'}>
                     {mockStatus(r).online ? 'online (demo)' : 'not connected'}
                   </span>
                 ),
@@ -125,12 +125,12 @@ export function VpsPanel() {
             ]}
           />
         </section>
-        <section className="st-card" data-testid="vps-status">
-          <div className="st-card-head">
+        <section className="stg-card" data-testid="vps-status">
+          <div className="stg-card-head">
             <b>{cur.name}</b>
-            {cur.demo && <span className="st-tag">mock data</span>}
+            {cur.demo && <span className="stg-tag">mock data</span>}
           </div>
-          <div className="st-kv tnum">
+          <div className="stg-kv tnum">
             <span>Status</span>
             <b className={st.online ? 'up' : 'down'}>{st.online ? 'Online' : 'Offline'}</b>
             <span>Ping to broker</span>
@@ -142,9 +142,9 @@ export function VpsPanel() {
             <span>SSH key</span>
             <b>{cur.keyRef}</b>
           </div>
-          <div className="st-subhead">Deployed strategies</div>
+          <div className="stg-subhead">Deployed strategies</div>
           {cur.deployments.length ? (
-            <ul className="st-deps">
+            <ul className="stg-deps">
               {cur.deployments.map((d, i) => (
                 <li key={i}>
                   {STRATEGIES.find((s) => s.id === d.strategyId)?.name ?? d.strategyId} ·{' '}
@@ -153,9 +153,9 @@ export function VpsPanel() {
               ))}
             </ul>
           ) : (
-            <p className="st-muted">Nothing deployed.</p>
+            <p className="stg-muted">Nothing deployed.</p>
           )}
-          <div className="st-actions">
+          <div className="stg-actions">
             <Button size="sm" variant="secondary" onClick={() => notBuilt('Test SSH')}>
               Test SSH
             </Button>
@@ -226,7 +226,7 @@ function AddRunner({ onClose, onSave }: { onClose(): void; onSave(r: VpsRunner):
   const valid = /^[a-z0-9.-]+$/i.test(host) && name.trim().length > 0 && user.trim().length > 0;
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()} title="Add VPS runner" width={420}>
-      <div className="st-form">
+      <div className="stg-form">
         <Field label="Name">
           <Input value={name} onChange={(e) => setName(e.target.value.slice(0, 40))} />
         </Field>
@@ -253,7 +253,7 @@ function AddRunner({ onClose, onSave }: { onClose(): void; onSave(r: VpsRunner):
             onChange={setKeyRef}
           />
         </Field>
-        <div className="st-dialog-foot">
+        <div className="stg-dialog-foot">
           <span className="grow" />
           <Button variant="ghost" onClick={onClose}>
             Cancel
@@ -301,8 +301,8 @@ function DeployDialog({
       title={`Deploy to ${runner.name}`}
       width={420}
     >
-      <div className="st-form" data-testid="vps-deploy-dialog">
-        <div className="st-banner">{BLOCKED}</div>
+      <div className="stg-form" data-testid="vps-deploy-dialog">
+        <div className="stg-banner">{BLOCKED}</div>
         <Field label="Strategy">
           <Select
             value={strategyId}
@@ -324,7 +324,7 @@ function DeployDialog({
             onChange={setAcc}
           />
         </Field>
-        <div className="st-dialog-foot">
+        <div className="stg-dialog-foot">
           <span className="grow" />
           <Button variant="ghost" onClick={onClose}>
             Cancel

@@ -404,8 +404,8 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const res = run.result;
 
   return (
-    <div className="module-window st-win" data-testid="strategies-window">
-      <div className="st-top">
+    <div className="module-window stg-win" data-testid="strategies-window">
+      <div className="stg-top">
         <b>Strategies</b>
         <Tabs
           value={tab}
@@ -420,12 +420,12 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       {tab === 'live' && <LivePanel />}
       {tab === 'vps' && <VpsPanel />}
       {tab === 'backtest' && (
-        <div className="st-body">
-          <aside className="st-list" aria-label="Strategy list">
+        <div className="stg-body">
+          <aside className="stg-list" aria-label="Strategy list">
             {STRATEGIES.map((s) => (
               <button
                 key={s.id}
-                className="st-item"
+                className="stg-item"
                 aria-pressed={s.id === strategyId}
                 data-testid={`strategy-${s.id}`}
                 onClick={() =>
@@ -436,26 +436,26 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   })
                 }
               >
-                <span className="st-item-name">{s.name}</span>
-                <span className="st-item-cat">{s.category}</span>
+                <span className="stg-item-name">{s.name}</span>
+                <span className="stg-item-cat">{s.category}</span>
               </button>
             ))}
-            <p className="st-muted st-list-note">
+            <p className="stg-muted stg-list-note">
               Write your own with <code>defineStrategy</code> from <code>@htflow/strategy</code>.
             </p>
           </aside>
-          <section className="st-setup" aria-label="Backtest setup">
-            <p className="st-desc">{def.description}</p>
-            <div className="st-subhead">Inputs</div>
+          <section className="stg-setup" aria-label="Backtest setup">
+            <p className="stg-desc">{def.description}</p>
+            <div className="stg-subhead">Inputs</div>
             <InputsForm
               defs={def.inputs}
               values={inputs}
               onChange={setInputs}
               testId="strategy-inputs"
             />
-            <div className="st-subhead">Data</div>
-            <div className="st-inputs">
-              <label className="st-input-row">
+            <div className="stg-subhead">Data</div>
+            <div className="stg-inputs">
+              <label className="stg-input-row">
                 <span>Instrument</span>
                 <Select
                   small
@@ -468,7 +468,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(instrumentId) => setData({ instrumentId, source: '' })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Source</span>
                 <Select
                   small
@@ -481,7 +481,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(source) => setData({ source })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Day (UTC)</span>
                 <input
                   type="date"
@@ -491,7 +491,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(e) => setData({ day: e.target.value })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>From hour</span>
                 <NumberInput
                   aria-label="From hour"
@@ -502,7 +502,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(fromHour) => setData({ fromHour })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Length</span>
                 <NumberInput
                   aria-label="Hours"
@@ -513,7 +513,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(hours) => setData({ hours })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Bars</span>
                 <Select
                   small
@@ -524,9 +524,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
             </div>
-            <div className="st-subhead">Fills &amp; costs</div>
-            <div className="st-inputs">
-              <label className="st-input-row">
+            <div className="stg-subhead">Fills &amp; costs</div>
+            <div className="stg-inputs">
+              <label className="stg-input-row">
                 <span>Fill model</span>
                 <Select
                   small
@@ -540,7 +540,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label
-                className="st-input-row"
+                className="stg-input-row"
                 title="ATM template from the trading panel replaces the strategy's stop / targets"
               >
                 <span>Exit management</span>
@@ -555,7 +555,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(atm) => setCost({ atm })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Commission</span>
                 <NumberInput
                   aria-label="Commission"
@@ -567,7 +567,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(commissionPerUnit) => setCost({ commissionPerUnit })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Taker fee</span>
                 <NumberInput
                   aria-label="Taker fee"
@@ -578,7 +578,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(takerFee) => setCost({ takerFee })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Slippage</span>
                 <NumberInput
                   aria-label="Slippage"
@@ -589,7 +589,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   onChange={(slippageTicks) => setCost({ slippageTicks })}
                 />
               </label>
-              <label className="st-input-row">
+              <label className="stg-input-row">
                 <span>Start balance</span>
                 <NumberInput
                   aria-label="Start balance"
@@ -601,7 +601,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
             </div>
-            <div className="st-run">
+            <div className="stg-run">
               <Button
                 data-testid="strategy-run"
                 disabled={busy || !inst}
@@ -616,23 +616,23 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               )}
             </div>
             {(busy || run.message) && (
-              <div className="st-progress" data-testid="strategy-progress" aria-busy={busy}>
-                <div className="st-bar">
+              <div className="stg-progress" data-testid="strategy-progress" aria-busy={busy}>
+                <div className="stg-bar">
                   <span style={{ width: `${Math.round(run.progress * 100)}%` }} />
                 </div>
-                <span className="st-muted tnum">
+                <span className="stg-muted tnum">
                   {busy ? `${run.phase} ${Math.round(run.progress * 100)}%` : ''} {run.message}
                 </span>
               </div>
             )}
             {run.error && (
-              <p className="st-error" role="alert">
+              <p className="stg-error" role="alert">
                 {run.error}
               </p>
             )}
           </section>
-          <section className="st-results" aria-label="Results">
-            <div className="st-results-head">
+          <section className="stg-results" aria-label="Results">
+            <div className="stg-results-head">
               <Tabs
                 value={rtab}
                 onChange={(t) => setParams({ resultTab: t })}
@@ -664,7 +664,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 {run.sentToJournal ? 'Sent to Journal' : 'Send trades to Journal'}
               </Button>
             </div>
-            <div className="st-results-body">
+            <div className="stg-results-body">
               {rtab === 'optimise' ? (
                 <OptimisePanel
                   def={def}
@@ -688,16 +688,16 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   }}
                 />
               ) : !res ? (
-                <div className="st-empty">
+                <div className="stg-empty">
                   Pick a strategy, check the inputs and press <b>Run backtest</b>. Simulated history
                   is generated offline; recorded tick-store data is used when available.
                 </div>
               ) : rtab === 'summary' ? (
                 <Summary r={res} />
               ) : rtab === 'equity' ? (
-                <div className="st-equity">
+                <div className="stg-equity">
                   <EquityCanvas result={res} style={style} />
-                  <div className="st-style-row">
+                  <div className="stg-style-row">
                     <ColorSwatch
                       label="Equity"
                       value={style.equity}
@@ -713,7 +713,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               ) : rtab === 'trades' ? (
                 <TradesTable r={res} />
               ) : (
-                <pre className="st-log" data-testid="strategy-log">
+                <pre className="stg-log" data-testid="strategy-log">
                   {res.logs.length
                     ? res.logs.map((l) => `${fmtTime(l.ts)}  ${l.text}`).join('\n')
                     : 'No log lines.'}
@@ -739,7 +739,7 @@ function Stat({
   testId?: string;
 }) {
   return (
-    <div className="st-stat">
+    <div className="stg-stat">
       <span>{label}</span>
       <b className={`tnum ${cls ?? ''}`} data-testid={testId}>
         {value}
@@ -752,8 +752,8 @@ function Summary({ r }: { r: BacktestResult }) {
   const s = r.stats;
   const days = Math.max(1, (r.to - r.from) / 86_400_000);
   return (
-    <div className="st-summary" data-testid="strategy-summary">
-      <div className="st-stats">
+    <div className="stg-summary" data-testid="strategy-summary">
+      <div className="stg-stats">
         <Stat
           label="Net P&L"
           value={signedMoney(s.netPnl, 2)}
@@ -783,7 +783,7 @@ function Summary({ r }: { r: BacktestResult }) {
         <Stat label="Avg bars held" value={s.avgBarsHeld.toFixed(1)} />
         <Stat label="Trades / day" value={(s.trades / days).toFixed(1)} />
       </div>
-      <p className="st-muted tnum">
+      <p className="stg-muted tnum">
         {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} UTC ·{' '}
         {r.ticks.toLocaleString()} ticks · {r.barCount} bars · fills:{' '}
         {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks} tick
@@ -864,7 +864,7 @@ function TradesTable({ r }: { r: BacktestResult }) {
     },
   ];
   return (
-    <div className="st-table" data-testid="strategy-trades">
+    <div className="stg-table" data-testid="strategy-trades">
       <Table
         aria-label="Backtest trades"
         columns={columns}
@@ -916,7 +916,7 @@ function OptimisePanel({
     const d = def.inputs[a.key];
     const step = d && (d.type === 'int' || d.type === 'float') ? d.step : 1;
     return (
-      <div className="st-axis">
+      <div className="stg-axis">
         <Select
           small
           aria-label={`${which.toUpperCase()} parameter`}
@@ -930,14 +930,14 @@ function OptimisePanel({
           step={step}
           onChange={(from) => setOpt({ [which]: { ...a, from } })}
         />
-        <span className="st-muted">→</span>
+        <span className="stg-muted">→</span>
         <NumberInput
           aria-label={`${which} to`}
           value={a.to}
           step={step}
           onChange={(to) => setOpt({ [which]: { ...a, to } })}
         />
-        <span className="st-muted">step</span>
+        <span className="stg-muted">step</span>
         <NumberInput
           aria-label={`${which} step`}
           value={a.step}
@@ -949,18 +949,18 @@ function OptimisePanel({
     );
   };
   return (
-    <div className="st-opt" data-testid="strategy-optimise">
-      <div className="st-opt-setup">
-        <label className="st-input-row">
+    <div className="stg-opt" data-testid="strategy-optimise">
+      <div className="stg-opt-setup">
+        <label className="stg-input-row">
           <span>X axis</span>
           {axis('x')}
         </label>
-        <label className="st-input-row">
+        <label className="stg-input-row">
           <span>Y axis</span>
           {axis('y')}
         </label>
-        <div className="st-opt-row">
-          <label className="st-input-row">
+        <div className="stg-opt-row">
+          <label className="stg-input-row">
             <span>Objective</span>
             <Select
               small
@@ -970,7 +970,7 @@ function OptimisePanel({
               onChange={(objective) => setOpt({ objective })}
             />
           </label>
-          <label className="st-input-row">
+          <label className="stg-input-row">
             <span>Walk-forward folds</span>
             <NumberInput
               aria-label="Walk-forward folds"
@@ -980,7 +980,7 @@ function OptimisePanel({
               onChange={(folds) => setOpt({ folds })}
             />
           </label>
-          <label className="st-input-row">
+          <label className="stg-input-row">
             <span>In-sample</span>
             <NumberInput
               aria-label="In-sample share"
@@ -997,7 +997,7 @@ function OptimisePanel({
             label="Walk-forward"
           />
           <span className="grow" />
-          <span className="st-muted tnum">
+          <span className="stg-muted tnum">
             {combos} combinations (max {GRID_LIMITS.combos})
           </span>
           <Button
@@ -1011,16 +1011,16 @@ function OptimisePanel({
         </div>
       </div>
       {map && o ? (
-        <div className="st-opt-results">
+        <div className="stg-opt-results">
           <HeatmapCanvas
             map={map}
             style={style}
             format={fmt}
             onPick={(x, y) => onPick({ [map.xKey]: x, [map.yKey]: y })}
           />
-          <div className="st-opt-side">
-            <div className="st-subhead">Best combinations</div>
-            <table className="st-mini tnum">
+          <div className="stg-opt-side">
+            <div className="stg-subhead">Best combinations</div>
+            <table className="stg-mini tnum">
               <tbody>
                 {ranked.map((r, i) => (
                   <tr key={i} onClick={() => onPick(r.inputs)} title="Use these inputs">
@@ -1039,8 +1039,8 @@ function OptimisePanel({
             </table>
             {o.folds && (
               <>
-                <div className="st-subhead">Walk-forward (out of sample)</div>
-                <table className="st-mini tnum" data-testid="strategy-walkforward">
+                <div className="stg-subhead">Walk-forward (out of sample)</div>
+                <table className="stg-mini tnum" data-testid="strategy-walkforward">
                   <tbody>
                     {o.folds.map((f, i) => (
                       <tr key={i}>
@@ -1061,7 +1061,7 @@ function OptimisePanel({
                 </table>
               </>
             )}
-            <div className="st-style-row">
+            <div className="stg-style-row">
               <ColorSwatch
                 label="Low"
                 value={style.heatLow}
@@ -1076,7 +1076,7 @@ function OptimisePanel({
           </div>
         </div>
       ) : (
-        <div className="st-empty">
+        <div className="stg-empty">
           Choose two numeric inputs and their ranges, then press <b>Optimise</b>. Each combination
           is a full backtest on the selected data (in a Web Worker); walk-forward re-optimises on
           each in-sample window and trades the winner out of sample.
@@ -1103,9 +1103,9 @@ function LivePanel() {
     .map(([id, w]) => ({ id, w, ext: readStrategyExt(id) }))
     .filter((r) => r.ext.strategyId);
   return (
-    <div className="st-live" data-testid="strategy-live">
-      <div className="st-card-head">
-        <span className="st-muted">
+    <div className="stg-live" data-testid="strategy-live">
+      <div className="stg-card-head">
+        <span className="stg-muted">
           Strategies attached to charts. Live ones trade the paper account on This PC.
         </span>
         <span className="grow" />
@@ -1151,7 +1151,7 @@ function LivePanel() {
                   {run.status === 'error' ? 'Error' : 'Running'}
                 </span>
               ) : (
-                <span className="st-muted">Backtest</span>
+                <span className="stg-muted">Backtest</span>
               );
             },
           },
@@ -1183,7 +1183,7 @@ function LivePanel() {
             header: '',
             width: 150,
             render: (r) => (
-              <span className="st-row-actions">
+              <span className="stg-row-actions">
                 <Button
                   size="xs"
                   variant={liveRuns.get(r.id) ? 'secondary' : 'primary'}
