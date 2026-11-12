@@ -1,60 +1,55 @@
 import { formatCompact, formatPrice, type Instrument, type OrderBook } from '@htflow/market-data';
 import type { Order, Position } from '@htflow/trading';
+import { cumulativeDepth } from './analytics';
 import type { DomModel } from './model';
-
-export type DomColumnId =
-  'orders' | 'today' | 'price' | 'bidChg' | 'bid' | 'sells' | 'buys' | 'ask' | 'askChg';
-
-export interface DomColumn {
-  id: DomColumnId;
-  label: string;
-  /** Relative width weight. */
-  weight: number;
-  visible: boolean;
-}
-
-export const DEFAULT_COLUMNS: DomColumn[] = [
-  { id: 'orders', label: 'Orders / PnL', weight: 1.1, visible: true },
-  { id: 'today', label: 'Today', weight: 1.3, visible: true },
-  { id: 'price', label: 'Price', weight: 1.4, visible: true },
-  { id: 'bidChg', label: 'Chg.', weight: 0.8, visible: true },
-  { id: 'bid', label: 'Bid', weight: 2, visible: true },
-  { id: 'sells', label: 'Sells', weight: 1, visible: true },
-  { id: 'buys', label: 'Buys', weight: 1, visible: true },
-  { id: 'ask', label: 'Ask', weight: 2, visible: true },
-  { id: 'askChg', label: 'Chg.', weight: 0.8, visible: true },
-];
-
-export interface DomPalette {
-  bg: string;
-  surface1: string;
-  surface2: string;
-  surface3: string;
-  divider: string;
-  border: string;
-  textPrimary: string;
-  textSecondary: string;
-  textSoft: string;
-  up: string;
-  down: string;
-  info: string;
-  volume: string;
-  warning: string;
-}
+import {
+  BUILTIN_TEMPLATES,
+  columnDef,
+  type DomColumnConfig,
+  type DomColumnId,
+  type DomTemplate,
+} from './templates';
 
 export interface DomFrame {
   book: OrderBook;
   model: DomModel;
   instrument: Instrument;
   lastPx: number;
-  orders: Order[];
+  orders: readonly Order[];
   position: Position | null;
+  /** Currency per tick per lot (for P&L at price). */
   pnlPerTick: number;
+  /** User notes by price (ticks). */
+  notes?: ReadonlyMap<number, string>;
+  now: number;
+  /** Order being dragged in the Orders column (preview at the target price). */
+  drag?: { fromPx: number; toPx: number } | null;
 }
 
 export interface DomHit {
   column: DomColumnId;
   px: number;
+  row: number;
+}
+
+export interface ColumnBox {
+  id: DomColumnId;
+  x: number;
+  w: number;
+}
+
+export interface HeaderHit {
+  id: DomColumnId;
+  /** Pointer is on the right edge (resize handle). */
+  edge: boolean;
+  box: ColumnBox;
+}
+
+/** Abstract 2D surface so the renderer also runs headless (benchmarks, tests). */
+export interface DomSurface {
+  width: number;
+  height: number;
+  getContext(kind: '2d'): CanvasRenderingContext2D | null;
 }
 
 function rgba(hex: string, a: number): string {
@@ -62,47 +57,72 @@ function rgba(hex: string, a: number): string {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
+const fmtSigned = (v: number) => (v > 0 ? '+' : v < 0 ? '−' : '') + formatCompact(Math.abs(v));
+
 /**
- * Canvas DOM ladder (board 24). Rows are price ticks around a centre price; the centre follows
- * the market when price leaves the middle band (auto-centre), or stays put while the user scrolls.
+ * Canvas Smart DOM ladder (P15). Rows are price groups around a centre price. Only the visible
+ * rows are drawn (the ladder is virtual by construction) and the host calls `draw` at most once
+ * per animation frame. Column order, widths, colours, font and row height come from a template.
  */
 export class DomLadder {
-  rowHeight = 22;
-  headerHeight = 24;
-  columns: DomColumn[] = DEFAULT_COLUMNS.map((c) => ({ ...c }));
+  template: DomTemplate = BUILTIN_TEMPLATES[0]!;
   centerPx = Number.NaN;
-  autoCenter = true;
+  /** True while the user has scrolled away (auto / always centring paused). */
+  paused = false;
   /** Ticks per row (price grouping 1, 2, 5, 10). */
   grouping = 1;
-  bigSize = Infinity;
+  /** Override labels per column (e.g. "Vol (S)"). */
+  labels: Partial<Record<DomColumnId, string>> = {};
   private width = 0;
   private height = 0;
   private dpr = 1;
-  private colX: { id: DomColumnId; x: number; w: number }[] = [];
+  private boxes: ColumnBox[] = [];
+  private scale = 1;
+  private curFont = '';
 
-  constructor(
-    readonly canvas: HTMLCanvasElement,
-    public palette: DomPalette,
-    private font = '"Geist", "Segoe UI", sans-serif',
-  ) {}
+  constructor(readonly canvas: DomSurface) {}
 
-  resize(w: number, h: number): void {
-    this.dpr = window.devicePixelRatio || 1;
-    this.width = w;
-    this.height = h;
-    this.canvas.width = Math.floor(w * this.dpr);
-    this.canvas.height = Math.floor(h * this.dpr);
+  setTemplate(t: DomTemplate): void {
+    this.template = t;
     this.layoutColumns();
   }
 
+  get rowHeight(): number {
+    return this.template.style.rowHeight;
+  }
+
+  get headerHeight(): number {
+    return this.template.style.headerHeight;
+  }
+
+  resize(w: number, h: number, dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1): void {
+    this.dpr = dpr;
+    this.width = w;
+    this.height = h;
+    this.canvas.width = Math.floor(w * dpr);
+    this.canvas.height = Math.floor(h * dpr);
+    this.layoutColumns();
+  }
+
+  /** Visible columns with their pixel boxes (configured widths scaled to fill the canvas). */
+  get layout(): readonly ColumnBox[] {
+    return this.boxes;
+  }
+
+  /** Configured width → displayed width factor. */
+  get widthScale(): number {
+    return this.scale;
+  }
+
   private layoutColumns(): void {
-    const vis = this.columns.filter((c) => c.visible);
-    const total = vis.reduce((a, c) => a + c.weight, 0);
+    const vis = this.template.columns.filter((c) => c.visible);
+    const total = vis.reduce((a, c) => a + c.width, 0) || 1;
+    this.scale = this.width > 0 ? this.width / total : 1;
     let x = 0;
-    this.colX = vis.map((c) => {
-      const w = Math.floor((c.weight / total) * this.width);
-      const r = { id: c.id, x, w };
-      x += w;
+    this.boxes = vis.map((c, i) => {
+      const w = i === vis.length - 1 ? this.width - x : Math.floor(c.width * this.scale);
+      const r = { id: c.id, x, w: Math.max(0, w) };
+      x += r.w;
       return r;
     });
   }
@@ -112,12 +132,12 @@ export class DomLadder {
   }
 
   scroll(rows: number): void {
-    this.autoCenter = false;
-    this.centerPx += rows * this.grouping;
+    this.paused = true;
+    if (!Number.isNaN(this.centerPx)) this.centerPx += rows * this.grouping;
   }
 
   recenter(): void {
-    this.autoCenter = true;
+    this.paused = false;
     this.centerPx = Number.NaN;
   }
 
@@ -126,201 +146,476 @@ export class DomLadder {
     return this.centerPx + (half - r) * this.grouping;
   }
 
+  rowOfPx(px: number): number {
+    const half = Math.floor(this.rows / 2);
+    return half - Math.round((Math.floor(px / this.grouping) * this.grouping - this.centerPx) / this.grouping);
+  }
+
   hitTest(x: number, y: number): DomHit | null {
-    if (y < this.headerHeight) return null;
-    const r = Math.floor((y - this.headerHeight) / this.rowHeight);
-    const col = this.colX.find((c) => x >= c.x && x < c.x + c.w);
+    if (y < this.headerHeight || Number.isNaN(this.centerPx)) return null;
+    const row = Math.floor((y - this.headerHeight) / this.rowHeight);
+    if (row >= this.rows) return null;
+    const col = this.boxes.find((c) => x >= c.x && x < c.x + c.w);
     if (!col) return null;
-    return { column: col.id, px: this.pxAtRow(r) };
+    return { column: col.id, px: this.pxAtRow(row), row };
+  }
+
+  headerHit(x: number, y: number): HeaderHit | null {
+    if (y >= this.headerHeight) return null;
+    for (const b of this.boxes) {
+      if (x >= b.x && x < b.x + b.w) {
+        return { id: b.id, edge: x >= b.x + b.w - 5, box: b };
+      }
+    }
+    return null;
+  }
+
+  /** Column whose box contains x (for drag-to-reorder drops). */
+  columnAtX(x: number): ColumnBox | null {
+    return this.boxes.find((b) => x >= b.x && x < b.x + b.w) ?? null;
+  }
+
+  private updateCentre(ref: number): void {
+    const g = this.grouping;
+    if (Number.isNaN(ref)) return;
+    const snapped = Math.round(ref / g) * g;
+    if (Number.isNaN(this.centerPx)) {
+      this.centerPx = snapped;
+      return;
+    }
+    if (this.paused) return;
+    const mode = this.template.style.centring;
+    if (mode === 'always') this.centerPx = snapped;
+    else if (mode === 'auto') {
+      const band = Math.max(1, Math.floor(this.rows * this.template.style.centreBand)) * g;
+      if (Math.abs(ref - this.centerPx) > band) this.centerPx = snapped;
+    }
+  }
+
+  private font(ctx: CanvasRenderingContext2D, weight: number, size: number): void {
+    const f = `${weight} ${size}px "${this.template.style.fontFamily}", "Segoe UI", sans-serif`;
+    if (f !== this.curFont) {
+      ctx.font = f;
+      this.curFont = f;
+    }
   }
 
   draw(f: DomFrame): void {
     const ctx = this.canvas.getContext('2d');
     if (!ctx || this.width < 10) return;
-    const p = this.palette;
+    this.curFont = '';
+    const t = this.template;
+    const st = t.style;
+    const p = st.palette;
+    const fs = st.fontSize;
     const { book, model } = f;
     const g = this.grouping;
     const ref = !Number.isNaN(f.lastPx) ? f.lastPx : book.mid;
-    if (Number.isNaN(this.centerPx) && !Number.isNaN(ref)) this.centerPx = Math.round(ref / g) * g;
-    if (this.autoCenter && !Number.isNaN(ref)) {
-      const band = Math.max(2, Math.floor(this.rows * 0.3)) * g;
-      if (Math.abs(ref - this.centerPx) > band) this.centerPx = Math.round(ref / g) * g;
-    }
+    this.updateCentre(ref);
+    const hh = this.headerHeight;
+    const rh = this.rowHeight;
+
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = p.bg;
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.textBaseline = 'middle';
+    const cfg = new Map<DomColumnId, DomColumnConfig>(t.columns.map((c) => [c.id, c]));
+
     // Header.
-    ctx.font = `400 11px ${this.font}`;
-    ctx.fillStyle = p.textSecondary;
+    ctx.fillStyle = p.header;
+    ctx.fillRect(0, 0, this.width, hh);
+    this.font(ctx, 500, Math.max(8, fs - 1));
     ctx.textAlign = 'center';
-    for (const c of this.colX) {
-      const def = this.columns.find((d) => d.id === c.id)!;
-      ctx.fillText(def.label, c.x + c.w / 2, this.headerHeight / 2);
+    const pos = f.position && f.position.qty !== 0 ? f.position : null;
+    const openPnl =
+      pos && !Number.isNaN(f.lastPx) ? (f.lastPx - pos.avgPx) * f.pnlPerTick * pos.qty : Number.NaN;
+    for (const b of this.boxes) {
+      let label = this.labels[b.id] ?? columnDef(b.id).label;
+      ctx.fillStyle = p.headerText;
+      if (b.id === 'orders' && !Number.isNaN(openPnl)) {
+        label = `${openPnl >= 0 ? '+' : ''}${openPnl.toFixed(2)}`;
+        ctx.fillStyle = openPnl >= 0 ? p.buy : p.sell;
+      }
+      ctx.fillText(label, b.x + b.w / 2, hh / 2, Math.max(4, b.w - 4));
+      ctx.fillStyle = p.grid;
+      ctx.fillRect(b.x + b.w - 1, 4, 1, hh - 8);
     }
-    ctx.fillStyle = p.divider;
-    ctx.fillRect(0, this.headerHeight - 1, this.width, 1);
+    ctx.fillStyle = p.grid;
+    ctx.fillRect(0, hh - 1, this.width, 1);
     if (Number.isNaN(this.centerPx)) return;
 
     const rows = this.rows;
-    const sizeAt = (m: Map<number, number>, px: number) => {
+    const topPx = this.pxAtRow(0) + g - 1;
+    const botPx = this.pxAtRow(rows - 1);
+    const sizeAt = (m: ReadonlyMap<number, number>, px: number) => {
       if (g === 1) return m.get(px) ?? 0;
       let s = 0;
       for (let k = 0; k < g; k++) s += m.get(px + k) ?? 0;
       return s;
     };
+    const has = (id: DomColumnId) => this.boxes.some((b) => b.id === id);
+    const vol = model.volume;
     let maxBook = 0;
-    let maxToday = 0;
+    let maxVol = 0;
     let maxRecent = 0;
+    let maxDelta = 0;
     for (let r = 0; r < rows; r++) {
       const px = this.pxAtRow(r);
       maxBook = Math.max(maxBook, sizeAt(book.bids, px), sizeAt(book.asks, px));
-      maxToday = Math.max(maxToday, sizeAt(model.session, px));
+      maxVol = Math.max(maxVol, sizeAt(vol, px));
       maxRecent = Math.max(maxRecent, sizeAt(model.recentBuys, px), sizeAt(model.recentSells, px));
+      if (has('delta')) {
+        let d = 0;
+        for (let k = 0; k < g; k++) d += model.deltaAt(px + k);
+        maxDelta = Math.max(maxDelta, Math.abs(d));
+      }
     }
+    const cum = has('cumBid') || has('cumAsk') ? cumulativeDepth(book.bids, book.asks, botPx, topPx) : null;
+    const cumAt = (side: 'bid' | 'ask', px: number) => {
+      if (!cum) return 0;
+      // Group row: bid total down to the lowest tick of the group, ask total up to the highest.
+      const i = side === 'bid' ? px - cum.lo : px + g - 1 - cum.lo;
+      const arr = side === 'bid' ? cum.bid : cum.ask;
+      return i >= 0 && i < arr.length ? arr[i]! : 0;
+    };
+    let maxCum = 0;
+    if (cum) {
+      const bb = book.bestBid;
+      const ba = book.bestAsk;
+      for (let r = 0; r < rows; r++) {
+        const px = this.pxAtRow(r);
+        if (px <= bb) maxCum = Math.max(maxCum, cumAt('bid', px));
+        if (px + g - 1 >= ba) maxCum = Math.max(maxCum, cumAt('ask', px));
+      }
+    }
+    const va = has('vapoc') ? model.valueArea() : null;
     const ordersAt = new Map<number, Order[]>();
     for (const o of f.orders) {
-      const opx = o.type === 'stop' ? o.stopPx! : o.px!;
+      const opx = o.type === 'stop' || o.type === 'stop-limit' ? o.stopPx : o.px;
+      if (opx === undefined) continue;
       const k = Math.floor(opx / g) * g;
-      const arr = ordersAt.get(k) ?? [];
-      arr.push(o);
-      ordersAt.set(k, arr);
+      const arr = ordersAt.get(k);
+      if (arr) arr.push(o);
+      else ordersAt.set(k, [o]);
     }
-    const col = (id: DomColumnId) => this.colX.find((c) => c.id === id);
+    const groupFind = <T>(m: ReadonlyMap<number, T> | undefined, px: number): T | undefined => {
+      if (!m) return undefined;
+      for (let k = 0; k < g; k++) {
+        const v = m.get(px + k);
+        if (v !== undefined) return v;
+      }
+      return undefined;
+    };
     const bestBid = book.bestBid;
     const bestAsk = book.bestAsk;
+    const lastRow = Math.floor(f.lastPx / g) * g;
+    const big = t.behaviour.bigSize;
+    const lastFadeMs = Math.max(2000, t.behaviour.recentSeconds * 1000);
 
     for (let r = 0; r < rows; r++) {
       const px = this.pxAtRow(r);
-      const y = this.headerHeight + r * this.rowHeight;
-      const h = this.rowHeight - 1;
+      const y = hh + r * rh;
+      const h = rh - 1;
+      const midY = y + h / 2;
       const bid = sizeAt(book.bids, px);
       const ask = sizeAt(book.asks, px);
-      const isAskSide = px >= bestAsk;
+      const isAskSide = px + g - 1 >= bestAsk;
       const isBidSide = px <= bestBid;
-      for (const c of this.colX) {
-        const cx = c.x;
-        const cw = c.w - 1;
-        switch (c.id) {
+      for (const b of this.boxes) {
+        const c = cfg.get(b.id)!;
+        const cx = b.x;
+        const cw = b.w - 1;
+        const fg = c.fg ?? p.text;
+        ctx.fillStyle = c.bg ?? (r % 2 && st.gridLines ? p.rowAlt : p.bg);
+        ctx.fillRect(cx, y, cw, h);
+        switch (b.id) {
           case 'orders': {
-            const os = ordersAt.get(Math.floor(px / g) * g);
-            ctx.fillStyle = p.bg;
-            ctx.fillRect(cx, y, cw, h);
-            if (os?.length) {
+            const os = ordersAt.get(px);
+            const dragged = f.drag && Math.floor(f.drag.fromPx / g) * g === px;
+            if (os?.length && !dragged) {
               const q = os.reduce((a, o) => a + (o.qty - o.filled), 0);
               const buy = os[0]!.side === 'buy';
-              ctx.fillStyle = p.info;
-              ctx.fillRect(cx + cw - 6, y + 2, 4, h - 4);
-              ctx.fillStyle = buy ? p.up : p.down;
-              ctx.font = `600 12px ${this.font}`;
+              ctx.fillStyle = c.accent ?? p.order;
+              ctx.fillRect(cx + cw - 5, y + 2, 3, h - 4);
+              ctx.fillStyle = buy ? p.buy : p.sell;
+              this.font(ctx, 600, fs);
               ctx.textAlign = 'right';
-              ctx.fillText(
-                `${os[0]!.type === 'stop' ? 'S' : 'L'} ${formatCompact(q)}`,
-                cx + cw - 10,
-                y + h / 2,
-              );
-            } else if (
-              f.position &&
-              f.position.qty !== 0 &&
-              Math.abs(px - f.position.avgPx) < g / 2 + 0.5
-            ) {
-              ctx.fillStyle = p.warning;
-              ctx.font = `600 11px ${this.font}`;
+              const kind = os.some((o) => o.type === 'stop' || o.type === 'stop-limit') ? 'S' : 'L';
+              ctx.fillText(`${kind} ${formatCompact(q)}`, cx + cw - 9, midY, cw - 10);
+            } else if (pos && Math.floor(pos.avgPx / g) * g === px) {
+              ctx.fillStyle = p.position;
+              this.font(ctx, 600, fs - 1);
               ctx.textAlign = 'right';
-              ctx.fillText(
-                `AVG ${f.position.qty > 0 ? '+' : ''}${f.position.qty}`,
-                cx + cw - 6,
-                y + h / 2,
-              );
+              ctx.fillText(`AVG ${pos.qty > 0 ? '+' : ''}${pos.qty}`, cx + cw - 5, midY, cw - 6);
+            }
+            if (f.drag && Math.floor(f.drag.toPx / g) * g === px) {
+              ctx.strokeStyle = c.accent ?? p.order;
+              ctx.setLineDash([3, 2]);
+              ctx.strokeRect(cx + 1.5, y + 1.5, cw - 3, h - 3);
+              ctx.setLineDash([]);
             }
             break;
           }
-          case 'today': {
-            ctx.fillStyle = p.bg;
-            ctx.fillRect(cx, y, cw, h);
-            const v = sizeAt(model.session, px);
-            if (v > 0 && maxToday > 0) {
-              ctx.fillStyle = rgba(p.volume, 0.9);
-              ctx.fillRect(cx + 2, y + 2, Math.max(1, (v / maxToday) * (cw - 4)), h - 4);
+          case 'limits': {
+            const l = groupFind(model.limits, px);
+            if (l) {
+              const q = l.buyQty - l.sellQty;
+              ctx.fillStyle = rgba(c.accent ?? p.order, 0.18);
+              ctx.fillRect(cx, y, cw, h);
+              this.font(ctx, 600, fs - 1);
+              ctx.textAlign = 'left';
+              ctx.fillStyle = q >= 0 ? p.buy : p.sell;
+              ctx.fillText(`${q >= 0 ? 'B' : 'S'} ${formatCompact(Math.abs(q))}`, cx + 4, midY);
+              if (!Number.isNaN(l.ahead)) {
+                ctx.textAlign = 'right';
+                ctx.fillStyle = c.fg ?? p.textDim;
+                ctx.fillText(`Q ${formatCompact(l.ahead)}`, cx + cw - 4, midY);
+              }
+            }
+            break;
+          }
+          case 'markers': {
+            const stops = ordersAt.get(px)?.filter((o) => o.type === 'stop' || o.type === 'stop-limit');
+            const ice = model.iceberg('bid', px) ?? model.iceberg('ask', px);
+            this.font(ctx, 600, fs - 1);
+            if (ice) {
+              ctx.fillStyle = rgba(c.accent ?? p.iceberg, 0.22);
+              ctx.fillRect(cx, y, cw, h);
+              ctx.fillStyle = c.accent ?? p.iceberg;
+              ctx.textAlign = 'left';
+              ctx.fillText(`◆${ice.refills}× ${formatCompact(ice.hidden)}`, cx + 4, midY, cw - 6);
+            } else if (stops?.length) {
+              const q = stops.reduce((a, o) => a + o.qty - o.filled, 0);
+              ctx.fillStyle = stops[0]!.side === 'buy' ? p.buy : p.sell;
+              ctx.textAlign = 'left';
+              ctx.fillText(`STP ${formatCompact(q)}`, cx + 4, midY, cw - 6);
+            }
+            break;
+          }
+          case 'notes': {
+            const n = groupFind(f.notes, px);
+            if (n) {
+              ctx.fillStyle = c.accent ? rgba(c.accent, 0.15) : rgba(p.note, 0.12);
+              ctx.fillRect(cx, y, cw, h);
+              ctx.fillStyle = c.fg ?? p.note;
+              this.font(ctx, 500, fs - 1);
+              ctx.textAlign = 'left';
+              ctx.fillText(n, cx + 4, midY, cw - 6);
+            }
+            break;
+          }
+          case 'pnl': {
+            if (pos) {
+              const v = (px - pos.avgPx) * f.pnlPerTick * pos.qty;
+              ctx.fillStyle = v >= 0 ? p.buy : p.sell;
+              this.font(ctx, px === lastRow ? 700 : 400, fs - 1);
+              ctx.textAlign = 'right';
+              ctx.fillText(fmtSigned(Math.round(v * 100) / 100), cx + cw - 4, midY, cw - 6);
+            }
+            break;
+          }
+          case 'volume': {
+            const v = sizeAt(vol, px);
+            if (v > 0 && maxVol > 0) {
+              const k = v / maxVol;
+              ctx.fillStyle = rgba(c.accent ?? p.volume, va && px === va.poc ? 1 : 0.85);
+              ctx.fillRect(cx + 1, y + 2, Math.max(1, k * (cw - 2)), h - 4);
+              ctx.fillStyle = fg;
+              this.font(ctx, k > 0.8 ? 600 : 400, fs - 1);
+              ctx.textAlign = 'left';
+              ctx.fillText(formatCompact(v), cx + 4, midY, cw - 6);
+            }
+            break;
+          }
+          case 'delta': {
+            let d = 0;
+            for (let k = 0; k < g; k++) d += model.deltaAt(px + k);
+            if (d !== 0) {
+              const k = maxDelta > 0 ? Math.abs(d) / maxDelta : 0;
+              ctx.fillStyle = rgba(d > 0 ? p.buy : p.sell, 0.15 + k * 0.45);
+              const w = Math.max(1, k * (cw - 2));
+              ctx.fillRect(d > 0 ? cx + 1 : cx + cw - 1 - w, y + 2, w, h - 4);
+              ctx.fillStyle = c.fg ?? (d > 0 ? p.buy : p.sell);
+              this.font(ctx, 500, fs - 1);
+              ctx.textAlign = 'center';
+              ctx.fillText(fmtSigned(d), cx + cw / 2, midY, cw - 4);
+            }
+            break;
+          }
+          case 'lastSize': {
+            let lp: { qty: number; side: string; ts: number } | undefined;
+            for (let k = 0; k < g; k++) {
+              const e = model.lastPrint.get(px + k);
+              if (e && (!lp || e.ts > lp.ts)) lp = e;
+            }
+            if (lp) {
+              const age = f.now - lp.ts;
+              if (age < lastFadeMs) {
+                const a = Math.max(0.25, 1 - age / lastFadeMs);
+                const col = lp.side === 'buy' ? p.buy : lp.side === 'sell' ? p.sell : p.textDim;
+                if (px === lastRow) {
+                  ctx.fillStyle = rgba(c.accent ?? col, 0.3);
+                  ctx.fillRect(cx, y, cw, h);
+                }
+                ctx.globalAlpha = a;
+                ctx.fillStyle = c.fg ?? col;
+                this.font(ctx, px === lastRow ? 700 : 500, fs);
+                ctx.textAlign = 'center';
+                ctx.fillText(formatCompact(lp.qty), cx + cw / 2, midY, cw - 4);
+                ctx.globalAlpha = 1;
+              }
+            }
+            break;
+          }
+          case 'vapoc': {
+            if (va && !Number.isNaN(va.poc)) {
+              const top = px + g - 1;
+              if (top >= va.val && px <= va.vah) {
+                ctx.fillStyle = c.accent ?? p.va;
+                ctx.fillRect(cx + 2, y, cw - 4, rh);
+              }
+              this.font(ctx, 700, Math.max(8, fs - 3));
+              ctx.textAlign = 'center';
+              if (va.poc >= px && va.poc <= top) {
+                ctx.fillStyle = p.poc;
+                ctx.fillRect(cx + 1, y + 1, cw - 2, h - 2);
+                ctx.fillStyle = p.bg;
+                ctx.fillText('POC', cx + cw / 2, midY, cw - 2);
+              } else if (va.vah >= px && va.vah <= top) {
+                ctx.fillStyle = c.fg ?? p.text;
+                ctx.fillText('VAH', cx + cw / 2, midY, cw - 2);
+              } else if (va.val >= px && va.val <= top) {
+                ctx.fillStyle = c.fg ?? p.text;
+                ctx.fillText('VAL', cx + cw / 2, midY, cw - 2);
+              }
+            }
+            break;
+          }
+          case 'cumBid':
+          case 'cumAsk': {
+            const side = b.id === 'cumBid' ? 'bid' : 'ask';
+            const show = side === 'bid' ? isBidSide : isAskSide;
+            if (show) {
+              const v = cumAt(side, px);
+              if (v > 0) {
+                const tint = c.accent ?? (side === 'bid' ? p.bid : p.ask);
+                const w = maxCum > 0 ? Math.max(1, (v / maxCum) * (cw - 2)) : 0;
+                ctx.fillStyle = rgba(tint, 0.22);
+                if (side === 'bid') ctx.fillRect(cx + cw - 1 - w, y + 2, w, h - 4);
+                else ctx.fillRect(cx + 1, y + 2, w, h - 4);
+                ctx.fillStyle = fg;
+                this.font(ctx, 400, fs - 1);
+                ctx.textAlign = 'center';
+                ctx.fillText(formatCompact(Math.round(v * 1000) / 1000), cx + cw / 2, midY, cw - 4);
+              }
             }
             break;
           }
           case 'price': {
-            const isLast = Math.floor(f.lastPx / g) * g === px;
-            ctx.fillStyle = isLast ? p.surface3 : p.surface1;
+            const isLast = px === lastRow;
+            ctx.fillStyle = isLast ? (c.accent ?? p.lastBg) : (c.bg ?? p.priceBg);
             ctx.fillRect(cx, y, cw, h);
-            ctx.fillStyle = p.textPrimary;
-            ctx.font = `${isLast ? 700 : 600} 12px ${this.font}`;
+            ctx.fillStyle = fg;
+            this.font(ctx, isLast ? 700 : 600, fs);
             ctx.textAlign = 'center';
-            ctx.fillText(formatPrice(px, f.instrument), cx + cw / 2, y + h / 2);
+            ctx.fillText(formatPrice(px, f.instrument), cx + cw / 2, midY, cw - 4);
+            if (groupFind(f.notes, px) && !has('notes')) {
+              ctx.fillStyle = p.note;
+              ctx.fillRect(cx + 2, y + 3, 3, 3);
+            }
             break;
           }
           case 'bid':
           case 'ask': {
-            const isBid = c.id === 'bid';
-            const size = isBid ? bid : ask;
-            const tint = isBid ? p.up : p.down;
-            ctx.fillStyle = rgba(tint, (isBid ? isBidSide : isAskSide) ? 0.08 : 0.04);
-            ctx.fillRect(cx, y, cw, h);
+            const side = b.id;
+            const size = side === 'bid' ? bid : ask;
+            const tint = c.accent ?? (side === 'bid' ? p.bid : p.ask);
+            if (!c.bg) {
+              ctx.fillStyle = rgba(tint, (side === 'bid' ? isBidSide : isAskSide) ? 0.08 : 0.03);
+              ctx.fillRect(cx, y, cw, h);
+            }
             if (size > 0) {
-              const w = Math.max(2, (size / maxBook) * cw);
-              ctx.fillStyle = size >= this.bigSize ? tint : rgba(tint, 0.75);
-              if (isBid) ctx.fillRect(cx + cw - w, y + 1, w, h - 2);
+              const isBig = big > 0 && size >= big;
+              const w = maxBook > 0 ? Math.max(2, (size / maxBook) * cw) : 0;
+              ctx.fillStyle = isBig ? tint : rgba(tint, 0.6);
+              if (side === 'bid') ctx.fillRect(cx + cw - w, y + 1, w, h - 2);
               else ctx.fillRect(cx, y + 1, w, h - 2);
-              ctx.fillStyle = p.textPrimary;
-              ctx.font = `${size >= this.bigSize ? 700 : 500} 12px ${this.font}`;
-              ctx.textAlign = isBid ? 'right' : 'left';
-              ctx.fillText(formatCompact(size), isBid ? cx + cw - 5 : cx + 5, y + h / 2);
+              ctx.fillStyle = fg;
+              this.font(ctx, isBig ? 700 : 500, fs);
+              ctx.textAlign = side === 'bid' ? 'right' : 'left';
+              ctx.fillText(formatCompact(size), side === 'bid' ? cx + cw - 5 : cx + 5, midY);
+            }
+            let fl = undefined as ReturnType<DomModel['flash']>;
+            for (let k = 0; k < g && !fl; k++) fl = model.flash(side, px + k);
+            if (fl) {
+              const life = 1 - Math.min(1, (f.now - fl.at) / Math.max(1, t.behaviour.flashMs));
+              const col = fl.kind === 'pulled' ? p.pulled : p.stacked;
+              ctx.strokeStyle = rgba(col, 0.4 + 0.6 * life);
+              ctx.lineWidth = 2;
+              ctx.strokeRect(cx + 1, y + 1, cw - 2, h - 2);
+              ctx.lineWidth = 1;
+              ctx.fillStyle = rgba(col, 0.25 * life);
+              ctx.fillRect(cx, y, cw, h);
+              ctx.fillStyle = col;
+              this.font(ctx, 700, Math.max(8, fs - 2));
+              ctx.textAlign = side === 'bid' ? 'left' : 'right';
+              ctx.fillText(
+                fmtSigned(fl.amount),
+                side === 'bid' ? cx + 4 : cx + cw - 4,
+                midY,
+              );
+            }
+            const ice = model.iceberg(side, px);
+            if (ice) {
+              ctx.fillStyle = p.iceberg;
+              this.font(ctx, 700, Math.max(8, fs - 2));
+              ctx.textAlign = side === 'bid' ? 'left' : 'right';
+              ctx.fillText('◆', side === 'bid' ? cx + 3 : cx + cw - 3, midY);
             }
             break;
           }
           case 'sells':
           case 'buys': {
-            const m = c.id === 'sells' ? model.recentSells : model.recentBuys;
+            const m = b.id === 'sells' ? model.recentSells : model.recentBuys;
             const v = sizeAt(m, px);
-            ctx.fillStyle = p.bg;
-            ctx.fillRect(cx, y, cw, h);
             if (v > 0) {
               const k = maxRecent > 0 ? v / maxRecent : 0;
-              ctx.fillStyle = rgba(c.id === 'sells' ? p.down : p.up, 0.25 + k * 0.5);
+              ctx.fillStyle = rgba(c.accent ?? (b.id === 'sells' ? p.sell : p.buy), 0.2 + k * 0.5);
               ctx.fillRect(cx, y, cw, h);
-              ctx.fillStyle = p.textPrimary;
-              ctx.font = `${k > 0.6 ? 700 : 400} 12px ${this.font}`;
+              ctx.fillStyle = fg;
+              this.font(ctx, k > 0.6 ? 700 : 400, fs);
               ctx.textAlign = 'center';
-              ctx.fillText(formatCompact(v), cx + cw / 2, y + h / 2);
+              ctx.fillText(formatCompact(v), cx + cw / 2, midY, cw - 4);
             }
             break;
           }
           case 'bidChg':
           case 'askChg': {
-            const ch = c.id === 'bidChg' ? model.bidChange(px, book) : model.askChange(px, book);
-            ctx.fillStyle = c.id === 'bidChg' ? rgba(p.up, 0.04) : rgba(p.down, 0.05);
-            ctx.fillRect(cx, y, cw, h);
+            let ch = 0;
+            for (let k = 0; k < g; k++)
+              ch += b.id === 'bidChg' ? model.bidChange(px + k, book) : model.askChange(px + k, book);
             if (Math.abs(ch) > 1e-9) {
-              ctx.fillStyle = ch > 0 ? p.textSoft : p.textSecondary;
-              ctx.font = `400 11px ${this.font}`;
+              ctx.fillStyle = c.fg ?? (ch > 0 ? p.text : p.textDim);
+              this.font(ctx, 400, fs - 1);
               ctx.textAlign = 'center';
-              ctx.fillText(formatCompact(Math.round(ch * 1000) / 1000), cx + cw / 2, y + h / 2);
+              ctx.fillText(fmtSigned(Math.round(ch * 1000) / 1000), cx + cw / 2, midY, cw - 4);
             }
             break;
           }
         }
+        if (st.gridLines) {
+          ctx.fillStyle = p.grid;
+          ctx.fillRect(cx + cw, y, 1, rh);
+        }
       }
-      // White line between best ask and best bid (spread marker).
+      if (st.gridLines) {
+        ctx.fillStyle = p.grid;
+        ctx.fillRect(0, y + rh - 1, this.width, 1);
+      }
+      // Spread line between best bid and best ask.
       if (px === Math.floor(bestBid / g) * g) {
-        ctx.fillStyle = p.textPrimary;
+        ctx.fillStyle = p.spread;
         ctx.fillRect(0, y - 1, this.width, 2);
-      }
-    }
-    void col;
-    if (f.position && f.position.qty !== 0 && !Number.isNaN(f.lastPx)) {
-      const pnl = (f.lastPx - f.position.avgPx) * f.pnlPerTick * f.position.qty;
-      const c = this.colX.find((x) => x.id === 'orders');
-      if (c) {
-        ctx.fillStyle = pnl >= 0 ? p.up : p.down;
-        ctx.font = `600 11px ${this.font}`;
-        ctx.textAlign = 'left';
-        ctx.fillText(`${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`, c.x + 4, this.headerHeight / 2);
       }
     }
   }
