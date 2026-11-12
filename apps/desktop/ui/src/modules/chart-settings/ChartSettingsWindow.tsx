@@ -66,7 +66,6 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!s || s.kind !== 'chart') return null;
@@ -218,7 +217,7 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
         )}
       </div>
       <div className="cs-body">
-        {tab === 'templates' && !q ? (
+        {tab === 'templates' ? (
           <TemplatesTab windowId={windowId} state={s} />
         ) : (
           <>
