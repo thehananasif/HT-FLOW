@@ -21,3 +21,46 @@
 .dm-root-path {
   font-size: 11px;
 }
+.dm-import {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 78vh;
+  overflow: auto;
+  font-size: 12px;
+}
+.dm-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+.dm-preview {
+  max-height: 240px;
+  overflow: auto;
+}
+.dm-preview td,
+.dm-preview th {
+  white-space: nowrap;
+}
+.dm-preview caption {
+  text-align: left;
+  padding: 4px 0;
+}
+.dm-errors ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  max-height: 160px;
+  overflow: auto;
+}
+.dm-import-actions {
+  align-items: center;
+}
+.dm-imported {
+  flex: none;
+}

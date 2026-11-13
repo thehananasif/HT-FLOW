@@ -5,6 +5,8 @@
 ### Added
 
 - Settings wired (P27, round 5): DOM font size, default price grouping of new DOMs, Buys / Sells window and swapped left / right click; Tape rows kept, minimum size, follow new trades, big-trade threshold, colour by side and beep on big trades; chart-axis and calendar / news time zones and exchange time on hover in tables and journal; FPS cap (charts, DOM, tape), renderer type and video adapter (3D heatmap); recorder disk budget and tick retention pushed to the native recorder. MBO history, backups and log files stay pending on native work (BLOCKERS).
+- CSV importer in the Data manager: trades or OHLCV bars from a user-picked file with auto-detected delimiter, header, columns, time format (epoch s / ms / us / ns, ISO, d/m/y), time zone and side meaning, a preview of the first rows, rejected rows listed with line numbers, chunked streaming, and import to a `csv:` instrument that opens in charts and Replay.
+- "Custom WebSocket" connector in the Add-connection wizard: ws(s):// URL, `{symbol}` subscribe template and a JSON path mapping (price, qty, side, timestamp, optional book), reconnect with back-off, status in the Connections list, wizard test against the first message.
 
 ### Changed
 
