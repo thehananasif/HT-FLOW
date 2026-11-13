@@ -29,9 +29,11 @@ import { globalChartOptions } from './settings/globals';
 import { getSetting } from '../state/settings';
 import {
   DAY_MS,
+  LazyHistoryGate,
   MAX_LOAD_DAYS,
   autoLoadsHistory,
-  olderSpanMs,
+  lazySpanMs,
+  loadChunks,
   openLoadChunks,
   progressLabel,
   normalizeLoadDays,
@@ -187,11 +189,16 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
         }, 250);
       }),
     );
-    // Lazy left-scroll loading: ask the store for older history past the first bar.
-    const span = olderSpanMs(store.feedKind, h.periodMs ?? undefined);
+    // Lazy left-scroll loading: ask the store for older history past the first bar. Gated on a
+    // user scroll so coarse timeframes (few bars, always "past the start") cannot loop.
+    const span = lazySpanMs(h.periodMs, store.feedKind);
+    const gate = new LazyHistoryGate(main.rightOffset);
+    let pending = false;
+    unsubs.push(() => gate.dispose());
     unsubs.push(
       main.onScrollPastStart(() => {
-        if (store.loadingOlder || store.historyExhausted) return;
+        if (pending || store.loadingOlder || store.historyExhausted) return;
+        if (!gate.take(main.rightOffset)) return;
         const bars = h.series()?.bars.length ?? 0;
         if (bars >= globalChartOptions().maxCandles) {
           setOlderNote('Max candles per chart reached (Settings → Common)');
@@ -201,11 +208,18 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           setOlderNote('No older history from this feed');
           return;
         }
-        setOlderNote('Loading older history…');
-        void store.loadOlder(span).then((n) => {
-          setOlderNote(n ? null : 'Start of available history');
-          main.invalidate();
-        });
+        setOlderNote(`Loading older history (${spanLabel(span)})…`);
+        pending = true;
+        // Let the note paint before a simulated chunk is generated.
+        setTimeout(() => {
+          if (gate.isDisposed) return;
+          void store.loadOlder(span).then((n) => {
+            pending = false;
+            if (gate.isDisposed) return;
+            setOlderNote(n ? null : 'Start of available history');
+            main.invalidate();
+          });
+        }, 0);
       }),
     );
     setBuilt((x) => x + 1);
@@ -353,13 +367,16 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   const goToTime = async (t: number) => {
     const h = handle.current;
     if (!h) return;
-    let guard = 0;
-    while ((store.trades[0]?.ts ?? Infinity) > t && store.olderLoader && guard++ < 48) {
-      const n = await store.loadOlder(
-        Math.max(3_600_000, (store.trades[0]?.ts ?? t) - t + 600_000),
-      );
+    // One day per request at most (a simulated day is ~700k ticks), with progress shown.
+    const chunks = loadChunks((store.trades[0]?.ts ?? t) - t + 600_000, DAY_MS, 48);
+    for (const [i, span] of chunks.entries()) {
+      if ((store.trades[0]?.ts ?? Infinity) <= t || !store.olderLoader) break;
+      setOlderNote(`Loading history ${i + 1}/${chunks.length}…`);
+      await new Promise((r) => setTimeout(r, 0));
+      const n = await store.loadOlder(Math.max(3_600_000, span));
       if (!n) break;
     }
+    setOlderNote(null);
     if (!h.main.scrollToTime(t)) toast('warning', 'Date is before the available history');
   };
 
@@ -590,6 +607,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               </div>
             )}
             <PrevSessionProbe handle={handle} store={store} />
+            <BarsProbe handle={handle} store={store} />
             {ext.pinned && (
               <span
                 className="chart-pin-badge"
@@ -753,6 +771,23 @@ function PrevSessionProbe({
       {last
         ? `Previous session POC ${formatPrice(last.poc, store.instrument)}, value area ${formatPrice(last.val, store.instrument)}–${formatPrice(last.vah, store.instrument)}`
         : 'No previous session loaded'}
+    </span>
+  );
+}
+
+/** Accessible bar count of the main series (screen readers, tests). */
+function BarsProbe({
+  handle,
+  store,
+}: {
+  handle: React.MutableRefObject<ChartHandle | null>;
+  store: MarketStore;
+}) {
+  useStoreTicker(store, 1);
+  const n = handle.current?.series()?.bars.length ?? 0;
+  return (
+    <span className="chart-sr" data-testid="chart-bars" data-count={n}>
+      {`${n} bars`}
     </span>
   );
 }

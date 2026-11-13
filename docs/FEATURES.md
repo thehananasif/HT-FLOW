@@ -90,7 +90,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] History merge (`market_history`): local store first, REST backfill only for uncovered gaps, written back to the store, de-duplicated at the seam; live stream buffered during history load so there is no gap or duplicate
 - [x] `crates/tick-store`: per-instrument per-UTC-day trade and depth files, zstd columnar blocks of 1,000 records with CRC, block index, crash-safe (torn block ignored, index rebuilt), recorder thread (1 s flush, 10 s fsync; depth deltas, full snapshots, 250 ms top-25 snapshots), day compaction, retention by age / max disk, coverage file, CSV export; tick store registered as the preferred replay source
-- [ ] Memory-mapped reads; bars cache; Parquet export; Bybit history beyond the latest 1,000 trades; Binance time-range backfill (reuses recent trades)
+- [x] Older history ("Load days", "◂ Load 1 more day", left-scroll, Go to date) in the desktop app: `market_history_range` pages REST trades newest-first for the last day (Binance spot / USDⓈ-M / COIN-M by aggTrade id, OKX by history-trades, Bitget / Bitfinex / Deribit by time window) within a request budget, then klines (Binance, interval chosen per span, ≤ 5,000 bars) rebuilt as bar-level ticks; 429 / Retry-After handling; progress in the chart footer; long timeframes load ≥ 120 bars on open; size-capped LRU history cache (`data.cacheSizeMb`)
+- [ ] Memory-mapped reads; Parquet export; klines for Bybit / OKX / Bitget / Kraken / Bitfinex / Deribit / Phemex / WhiteBIT (their older days stay empty past the trade endpoints' reach); Kraken / Bybit / Phemex / WhiteBIT windowed trades
 - [ ] Binance public archives (data.binance.vision) import
 - [x] CSV importer (Data manager → Import CSV…, command "Import CSV"): trades (time, price, qty, optional side) or OHLCV bars; auto-detects delimiter, header, columns and time format (epoch s / ms / us / ns, ISO, d/m/y text), time zone and side semantics (incl. is_buyer_maker); preview of the first rows with per-row validation; rejected rows listed with line numbers; streamed in chunks (no whole-file string); imported data becomes a `csv:<name>` instrument that opens in charts and in Replay ("Imported files" source), kept in memory and IndexedDB
 - [ ] CSV importer: Parquet files, depth / book CSV, writing imports into the Rust tick store (imports live in the browser store), bars become 4 synthetic trades each
@@ -118,7 +119,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Display modes: Footprint modes (Alt+V / T / B / D), Bars, Candles, Transparent candles, Line, Area, Hidden (right-click → Mode)
 - [x] Level-of-detail: footprint collapses to candles below 20 px slot width (configurable)
 - [x] Window header: link-group dot, instrument, timeframe chips + menu, lots, template menu, Indicators (disabled), Live / Sim badge, snapshot camera (copy PNG), maximize, settings, close; bottom bar: go-to-latest, session selector, history info, DOM Trader, Trading Panel
-- [x] Compare / overlay instruments (normalised %), Go to date (Ctrl+G, loads older history), pin (keeps instrument across link-group changes); lazy history and session filtering on live / replay feeds pending
+- [x] Compare / overlay instruments (normalised %), Go to date (Ctrl+G, loads older history), pin (keeps instrument across link-group changes); lazy history on live feeds (native backfill); session filtering on live / replay feeds pending
 - [ ] Acceptance: 8 charts at 60 fps with 1M ticks; Playwright test for every mouse mode / shortcut
 
 ## P09 — Chart templates
@@ -315,7 +316,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Stage 1 Connect (Binance Futures) · [x] Stage 2 Normalise (ticks) · [x] Stage 3 Book builder with sequence check
 - [~] Stage 4 Event bus — bounded channel per subscription; slow consumer never blocks the socket (drops to snapshot mode); lock-free ring buffer pending
 - [x] Stage 5 Recorder (tick store)
-- [~] Stage 6 History merge — history then live on one chart; gap detection, dedupe at the seam and lazy left-scroll loading pending
+- [x] Stage 6 History merge — history then live on one chart; gap detection, dedupe at the seam, lazy left-scroll loading and newest-first native backfill of older days
 - [x] Stage 7 Aggregator (shared series per instrument + bar type) — in TypeScript on the UI side today
 - [x] Stage 8 Indicator engine (worker pool): `IndicatorPool` / `EngineHost` / `RemoteRuntime` in the SDK, `performance.workerCount` workers, incremental tail updates with changed-range replies, tape / feed indicators and tests on the main thread; pooled == main-thread results test over every poolable indicator
 - [~] Stage 9 UI streamer — 16 ms coalescing per subscription; hidden-window suppression and binary payloads pending

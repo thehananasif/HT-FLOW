@@ -82,17 +82,6 @@ export function openLoadChunks(
   return chunks;
 }
 
-/**
- * Span for one left-scroll load: ~240 bars of the chart's period. Only live feeds (bar-level
- * klines from the desktop backfill) get long spans; simulated / replay feeds generate or read
- * every tick, so they load at most one day per step (a 4h chart once asked for 40 simulated
- * days ≈ 28M ticks in one go and froze the window).
- */
-export function olderSpanMs(feedKind: string | null, periodMs: number | undefined): number {
-  const span = Math.max(3_600_000, (periodMs ?? 60_000) * 240);
-  return feedKind === 'live' ? Math.min(span, MAX_LOAD_DAYS * DAY_MS) : Math.min(span, DAY_MS);
-}
-
 export interface HistoryProgressLike {
   doneMs: number;
   totalMs: number;
@@ -113,4 +102,57 @@ export function progressLabel(p: HistoryProgressLike): string {
   const parts = [`${what} ${pct} %`, `${p.trades.toLocaleString('en-US')} ticks`];
   if (p.throttled) parts.push('rate limited, slowing down');
   return parts.join(' · ');
+}
+
+/** Largest older-history chunk one lazy left-scroll request may ask for, per feed kind. */
+export const LAZY_SPAN_CAP_MS: Record<'mock' | 'live' | 'replay', number> = {
+  // A simulated hour is ~30k ticks generated on the main thread: keep each step small.
+  mock: 2 * 3_600_000,
+  live: DAY_MS,
+  replay: DAY_MS,
+};
+
+/**
+ * Span (ms) of one lazy left-scroll request: about 240 bars of the chart's period, at least one
+ * hour, capped per feed kind. Coarse timeframes used to ask for 240 × 4 h = 40 days at once.
+ */
+export function lazySpanMs(periodMs: number | null, feedKind: string | null): number {
+  const want = Math.max(3_600_000, (periodMs && periodMs > 0 ? periodMs : 60_000) * 240);
+  const cap =
+    feedKind === 'mock' || feedKind === 'live' || feedKind === 'replay'
+      ? LAZY_SPAN_CAP_MS[feedKind]
+      : DAY_MS;
+  return Math.min(want, cap);
+}
+
+/**
+ * Decides when "scrolled past the first bar" may request older history. The chart reports it on
+ * every draw, so with few bars (4 h, 1 D, 1 W) the view is always past the start: without a gate
+ * each loaded chunk triggered the next one forever. A request is allowed only after the user has
+ * scrolled the view since the chart opened or since the previous request.
+ */
+export class LazyHistoryGate {
+  private lastOffset: number;
+  private disposed = false;
+
+  constructor(initialOffset: number) {
+    this.lastOffset = initialOffset;
+  }
+
+  /** True when a request may start for the current scroll offset; records it. */
+  take(offset: number): boolean {
+    if (this.disposed || !Number.isFinite(offset)) return false;
+    if (Math.abs(offset - this.lastOffset) < 0.5) return false;
+    this.lastOffset = offset;
+    return true;
+  }
+
+  /** The chart was rebuilt (timeframe change): pending results must not touch it. */
+  dispose(): void {
+    this.disposed = true;
+  }
+
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
 }
