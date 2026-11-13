@@ -54,7 +54,12 @@ import { TitleBar } from '../shell/TitleBar';
 import { Ribbon } from '../shell/Ribbon';
 import { StatusBar } from '../shell/StatusBar';
 import { CommandPalette } from '../shell/CommandPalette';
-import { installHotkeys, registerCommands, type Command } from '../shell/commands';
+import {
+  installHotkeys,
+  registerCommands,
+  setActiveWindowElement,
+  type Command,
+} from '../shell/commands';
 import { MODULES } from '../shell/modules';
 import { ChartWindow } from '../charts/ChartWindow';
 import { DomWindow } from '../trading/DomView';
@@ -540,6 +545,10 @@ export function Dashboard({ version }: { version: string }) {
     ];
     const un = registerCommands(cmds);
     const unk = installHotkeys();
+    setActiveWindowElement(() => {
+      const a = useWindows.getState().activeId;
+      return a ? document.querySelector(`[data-window-id="${CSS.escape(a)}"]`) : null;
+    });
     // Modules outside the ribbon (e.g. the drawings Objects List) open through this event.
     // detail: a module id, or { module, position } where position is a split direction hint.
     const onOpen = (e: Event) => {

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — round 4
+
+### Added
+
+- Chart right-click menu (P26) completed in the spec order: Buy / Sell at cursor, Set alert, Trading Panel, DOM Trader, Lock trading, Go to date, Change instrument, Mode ▸, Mouse ▸, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window ▸, Clone window, Hide panels, Trading session ▸, Refresh, Reload all historical data, ◂ Load 1 more day, Add replay template, Reset, Export ▸, Full screen, Settings. Extension items are placed in their spec slots (`charts/menuSlots.ts`).
+- Context-aware chart menus: on an indicator legend row or indicator sub-pane → Indicator settings / Hide / Remove / Move to pane ▸ (price pane, new pane, pane up / down); drawing and order-line items now come first; price / time axis menus unchanged.
+- Chart right-click Buy / Sell orders go through the shared order path: the account picked in the Trading Panel, its selected ATM bracket and order confirmations. The price falls back to the pointer when no crosshair is set yet.
+- P31: Snapshots submenu at the top of the chart template menu (take snapshot of the whole chart state, restore, delete, copy PNG; saved per profile); per-chart "Load days" (default from Settings → Common → Default load days, now wired) with background loading for real / replay feeds; "◂ Load 1 more day" button, menu item and command; previous-session volume profile on the left of candle and footprint charts (POC highlighted, value area tinted, POC price label; Chart settings → Grid toggle).
+- Commands: Chart: ◂ Load 1 more day, Chart: Take snapshot, Chart: Lock / unlock trading.
+
+### Changed
+
+- Window-scoped hotkeys (Ctrl+Z / Ctrl+Y / Del / Ctrl+R / Shift+B…) fall back to the active window when the last click was outside any window (status bar, ribbon, a closed menu).
+- Chart full screen no longer defaults to F11 (F11 is the Triangle drawing tool per Appendix C); Ctrl + double-click stays the default, a key can be bound in Settings → Hot keys.
+- Long menus scroll within the window instead of running off screen.
+
 ## Unreleased — round 3
 
 ### Changed

@@ -15,11 +15,79 @@ import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { registerCommands } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
+import type { MenuEntry } from '@htflow/ui-kit';
 import { IndicatorsDialog } from './Dialog';
+import { canMovePane, indicatorsInPane, moveIndicator, type PaneMove } from './menuModel';
 import { EXT_ID, contexts, readExt, targetChart, useIndicatorDialog, writeExt } from './state';
 import './styles.css';
 
 const isOurs = (l: ChartLayer) => l.id.startsWith('ind');
+
+/** Indicator scene per chart window (right-click hit testing on the legend). */
+const scenes = new Map<string, IndicatorScene>();
+
+/** Context items for indicators under the cursor (P26: settings / hide / remove / move pane). */
+function indicatorItems(windowId: string, uids: string[]): MenuEntry[] {
+  const items = readExt(windowId).items;
+  const out: MenuEntry[] = [];
+  for (const uid of uids) {
+    const c = items.find((x) => x.uid === uid);
+    const d = c ? indicatorById(c.type) : undefined;
+    if (!c || !d) continue;
+    const move = (to: PaneMove) => () =>
+      writeExt(windowId, moveIndicator(readExt(windowId).items, uid, to));
+    const entries: MenuEntry[] = [
+      {
+        id: `ind-settings-${uid}`,
+        label: 'Indicator settings…',
+        onSelect: () => useIndicatorDialog.getState().open(windowId, uid),
+      },
+      {
+        id: `ind-hide-${uid}`,
+        label: c.enabled ? 'Hide indicator' : 'Show indicator',
+        onSelect: () => act(windowId, { uid, action: 'toggle', x: 0, y: 0, w: 0, h: 0 }),
+      },
+      {
+        id: `ind-remove-${uid}`,
+        label: 'Remove indicator',
+        onSelect: () => act(windowId, { uid, action: 'remove', x: 0, y: 0, w: 0, h: 0 }),
+      },
+      {
+        kind: 'submenu',
+        id: `ind-move-${uid}`,
+        label: 'Move to pane',
+        items: [
+          {
+            id: `ind-mv-overlay-${uid}`,
+            label: 'Price pane (overlay)',
+            checked: c.pane === 'overlay',
+            onSelect: move('overlay'),
+          },
+          {
+            id: `ind-mv-new-${uid}`,
+            label: 'New pane below',
+            checked: c.pane === 'new',
+            onSelect: move('new'),
+          },
+          {
+            id: `ind-mv-up-${uid}`,
+            label: 'Move pane up',
+            disabled: !canMovePane(items, uid, 'up'),
+            onSelect: move('up'),
+          },
+          {
+            id: `ind-mv-down-${uid}`,
+            label: 'Move pane down',
+            disabled: !canMovePane(items, uid, 'down'),
+            onSelect: move('down'),
+          },
+        ],
+      },
+    ];
+    out.push({ kind: 'label', id: `ind-l-${uid}`, label: titleOf(d, c.inputs) }, ...entries);
+  }
+  return out.length ? [{ kind: 'separator', id: 'ind-ctx-s' }, ...out] : [];
+}
 
 function act(windowId: string, h: Hotspot): void {
   const items = readExt(windowId).items;
@@ -65,6 +133,7 @@ registerChartExtension({
       },
     };
     const scene = new IndicatorScene(() => data, indicatorById);
+    scenes.set(ctx.windowId, scene);
     const core = ctx.core;
     const others = ctx.cores.filter((c) => c !== core);
     const spacer = new PaneSpacerLayer(scene);
@@ -105,12 +174,22 @@ registerChartExtension({
       unsub();
       detachFeeds();
       if (contexts.get(ctx.windowId) === ctx) contexts.delete(ctx.windowId);
+      if (scenes.get(ctx.windowId) === scene) scenes.delete(ctx.windowId);
       core.pointerHandlers = core.pointerHandlers.filter((p) => p !== ph);
       for (const c of ctx.cores) c.setLayers(c.layers.filter((l) => !isOurs(l)));
     };
   },
-  menu(ctx) {
+  menu(ctx, _px, at) {
+    // Context-aware: an indicator legend row or an indicator sub-pane under the cursor.
+    const uids: string[] = [];
+    if (at && at.core === ctx.core) {
+      const h = scenes.get(ctx.windowId)?.hit(at.x, at.y);
+      if (h) uids.push(h.uid);
+      else if (at.hit.layerId)
+        uids.push(...indicatorsInPane(readExt(ctx.windowId).items, at.hit.layerId));
+    }
     return [
+      ...indicatorItems(ctx.windowId, uids),
       {
         id: 'indicators',
         label: t('indicators.command'),

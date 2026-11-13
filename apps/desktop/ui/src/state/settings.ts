@@ -1051,7 +1051,7 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'common.mboStoreRaw': bool({
     section: 'common',

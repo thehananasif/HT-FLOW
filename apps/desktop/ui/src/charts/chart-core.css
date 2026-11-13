@@ -62,3 +62,33 @@
   background: var(--ht-surface-sheet);
   pointer-events: none;
 }
+
+/* Load days (P31) in the chart bottom bar. */
+.chart-load-days {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ht-text-secondary);
+}
+.chart-load-days input {
+  width: 44px;
+  height: 20px;
+  padding: 0 4px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--ht-text-primary);
+  background: var(--ht-surface2);
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+}
+
+.chart-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  margin: 0;
+  padding: 0;
+}

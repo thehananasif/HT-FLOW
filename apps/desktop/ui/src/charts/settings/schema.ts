@@ -457,6 +457,12 @@ export const TABS: TabDef[] = [
             { indent: true },
           ),
           bool('grid.sessionLines', 'New session lines', true),
+          bool(
+            'grid.prevSessionProfile',
+            'Previous-session volume profile (left)',
+            true,
+            'POC highlighted, value area tinted, POC price label (candles and footprint charts).',
+          ),
           line(
             'grid.sessionLine',
             'New session lines style',

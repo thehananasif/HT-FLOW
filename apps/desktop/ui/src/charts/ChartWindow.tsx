@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
 import { ContextMenu, toast, type MenuEntry } from '@htflow/ui-kit';
-import { specLabel, type BarSpec, type MarketStore } from '@htflow/market-data';
+import { formatPrice, specLabel, type BarSpec, type MarketStore } from '@htflow/market-data';
 import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import type { ChartCore, HitInfo } from '@htflow/chart-engine';
 import { useWindows } from '../state/windows';
-import { hub, paper, PAPER_ACCOUNT } from '../state/market';
+import { hub, paper } from '../state/market';
+import { activeAccount } from '../trading/accounts';
+import { submitOrder } from '../trading/orders';
 import { InstrumentPicker } from '../components/InstrumentPicker';
 import { buildChart, type ChartHandle } from './buildChart';
 import { usePalette } from './palette';
 import { useMarketStore, useStoreTicker } from './useMarket';
 import { SideTools } from './SideTools';
 import { DomTrader } from '../trading/DomView';
-import { chartExtensions } from './extensions';
+import { chartExtensions, type MenuAt } from './extensions';
 import { applyChartSettings } from './settings/apply';
 import { normalizeSettings, sBool, sStr, type ChartSettings } from './settings/schema';
 import {
@@ -23,6 +25,16 @@ import {
   type CompareItem,
 } from './settings/state';
 import { globalChartOptions } from './settings/globals';
+import { getSetting } from '../state/settings';
+import {
+  DAY_MS,
+  MAX_LOAD_DAYS,
+  autoLoadsHistory,
+  loadChunks,
+  missingHistoryMs,
+  normalizeLoadDays,
+  spanLabel,
+} from './history';
 import { useSettingsStore } from '../state/settings';
 import { onChartAction, publishCrosshair, subscribeCrosshair, type CrosshairSync } from './bus';
 import { installChartCommands, openChartSettings } from './commands';
@@ -90,6 +102,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   const [domTrader, setDomTrader] = useState(false);
   const [menuPx, setMenuPx] = useState<number | null>(null);
   const [hit, setHit] = useState<HitInfo>({ area: 'plot' });
+  const [menuAt, setMenuAt] = useState<MenuAt | null>(null);
   const [compact, setCompact] = useState(false);
   const [gotoOpen, setGotoOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -116,6 +129,18 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   linkRef.current = s.link;
   const instRef = useRef(s.instrumentId);
   instRef.current = s.instrumentId;
+  // Load days (P31): per chart, default from Settings → Common → Default load days.
+  const loadDays = normalizeLoadDays(
+    (s.ext as Record<string, unknown> | undefined)?.loadDays,
+    normalizeLoadDays(getSetting('common.defaultLoadDays'), 4),
+  );
+  const setLoadDays = (d: number) => {
+    const cur = useWindows.getState().windows[id];
+    if (cur?.kind !== 'chart') return;
+    patch(id, {
+      ext: { ...(cur.ext ?? {}), loadDays: normalizeLoadDays(d) },
+    } as Partial<WindowState>);
+  };
   const syncRef = useRef<CrosshairSync>('off');
   syncRef.current = sStr(settings, 'crosshair.sync') as CrosshairSync;
 
@@ -238,6 +263,39 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     return () => clearInterval(t);
   }, [countdown]);
 
+  // Load days: real / replay feeds fill the missing days in the background when the chart opens.
+  useEffect(() => {
+    if (!store.ready || !autoLoadsHistory(store.feedKind, !!store.olderLoader)) return;
+    let stop = false;
+    void (async () => {
+      const chunks = loadChunks(missingHistoryMs(store.trades[0]?.ts, store.lastTs, loadDays));
+      for (const span of chunks) {
+        if (stop || store.historyExhausted) break;
+        setOlderNote(`Loading history (${loadDays} days)…`);
+        const n = await store.loadOlder(span);
+        if (!n) break;
+      }
+      if (!stop) setOlderNote(null);
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [store, store.ready, loadDays]);
+
+  const loadOneMoreDay = () => {
+    if (!store.olderLoader) return toast('info', 'No older history from this feed');
+    store.historyExhausted = false;
+    setOlderNote('Loading 1 more day of history…');
+    // Let the note paint before a simulated day is generated.
+    setTimeout(() => {
+      void store.loadOlder(DAY_MS).then((n) => {
+        setOlderNote(n ? null : 'Start of available history');
+        handle.current?.cores.forEach((c) => c.invalidate());
+        if (n) toast('info', `Loaded ${n.toLocaleString()} older ticks`, '1 more day of history');
+      });
+    }, 30);
+  };
+
   // Default template per instrument class when the instrument changes.
   const prevInst = useRef(s.instrumentId);
   useEffect(() => {
@@ -334,6 +392,8 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               'Historical data reloaded',
               `${store.trades.length.toLocaleString()} ticks`,
             );
+          case 'load-day':
+            return loadOneMoreDay();
           case 'load-older':
             store.historyExhausted = false;
             void store
@@ -373,25 +433,28 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     [id, store, inst, fileBase],
   );
 
+  // Right-click Buy / Sell: the account picked in the Trading Panel and its selected ATM bracket.
   const order = (side: 'buy' | 'sell', type: 'limit' | 'stop') => {
     if (menuPx === null) return;
-    const o = paper.place({
-      accountId: PAPER_ACCOUNT,
+    const px = menuPx;
+    void submitOrder({
+      accountId: activeAccount(),
       instrumentId: inst.id,
       side,
       type,
-      qty: s.lots,
-      px: type === 'limit' ? menuPx : undefined,
-      stopPx: type === 'stop' ? menuPx : undefined,
+      qty: s.lots || 1,
+      px: type === 'limit' ? px : undefined,
+      stopPx: type === 'stop' ? px : undefined,
+    }).then((o) => {
+      if (o && o.status !== 'rejected')
+        toast(
+          'success',
+          `${side === 'buy' ? 'Buy' : 'Sell'} ${type} ${s.lots || 1} @ ${formatPrice(px, inst)}`,
+          `${paper.accounts.get(o.accountId)?.name ?? o.accountId}${o.atm ? ` · ATM ${o.atm}` : ''}`,
+        );
     });
-    if (o.status === 'rejected') toast('error', 'Order rejected', o.reason);
-    else
-      toast(
-        'success',
-        `${side === 'buy' ? 'Buy' : 'Sell'} ${type} ${s.lots} @ ${menuPx}`,
-        o.status,
-      );
   };
+  const lockAccount = () => paper.route(activeAccount(), inst.id);
 
   const menu: MenuEntry[] = useMemo(
     () =>
@@ -408,13 +471,18 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
         handle: handle.current,
         toggleDomTrader: () => setDomTrader((x) => !x),
         order,
+        locked: !!paper.accounts.get(lockAccount())?.locked,
+        toggleLock: () => {
+          const acc = lockAccount();
+          paper.setLocked(acc, !paper.accounts.get(acc)?.locked);
+        },
         extensionItems: chartExtensions().flatMap((e) => {
           const ctx = handle.current?.extCtx.get(e.id);
-          return ctx && e.menu ? e.menu(ctx, menuPx) : [];
+          return ctx && e.menu ? e.menu(ctx, menuPx, menuAt ?? undefined) : [];
         }),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [menuPx, hit, s, settings, domTrader, lib, built],
+    [menuPx, hit, menuAt, s, settings, domTrader, lib, built],
   );
 
   const capture = (e: React.MouseEvent) => {
@@ -424,11 +492,25 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     const v = core?.view;
     if (core && v) {
       const r = core.canvas.getBoundingClientRect();
-      setHit(core.hitTest(e.clientX - r.left, e.clientY - r.top));
-    } else setHit({ area: 'plot' });
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      const hi = core.hitTest(x, y);
+      setHit(hi);
+      setMenuAt({ x, y, hit: hi, core });
+    } else {
+      setHit({ area: 'plot' });
+      setMenuAt(null);
+    }
     // Price at the cursor: the right (price-axis) core for Order Flow.
-    const pc = h?.cores[h.cores.length - 1]?.view;
-    setMenuPx(pc?.crosshair ? pc.crosshair.px : (v?.crosshair?.px ?? null));
+    // Without a crosshair yet (right-click straight after moving), use the price at the pointer.
+    const pcore = h?.cores[h.cores.length - 1];
+    const pc = pcore?.view;
+    let px = pc?.crosshair ? pc.crosshair.px : (v?.crosshair?.px ?? null);
+    if (px === null && pcore && pc) {
+      const y = e.clientY - pcore.canvas.getBoundingClientRect().top;
+      if (y >= pc.plot.y && y < pc.plot.y + pc.plot.h) px = Math.round(pc.pxAt(y));
+    }
+    setMenuPx(px);
   };
 
   const hidePanels = sBool(settings, 'other.hidePanels');
@@ -499,6 +581,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
                 ))}
               </div>
             )}
+            <PrevSessionProbe handle={handle} store={store} />
             {ext.pinned && (
               <span
                 className="chart-pin-badge"
@@ -543,11 +626,33 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           >
             📅
           </button>
-          <span className="muted">
+          <button
+            className="ht-chip ht-chip--ghost"
+            data-testid="load-one-more-day"
+            title="Load 1 more day of history"
+            onClick={loadOneMoreDay}
+          >
+            ◂ Load 1 more day
+          </button>
+          <label
+            className="chart-load-days"
+            title="History loaded when the chart opens (per chart)"
+          >
+            Load days
+            <input
+              type="number"
+              aria-label="Load days"
+              min={1}
+              max={MAX_LOAD_DAYS}
+              value={loadDays}
+              onChange={(e) => setLoadDays(Number(e.target.value))}
+            />
+          </label>
+          <span className="muted" data-testid="history-range">
             {olderNote ??
               (s.template === 'liquidity-map'
                 ? `Brightness 100 · Cut-off 98/20 · ${store.depth.length} columns`
-                : `History ${Math.round((store.trades.length ? store.lastTs - store.trades[0]!.ts : 0) / 3_600_000)} h · ${store.trades.length.toLocaleString()} ticks`)}
+                : `History ${spanLabel(store.trades.length ? store.lastTs - store.trades[0]!.ts : 0)} of ${loadDays} d · ${store.trades.length.toLocaleString()} ticks`)}
           </span>
           <div className="grow" />
           {sBool(settings, 'delays.show') && <DelayChip store={store} settings={settings} />}
@@ -617,6 +722,29 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
         />
       )}
     </div>
+  );
+}
+
+/** Accessible mirror of the previous-session profile (screen readers, tests). */
+function PrevSessionProbe({
+  handle,
+  store,
+}: {
+  handle: React.MutableRefObject<ChartHandle | null>;
+  store: MarketStore;
+}) {
+  useStoreTicker(store, 1);
+  const last = handle.current?.layers.prevProfile?.last ?? null;
+  return (
+    <span
+      className="chart-sr"
+      data-testid="prev-session-profile"
+      data-poc={last ? formatPrice(last.poc, store.instrument) : ''}
+    >
+      {last
+        ? `Previous session POC ${formatPrice(last.poc, store.instrument)}, value area ${formatPrice(last.val, store.instrument)}–${formatPrice(last.vah, store.instrument)}`
+        : 'No previous session loaded'}
+    </span>
   );
 }
 

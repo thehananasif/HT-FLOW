@@ -151,7 +151,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Anchors with drag editing, magnet (off / weak / strong presets), lock / hide / clone / delete, style toolbar (colour, width, dash, fill, text), extend left / right, per-timeframe visibility, sync across linked charts, Objects List window, Undo / Redo history, hotkeys
 - [x] Alert on cross for lines, rays, channels and rectangles (cross / enter / exit), bell toggle + dialog, fires through the alerts runtime; emoji picker; regression inner / outer σ and anchored-VWAP band fields; magnet slider (px) in Drawing preferences; multi-select (Shift+click, Ctrl+drag box, Ctrl+A) with group move / delete / style
 - [x] ZigZag volume profile, CVD correlation, Magnifier (M), Remove indicators; Ctrl+Z / Ctrl+Y / Del / Ctrl+A registry commands; drawings on both Order Flow (Dark) panes; Objects List ribbon button
-- [ ] i18n of drawing strings; registry Ctrl+Z needs the last pointer-down inside a chart
+- [ ] i18n of drawing strings
 
 ## P13 — Indicator framework
 
@@ -192,7 +192,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] ATM templates (`packages/trading/src/atm.ts`): SL ticks / $ / % / ATR / trailing, up to 8 weighted targets in $ / % / points / ticks, auto-breakeven, trailing steps, 5 presets; ATM & Trading Setup window (editor, JSON import / export); picker in Trading Panel, DOM and DOM Trader
 - [x] Chart trading (chart extension): position line with live P&L and ✕ close, draggable working-order and SL / TP lines with ✕ cancel, B / S fill markers, right-click order menu; all styles configurable
 - [x] Multiple paper accounts (create, rename, starting balance and currency, reset, delete); order confirmations per order type; account picker shows the routed account (replay); minimal options positions model in the engine
-- [ ] Chart right-click Buy / Sell and Dashboard Flatten / Breakeven still use the default paper account without ATM; risk engine covers the default account only; options model not connected to the Options Board; saved accounts keep settings, not balances / positions; OCO checkbox inert
+- [ ] Dashboard Flatten / Breakeven still use the default paper account; risk engine covers the default account only; options model not connected to the Options Board; saved accounts keep settings, not balances / positions; OCO checkbox inert
 - [x] Tests: bracket with 3 targets fills correctly; PnL matches hand calculation
 
 ## P18 — Options Board & analytics
@@ -251,7 +251,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P26 — Chart right-click menu
 
-- [~] Buy Limit / Sell Stop (or Sell Limit / Buy Stop) at cursor price, Trading Panel, DOM Trader, Mode ▸ (Footprint modes, Bars, Candles, Transparent, Line, Area, Hidden), Mouse ▸, Reset, Export PNG — Go to date, Change instrument, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window, Clone, Hide panels, Trading session ▸, Refresh, Reload history, Add replay template, Export CSV / JSON, Full screen, Settings pending; context-aware menus pending
+- [x] Full menu in spec order: Buy Limit / Sell Stop (or Sell Limit / Buy Stop) at cursor price with the Trading Panel account + ATM bracket, Set alert, Trading Panel, DOM Trader, Lock trading, Go to date, Change instrument, Mode ▸, Mouse ▸, Price scale ▸, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window ▸, Clone, Hide panels, Trading session ▸, Refresh, Reload history, ◂ Load 1 more day, Add replay template, Reset, Export ▸ (PNG, CSV bars, CSV clusters, JSON, template JSON), Full screen, Settings
+- [x] Context-aware menus: drawing (edit / clone / lock / hide / delete), indicator legend or pane (settings / hide / remove / move pane), order line (cancel / move), position (close / breakeven), price scale, time scale, sub-panes; every item has a Command Palette entry; Playwright clicks through the menu (`e2e/chart-menu.spec.ts`)
+- [ ] i18n of menu strings
 
 ## P27 — Settings & customization centre
 
@@ -259,7 +261,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Settings window (Ctrl+,, palette, "Settings: <section>"): search, draft with Cancel / Apply / OK; General, Appearance (5 themes, 29-token editor, UI scale, font size, icons-only ribbon, theme JSON), Hot keys (record, conflicts, scopes, presets, export / import), Sounds (7 events, volume, preview, own .wav / .mp3), Time zones (exchange clocks and trading hours), Commission (rules by account / instrument, applied to paper trading), Data delays (status-bar pills), Performance (FPS overlay), Common settings groups
 - [x] Settings wired: date format / 24h / app time zone in tables, journal, tape and divergence; first day of week; start-up workspace; autosave; confirmations (flatten, close window, exit, table actions); notifications show / duration / max; DOM levels, row height, auto-centre, big lot; tape ms; RTL flag; clear caches on logout; log level and buffer size
 - [x] Sections Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy & security (telemetry off, clear caches / logs, reset all), Logs (viewer), Custom modules (P43: enable / disable modules, module folders placeholder), About & updates (licences, links); about 150 new keys; RTL preview flag
-- [ ] Chart / footprint / heatmap / trading / data / alerts / risk keys are defined but not yet read by those modules (`wired: false`); max candles and default load days not wired; mask accounts / hide balances / number format stored only; native log files, settings folder, module-folder loading and updater need the native core; per-chart Settings (Ctrl+S) in progress; languages other than English
+- [ ] Chart / footprint / heatmap / trading / data / alerts / risk keys are defined but not yet read by those modules (`wired: false`); max candles wired, default load days wired (per-chart Load days); mask accounts / hide balances / number format stored only; native log files, settings folder, module-folder loading and updater need the native core; per-chart Settings (Ctrl+S) in progress; languages other than English
 
 ## P28 — Remaining modules
 
@@ -301,7 +303,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P31–P43 — Detailed window specs
 
-- [~] P31 Trading workspace v2 — template switch keeps zoom; legend lines; session separators; stats rows; DOM Trader; status pills per connection. Pending: Snapshots in template menu, "Load days", "◂ Load 1 more day", previous-session profile on the left
+- [x] P31 Trading workspace v2 — template switch keeps zoom; legend lines; session separators; stats rows; DOM Trader; status pills per connection; Snapshots in the template menu; per-chart "Load days" (auto-load for real / replay feeds; the simulator generates older days on demand only); "◂ Load 1 more day"; previous-session profile on the left
 - [x] P32 Connections window — see P05
 - [x] P33 Chart types — all template renderers plus Renko, P&F (X / O), Kagi, Line Break, Heikin-Ashi, range variants
 - [x] P34 Chart settings window (Ctrl+S): Visual / Footprint / Trading / Templates tabs, ~150 rows, live apply, Cancel reverts, JSON export / import; global Settings act as defaults
@@ -320,4 +322,4 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## Appendix C — Default shortcuts
 
 - [x] Ctrl+K command palette · T Trading Panel · Ctrl+L lock · H breakeven · Alt+V / T / B / D footprint modes
-- [ ] Ctrl+G, Ctrl+R (menu item only), Ctrl+S, Ctrl + double-click, Shift+B / C / T / L / M / H (menu only), F-keys drawings, M magnifier, Del / Ctrl+Z / Ctrl+Y, rebinding in Settings → Hotkeys
+- [x] Ctrl+G, Ctrl+R, Ctrl+S, Ctrl + double-click, Shift+B / C / T / L / M / H, F-keys for drawings (F2 / F3 / Ctrl+F3 / F4 / F6 / F7 / F11 / F12), M magnifier, Del / Ctrl+Z / Ctrl+Y (also after clicking outside the chart: the active chart), all rebindable in Settings → Hot keys (e2e rebinds Go to date)

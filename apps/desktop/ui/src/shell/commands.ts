@@ -239,6 +239,19 @@ export function resolveHotkey(
   return globalHit;
 }
 
+let activeWindowElement: () => Element | null = () => null;
+
+/**
+ * Element of the active window (dockview). When the last pointer-down was not inside any window
+ * (ribbon, a closed context menu, the status bar…), window-scoped hotkeys use this window instead,
+ * so Ctrl+Z / Ctrl+R / Shift+B… keep working on the chart you last used.
+ */
+export function setActiveWindowElement(fn: () => Element | null): void {
+  activeWindowElement = fn;
+}
+
+const WINDOW_SELECTOR = '[data-window-id], .dv-groupview, [data-hotkey-scope]';
+
 export function installHotkeys(): () => void {
   let lastPointer: Element | null = null;
   const onPointer = (e: PointerEvent) => {
@@ -255,7 +268,10 @@ export function installHotkeys(): () => void {
         target.isContentEditable);
     const sc = eventToShortcut(e);
     if (typing && !sc.startsWith('Ctrl+')) return;
-    const active = scopesFor(lastPointer?.isConnected ? lastPointer : null);
+    const anchor = lastPointer?.isConnected ? lastPointer : null;
+    const inWindow =
+      !!anchor && typeof anchor.closest === 'function' && !!anchor.closest(WINDOW_SELECTOR);
+    const active = scopesFor(inWindow ? anchor : activeWindowElement());
     for (const s of scopesFor(target instanceof Element ? target : null)) active.add(s);
     const cmd = resolveHotkey(sc, active);
     if (cmd) {

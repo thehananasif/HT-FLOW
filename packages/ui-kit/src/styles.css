@@ -672,6 +672,12 @@ button {
   font-size: 12px;
   z-index: 1000;
   animation: ht-pop 120ms var(--ht-ease);
+  /* Long menus (chart right-click) scroll instead of running off screen. */
+  max-height: var(
+    --radix-context-menu-content-available-height,
+    var(--radix-dropdown-menu-content-available-height, 90vh)
+  );
+  overflow-y: auto;
 }
 .ht-menu-item {
   display: flex;
