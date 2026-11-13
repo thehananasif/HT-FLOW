@@ -11,6 +11,7 @@ import { buildChart, type ChartHandle } from './buildChart';
 import { usePalette } from './palette';
 import { useMarketStore, useStoreTicker } from './useMarket';
 import { SideTools } from './SideTools';
+import { useFootprintQuick } from './FootprintQuickSettings';
 import { DomTrader } from '../trading/DomView';
 import { chartExtensions } from './extensions';
 import { applyChartSettings } from './settings/apply';
@@ -25,7 +26,7 @@ import {
 import { globalChartOptions } from './settings/globals';
 import { useSettingsStore } from '../state/settings';
 import { onChartAction, publishCrosshair, subscribeCrosshair, type CrosshairSync } from './bus';
-import { installChartCommands, openChartSettings } from './commands';
+import { installChartCommands } from './commands';
 import { buildChartMenu } from './menu';
 import { DataWindow, GoToDateDialog, SaveTemplateDialog } from './panels';
 import { barsCsv, barsJson, clustersCsv } from './exportData';
@@ -457,7 +458,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             }
             showFootprint
             compact={compact}
-            onSettings={() => openChartSettings(id)}
+            onSettings={() => useFootprintQuick.getState().open(id)}
           />
         )}
         <ContextMenu items={menu}>
