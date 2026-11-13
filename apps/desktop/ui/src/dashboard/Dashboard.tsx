@@ -47,6 +47,7 @@ import { backend, BackendError } from '../backend';
 import { useSession } from '../state/session';
 import { getSetting, settingsReady, useSetting } from '../state/settings';
 import { activeInstrument, useWindows } from '../state/windows';
+import { INSTRUMENT_MIME, decodePayload, resolveDrop, retargetPatch } from './instrumentDrop';
 import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../state/instruments';
 import { paper, PAPER_ACCOUNT } from '../state/market';
 import { isTauri } from '../backend';
@@ -421,6 +422,35 @@ export function Dashboard({ version }: { version: string }) {
     [addPanel],
   );
 
+  /** Window (dock group) under a screen point, or null over empty dock area. */
+  const windowAt = useCallback((target: EventTarget | null): string | null => {
+    const api = apiRef.current;
+    if (!api || !(target instanceof Node)) return null;
+    let hit: string | null = null;
+    for (const g of api.groups) if (g.element.contains(target)) hit = g.activePanel?.id ?? hit;
+    return hit;
+  }, []);
+
+  const onInstrumentDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes(INSTRUMENT_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move';
+  }, []);
+
+  const onInstrumentDrop = useCallback(
+    (e: React.DragEvent) => {
+      const payload = decodePayload(e.dataTransfer.getData(INSTRUMENT_MIME));
+      if (!payload) return;
+      e.preventDefault();
+      const act = resolveDrop(payload, { ctrl: e.ctrlKey, targetId: windowAt(e.target) });
+      if (act.kind === 'retarget') {
+        const w = useWindows.getState().windows[act.windowId];
+        if (w) useWindows.getState().patch(act.windowId, retargetPatch(w, act.feedId));
+      } else openWindow(chartState(act.feedId, 'footprint'));
+    },
+    [openWindow, windowAt],
+  );
+
   const detach = useCallback(() => {
     const api = apiRef.current;
     const active = api?.activePanel;
@@ -659,7 +689,13 @@ export function Dashboard({ version }: { version: string }) {
       </TitleBar>
       <Ribbon compact={ribbonCompact} />
       <div className="workspace-row">
-        <div className="dock-host" ref={dockHostRef}>
+        <div
+          className="dock-host"
+          ref={dockHostRef}
+          onDragOver={onInstrumentDragOver}
+          onDrop={onInstrumentDrop}
+          data-testid="dock-host"
+        >
           <DockviewReact
             components={components}
             defaultTabComponent={WindowHeader}

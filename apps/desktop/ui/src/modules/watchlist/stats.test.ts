@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { moveItem, RowStats, sparkPoints, statsFrom } from './stats';
+import { formatOiFunding, moveItem, RowStats, sparkPoints, statsFrom } from './stats';
+
+describe('formatOiFunding', () => {
+  const compact = (n: number) => `${n / 1000}K`;
+  const oi = { oi: 12_400, value: Number.NaN };
+  const fr = { rate: 0.0001, nextTs: 0 };
+  it('shows a dash when the feed supplies neither', () => {
+    expect(formatOiFunding(null, compact).text).toBe('—');
+    expect(formatOiFunding({ funding: null, openInterest: null }, compact).text).toBe('—');
+  });
+  it('shows OI, funding or both', () => {
+    expect(formatOiFunding({ funding: null, openInterest: oi }, compact).text).toBe('12.4K');
+    expect(formatOiFunding({ funding: fr, openInterest: null }, compact).text).toBe('+0.0100%');
+    const both = { funding: { ...fr, rate: -0.00025 }, openInterest: oi };
+    expect(formatOiFunding(both, compact).text).toBe('12.4K · -0.0250%');
+  });
+});
 
 describe('watchlist RowStats', () => {
   it('accumulates last, change, volume, delta, vwap, high/low', () => {
