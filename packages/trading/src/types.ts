@@ -107,8 +107,29 @@ export interface Account {
   locked: boolean;
 }
 
-/** Signed options position held by a paper account (minimal model: premium in, mark-to-model). */
-export interface OptionPosition {
+/**
+ * What the paper engine needs to value an option by model (P18): written by the Options Board
+ * from the chain it traded on, used by the mark-to-model hook (`@htflow/options` pricing).
+ */
+export interface OptionModelInfo {
+  /** Contract name shown in tables, e.g. "BTC-27DEC26-100000-C". */
+  name?: string;
+  /** Expiry instant (epoch ms); settlement happens once this has passed. */
+  expiryTs?: number;
+  /** Implied volatility (decimal) used to mark the option. */
+  iv?: number;
+  /** Pricing model: Black-Scholes on spot or Black-76 on the forward. */
+  model?: 'bs' | 'b76';
+  /** Risk-free rate (decimal). */
+  r?: number;
+  /** Dividend / funding yield (decimal, Black-Scholes). */
+  q?: number;
+  /** Forward / spot ratio of the expiry at trade time (Black-76 values off spot × basis). */
+  basis?: number;
+}
+
+/** Signed options position held by a paper account (premium in, mark-to-model, expiry settlement). */
+export interface OptionPosition extends OptionModelInfo {
   id: string;
   accountId: string;
   underlyingId: string;
@@ -128,7 +149,7 @@ export interface OptionPosition {
   mark?: number;
 }
 
-export interface OptionTradeRequest {
+export interface OptionTradeRequest extends OptionModelInfo {
   accountId: string;
   underlyingId: string;
   right: 'call' | 'put';
@@ -139,6 +160,21 @@ export interface OptionTradeRequest {
   /** Premium per unit of underlying (price units). */
   premium: number;
   multiplier?: number;
+  /** Journal tag copied to the option fill. */
+  tag?: string;
+}
+
+/** One options trade booked by the paper engine. */
+export interface OptionFill extends OptionTradeRequest {
+  id: string;
+  multiplier: number;
+  ts: number;
+  commission: number;
+  realized: number;
+  /** Cash premium of this trade: − debit (bought), + credit (sold). */
+  premiumFlow: number;
+  /** 'expiry' when booked by settlement at intrinsic value. */
+  reason?: 'expiry' | 'close';
 }
 
 export interface BracketSpec {
@@ -174,6 +210,11 @@ export interface OrderRequest {
   displayQty?: number;
   /** Trailing distance (trailing-stop orders). */
   trail?: TrailSpec;
+  /**
+   * One-cancels-other group: orders sharing it cancel each other when one fills (or is
+   * cancelled). Create ids with `ocoGroupId()`.
+   */
+  oco?: string;
 }
 
 export interface InstrumentEconomics {
