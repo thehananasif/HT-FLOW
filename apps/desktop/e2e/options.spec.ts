@@ -36,6 +36,7 @@ test('options board: open from the ribbon, add two legs, see payoff and breakeve
     await page.screenshot({ path: process.env.OB_SHOT });
   }
   await board.getByTestId('send-options').click();
-  await expect(board.getByTestId('options-position')).toHaveCount(1);
+  // Each leg is a paper options position (P18).
+  await expect(board.getByTestId('options-position')).toHaveCount(2);
   expect(errors).toEqual([]);
 });

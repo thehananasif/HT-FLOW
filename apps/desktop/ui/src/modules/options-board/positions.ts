@@ -3,8 +3,8 @@ import type { Leg, PricingModel } from '@htflow/options';
 import { backend } from '../../backend';
 
 /**
- * Local options positions. The paper engine (packages/trading) has no options model, so a
- * strategy "sent as paper order" is stored here and marked to model / to the chain mid.
+ * Legacy local options strategies saved before the paper engine modelled options (P18). New
+ * orders go to the paper engine; these stay listed (read-only, removable) so nothing is lost.
  */
 export interface OptionsPosition {
   id: string;

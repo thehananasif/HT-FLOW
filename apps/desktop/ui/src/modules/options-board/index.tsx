@@ -24,6 +24,7 @@ import {
   greeks,
   markPnl,
   optionsPositionPayoff,
+  paperOptionLeg,
   strikesAround,
   TEMPLATES,
   yearFrac,
@@ -35,11 +36,16 @@ import {
   type StrategyEnv,
   type TemplateId,
 } from '@htflow/options';
+import type { OptionPosition } from '@htflow/trading';
 import { paper, PAPER_ACCOUNT, hub } from '../../state/market';
+import { optionSpot, setOptionSpot } from '../../trading/optionsModel';
+import { usePaperTick } from '../../trading/TradingPanel';
+import { activityLog } from '../activity/log';
+import { legToTrade } from './trade';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { PayoffChart } from './PayoffChart';
 import { fmtIv, fmtMoney, fmtNum, fmtPx, greekDecimals } from './format';
-import { useOptionsPositions, type OptionsPosition } from './positions';
+import { useOptionsPositions } from './positions';
 import { isDeribit, UNDERLYINGS, useChain } from './useChain';
 import './styles.css';
 
@@ -67,6 +73,8 @@ interface Params {
   legs: Leg[];
   tPlus: number;
   account: string;
+  /** What a click on a bid / ask does: add a leg to the builder, or trade it on paper at once. */
+  click: 'build' | 'trade';
 }
 
 const DEFAULTS: Params = {
@@ -82,6 +90,7 @@ const DEFAULTS: Params = {
   legs: [],
   tPlus: 0,
   account: PAPER_ACCOUNT,
+  click: 'build',
 };
 
 const clamp = (v: unknown, lo: number, hi: number, d: number) =>
@@ -112,6 +121,7 @@ function readParams(p: Record<string, unknown> | undefined): Params {
     ),
     tPlus: clamp(s.tPlus, 0, 3650, 0),
     account: typeof s.account === 'string' ? s.account : PAPER_ACCOUNT,
+    click: s.click === 'trade' ? 'trade' : 'build',
   };
 }
 
@@ -122,6 +132,31 @@ const axisPrice = (c: OptionsChain) =>
 const underOf = (c: OptionsChain, e: ChainExpiry) => (c.model === 'b76' ? e.forward : c.spot);
 
 let legSeq = 0;
+
+/**
+ * Sends legs to the paper engine as options trades (P18). Returns how many were booked; each
+ * rejection is reported. Fills go to Trading Activity.
+ */
+function tradeLegs(legs: readonly Leg[], chain: OptionsChain, account: string, underlying: string) {
+  let ok = 0;
+  for (const l of legs) {
+    const req = legToTrade(l, chain, account, underlying);
+    if (!req) continue;
+    const r = paper.tradeOption(req);
+    if (typeof r === 'string') {
+      toast('error', 'Options order rejected', `${l.name ?? ''}: ${r}`);
+      continue;
+    }
+    ok++;
+    const flow = req.side === 'buy' ? 'debit' : 'credit';
+    activityLog.add({
+      type: 'fill',
+      account: paper.accounts.get(account)?.name ?? account,
+      message: `${req.side.toUpperCase()} ${req.qty} ${req.name ?? `${req.strike} ${req.right}`} @ ${req.premium} (${flow} ${fmtMoney(req.premium * req.qty * (req.multiplier ?? 1))})`,
+    });
+  }
+  return ok;
+}
 
 function OptionsBoard({ state, setParams }: ModuleViewProps) {
   const p = readParams(state.params);
@@ -154,6 +189,10 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (chain) setOptionSpot(p.underlying, chain.spot);
+  }, [chain, p.underlying]);
+
   const env: StrategyEnv | null = chain
     ? { model: chain.model, r: chain.r, q: chain.q, multiplier: chain.multiplier, now }
     : null;
@@ -175,6 +214,16 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
       name: c.name,
       basis: underOf(chain, e) / axisPrice(chain),
     };
+    if (p.click === 'trade') {
+      // Quick trade: buy at the ask / sell at the bid on paper right away.
+      if (tradeLegs([leg], chain, p.account, p.underlying))
+        toast(
+          'success',
+          `${side === 'buy' ? 'Bought' : 'Sold'} ${p.qty} ${c.name}`,
+          t('options.paperNote'),
+        );
+      return;
+    }
     set({ legs: [...p.legs, leg] });
   };
 
@@ -253,7 +302,7 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
             { value: 'chain', label: 'Chain' },
             {
               value: 'positions',
-              label: `${t('options.positions')} (${useOptionsPositions.getState().positions.length})`,
+              label: `${t('options.positions')} (${paper.optionPositions().length + useOptionsPositions.getState().positions.length})`,
             },
           ]}
           value={p.tab}
@@ -263,7 +312,11 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
       <div className="ob-body">
         <div className="ob-main">
           {p.tab === 'positions' ? (
-            <PositionsTab chain={chain} underlying={p.underlying} />
+            <PositionsTab
+              chain={chain}
+              underlying={p.underlying}
+              onAnalyse={(legs) => set({ legs, tab: 'chain', tPlus: 0 })}
+            />
           ) : (
             <>
               <div className="ob-controls">
@@ -297,6 +350,17 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                     { value: 'daily', label: 'Daily' },
                   ]}
                   onChange={(v) => set({ series: v, expiries: [] })}
+                />
+                <span className="muted">{t('options.clickMode')}</span>
+                <Select
+                  small
+                  aria-label="Click a quote"
+                  value={p.click}
+                  options={[
+                    { value: 'build', label: 'Add leg' },
+                    { value: 'trade', label: 'Trade now' },
+                  ]}
+                  onChange={(v) => set({ click: v })}
                 />
                 <span className="muted">Contracts</span>
                 <NumberInput
@@ -601,25 +665,15 @@ function Builder({
   );
   const patchLeg = (id: string, patch: Partial<Leg>) =>
     set({ legs: legs.map((l) => (l.id === id ? { ...l, ...patch } : l)) });
-  const add = useOptionsPositions((s) => s.add);
   const send = () => {
     if (!chain || !legs.length || !analysis) return;
-    const pos: OptionsPosition = {
-      id: `opt-${Date.now().toString(36)}`,
-      createdAt: Date.now(),
-      account: p.account,
-      underlying: p.underlying,
-      root: chain.root,
-      model: chain.model,
-      r: chain.r,
-      q: chain.q,
-      multiplier: chain.multiplier,
-      simulated: chain.simulated,
-      legs,
-      entryNet: analysis.netPremium,
-    };
-    add(pos);
-    toast('success', 'Options position opened', t('options.paperNote'));
+    const n = tradeLegs(legs, chain, p.account, p.underlying);
+    if (!n) return;
+    toast(
+      'success',
+      `Paper options order: ${n} leg${n === 1 ? '' : 's'} filled`,
+      `${analysis.netPremium >= 0 ? 'Net credit' : 'Net debit'} ${fmtMoney(Math.abs(analysis.netPremium))}. ${t('options.paperNote')}`,
+    );
     set({ legs: [], tab: 'positions' });
   };
   const g = analysis?.greeks;
@@ -768,75 +822,179 @@ function Builder({
   );
 }
 
-function PositionsTab({ chain, underlying }: { chain: OptionsChain | null; underlying: string }) {
-  const { positions, remove } = useOptionsPositions();
+/** Name shown for a paper options position (contract name, else underlying / strike / right). */
+const optName = (o: OptionPosition) =>
+  o.name ??
+  `${o.underlyingId.replace(/^\w+:/, '')}-${o.expiry}-${o.strike}-${o.right === 'call' ? 'C' : 'P'}`;
+
+function PositionsTab({
+  chain,
+  underlying,
+  onAnalyse,
+}: {
+  chain: OptionsChain | null;
+  underlying: string;
+  onAnalyse: (legs: Leg[]) => void;
+}) {
+  usePaperTick();
+  const { positions: legacy, remove } = useOptionsPositions();
+  const open = paper.optionPositions();
   const now = Date.now();
-  if (!positions.length)
+  const analyse = (list: OptionPosition[]) => {
+    const spot = chain && list[0]?.underlyingId === underlying ? chain.spot : undefined;
+    const axis = chain && spot ? axisPrice(chain) : undefined;
+    onAnalyse(
+      list.map((o) => ({
+        ...paperOptionLeg(o, spot, axis),
+        id: `leg-${Date.now().toString(36)}-${legSeq++}`,
+      })),
+    );
+  };
+  if (!open.length && !legacy.length)
     return (
       <div className="ob-empty">
-        No options positions. Build a strategy and send it as a paper order.
+        No options positions. Click a quote or build a strategy and send it as a paper order.
       </div>
     );
+  const byUnderlying = new Map<string, OptionPosition[]>();
+  for (const o of open) {
+    const k = `${o.accountId}|${o.underlyingId}`;
+    byUnderlying.set(k, [...(byUnderlying.get(k) ?? []), o]);
+  }
   return (
     <div className="ob-scroll">
-      <table className="ob-tbl tnum ob-pos">
-        <thead>
-          <tr>
-            <th className="l">Opened</th>
-            <th className="l">Underlying</th>
-            <th className="l">Legs</th>
-            <th>Entry</th>
-            <th>Open P&amp;L</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map((pos) => {
-            let pnl: number | null = null;
-            const env: StrategyEnv = {
-              model: pos.model,
-              r: pos.r,
-              q: pos.q,
-              multiplier: pos.multiplier,
-              now,
-            };
-            if (pos.underlying === underlying && chain) {
-              pnl = markPnl(pos.legs, axisPrice(chain), env, (l) => chainMark(chain, l.name));
-            } else if (!isDeribit(pos.underlying)) {
-              const s = hub.peek(pos.underlying);
-              const last = s?.lastTrade?.px;
-              if (s && last !== undefined) {
-                const px = last * s.instrument.tickSize;
-                pnl = markPnl(pos.legs, px, env);
-              }
-            }
-            return (
-              <tr key={pos.id} data-testid="options-position">
-                <td className="l">
-                  {new Date(pos.createdAt).toLocaleString('en-GB', { hour12: false })}
-                </td>
-                <td className="l">
-                  {pos.root} {pos.simulated && <Badge kind="replay">Sim</Badge>}
-                </td>
-                <td className="l mono">
-                  {pos.legs
-                    .map((l) => `${l.qty > 0 ? '+' : ''}${l.qty} ${l.name ?? ''}`)
-                    .join('  ')}
-                </td>
-                <td className={pos.entryNet >= 0 ? 'up' : 'down'}>{fmtMoney(pos.entryNet)}</td>
-                <td className={pnl === null ? '' : pnl >= 0 ? 'up' : 'down'}>
-                  {pnl === null ? 'open the underlying to mark' : fmtMoney(pnl)}
-                </td>
-                <td>
-                  <Button size="xs" onClick={() => remove(pos.id)}>
-                    Close
-                  </Button>
-                </td>
+      {open.length > 0 && (
+        <table className="ob-tbl tnum ob-pos" data-testid="paper-options-positions">
+          <thead>
+            <tr>
+              <th className="l">Contract</th>
+              <th className="l">Account</th>
+              <th>Qty</th>
+              <th>Avg premium</th>
+              <th>Premium</th>
+              <th>Mark</th>
+              <th>Open P&amp;L</th>
+              <th>Expires</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {open.map((o) => {
+              const m = paper.optionMark(o);
+              const pnl = paper.optionPnl(o);
+              const flow = paper.premiumFlow(o);
+              const exp = o.expiryTs ?? Date.parse(`${o.expiry}T08:00:00Z`);
+              return (
+                <tr key={o.id} data-testid="options-position">
+                  <td className="l mono">{optName(o)}</td>
+                  <td className="l">{paper.accounts.get(o.accountId)?.name ?? o.accountId}</td>
+                  <td className={o.qty > 0 ? 'up' : 'down'}>
+                    {o.qty > 0 ? '+' : ''}
+                    {o.qty}
+                  </td>
+                  <td>{fmtNum(o.avgPremium, 2)}</td>
+                  <td
+                    className={flow > 0 ? 'down' : 'up'}
+                    title={flow > 0 ? 'Premium paid (debit)' : 'Premium received (credit)'}
+                  >
+                    {flow > 0 ? 'Debit ' : 'Credit '}
+                    {fmtMoney(Math.abs(flow))}
+                  </td>
+                  <td>{m === undefined ? '—' : fmtNum(m, 2)}</td>
+                  <td className={pnl >= 0 ? 'up' : 'down'} data-testid="options-position-pnl">
+                    {m === undefined && optionSpot(o.underlyingId) === undefined
+                      ? 'open the underlying to mark'
+                      : fmtMoney(pnl)}
+                  </td>
+                  <td>{Math.max(0, Math.ceil((exp - now) / DAY_MS))}d</td>
+                  <td className="ob-pos-actions">
+                    <Button
+                      size="xs"
+                      title="Load the account's positions on this underlying into the strategy builder"
+                      onClick={() =>
+                        analyse(byUnderlying.get(`${o.accountId}|${o.underlyingId}`) ?? [o])
+                      }
+                    >
+                      Analyse
+                    </Button>
+                    <Button
+                      size="xs"
+                      data-testid="close-option"
+                      onClick={() => {
+                        const r = paper.closeOption(o.id);
+                        if (typeof r === 'string') toast('error', 'Could not close', r);
+                      }}
+                    >
+                      Close
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {legacy.length > 0 && (
+        <>
+          <div className="ob-section">Saved strategies (before paper options)</div>
+          <table className="ob-tbl tnum ob-pos">
+            <thead>
+              <tr>
+                <th className="l">Opened</th>
+                <th className="l">Underlying</th>
+                <th className="l">Legs</th>
+                <th>Entry</th>
+                <th>Open P&amp;L</th>
+                <th />
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {legacy.map((pos) => {
+                let pnl: number | null = null;
+                const env: StrategyEnv = {
+                  model: pos.model,
+                  r: pos.r,
+                  q: pos.q,
+                  multiplier: pos.multiplier,
+                  now,
+                };
+                if (pos.underlying === underlying && chain) {
+                  pnl = markPnl(pos.legs, axisPrice(chain), env, (l) => chainMark(chain, l.name));
+                } else if (!isDeribit(pos.underlying)) {
+                  const s = hub.peek(pos.underlying);
+                  const last = s?.lastTrade?.px;
+                  if (s && last !== undefined)
+                    pnl = markPnl(pos.legs, last * s.instrument.tickSize, env);
+                }
+                return (
+                  <tr key={pos.id} data-testid="legacy-options-position">
+                    <td className="l">
+                      {new Date(pos.createdAt).toLocaleString('en-GB', { hour12: false })}
+                    </td>
+                    <td className="l">
+                      {pos.root} {pos.simulated && <Badge kind="replay">Sim</Badge>}
+                    </td>
+                    <td className="l mono">
+                      {pos.legs
+                        .map((l) => `${l.qty > 0 ? '+' : ''}${l.qty} ${l.name ?? ''}`)
+                        .join('  ')}
+                    </td>
+                    <td className={pos.entryNet >= 0 ? 'up' : 'down'}>{fmtMoney(pos.entryNet)}</td>
+                    <td className={pnl === null ? '' : pnl >= 0 ? 'up' : 'down'}>
+                      {pnl === null ? 'open the underlying to mark' : fmtMoney(pnl)}
+                    </td>
+                    <td>
+                      <Button size="xs" onClick={() => remove(pos.id)}>
+                        Remove
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
     </div>
   );
 }

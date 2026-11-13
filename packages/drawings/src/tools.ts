@@ -2353,9 +2353,13 @@ export function toolsIn(group: ToolGroup): ToolDef[] {
 }
 
 /** Label shown in lists ("Horizontal Line 68,450.00"). */
-export function drawingName(d: Drawing, fmtPrice: (px: number) => string): string {
+export function drawingName(
+  d: Drawing,
+  fmtPrice: (px: number) => string,
+  labelOf: (type: string) => string = (type) => toolDef(type)?.label ?? type,
+): string {
   const def = toolDef(d.type);
-  const base = def?.label ?? d.type;
+  const base = labelOf(d.type);
   if (d.type === 'horizontal-line' || d.type === 'horizontal-ray' || d.type.endsWith('price-label'))
     return `${base} ${fmtPrice(d.anchors[0]!.px)}`;
   if (d.style.text && d.style.text !== DEFAULT_STYLE.text && def?.group === 'text')

@@ -5,6 +5,8 @@ import { backend, isTauri } from '../../backend';
 import { paper } from '../../state/market';
 import { setVenueEnabled } from '../../state/liveFeed';
 import { useConnections } from './store';
+import { DEFAULT_WS_CONFIG, parseMappingText, renderSubscribe } from './customWs';
+import { testCustomWs } from './customWsFeed';
 import {
   isAvailable,
   providerById,
@@ -26,7 +28,8 @@ function blank(p: Provider): ConnectionConfig {
     gatewayPort: p.gateway ? (p.id.startsWith('mt5') ? 443 : 7497) : undefined,
     startingBalance: p.form === 'simulator' ? 50_000 : undefined,
     marketData: true,
-    trading: p.form !== 'crypto',
+    trading: p.form !== 'crypto' && p.form !== 'ws' && p.form !== 'import',
+    ws: p.form === 'ws' ? structuredClone(DEFAULT_WS_CONFIG) : undefined,
     record: p.form === 'crypto',
     connectOnStart: p.form !== 'broker',
   };
@@ -37,10 +40,13 @@ export function ConnectionWizard({
   open,
   onClose,
   edit,
+  onImport,
 }: {
   open: boolean;
   onClose: () => void;
   edit?: ConnectionConfig;
+  /** Opens the CSV importer (the "CSV / Parquet import" provider). */
+  onImport?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [provider, setProvider] = useState<Provider | null>(
@@ -51,16 +57,29 @@ export function ConnectionWizard({
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
+  const [mappingText, setMappingText] = useState(() =>
+    JSON.stringify(edit?.ws?.mapping ?? DEFAULT_WS_CONFIG.mapping, null, 2),
+  );
+  const mappingErr = parseMappingText(mappingText).error;
   const groups = useMemo(() => searchProviders(query), [query]);
   const errors = provider && form ? validateConnection(provider, form) : {};
   const upsert = useConnections((s) => s.upsert);
 
   const pick = (p: Provider) => {
     setProvider(p);
-    setForm(edit && edit.provider === p.id ? edit : blank(p));
+    const f = edit && edit.provider === p.id ? edit : blank(p);
+    setForm(f);
+    setMappingText(JSON.stringify(f.ws?.mapping ?? DEFAULT_WS_CONFIG.mapping, null, 2));
     setTest(null);
   };
   const patch = (p: Partial<ConnectionConfig>) => setForm((f) => (f ? { ...f, ...p } : f));
+  const patchWs = (p: Partial<NonNullable<ConnectionConfig['ws']>>) =>
+    setForm((f) => (f?.ws ? { ...f, ws: { ...f.ws, ...p } } : f));
+  const editMapping = (text: string) => {
+    setMappingText(text);
+    const r = parseMappingText(text);
+    if (r.mapping) patchWs({ mapping: r.mapping });
+  };
 
   const runTest = async () => {
     if (!provider) return;
@@ -70,6 +89,25 @@ export function ConnectionWizard({
     }
     if (provider.simulator) {
       setTest({ ok: true, text: 'Built-in simulator is ready' });
+      return;
+    }
+    if (provider.form === 'import') {
+      setTest({ ok: false, text: 'Nothing to connect: use Open CSV importer to load a file' });
+      return;
+    }
+    if (provider.form === 'ws') {
+      if (!form?.ws) return;
+      if (mappingErr) {
+        setTest({ ok: false, text: mappingErr });
+        return;
+      }
+      setBusy(true);
+      setTest({ ok: true, text: 'Connecting…' });
+      try {
+        setTest(await testCustomWs(form.ws));
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (!isTauri) {
@@ -95,7 +133,8 @@ export function ConnectionWizard({
 
   const connect = async () => {
     setTried(true);
-    if (!provider || !form || Object.keys(errors).length) return;
+    if (!provider || !form || Object.keys(errors).length || (provider.form === 'ws' && mappingErr))
+      return;
     setBusy(true);
     try {
       const keys: [string, string][] = [];
@@ -272,6 +311,88 @@ export function ConnectionWizard({
                     )}
                   </>
                 )}
+                {provider.form === 'ws' && form.ws && (
+                  <>
+                    <Field label="WebSocket URL (ws:// or wss://)" error={err('url')}>
+                      <Input
+                        aria-label="WebSocket URL"
+                        value={form.ws.url}
+                        placeholder="wss://example.com/stream"
+                        onChange={(e) => patchWs({ url: e.target.value })}
+                      />
+                    </Field>
+                    <div className="row gap8">
+                      <Field label="Symbol" error={err('symbol')}>
+                        <Input
+                          aria-label="Symbol"
+                          value={form.ws.symbol}
+                          onChange={(e) => patchWs({ symbol: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Tick size" error={err('tickSize')}>
+                        <NumberInput
+                          aria-label="Tick size"
+                          value={form.ws.tickSize}
+                          min={0.00000001}
+                          step={0.01}
+                          onChange={(v) => patchWs({ tickSize: v })}
+                        />
+                      </Field>
+                      <Field label="Price decimals">
+                        <NumberInput
+                          aria-label="Price decimals"
+                          value={form.ws.pricePrecision}
+                          min={0}
+                          max={8}
+                          step={1}
+                          onChange={(v) => patchWs({ pricePrecision: v })}
+                        />
+                      </Field>
+                    </div>
+                    <Field
+                      label="Subscribe message (JSON, optional; {symbol} is replaced)"
+                      error={err('subscribe')}
+                    >
+                      <textarea
+                        className="ht-input cx-json"
+                        aria-label="Subscribe message"
+                        rows={2}
+                        spellCheck={false}
+                        value={form.ws.subscribe ?? ''}
+                        onChange={(e) => patchWs({ subscribe: e.target.value })}
+                      />
+                    </Field>
+                    <Field
+                      label="Field mapping (JSON paths: price, qty, side, timestamp; optional bids / asks)"
+                      error={mappingErr ?? err('mapping')}
+                      hint={`Subscribe sent: ${renderSubscribe(form.ws.subscribe ?? '', form.ws.symbol).text ?? 'nothing'}`}
+                    >
+                      <textarea
+                        className="ht-input cx-json"
+                        aria-label="Field mapping"
+                        rows={9}
+                        spellCheck={false}
+                        value={mappingText}
+                        onChange={(e) => editMapping(e.target.value)}
+                      />
+                    </Field>
+                  </>
+                )}
+                {provider.form === 'import' && (
+                  <div className="cx-note">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        onClose();
+                        onImport?.();
+                      }}
+                    >
+                      Open CSV importer
+                    </Button>{' '}
+                    Pick a file, map its columns, preview and import. Imported data appears in the
+                    instrument picker as “Imported files”.
+                  </div>
+                )}
                 {provider.form === 'simulator' && (
                   <Field label="Starting balance (USD)" error={err('startingBalance')}>
                     <NumberInput
@@ -284,33 +405,44 @@ export function ConnectionWizard({
                     />
                   </Field>
                 )}
-                <div className="cx-options">
-                  <Checkbox
-                    label="Use for market data"
-                    checked={form.marketData}
-                    onChange={(v) => patch({ marketData: v })}
-                  />
-                  <Checkbox
-                    label="Use for trading (orders go to this connection)"
-                    checked={form.trading}
-                    onChange={(v) => patch({ trading: v })}
-                  />
-                  <Checkbox
-                    label="Record ticks + depth to local history"
-                    checked={form.record}
-                    onChange={(v) => patch({ record: v })}
-                  />
-                  <Checkbox
-                    label="Connect automatically on start"
-                    checked={form.connectOnStart}
-                    onChange={(v) => patch({ connectOnStart: v })}
-                  />
-                  {err('options') && <span className="ht-error">{err('options')}</span>}
-                </div>
-                <div className="cx-note">
-                  Credentials are stored in your encrypted vault on this PC. They are never sent
-                  anywhere except to {provider.name}.
-                </div>
+                {provider.form !== 'import' && (
+                  <div className="cx-options">
+                    <Checkbox
+                      label="Use for market data"
+                      checked={form.marketData}
+                      onChange={(v) => patch({ marketData: v })}
+                    />
+                    <Checkbox
+                      label="Use for trading (orders go to this connection)"
+                      checked={form.trading}
+                      onChange={(v) => patch({ trading: v })}
+                    />
+                    <Checkbox
+                      label="Record ticks + depth to local history"
+                      checked={form.record}
+                      onChange={(v) => patch({ record: v })}
+                    />
+                    <Checkbox
+                      label="Connect automatically on start"
+                      checked={form.connectOnStart}
+                      onChange={(v) => patch({ connectOnStart: v })}
+                    />
+                    {err('options') && <span className="ht-error">{err('options')}</span>}
+                  </div>
+                )}
+                {provider.form !== 'ws' && provider.form !== 'import' && (
+                  <div className="cx-note">
+                    Credentials are stored in your encrypted vault on this PC. They are never sent
+                    anywhere except to {provider.name}.
+                  </div>
+                )}
+                {provider.form === 'ws' && (
+                  <div className="cx-note">
+                    The URL is contacted directly from this PC. Nothing is sent anywhere else. In
+                    the desktop app the webview must allow the host (see docs/BLOCKERS.md, Custom
+                    WebSocket).
+                  </div>
+                )}
                 {test && (
                   <div className={`cx-test ${test.ok ? 'ok' : 'bad'}`} role="status">
                     {test.text}
@@ -329,7 +461,12 @@ export function ConnectionWizard({
             </Button>
             <Button
               variant="primary"
-              disabled={!provider || busy || (tried && Object.keys(errors).length > 0)}
+              disabled={
+                !provider ||
+                provider.form === 'import' ||
+                busy ||
+                (tried && Object.keys(errors).length > 0)
+              }
               onClick={() => void connect()}
             >
               {edit ? 'Save' : 'Connect'}

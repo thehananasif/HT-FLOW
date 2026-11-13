@@ -8,6 +8,7 @@ import { atmStore, allTemplates } from './atmStore';
 import { cancelOrder, closePosition, reversePosition, submitOrder } from './orders';
 import { setChartPrefs, setPrefs, tradingPrefs } from './prefs';
 import { openTradingSetup } from './setupNav';
+import { linkLastTwo, useOco } from './oco';
 
 /** Every P17 trading action in the Command Palette (Ctrl+K) and the hot-key editor. */
 const withInst = (fn: (id: string) => void) => () => {
@@ -21,6 +22,38 @@ function hotkeysOff(): void {
 }
 
 const base: Command[] = [
+  {
+    id: 'trading.oco.toggle',
+    label: 'Toggle OCO (one-cancels-other) for new orders',
+    group: 'Trading',
+    keywords: 'oco one cancels other link group',
+    run: () => {
+      const on = !useOco.getState().enabled;
+      useOco.getState().setEnabled(on);
+      toast('info', on ? 'OCO on' : 'OCO off', on ? 'Resting orders join one OCO group.' : '');
+    },
+  },
+  {
+    id: 'trading.oco.new',
+    label: 'Start a new OCO group',
+    group: 'Trading',
+    keywords: 'oco one cancels other',
+    run: () => useOco.getState().newGroup(),
+  },
+  {
+    id: 'trading.oco.linkLast',
+    label: 'Link the last two working orders as OCO',
+    group: 'Trading',
+    keywords: 'oco one cancels other link pair',
+    run: () => {
+      const g = linkLastTwo(activeAccount(), activeInstrument() ?? undefined);
+      toast(
+        g ? 'success' : 'warning',
+        g ? 'Orders linked as OCO' : 'Nothing to link',
+        g ? 'The first fill or cancel cancels the other.' : 'Two working orders are needed.',
+      );
+    },
+  },
   {
     id: 'trading.setup.atm',
     label: 'ATM templates…',

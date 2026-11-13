@@ -126,6 +126,7 @@ function describe(req: OrderRequest, inst?: Instrument): string[] {
     lines.push(`${req.type === 'mit' ? 'Trigger' : 'Stop'}: ${f(req.stopPx)}`);
   if (req.trail) lines.push(`Trail: ${req.trail.amount} ${req.trail.kind}`);
   if (req.displayQty) lines.push(`Display qty: ${req.displayQty}`);
+  if (req.oco) lines.push('OCO: a fill or cancel of this group cancels its other orders');
   if (req.bracket) {
     const b = req.bracket;
     lines.push(

@@ -11,7 +11,7 @@ import {
   type ImpactFilter,
 } from '@htflow/info';
 import { registerModule } from '../registry';
-import { useStore, useTick, userTimezone } from '../rss/shared';
+import { useStore, useTick, useCalendarTimezone } from '../rss/shared';
 import { addSource, allEvents, calendar, refreshCalendars } from './store';
 import './chartLines';
 import '../rss/styles.css';
@@ -21,7 +21,7 @@ const DOTS = { high: '●●●', medium: '●●○', low: '●○○' } as con
 function EconomicCalendar() {
   const s = useStore(calendar);
   useTick(1000);
-  const tz = userTimezone();
+  const tz = useCalendarTimezone();
   const now = Date.now();
   const [url, setUrl] = useState('');
   const [err, setErr] = useState<string | null>(null);

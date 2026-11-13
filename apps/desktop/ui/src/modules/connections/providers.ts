@@ -1,3 +1,5 @@
+import { validateWsConfig, type CustomWsConfig } from './customWs';
+
 /** Provider catalog of the Add-connection wizard (P32) — exactly the groups of the spec. */
 
 export type ProviderGroup =
@@ -5,7 +7,7 @@ export type ProviderGroup =
 export type ProviderTag = 'FREE' | 'YOUR ACCOUNT';
 export type Capability =
   'Trades' | 'L2 depth' | 'MBO' | 'Funding' | 'Liquidations' | 'OI' | 'Trading';
-export type FormKind = 'crypto' | 'broker' | 'simulator' | 'import';
+export type FormKind = 'crypto' | 'broker' | 'simulator' | 'import' | 'ws';
 
 export interface Provider {
   id: string;
@@ -218,8 +220,8 @@ export const PROVIDERS: Provider[] = [
     tag: 'FREE',
     caps: ['Trades', 'L2 depth'],
     form: 'import',
-    blurb: 'Import ticks from CSV / Parquet files into the local tick store.',
-    blocked: 'Importer arrives with P06 import (Data manager exports CSV today)',
+    blurb:
+      'Import trades or OHLCV bars from a CSV file into local history; the data opens in a chart and in Replay. Parquet is not supported yet.',
   },
   {
     id: 'custom-ws',
@@ -227,9 +229,9 @@ export const PROVIDERS: Provider[] = [
     group: 'Other',
     tag: 'FREE',
     caps: ['Trades', 'L2 depth'],
-    form: 'import',
-    blurb: 'Any JSON WebSocket feed with a field mapping.',
-    blocked: 'JSON-mapping connector not implemented yet',
+    form: 'ws',
+    blurb:
+      'Any JSON WebSocket feed: give the ws(s):// URL, an optional subscribe message and a field mapping.',
   },
 ];
 
@@ -294,6 +296,8 @@ export interface ConnectionConfig {
   trading: boolean;
   record: boolean;
   connectOnStart: boolean;
+  /** Custom WebSocket connection settings (provider `custom-ws`). */
+  ws?: CustomWsConfig;
   /** Credentials were stored in the vault under connections.<id>.* */
   hasSecret?: boolean;
 }
@@ -357,6 +361,10 @@ export function validateConnection(p: Provider, c: ConnectionConfig): Record<str
   if (p.form === 'simulator') {
     const b = c.startingBalance ?? 0;
     if (!Number.isFinite(b) || b < 100 || b > 100_000_000) e.startingBalance = '100 – 100,000,000';
+  }
+  if (p.form === 'ws') {
+    if (!c.ws) e.url = 'Enter a ws:// or wss:// URL';
+    else Object.assign(e, validateWsConfig(c.ws));
   }
   if (!c.marketData && !c.trading) e.options = 'Use it for market data, trading or both';
   return e;

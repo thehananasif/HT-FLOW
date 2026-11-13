@@ -17,6 +17,8 @@ import { DropdownMenu, SegmentedControl, Select, type MenuEntry } from '@htflow/
 import type { DomWindowState } from '@htflow/workspace';
 import { useWindows } from '../state/windows';
 import { paper, pnlTick } from '../state/market';
+import { effectiveMaxFps, frameInterval } from '../charts/settings/performance';
+import { clickSide } from './dom/globalSettings';
 import { getSettings, useSettingsStore, type SettingsValues } from '../state/settings';
 import { useAtmTemplates } from './atmStore';
 import { setPrefs, tradingPrefs, useTradingPrefs } from './prefs';
@@ -39,6 +41,7 @@ type Drag =
 
 const SETTINGS_DEFAULT_ROW = 22;
 const SETTINGS_DEFAULT_FONT = 12;
+const SETTINGS_DEFAULT_RECENT = 30;
 
 /**
  * Global Settings → DOM applied on top of the template: auto-centre off forces manual centring,
@@ -51,6 +54,8 @@ export function effectiveTemplate(t: DomTemplate, v: SettingsValues): DomTemplat
   if (!v['dom.autoCenter']) style.centring = 'manual';
   if (v['dom.rowHeight'] !== SETTINGS_DEFAULT_ROW) style.rowHeight = v['dom.rowHeight'];
   if (v['dom.fontSize'] !== SETTINGS_DEFAULT_FONT) style.fontSize = v['dom.fontSize'];
+  if (v['dom.recentWindowSec'] !== SETTINGS_DEFAULT_RECENT)
+    behaviour.recentSeconds = v['dom.recentWindowSec'];
   if (!behaviour.bigSize && v['dom.bigLotThreshold'] > 0)
     behaviour.bigSize = v['dom.bigLotThreshold'];
   return { ...t, style, behaviour };
@@ -132,6 +137,7 @@ function Ladder({
     // Draws at most once per animation frame, and only when something changed (or flashes fade).
     const frame = (ts: number) => {
       raf = requestAnimationFrame(frame);
+      if (ts - lastDraw < frameInterval(effectiveMaxFps(0))) return;
       const animating =
         model.current.flashes.bid.size + model.current.flashes.ask.size > 0 || ts - lastDraw > 250;
       if ((!dirty.current && !animating) || !store.ready) return;
@@ -332,7 +338,8 @@ function Ladder({
       });
       return;
     }
-    if (hit.column === 'bid' || hit.column === 'ask') place(hit.px, 'buy', e.ctrlKey);
+    if (hit.column === 'bid' || hit.column === 'ask')
+      place(hit.px, clickSide('left', getSettings()['dom.invertClicks']), e.ctrlKey);
   };
 
   const onContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -341,7 +348,8 @@ function Ladder({
     if (!l) return;
     const { x, y } = local(e);
     const hit = l.hitTest(x, y);
-    if (hit && (hit.column === 'bid' || hit.column === 'ask')) place(hit.px, 'sell', e.ctrlKey);
+    if (hit && (hit.column === 'bid' || hit.column === 'ask'))
+      place(hit.px, clickSide('right', getSettings()['dom.invertClicks']), e.ctrlKey);
   };
 
   return (

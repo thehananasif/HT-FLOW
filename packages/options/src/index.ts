@@ -7,3 +7,4 @@ export * from './chain';
 export * from './sim';
 export * from './analytics';
 export * from './deribit/deribit';
+export * from './paper';

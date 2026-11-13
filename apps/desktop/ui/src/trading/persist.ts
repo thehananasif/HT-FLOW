@@ -33,11 +33,19 @@ export class Persisted<T> {
     this.listeners.forEach((l) => l());
     if (persist && this.loaded) {
       if (this.timer) clearTimeout(this.timer);
-      this.timer = setTimeout(
-        () => void backend.saveSettings(this.key, this.value).catch(() => {}),
-        300,
-      );
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        void backend.saveSettings(this.key, this.value).catch(() => {});
+      }, 300);
     }
+  }
+
+  /** Writes a pending (debounced) change right away. */
+  async flush(): Promise<void> {
+    if (!this.timer) return;
+    clearTimeout(this.timer);
+    this.timer = null;
+    await backend.saveSettings(this.key, this.value).catch(() => {});
   }
 
   update(fn: (v: T) => T): void {

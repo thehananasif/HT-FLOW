@@ -5,6 +5,7 @@ import {
   defaultRiskRules,
   nextDayStart,
   sanitizeRiskRules,
+  type RiskDaySnapshot,
   type RiskLockSnapshot,
   type RiskRules,
 } from '@htflow/trading';
@@ -183,7 +184,7 @@ function accountEquity(accountId: string): number {
     const m = hub.peek(p.instrumentId)?.lastTrade?.px;
     if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
   }
-  return acc.balance + open;
+  return acc.balance + open + paper.optionUnrealized(accountId);
 }
 
 function dayState(accountId: string): DayState {
@@ -201,6 +202,25 @@ function dayState(accountId: string): DayState {
     dayStates.set(accountId, st);
   }
   return st;
+}
+
+/**
+ * Re-bases both risk layers after a paper account's saved state was restored (restart): the same
+ * trading day continues its day P&L and trade count, another day starts at the restored equity.
+ */
+export function restoreRiskDay(accountId: string, snap?: RiskDaySnapshot | null): void {
+  risk.restoreDay(accountId, snap);
+  const st = risk.snapshotDay(accountId);
+  const prev = dayStates.get(accountId);
+  const day = dayKey(Date.now(), localTimeZone());
+  const same = !!snap && snap.day === day;
+  dayStates.set(accountId, {
+    day,
+    startEquity: same ? snap.dayStartEquity : accountEquity(accountId),
+    trades: same ? (st?.tradesToday ?? 0) : 0,
+    lockedUntil: prev && prev.lockedUntil > Date.now() ? prev.lockedUntil : 0,
+    lossNotified: false,
+  });
 }
 
 /** Lifts a Settings → Risk lock (Risk module "Unlock"). */
