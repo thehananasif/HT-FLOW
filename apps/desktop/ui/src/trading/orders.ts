@@ -14,6 +14,18 @@ import { activeAccount } from './accounts';
 import { templateById } from './atmStore';
 import { confirmAction } from './confirm';
 import { tradingPrefs, type ConfirmKind, type TradingPrefs } from './prefs';
+import { autoBracket, slippageReason, tradingDefaults } from './globalSettings';
+
+// Settings → Trading → max slippage: market orders that would sweep further are rejected.
+paper.preTradeChecks.push((req) => {
+  const book = hub.peek(req.instrumentId)?.book;
+  if (!book) return null;
+  return slippageReason(
+    req,
+    req.side === 'buy' ? book.asks : book.bids,
+    tradingDefaults().slippageTicks,
+  );
+});
 
 export function instrumentOf(id: string): Instrument | undefined {
   return hub.peek(id)?.instrument ?? instrumentById(id);
@@ -131,6 +143,8 @@ export interface SubmitOptions {
   withBracket?: boolean;
   /** Skip the confirmation dialog (already confirmed elsewhere). */
   noConfirm?: boolean;
+  /** A single click on the DOM / chart: confirmed unless Settings → Trading → one-click is on. */
+  click?: boolean;
 }
 
 /**
@@ -158,6 +172,10 @@ export async function submitOrder(
       return null;
     }
   }
+  const td = tradingDefaults();
+  // Settings → Trading → automatic SL / TP on every entry without a bracket.
+  if (!full.bracket && !full.reduceOnly && td.autoBracket && !withBracket)
+    full.bracket = autoBracket(td.stopTicks, td.targetTicks);
   if (
     full.type === 'trailing-stop' &&
     full.trail?.kind === 'atr' &&
@@ -165,7 +183,13 @@ export async function submitOrder(
   )
     full.trail = { ...full.trail, atrTicks: instrumentAtr(full.instrumentId) };
   if (!opts.noConfirm) {
-    const ok = await confirmAction(confirmKindOf(full), 'Confirm order', describe(full, inst));
+    const force = td.confirmOrders || (opts.click === true && !td.oneClick);
+    const ok = await confirmAction(
+      confirmKindOf(full),
+      'Confirm order',
+      describe(full, inst),
+      force,
+    );
     if (!ok) return null;
   }
   const o = paper.place(full);

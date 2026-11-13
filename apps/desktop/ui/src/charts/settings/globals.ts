@@ -2,6 +2,8 @@
  * Global chart defaults (Settings → Chart / Footprint, P27) mapped onto per-chart settings keys.
  * A chart's effective settings = schema defaults ← global defaults ← the chart's own overrides.
  */
+import type { StatRowKey } from '@htflow/chart-engine';
+import { chartState, type ChartTemplateId, type ChartWindowState } from '@htflow/workspace';
 import { getSetting } from '../../state/settings';
 import type { ChartSettings, LineValue } from './schema';
 
@@ -66,6 +68,17 @@ export function globalChartDefaults(): ChartSettings {
     out['fp.poc'] = g<boolean>('footprint.showPoc') !== false;
     out['fp.pocBorder'] = g<string>('footprint.pocColor') || '';
     out['fp.vaPct'] = g<number>('common.vaPercent') ?? 70;
+    // Chart: magnet → crosshair snap; status line → indicator values under the legend.
+    out['crosshair.snap'] = (g<string>('chart.magnet') ?? 'off') !== 'off';
+    out['other.indicatorValues'] = g<boolean>('chart.statusLine') !== false;
+    // Footprint defaults.
+    const cm = g<string>('footprint.colorMode');
+    out['fp.colorMode'] = cm === 'delta' || cm === 'none' ? cm : 'volume';
+    out['fp.cellOpacity'] = g<number>('footprint.cellOpacity') ?? 100;
+    out['fp.fontSize'] = g<number>('footprint.fontSize') ?? 11;
+    out['fp.minCellHeight'] = g<number>('footprint.minCellHeight') ?? 9;
+    out['fp.vaShow'] = g<boolean>('footprint.showValueArea') === true;
+    out['fp.absorption'] = g<boolean>('footprint.absorptionMarkers') === true;
   } catch {
     // Settings store not ready (tests) → schema defaults.
   }
@@ -73,11 +86,97 @@ export function globalChartDefaults(): ChartSettings {
   return out;
 }
 
+/** Candle wick / border colours (Settings → Chart; '' follows the body colour). */
+export function globalCandleColors(): {
+  wickUp: string;
+  wickDown: string;
+  borderUp: string;
+  borderDown: string;
+} {
+  const g = (k: string): string => {
+    try {
+      const v = getSetting(k as never) as unknown;
+      return typeof v === 'string' ? v : '';
+    } catch {
+      return '';
+    }
+  };
+  return {
+    wickUp: g('chart.wickUp'),
+    wickDown: g('chart.wickDown'),
+    borderUp: g('chart.borderUp'),
+    borderDown: g('chart.borderDown'),
+  };
+}
+
+const TF_MS: Record<string, number> = {
+  '15s': 15_000,
+  '30s': 30_000,
+  '1m': 60_000,
+  '2m': 120_000,
+  '5m': 300_000,
+  '15m': 900_000,
+  '30m': 1_800_000,
+  '1h': 3_600_000,
+  '4h': 14_400_000,
+  '1d': 86_400_000,
+};
+
+/** Settings → Footprint "Cell content" → the footprint mode of new charts. */
+export const CELL_MODE_TO_FOOTPRINT: Record<string, string> = {
+  bidAsk: 'bidask',
+  delta: 'delta',
+  volume: 'volume',
+  volumeDelta: 'volume-x-delta',
+};
+
+/** Defaults of a newly opened chart window from Settings (timeframe, footprint cell content). */
+export function newChartDefaults(
+  timeframe: string,
+  cellMode: string,
+): { timeframe: { kind: 'time'; ms: number }; footprintMode: string } {
+  return {
+    timeframe: { kind: 'time', ms: TF_MS[timeframe] ?? 300_000 },
+    footprintMode: CELL_MODE_TO_FOOTPRINT[cellMode] ?? 'bidask',
+  };
+}
+
+/** A new chart window with Settings → Chart default timeframe and Footprint cell content. */
+export function newChartState(instrumentId: string, template: ChartTemplateId): ChartWindowState {
+  const base = chartState(instrumentId, template);
+  try {
+    const d = newChartDefaults(
+      String(getSetting('chart.defaultTimeframe')),
+      String(getSetting('footprint.cellMode')),
+    );
+    return { ...base, ...d };
+  } catch {
+    return base;
+  }
+}
+
+/** Footprint statistics rows from Settings → Footprint (delta / volume / cumulative delta). */
+export function footprintStatRows(
+  showDelta: boolean,
+  showVolume: boolean,
+  showCumDelta: boolean,
+): StatRowKey[] {
+  const rows: StatRowKey[] = [];
+  if (showDelta) rows.push('delta');
+  rows.push('sessionDelta');
+  if (showVolume) rows.push('volume');
+  if (showCumDelta) rows.push('cumDelta');
+  return rows;
+}
+
 /** Global numeric chart options that are not per-chart rows. */
 export function globalChartOptions(): {
   barSpacing: number;
   rightMarginBars: number;
   maxCandles: number;
+  autoScroll: boolean;
+  crosshairLabels: boolean;
+  statRows: StatRowKey[];
 } {
   const g = (k: string, d: number) => {
     try {
@@ -87,9 +186,29 @@ export function globalChartOptions(): {
       return d;
     }
   };
+  const flag = (k: string) => {
+    try {
+      return getSetting(k as never) !== false;
+    } catch {
+      return true;
+    }
+  };
   return {
     barSpacing: g('chart.barSpacing', 10),
     rightMarginBars: g('chart.rightMarginBars', 8),
     maxCandles: g('common.maxCandlesPerChart', 100_000),
+    autoScroll: flag('chart.autoScroll'),
+    crosshairLabels: flag('chart.crosshairLabels'),
+    statRows: footprintStatRows(
+      flag('footprint.showDeltaRow'),
+      flag('footprint.showVolumeRow'),
+      (() => {
+        try {
+          return getSetting('footprint.showCumDelta' as never) === true;
+        } catch {
+          return false;
+        }
+      })(),
+    ),
   };
 }

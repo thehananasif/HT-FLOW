@@ -415,6 +415,8 @@ function drawEye(
 export class IndicatorScene {
   items: RenderItem[] = [];
   hotspots: Hotspot[] = [];
+  /** Show indicator values in the legend rows (Settings → Chart → status line). */
+  showValues = true;
   private frame: unknown = null;
   private viewHeight = 600;
   private byUid = new Map<string, RenderItem>();
@@ -567,7 +569,7 @@ export class IndicatorScene {
       ctx.fillText(it.rt.notice, cx, y);
       cx += ctx.measureText(it.rt.notice).width + 8;
     }
-    if (on && it.rt.count > 0) {
+    if (on && this.showValues && it.rt.count > 0) {
       const c = v.crosshair;
       const idx = c && c.slot >= 0 && c.slot < it.rt.count ? c.slot : it.rt.count - 1;
       ctx.font = v.font(11, 600);

@@ -11,6 +11,17 @@ import {
   type Trade,
 } from '@htflow/market-data';
 import { isTauri } from '../backend';
+import { Conflator, reconnectDelayMs, restamp } from './feedTuning';
+import { getSetting } from './settings';
+
+const dataSetting = <T>(key: string, d: T): T => {
+  try {
+    const v = getSetting(key as never) as unknown;
+    return (v === undefined ? d : v) as T;
+  } catch {
+    return d;
+  }
+};
 
 /** Wire format of one coalesced batch from the Rust UI streamer (Live Pipeline stage 9). */
 interface WireBatch {
@@ -193,6 +204,13 @@ export class TauriLiveFeed implements FeedSource {
   recording = false;
   /** Trades served from the local store / downloaded by the last history call. */
   historyInfo = { local: 0, backfilled: 0 };
+  /** Settings → Data → conflation window for live batches. */
+  private conflator = new Conflator(
+    (b) => this.emit(b),
+    () => dataSetting('data.conflateMs', 0),
+  );
+  private reconnectAttempt = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     readonly instrument: Instrument,
@@ -266,6 +284,7 @@ export class TauriLiveFeed implements FeedSource {
     const ch = new Channel<WireBatch>();
     ch.onmessage = (m) => {
       if (m.st) {
+        if (m.st.state === 'live') this.reconnectAttempt = 0;
         this.resyncs = m.st.rs ?? this.resyncs;
         this.recording = m.st.rec ?? false;
         this.setStatus({
@@ -281,14 +300,17 @@ export class TauriLiveFeed implements FeedSource {
         px,
         qty,
       }));
-      const batch: EventBatch = { ts: m.t, trades: toTrades(m.tr), deltas };
+      let batch: EventBatch = { ts: m.t, trades: toTrades(m.tr), deltas };
       if (m.snap) batch.snapshot = { ts: m.t, bids: m.snap.bids, asks: m.snap.asks };
       if (m.ex?.length) batch.stats = toStats(m.ex);
+      // Settings → Data → timestamp source: local receive time.
+      if (dataSetting<string>('data.timestampSource', 'exchange') === 'local')
+        batch = restamp(batch, Date.now());
       if (this.buffering) {
         // Bounded: if history takes very long, keep the newest ~2 minutes of batches.
         if (this.buffer.length > 8000) this.buffer.splice(0, 1000);
         this.buffer.push(batch);
-      } else this.emit(batch);
+      } else this.conflator.push(batch);
     };
     void invoke<number>('market_subscribe', {
       venue: this.venue,
@@ -311,7 +333,27 @@ export class TauriLiveFeed implements FeedSource {
             ? String((e as { message: unknown }).message)
             : String(e);
         this.setStatus({ state: 'error', latencyMs: 0, msgsPerSec: 0, message: msg });
+        this.scheduleReconnect();
       });
+  }
+
+  /** Settings → Data → auto-reconnect: re-subscribe with exponential back-off. */
+  private scheduleReconnect(): void {
+    if (!this.started || this.reconnectTimer || !dataSetting('data.autoReconnect', true)) return;
+    const delay = reconnectDelayMs(
+      this.reconnectAttempt++,
+      dataSetting('data.reconnectMaxSec', 30),
+    );
+    this.setStatus({
+      state: 'connecting',
+      latencyMs: 0,
+      msgsPerSec: 0,
+      message: `Reconnecting in ${Math.round(delay / 1000)} s`,
+    });
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.started && isVenueEnabled(this.venue)) this.connect();
+    }, delay);
   }
 
   private disconnect(): void {
@@ -350,6 +392,9 @@ export class TauriLiveFeed implements FeedSource {
   }
 
   stop(): void {
+    this.conflator.dispose();
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     this.started = false;
     this.buffering = false;
     this.buffer = [];

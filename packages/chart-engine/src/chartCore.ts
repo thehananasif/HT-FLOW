@@ -117,6 +117,9 @@ export class ChartCore {
   slotWidth = 10;
   /** Distance (in slots) from the last slot to the right edge; >= 0 means following live. */
   rightOffset: number;
+  /** Settings → Chart → auto-scroll: off keeps the view still when new bars arrive. */
+  autoScroll = true;
+  private lastTime: number | null = null;
   autoScale = true;
   priceMin = 0;
   priceMax = 1;
@@ -478,6 +481,11 @@ export class ChartCore {
     const aw = this.axisWidths();
     const plot = this.plotRect();
     const n = this.source.count();
+    if (!this.autoScroll && n > 0) {
+      const appended = appendedSlots(this.source.timeAt, n, this.lastTime);
+      this.rightOffset = offsetAfterGrowth(this.rightOffset, appended, false);
+    }
+    this.lastTime = n > 0 ? this.source.timeAt(n - 1) : null;
     const sw = this.slotWidth;
     const gaps = this.gapsActive(n);
     const period = gaps ? this.period(n) : 0;
@@ -838,6 +846,7 @@ export class ChartCore {
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.lineWidth = 1;
+    if (cs.labels === false) return;
     const bg = pick(cs.labelBg, p.surface3);
     const fg = pick(cs.labelText, p.textPrimary);
     if (this.options.priceAxis && c.y < v.plot.h) {
@@ -1177,4 +1186,33 @@ function to12h(s: string): string {
     const ap = hh >= 12 ? 'PM' : 'AM';
     return `${hh % 12 || 12}:${m}${sec ?? ''} ${ap}`;
   });
+}
+
+/**
+ * Slots appended after the slot whose time was `prevLast` (0 when unknown, unchanged or when
+ * older bars were prepended — those do not move the right edge).
+ */
+export function appendedSlots(
+  timeAt: (i: number) => number,
+  n: number,
+  prevLast: number | null,
+): number {
+  if (prevLast === null || n === 0 || timeAt(n - 1) <= prevLast) return 0;
+  for (let i = n - 2, k = 0; i >= 0 && k < 5000; i--, k++)
+    if (timeAt(i) <= prevLast) return n - 1 - i;
+  return 0;
+}
+
+/**
+ * Right offset after `appended` new slots: with auto-scroll the last slot keeps its distance
+ * from the right edge (the view follows new bars); without it the offset shrinks by the new
+ * slots so the visible bars stay where they are.
+ */
+export function offsetAfterGrowth(
+  rightOffset: number,
+  appended: number,
+  autoScroll: boolean,
+): number {
+  if (autoScroll || appended <= 0) return rightOffset;
+  return rightOffset - appended;
 }

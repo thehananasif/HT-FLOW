@@ -1,3 +1,5 @@
+import { toast } from '@htflow/ui-kit';
+import { tradingDefaults } from './globalSettings';
 import { paper } from '../state/market';
 import { activeInstrument } from '../state/windows';
 import { registerCommands, type Command } from '../shell/commands';
@@ -12,6 +14,11 @@ const withInst = (fn: (id: string) => void) => () => {
   const id = activeInstrument();
   if (id) fn(id);
 };
+
+/** Order hot keys switched off in Settings → Trading. */
+function hotkeysOff(): void {
+  toast('info', 'Order hot keys are off', 'Turn them on in Settings → Trading.');
+}
 
 const base: Command[] = [
   {
@@ -103,30 +110,42 @@ const base: Command[] = [
     label: 'Buy market (active instrument)',
     group: 'Trading',
     scope: 'trading',
-    run: withInst(
-      (id) => void submitOrder({ instrumentId: id, side: 'buy', type: 'market', qty: 1 }),
-    ),
+    run: withInst((id) => {
+      const td = tradingDefaults();
+      if (!td.orderHotkeys) return hotkeysOff();
+      void submitOrder({ instrumentId: id, side: 'buy', type: 'market', qty: td.qty, tif: td.tif });
+    }),
   },
   {
     id: 'trading.sell-market',
     label: 'Sell market (active instrument)',
     group: 'Trading',
     scope: 'trading',
-    run: withInst(
-      (id) => void submitOrder({ instrumentId: id, side: 'sell', type: 'market', qty: 1 }),
-    ),
+    run: withInst((id) => {
+      const td = tradingDefaults();
+      if (!td.orderHotkeys) return hotkeysOff();
+      void submitOrder({
+        instrumentId: id,
+        side: 'sell',
+        type: 'market',
+        qty: td.qty,
+        tif: td.tif,
+      });
+    }),
   },
   {
     id: 'trading.close',
     label: 'Close position (active instrument)',
     group: 'Trading',
-    run: withInst((id) => void closePosition(id)),
+    run: withInst((id) => (tradingDefaults().orderHotkeys ? void closePosition(id) : hotkeysOff())),
   },
   {
     id: 'trading.reverse',
     label: 'Reverse position (active instrument)',
     group: 'Trading',
-    run: withInst((id) => void reversePosition(id)),
+    run: withInst((id) =>
+      tradingDefaults().orderHotkeys ? void reversePosition(id) : hotkeysOff(),
+    ),
   },
   {
     id: 'trading.cancel-all',

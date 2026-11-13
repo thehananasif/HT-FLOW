@@ -18,7 +18,15 @@ import { hub, paper, pnlTick } from '../../state/market';
 import { allInstruments, instrumentById } from '../../state/instruments';
 import { downloadText, toCsv } from '../../components/DataTable.utils';
 import { registerModule } from '../registry';
-import { fmtClock, fmtDate, useTimeFormat } from '../../state/format';
+import {
+  fmtClock,
+  fmtDate,
+  formatNumber,
+  HIDDEN_MONEY,
+  privacyOptions,
+  usePrivacy,
+  useTimeFormat,
+} from '../../state/format';
 import { useSetting } from '../../state/settings';
 import { journalStore, type JournalTag, type TagKind } from './store';
 import './styles.css';
@@ -31,12 +39,11 @@ const PERIODS: { id: JournalPeriod; label: string }[] = [
   { id: 'all', label: 'All' },
 ];
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
-const money = (v: number, digits = 0) =>
-  (v < 0 ? '−$' : '$') +
-  Math.abs(v).toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
+const money = (v: number, digits = 0) => {
+  const o = privacyOptions();
+  if (o.hide) return HIDDEN_MONEY;
+  return (v < 0 ? '−$' : '$') + formatNumber(Math.abs(v), o.locale, digits);
+};
 const signed = (v: number, digits = 0) => (v > 0 ? '+' : '') + money(v, digits);
 const cls = (v: number) => (v > 0 ? 'up' : v < 0 ? 'down' : '');
 const sym = (id: string) => instrumentById(id)?.symbol ?? id;
@@ -484,6 +491,7 @@ interface Params {
 
 function Journal({ params, setParams }: { params: Params; setParams(p: Partial<Params>): void }) {
   useTimeFormat();
+  usePrivacy();
   const all = useJournal();
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'date', dir: -1 });
   const [selected, setSelected] = useState<string | null>(null);

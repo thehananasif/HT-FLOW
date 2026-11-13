@@ -32,7 +32,6 @@ import {
 import { FOOTPRINT_MODES } from '@htflow/footprint';
 import {
   CHART_TEMPLATES,
-  chartState,
   domState,
   LAYOUT_PRESETS,
   windowTitle,
@@ -64,6 +63,7 @@ import {
 } from '../shell/commands';
 import { MODULES } from '../shell/modules';
 import { ChartWindow } from '../charts/ChartWindow';
+import { newChartState } from '../charts/settings/globals';
 import { DomWindow } from '../trading/DomView';
 import { TradingPanel } from '../trading/TradingPanel';
 import { ModuleWindow } from './ModuleWindow';
@@ -452,7 +452,7 @@ export function Dashboard({ version }: { version: string }) {
       if (act.kind === 'retarget') {
         const w = useWindows.getState().windows[act.windowId];
         if (w) useWindows.getState().patch(act.windowId, retargetPatch(w, act.feedId));
-      } else openWindow(chartState(act.feedId, 'footprint'));
+      } else openWindow(newChartState(act.feedId, 'footprint'));
     },
     [openWindow, windowAt],
   );
@@ -534,7 +534,7 @@ export function Dashboard({ version }: { version: string }) {
         id: `chart.${t.id}`,
         label: `New chart: ${t.label}`,
         group: 'Chart' as const,
-        run: () => openWindow(chartState(inst(), t.id)),
+        run: () => openWindow(newChartState(inst(), t.id)),
       })),
       ...FOOTPRINT_MODES.filter((m) => m.shortcut).map((m) => ({
         id: `fp.${m.id}`,
@@ -559,7 +559,7 @@ export function Dashboard({ version }: { version: string }) {
         run: () => {
           const { activeId, patch } = useWindows.getState();
           if (activeId) patch(activeId, { instrumentId: i.id } as Partial<WindowState>);
-          else openWindow(chartState(i.id, 'footprint'));
+          else openWindow(newChartState(i.id, 'footprint'));
         },
       })),
       ...MODULES.map((m) => ({
@@ -567,7 +567,7 @@ export function Dashboard({ version }: { version: string }) {
         label: `Open ${m.label}`,
         group: 'Analysis' as const,
         run: () => {
-          if (m.id === 'chart') openWindow(chartState(inst(), 'footprint'));
+          if (m.id === 'chart') openWindow(newChartState(inst(), 'footprint'));
           else if (m.id === 'smart-dom') openWindow(domState(inst()));
           else
             openWindow({ kind: 'module', module: m.id }, m.id === 'replay' ? { dir: 'right' } : {});

@@ -6,6 +6,9 @@ import { describeAtm, type OrderRequest, type TimeInForce } from '@htflow/tradin
 import { hub, paper } from '../state/market';
 import { activeInstrument, useWindows } from '../state/windows';
 import { instrumentById } from '../state/instruments';
+import { useSetting } from '../state/settings';
+import { formatNumber, HIDDEN_MONEY, usePrivacy } from '../state/format';
+import { parseQtyPresets, tifOf } from './globalSettings';
 import { maskId, pickableAccounts, routedAccount, selectAccount } from './accounts';
 import { useAtmTemplates } from './atmStore';
 import {
@@ -59,7 +62,9 @@ const SL_KINDS: { value: SlKind; label: string }[] = [
 /** Account selector: paper accounts, masked ids, the routed account's balance. */
 function AccountPicker({ instrumentId }: { instrumentId: string | null }) {
   const prefs = useTradingPrefs();
-  const [showId, setShowId] = useState(false);
+  const privacy = usePrivacy();
+  const [showId, setShowId] = useState(!privacy.mask);
+  useEffect(() => setShowId(!privacy.mask), [privacy.mask]);
   const accounts = pickableAccounts();
   const routed = routedAccount(instrumentId);
   const isRouted = routed.id !== prefs.activeAccount;
@@ -97,10 +102,7 @@ function AccountPicker({ instrumentId }: { instrumentId: string | null }) {
         <span className="ot-acct-name">{isRouted ? routed.name : ''}</span>
         <span className="grow" />
         <b>
-          {routed.balance.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{' '}
+          {privacy.hide ? HIDDEN_MONEY : formatNumber(routed.balance, privacy.locale)}{' '}
           {routed.currency}
         </b>
       </div>
@@ -126,7 +128,9 @@ function OrderEntry({
   const inst = instrumentById(instrumentId) ?? hub.peek(instrumentId)?.instrument;
   const tick = inst?.tickSize ?? 1;
   const prec = inst?.pricePrecision ?? 2;
-  const [type, setType] = useState<EntryType>('limit');
+  const defType = useSetting('trading.defaultOrderType');
+  const [type, setType] = useState<EntryType>(defType === 'stop' ? 'stop' : 'limit');
+  useEffect(() => setType(defType === 'stop' ? 'stop' : 'limit'), [defType]);
   const [limit, setLimit] = useState(Number.NaN);
   const [stop, setStop] = useState(Number.NaN);
   const [trail, setTrail] = useState(10);
@@ -300,10 +304,17 @@ export function TradingPanel() {
   const instrumentId = activeInstrument();
   const inst = instrumentId ? instrumentById(instrumentId) : undefined;
   const store = instrumentId ? hub.peek(instrumentId) : undefined;
-  const [qty, setQty] = useState(1);
+  // Settings → Trading: default quantity, quick sizes and time in force (live).
+  const defQty = useSetting('trading.defaultQty');
+  const presetsRaw = useSetting('trading.qtyPresets');
+  const defTif = useSetting('trading.defaultTif');
+  const presets = useMemo(() => parseQtyPresets(presetsRaw), [presetsRaw]);
+  const [qty, setQty] = useState(defQty);
+  useEffect(() => setQty(defQty), [defQty]);
   const [oco, setOco] = useState(false);
   const [reduceOnly, setReduceOnly] = useState(false);
-  const [tif, setTif] = useState<TimeInForce>('GTC');
+  const [tif, setTif] = useState<TimeInForce>(tifOf(defTif));
+  useEffect(() => setTif(tifOf(defTif)), [defTif]);
   const acc = routedAccount(instrumentId);
   const pos = instrumentId ? paper.position(acc.id, instrumentId) : null;
   const mark = store?.lastTrade?.px ?? Number.NaN;
@@ -358,7 +369,7 @@ export function TradingPanel() {
         aria-label="Quantity"
       />
       <div className="row gap6 wrap tp-presets">
-        {[1, 2, 5, 10, 25].map((n) => (
+        {presets.map((n) => (
           <button key={n} className="ht-chip" aria-pressed={qty === n} onClick={() => setQty(n)}>
             {n}
           </button>

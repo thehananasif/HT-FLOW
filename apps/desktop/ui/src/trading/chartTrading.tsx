@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { tradingDefaults } from './globalSettings';
 import type { ChartLayer, ChartView, PointerHandler } from '@htflow/chart-engine';
 import { formatPrice, formatQty, type Bar } from '@htflow/market-data';
 import type { Fill, Order } from '@htflow/trading';
@@ -110,7 +111,8 @@ class TradingLayer implements ChartLayer {
     if (p.showFills) this.drawFills(v, acc, instId, c, p);
 
     const pos = paper.position(acc, instId);
-    if (p.showPosition && pos.qty !== 0) {
+    const td = tradingDefaults();
+    if (p.showPosition && td.showPositionLine && pos.qty !== 0) {
       const last = w.ctx.store.lastTrade?.px;
       const pnl = last !== undefined ? paper.unrealized(acc, instId, last) : 0;
       const side = pos.qty > 0 ? 'LONG' : 'SHORT';
@@ -131,7 +133,7 @@ class TradingLayer implements ChartLayer {
     }
     for (const o of paper.workingOrders(acc, instId)) {
       const bracket = o.role === 'sl' || o.role === 'tp';
-      if (bracket ? !p.showBrackets : !p.showOrders) continue;
+      if (!td.showOrderLines || (bracket ? !p.showBrackets : !p.showOrders)) continue;
       const base = priceOf(o);
       if (base === undefined) continue;
       const dragging = w.drag?.id === o.id;
