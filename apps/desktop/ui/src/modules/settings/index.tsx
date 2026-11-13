@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { registerCommands } from '../../shell/commands';
+import { registerCommands, registerPaletteProvider } from '../../shell/commands';
 import {
   SECTIONS,
   getSetting,
@@ -12,6 +12,7 @@ import { registerModule, type ModuleViewProps } from '../registry';
 import { installSettingsEffects } from './effects';
 import { installFpsOverlay } from './fpsOverlay';
 import { ConfirmHost } from './ConfirmHost';
+import { settingsPaletteItems } from './palette';
 import { SettingsView } from './SettingsView';
 import './styles.css';
 
@@ -105,3 +106,6 @@ registerCommands([
     run: () => void setSetting('sounds.muteAll', !getSetting('sounds.muteAll')),
   },
 ]);
+
+// Command Palette rows: every settings section and key; each opens the Settings window at its section.
+registerPaletteProvider(settingsPaletteItems);

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { normalizeExt, type IndicatorConfig, type IndicatorsExt } from '@htflow/indicator-sdk';
-import { indicatorById } from '@htflow/indicators';
+import { indicatorById, type CatalogEntry } from '@htflow/indicators';
 import type { WindowState } from '@htflow/workspace';
 import { useWindows } from '../../state/windows';
 import type { ChartExtensionContext } from '../../charts/extensions';
+import { buildIndicatorConfig } from './config';
 
 export const EXT_ID = 'indicators';
 
@@ -43,6 +44,17 @@ export const useIndicatorDialog = create<DialogState>((set) => ({
   open: (windowId, select = null) => set({ windowId, select }),
   close: () => set({ windowId: null, select: null }),
 }));
+
+/**
+ * Adds a catalog indicator to a chart window (the same step the Indicators dialog's "+" takes).
+ * Returns false for pending entries.
+ */
+export function addIndicatorToChart(windowId: string, e: CatalogEntry): boolean {
+  const cfg = buildIndicatorConfig(e);
+  if (!cfg) return false;
+  writeExt(windowId, [...readExt(windowId).items, cfg]);
+  return true;
+}
 
 /** The chart window commands act on: the active one, else the first chart. */
 export function targetChart(): string | null {

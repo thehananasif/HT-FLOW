@@ -8,15 +8,24 @@ import {
   type BarData,
   type Hotspot,
 } from '@htflow/indicator-sdk';
-import { indicatorById } from '@htflow/indicators';
+import { CATALOG, indicatorById } from '@htflow/indicators';
 import { t } from '@htflow/i18n';
-import { Chip } from '@htflow/ui-kit';
+import { Chip, toast } from '@htflow/ui-kit';
 import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
-import { registerCommands } from '../../shell/commands';
+import { registerCommands, registerPaletteProvider } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
 import { IndicatorsDialog } from './Dialog';
-import { EXT_ID, contexts, readExt, targetChart, useIndicatorDialog, writeExt } from './state';
+import { indicatorPaletteItems } from './palette';
+import {
+  EXT_ID,
+  addIndicatorToChart,
+  contexts,
+  readExt,
+  targetChart,
+  useIndicatorDialog,
+  writeExt,
+} from './state';
 import './styles.css';
 
 const isOurs = (l: ChartLayer) => l.id.startsWith('ind');
@@ -172,3 +181,12 @@ registerCommands([
     },
   },
 ]);
+
+// Command Palette rows: choosing an indicator adds it to the active chart (as the dialog's "+" does).
+registerPaletteProvider(() =>
+  indicatorPaletteItems(CATALOG, (e) => {
+    const id = targetChart();
+    if (!id) toast('error', 'Open a chart first to add an indicator');
+    else addIndicatorToChart(id, e);
+  }),
+);

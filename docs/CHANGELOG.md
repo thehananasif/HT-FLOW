@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 4
+
+### Added
+
+- Command Palette (Ctrl+K) searches indicators: every implemented catalog entry is listed under an "Indicators" header and adds itself to the active chart, as the Indicators dialog's "+" does. Pending entries are not listed.
+- Command Palette searches settings: every settings section and key is listed under a "Settings" header; choosing one opens the Settings window at that section. Command results stay first.
+
 ## Unreleased — round 3
 
 ### Changed

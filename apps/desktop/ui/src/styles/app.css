@@ -874,6 +874,21 @@
   flex: 1;
   color: var(--ht-text-soft);
 }
+.palette-hint {
+  color: var(--ht-text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+.palette-header {
+  padding: 8px 10px 2px;
+  color: var(--ht-text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .palette-empty {
   padding: 20px;
   text-align: center;
