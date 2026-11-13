@@ -27,6 +27,8 @@ interface Prepared<T> {
   name: string;
   exchange: string;
   tokens: Token[];
+  /** Union of every character-set mask of the entry: a cheap whole-entry reject. */
+  mask: number;
 }
 
 export interface SearchHit<T> {
@@ -106,7 +108,10 @@ export class SearchIndex<T extends SearchDoc> {
       add(norm(doc.root), 1.1);
       add(name, 1);
       for (const a of doc.aliases ?? []) add(norm(a), 0.9);
+      let mask = maskOf(symbol) | maskOf(name) | maskOf(norm(doc.exchange));
+      for (const t of tokens) mask |= t.mask;
       return {
+        mask,
         doc,
         symbol,
         compact: compactOf(symbol),
@@ -167,7 +172,11 @@ export class SearchIndex<T extends SearchDoc> {
     const limit = opts.limit ?? 200;
     const out: SearchHit<T>[] = [];
     const masks = terms.map(maskOf);
-    for (const p of this.items) {
+    // Missing characters an entry may have and still match a term (typo budget; 0 below 3 chars).
+    const budget = terms.map((t) => (t.length >= 7 ? 2 : t.length >= 3 ? 1 : 0));
+    outer: for (const p of this.items) {
+      for (let i = 0; i < terms.length; i++)
+        if (popcount(masks[i]! & ~p.mask) > budget[i]!) continue outer;
       if (opts.filter && !opts.filter(p.doc)) continue;
       let score = 0;
       for (let i = 0; i < terms.length; i++) {

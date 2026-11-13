@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — round 4
+
+### Added
+
+- Instrument Picker rows can be dragged: drop on a window to change its symbol (modules keep it in their params), Ctrl+drop or drop on an empty dock area opens a new chart window (`dashboard/instrumentDrop.ts`, e2e `picker-drag.spec.ts`).
+- Watchlist "OI / Funding" column shows open interest and funding rate from the crypto connectors' stats streams, "—" when the feed has none.
+- Continuous-contract roll by volume: `frontContract` / `nextRoll` / `Catalog.frontCode` accept per-contract volumes and, for `volume` roll specs, roll as soon as the next contract trades more; without volume data the date rule applies.
+- Search index rejects non-matching entries with a whole-entry character mask; a vitest benchmark asserts < 50 ms on 10,000 generated instruments.
+
 ## Unreleased — round 3
 
 ### Changed

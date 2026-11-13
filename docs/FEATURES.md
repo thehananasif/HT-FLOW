@@ -62,8 +62,11 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [~] Full Appendix A seed (US / EU futures incl. micro / mini / E-nano, 16 crypto venue groups, VX, HKEX, single-stock futures, dxFeed groups); uncertain specs are `verified: false` with `TODO(verify)`; stocks and crypto symbol lists are placeholders; no holiday dates; specs not yet checked against exchange pages
 - [x] Instrument Picker: group tree, All / Favourites / Recent, typo-tolerant search (12k entries < 50 ms), star, "Has live feed" filter, status column (Live / Sim / Delayed / Replay / No feed), keyboard navigation; no-feed rows offer Connections
 - [x] Watchlist: tabs and user lists, Last flash, Chg %, Volume, Delta, sparkline, column chooser, drag reorder, sort, right-click open Chart / DOM / Heatmap / Tape, link-group colour, feeds retained only for visible rows
-- [ ] Drag from picker to a window / Ctrl+drag for a new window; OI / Funding columns (no feed); roll by volume (falls back to date rule)
-- [ ] 10,000+ symbol search < 50 ms
+- [x] Drag from picker to a window (changes its symbol) / Ctrl+drag or empty dock area for a new chart window
+- [x] Watchlist OI / Funding column fed by the crypto connectors' funding / open-interest streams ("—" when absent)
+- [x] Search index: whole-entry character-mask reject; vitest benchmark asserts < 50 ms on 10k generated instruments
+- [~] Roll by volume implemented in the catalog (`volume` roll spec + per-contract volumes, date fallback)
+- [ ] No provider supplies per-contract volumes yet and no seed contract uses a `volume` roll spec; drag has no keyboard / palette equivalent (the `inst.*` commands cover changing the symbol)
 
 ## P05 — Data connectors
 

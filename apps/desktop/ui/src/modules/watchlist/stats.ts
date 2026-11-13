@@ -113,3 +113,35 @@ export function sparkPoints(values: readonly number[], w: number, h: number): st
     })
     .join(' ');
 }
+
+/** Latest funding / open interest of a feed (structural: a MarketStore satisfies it). */
+export interface DerivStats {
+  funding: { rate: number; nextTs: number } | null;
+  openInterest: { oi: number; value: number } | null;
+}
+
+/**
+ * Text for the "OI / Funding" column: "12.4K · +0.0100%" (open interest · funding rate, 4 dp
+ * percent), only the part the feed supplies, "—" when it supplies neither (spot, simulator,
+ * venues without a derivatives stream).
+ */
+export function formatOiFunding(
+  s: DerivStats | null | undefined,
+  compact: (n: number) => string,
+): { text: string; title: string } {
+  const parts: string[] = [];
+  const titles: string[] = [];
+  const oi = s?.openInterest?.oi;
+  if (oi !== undefined && Number.isFinite(oi)) {
+    parts.push(compact(oi));
+    titles.push(`Open interest ${oi.toLocaleString('en-US')}`);
+  }
+  const fr = s?.funding?.rate;
+  if (fr !== undefined && Number.isFinite(fr)) {
+    const pct = fr * 100;
+    parts.push(`${pct > 0 ? '+' : ''}${pct.toFixed(4)}%`);
+    titles.push(`Funding rate ${pct.toFixed(4)}% per interval`);
+  }
+  if (!parts.length) return { text: '—', title: 'This feed has no open interest / funding data' };
+  return { text: parts.join(' · '), title: titles.join(' · ') };
+}

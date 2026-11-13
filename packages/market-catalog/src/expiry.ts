@@ -194,15 +194,46 @@ export function listContracts(
   return out;
 }
 
-/** Front month for a continuous contract: the first contract whose roll date is still ahead. */
+/** Traded volume per contract code ("CLZ6" -> 812345), e.g. from a provider's per-contract stats. */
+export type ContractVolumes = Readonly<Record<string, number>>;
+
+/**
+ * Index of the front month in `list`. The date rule picks the first contract whose roll date is
+ * still ahead. With a `volume` roll rule and volume for both contracts, the roll happens as soon
+ * as the next contract trades more than the current one (never later than the date rule, and
+ * only when data for both contracts exists; otherwise the date rule stands).
+ */
+function frontIndex(
+  list: ContractMonth[],
+  spec: ContractSpec,
+  now: Date,
+  vols?: ContractVolumes,
+): number {
+  let i = list.findIndex((c) => c.rollDate.getTime() > now.getTime());
+  if (i < 0) return list.length ? 0 : -1;
+  if (spec.roll.kind === 'volume' && vols) {
+    for (; i + 1 < list.length; i++) {
+      const cur = vols[list[i]!.code];
+      const nxt = vols[list[i + 1]!.code];
+      if (!(Number.isFinite(cur) && Number.isFinite(nxt) && nxt! > cur!)) break;
+    }
+  }
+  return i;
+}
+
+/**
+ * Front month for a continuous contract: the first contract whose roll date is still ahead, or,
+ * for volume-roll specs with volume data, the contract that currently trades the most.
+ */
 export function frontContract(
   root: string,
   spec: ContractSpec,
   now: Date,
   digits: 1 | 2 = 1,
+  volumes?: ContractVolumes,
 ): ContractMonth | null {
-  const list = listContracts(root, spec, now, 3, digits);
-  return list.find((c) => c.rollDate.getTime() > now.getTime()) ?? list[0] ?? null;
+  const list = listContracts(root, spec, now, 4, digits);
+  return list[frontIndex(list, spec, now, volumes)] ?? null;
 }
 
 /** The next automatic roll: from the current front month to the following contract. */
@@ -211,11 +242,13 @@ export function nextRoll(
   spec: ContractSpec,
   now: Date,
   digits: 1 | 2 = 1,
+  volumes?: ContractVolumes,
 ): { from: ContractMonth; to: ContractMonth; date: Date; days: number } | null {
-  const list = listContracts(root, spec, now, 4, digits);
-  const i = list.findIndex((c) => c.rollDate.getTime() > now.getTime());
+  const list = listContracts(root, spec, now, 5, digits);
+  const i = frontIndex(list, spec, now, volumes);
   if (i < 0 || i + 1 >= list.length) return null;
   const from = list[i]!;
+  if (from.rollDate.getTime() <= now.getTime()) return null;
   const to = list[i + 1]!;
   return {
     from,
