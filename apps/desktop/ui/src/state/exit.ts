@@ -3,6 +3,9 @@ import { askConfirm } from './confirm';
 import { paper } from './market';
 import { backend } from '../backend';
 
+/** Saves to finish before the window closes (e.g. paper account state). */
+export const beforeExit: (() => Promise<void>)[] = [];
+
 /**
  * Closes HT Flow. With Settings → General → "Confirm on exit" on, asks first when positions or
  * working orders are open.
@@ -21,5 +24,6 @@ export async function requestExit(): Promise<void> {
       if (!ok) return;
     }
   }
+  await Promise.all(beforeExit.map((f) => f().catch(() => {})));
   backend.window.close();
 }

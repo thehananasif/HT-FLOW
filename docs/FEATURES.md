@@ -207,14 +207,18 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Chart trading (chart extension): position line with live P&L and ✕ close, draggable working-order and SL / TP lines with ✕ cancel, B / S fill markers, right-click order menu; all styles configurable
 - [x] Multiple paper accounts (create, rename, starting balance and currency, reset, delete); order confirmations per order type; account picker shows the routed account (replay); minimal options positions model in the engine
 - [x] Chart right-click Buy / Sell (with the Trading Panel's ATM bracket and confirmations), Dashboard Flatten / Breakeven and the risk meter use the selected paper account; the risk engine covers every paper account; saved accounts keep settings and cash balance
-- [ ] Options model not connected to the Options Board; open positions are not saved across restarts; OCO checkbox inert
+- [x] Open state survives restarts: positions, working orders (OCO groups, pending brackets, ATM management) and options are saved per paper account in the encrypted profile store and restored with the balance; the risk engine and Settings → Risk limits continue the same trading day (day P&L, trade count) after a restart
+- [x] OCO checkbox: resting orders placed while ticked form one-cancels-other groups (first fill or cancel cancels the rest), shown in the Trading Panel and the Orders table; commands to toggle, start a new group and link the last two orders
+- [x] Options in the paper engine: premium debit / credit, mark-to-model P&L with `@htflow/options`, expiry settlement at intrinsic value, Positions table rows
+- [ ] Fills / trade history are not saved with the account state (the Trades table and journal start empty after a restart); options have no pre-trade risk rules (max position etc. apply to futures only)
 - [x] Tests: bracket with 3 targets fills correctly; PnL matches hand calculation
 
 ## P18 — Options Board & analytics
 
 - [x] `@htflow/options`: Black-Scholes (dividend / funding yield) and Black-76 with full Greeks, IV solver (Newton + bisection), strategies (payoff at expiry and T+n, breakevens, max profit / loss incl. unlimited, probability of profit, Greeks totals), 13 templates, simulated chains for all Sim instruments, Deribit provider (recorded-fixture tests); validated against Hull / Haug references within 0.5%
 - [x] Options Strategy Analyser window: series filters, expiry blocks (calls / strike + IV / puts, ITM tint, spot line), click bid to sell / ask to buy, strategy builder with canvas payoff chart and T+n slider, readouts, local options positions tab with live P&L
-- [ ] Options not modelled by the paper engine (local positions only); Appendix B options indicators exported but not on charts yet; live Deribit in the desktop app needs `net_fetch_text` (now merged) wiring check; CME options need a user feed
+- [x] Options Board trades on paper: Send as paper order books each leg in the paper engine, "Click a quote: Trade now" buys at the ask / sells at the bid at once; positions tab shows paper options (debit / credit, model mark, P&L, days left, Analyse into the builder, Close); they also appear in the Positions table
+- [ ] Appendix B options indicators exported but not on charts yet; live Deribit in the desktop app needs `net_fetch_text` (now merged) wiring check; CME options need a user feed
 
 ## P19 — Forward curve
 
