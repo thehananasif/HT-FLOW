@@ -1,20 +1,39 @@
 import type { ChartLayer, PointerHandler } from '@htflow/chart-engine';
 import {
   DerivativesLog,
+  ForeignRuntime,
+  IndicatorRuntime,
   IndicatorScene,
   PaneSpacerLayer,
+  alertTriggered,
+  describeIndicatorAlert,
+  formatValue,
+  movePane,
+  mtfOf,
+  specInputs,
   tfClassOf,
   titleOf,
+  type AlertSample,
+  type AnyIndicator,
   type BarData,
+  type EngineSpec,
   type Hotspot,
+  type IndicatorConfig,
+  type RuntimeLike,
+  type SourceId,
+  isPriceSource,
 } from '@htflow/indicator-sdk';
-import { CATALOG, indicatorById } from '@htflow/indicators';
+import { CATALOG, indicatorById, poolable } from '@htflow/indicators';
+import type { BarSpec, MarketStore } from '@htflow/market-data';
 import { t } from '@htflow/i18n';
 import { Chip, toast } from '@htflow/ui-kit';
 import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { registerCommands, registerPaletteProvider } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
+import { hub } from '../../state/market';
+import { instrumentById } from '../../state/instruments';
+import { notify } from '../alerts/runtime';
 import { IndicatorsDialog } from './Dialog';
 import { indicatorPaletteItems } from './palette';
 import {
@@ -26,6 +45,8 @@ import {
   useIndicatorDialog,
   writeExt,
 } from './state';
+import { indicatorPool } from './pool';
+import { scriptSource } from './scripts';
 import './styles.css';
 
 const isOurs = (l: ChartLayer) => l.id.startsWith('ind');
@@ -43,6 +64,90 @@ function act(windowId: string, h: Hotspot): void {
       windowId,
       items.filter((c) => c.uid !== h.uid),
     );
+}
+
+function dropOnPane(windowId: string, uid: string, target: Parameters<typeof movePane>[2]): void {
+  const items = readExt(windowId).items;
+  const next = movePane(items, uid, target);
+  if (next !== items) writeExt(windowId, next);
+}
+
+/** Display unit of an output: price outputs computed from a non-price source are not prices. */
+function isPriceOutput(def: AnyIndicator, rt: RuntimeLike, output: string): boolean {
+  const inputs = rt.inputs as Record<string, unknown>;
+  if (typeof inputs.unit === 'string') return inputs.unit === 'price';
+  const src = inputs.source;
+  return (
+    def.outputs[output]?.unit === 'price' &&
+    (typeof src !== 'string' || isPriceSource(src as SourceId))
+  );
+}
+
+/** Indicator alerts that already fired (cooldown / once), shared per alert id. */
+const firedAt = new Map<string, number>();
+
+/**
+ * Alerts tab (P13): after market updates, tests each enabled alert on the indicator's last bar
+ * (or the last closed bar) and routes fires to the Alerts module (toast, sound, activity log).
+ */
+function watchAlerts(
+  windowId: string,
+  scene: IndicatorScene,
+  data: BarData,
+  store: MarketStore,
+): () => void {
+  const prev = new Map<string, AlertSample & { bar: number }>();
+  return store.subscribe(() => {
+    for (const it of scene.items) {
+      const alerts = it.cfg.alerts.filter((a) => a.enabled);
+      if (!alerts.length || !it.cfg.enabled) continue;
+      it.rt.update(data);
+      const n = it.rt.count;
+      for (const a of alerts) {
+        const i = a.when === 'close' ? n - 2 : n - 1;
+        if (i < 0) continue;
+        const key = `${it.cfg.uid}:${a.id}`;
+        const price = isPriceOutput(it.def, it.rt, a.output);
+        const tick = store.instrument.tickSize;
+        const cur = {
+          x: it.rt.valueAt(a.output, i),
+          y: a.target === 'output' ? it.rt.valueAt(a.other, i) : price ? a.value / tick : a.value,
+          bar: i,
+        };
+        const before = prev.get(key) ?? null;
+        if (a.when === 'close' && before?.bar === i) continue;
+        prev.set(key, cur);
+        if (!alertTriggered(a.cond, before, cur)) continue;
+        const now = Date.now();
+        const was = firedAt.get(key);
+        if (was !== undefined && now - was < 1500) continue;
+        firedAt.set(key, now);
+        const inst = store.instrument;
+        const label = (o: string) => it.styles[o]?.label ?? it.def.outputs[o]?.label ?? o;
+        const fmt = (v: number) =>
+          price ? formatValue(v / tick, 'price', inst) : formatValue(v, 'value', inst);
+        notify({
+          title: `${inst.symbol} ${it.title}`,
+          body: `${describeIndicatorAlert(a, label, fmt)} · ${label(a.output)} = ${formatValue(cur.x, price ? 'price' : 'value', inst)}`,
+          instrumentId: inst.id,
+          popup: a.toast,
+          sound: a.sound,
+          log: a.log,
+        });
+        if (a.once) {
+          const items = readExt(windowId).items.map((c) =>
+            c.uid === it.cfg.uid
+              ? {
+                  ...c,
+                  alerts: c.alerts.map((x) => (x.id === a.id ? { ...x, enabled: false } : x)),
+                }
+              : c,
+          );
+          writeExt(windowId, items);
+        }
+      }
+    }
+  });
 }
 
 registerChartExtension({
@@ -73,8 +178,48 @@ registerChartExtension({
         },
       },
     };
-    const scene = new IndicatorScene(() => data, indicatorById);
     const core = ctx.core;
+    // Other symbols used as indicator data sources (retained while this chart lives).
+    const foreign = new Map<string, { store: MarketStore; unsub: () => void }>();
+    const foreignData = (id: string) => {
+      let f = foreign.get(id);
+      if (!f) {
+        const store = hub.retain(id);
+        f = { store, unsub: store.subscribe(() => core.invalidate()) };
+        foreign.set(id, f);
+      }
+      const series = f.store.getSeries(ctx.state().timeframe as BarSpec);
+      return (): BarData => ({
+        bars: series.bars,
+        version: series.version,
+        tickSize: f.store.instrument.tickSize,
+      });
+    };
+    const factory = (cfg: IndicatorConfig, def: AnyIndicator): RuntimeLike => {
+      const mtf = cfg.tf !== 'chart' ? { tf: cfg.tf, mode: cfg.tfMode } : undefined;
+      const spec: EngineSpec = {
+        type: def.id,
+        inputs: cfg.inputs,
+        mtf,
+        script: scriptSource(def.id),
+      };
+      const eff = mtf ? mtfOf(def) : def;
+      const inputs = specInputs(spec);
+      if (cfg.symbol && cfg.symbol !== store.instrument.id && instrumentById(cfg.symbol)) {
+        const sym = instrumentById(cfg.symbol)!.symbol;
+        return new ForeignRuntime(
+          eff,
+          inputs,
+          foreignData(cfg.symbol),
+          store.instrument.tickSize,
+          sym,
+        );
+      }
+      const pool = poolable(def) ? indicatorPool() : null;
+      if (pool) return pool.create(eff, spec, () => core.invalidate());
+      return new IndicatorRuntime(eff, inputs);
+    };
+    const scene = new IndicatorScene(() => data, indicatorById, factory);
     const others = ctx.cores.filter((c) => c !== core);
     const spacer = new PaneSpacerLayer(scene);
     let last: unknown = Symbol('none');
@@ -95,23 +240,53 @@ registerChartExtension({
     };
     apply();
     const unsub = useWindows.subscribe(apply);
-    let pressed: Hotspot | null = null;
+    let pressed: { h: Hotspot; y: number } | null = null;
     const ph: PointerHandler = {
       onDown(_v, x, y) {
-        pressed = scene.hit(x, y);
+        const h = scene.hit(x, y);
+        pressed = h ? { h, y } : null;
         return !!pressed;
       },
-      onUp(_v, x, y) {
-        const h = scene.hit(x, y);
-        if (pressed && h && h.uid === pressed.uid && h.action === pressed.action)
-          act(ctx.windowId, h);
-        pressed = null;
+      onMove(_v, _x, y, _e, captured) {
+        // Drag an indicator's legend title to another pane (P13).
+        if (!captured || !pressed || pressed.h.action !== 'settings') return;
+        if (!scene.drag && Math.abs(y - pressed.y) < 6) return;
+        scene.drag = { uid: pressed.h.uid, y };
+        core.invalidate();
       },
-      cursor: (_v, x, y) => (scene.hit(x, y) ? 'pointer' : null),
+      onUp(_v, x, y) {
+        const p = pressed;
+        pressed = null;
+        if (scene.drag) {
+          const drag = scene.drag;
+          scene.drag = null;
+          core.invalidate();
+          const t = scene.dropTarget(y);
+          if (t) dropOnPane(ctx.windowId, drag.uid, t.target);
+          return;
+        }
+        const h = scene.hit(x, y);
+        if (p && h && h.uid === p.h.uid && h.action === p.h.action) act(ctx.windowId, h);
+      },
+      cursor: (_v, x, y) =>
+        scene.drag
+          ? 'grabbing'
+          : scene.hit(x, y)?.action === 'settings'
+            ? 'grab'
+            : scene.hit(x, y)
+              ? 'pointer'
+              : null,
     };
+    const unwatch = watchAlerts(ctx.windowId, scene, data, store);
     core.pointerHandlers.push(ph);
     return () => {
       unsub();
+      unwatch();
+      scene.dispose();
+      for (const [id, f] of foreign) {
+        f.unsub();
+        hub.release(id);
+      }
       detachFeeds();
       if (contexts.get(ctx.windowId) === ctx) contexts.delete(ctx.windowId);
       core.pointerHandlers = core.pointerHandlers.filter((p) => p !== ph);

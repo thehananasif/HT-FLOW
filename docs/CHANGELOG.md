@@ -16,6 +16,9 @@
 - Alerts (P23): generic `indicator` value condition (crosses above / below, ≥ / ≤) fed with `pushValue()`; public API `modules/alerts/api.ts` (`addAlert(condition, options)`, `removeAlert`, `listAlerts`, `pushValue`, `testAlert`, `setAllEnabled`) for the Indicators dialog and other modules.
 - Alerts (P23): new actions Flash window (taskbar flash on desktop + flashing title), Telegram and Discord (user's own bot token / webhook, kept in the encrypted vault; validation, "Send test", 20 sends / min throttle, secrets redacted from errors); per-alert sound with built-in sounds or a local sound file added to the profile; ▶ Test button per alert; palette commands Alerts: Open / Pause-resume / Enable all / Disable all / Send test.
 - Risk (P23): "Apply to all paper accounts" saves rules to every paper account and makes them the defaults for new accounts; news-flatten is fed by the Economic Calendar (high-impact timed events; SAMPLE events only when "Count SAMPLE events" is on); feed status line in the Risk window.
+- Indicators (P13): Alerts tab (output vs level or another output, intrabar / bar close, once, toast / sound / log via the Alerts module), timeframe override for any indicator, another symbol as data source, drag an indicator to another pane by its legend title.
+- Indicators (P13 / P14): HT Script — sandboxed indicator language (interpreter, no eval / globals / DOM / network), Script Editor window with live error line, per-user library, `.htind` export / import and file association; Custom Formula and Custom script catalog entries implemented (264 of 281).
+- Stage 8: indicator engine worker pool (`IndicatorPool`, `EngineHost`, `RemoteRuntime`); setting "Compute indicators in background workers"; `performance.workerCount` is now wired.
 
 ### Changed
 

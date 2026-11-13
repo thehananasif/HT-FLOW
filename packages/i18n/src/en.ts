@@ -282,6 +282,13 @@ export const en = {
   'prices.loading': 'Loading…',
   'prices.footer':
     'POC {poc} highlighted · {rows} rows · volume {vol} · bid = sold into bid, ask = bought at ask · sort by any column',
+  'indicators.newScript': 'New script…',
+  'scriptEditor.library': 'My scripts',
+  'scriptEditor.new': 'New script',
+  'scriptEditor.reference': 'HT Script reference',
+  'scriptEditor.save': 'Save',
+  'scriptEditor.addToChart': 'Add to chart',
+  'scriptEditor.import': 'Import',
 } as const;
 
 export type Strings = { [K in keyof typeof en]: string };

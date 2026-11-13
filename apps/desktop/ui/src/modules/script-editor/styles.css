@@ -1,0 +1,117 @@
+.se-root {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  font-size: 12px;
+}
+.se-list {
+  width: 220px;
+  flex: none;
+  border-right: 1px solid var(--ht-border);
+  overflow: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.se-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ht-text-tertiary);
+  padding: 6px 4px 4px;
+}
+.se-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: none;
+  border: 0;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+}
+.se-item[aria-pressed='true'],
+.se-item:hover {
+  background: var(--ht-surface-2, rgba(255, 255, 255, 0.06));
+  color: var(--ht-text);
+}
+.se-ref {
+  margin-top: 10px;
+  color: var(--ht-text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.se-ref p {
+  margin: 0 4px 6px;
+  word-break: break-word;
+}
+.se-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.se-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ht-border);
+  flex-wrap: wrap;
+}
+.se-bar .grow {
+  flex: 1;
+}
+.se-name {
+  width: 220px;
+}
+.se-code {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.se-gutter {
+  flex: none;
+  width: 40px;
+  overflow: hidden;
+  text-align: right;
+  padding: 8px 6px 8px 0;
+  color: var(--ht-text-tertiary);
+  border-right: 1px solid var(--ht-border);
+  font-size: 12px;
+  line-height: 18px;
+}
+.se-err-line {
+  color: var(--ht-down, #f04a5d);
+  font-weight: 600;
+}
+.se-area {
+  flex: 1;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ht-text);
+  padding: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+.se-status {
+  padding: 5px 8px;
+  border-top: 1px solid var(--ht-border);
+  color: var(--ht-text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.se-status--err {
+  color: var(--ht-down, #f04a5d);
+}

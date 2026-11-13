@@ -1,7 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Plus, Star, Trash2, X } from 'lucide-react';
 import {
+  ArrowDown,
+  ArrowUp,
+  Bell,
+  Copy,
+  Eye,
+  EyeOff,
+  FilePlus,
+  Pencil,
+  Plus,
+  Star,
+  Trash2,
+  X,
+} from 'lucide-react';
+import {
+  ALERT_CONDS,
   CATEGORIES,
+  MTF_TIMEFRAMES,
+  SCRIPT_PREFIX,
+  newIndicatorAlert,
+  seriesOutputIds,
   PANE_HEIGHT,
   SOURCES,
   TF_CLASSES,
@@ -14,8 +32,10 @@ import {
   type IndicatorCategory,
   type IndicatorConfig,
   type InputDef,
+  type IndicatorAlert,
   type InputValue,
   type OutputStyle,
+  type TimeframeId,
 } from '@htflow/indicator-sdk';
 import { CATALOG, indicatorById, isImplemented, type CatalogEntry } from '@htflow/indicators';
 import { t } from '@htflow/i18n';
@@ -37,8 +57,11 @@ import { specLabel, type BarSpec } from '@htflow/market-data';
 import type { ChartWindowState } from '@htflow/workspace';
 import { backend } from '../../backend';
 import { useWindows } from '../../state/windows';
-import { instrumentById } from '../../state/instruments';
 import { buildIndicatorConfig } from './config';
+import { allInstruments, instrumentById } from '../../state/instruments';
+import { isTauri } from '../../platform/native';
+import { openScriptEditor } from './editorState';
+import { useScripts } from './scripts';
 import { readExt, useIndicatorDialog, writeExt } from './state';
 
 type Tab = 'inputs' | 'style' | 'alerts' | 'visibility' | 'advanced';
@@ -104,18 +127,33 @@ export function IndicatorsDialog({
   const update = (patch: Partial<IndicatorConfig>) =>
     selected && setDraft(draft.map((c) => (c.uid === selected.uid ? { ...c, ...patch } : c)));
 
+  const scripts = useScripts((s) => s.scripts);
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
     for (const e of CATALOG) m[e.category] = (m[e.category] ?? 0) + 1;
+    m.custom = (m.custom ?? 0) + scripts.length;
     return m;
-  }, []);
+  }, [scripts.length]);
 
+  const full = useMemo<CatalogEntry[]>(
+    () => [
+      ...CATALOG,
+      ...scripts.map((f) => ({
+        key: `custom:user-${f.id}`,
+        name: f.name,
+        category: 'custom' as const,
+        group: 'My scripts',
+        impl: SCRIPT_PREFIX + f.id,
+      })),
+    ],
+    [scripts],
+  );
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (q) return CATALOG.filter((e) => e.name.toLowerCase().includes(q));
-    if (cat === 'favourites') return CATALOG.filter((e) => favs.includes(e.key));
-    return CATALOG.filter((e) => e.category === cat);
-  }, [cat, query, favs]);
+    if (q) return full.filter((e) => e.name.toLowerCase().includes(q));
+    if (cat === 'favourites') return full.filter((e) => favs.includes(e.key));
+    return full.filter((e) => e.category === cat);
+  }, [cat, query, favs, full]);
 
   const toggleFav = (key: string) => {
     const next = favs.includes(key) ? favs.filter((k) => k !== key) : [...favs, key];
@@ -241,7 +279,8 @@ export function IndicatorsDialog({
                     : catLabel(cat)}
               </div>
               {list.map((e, k) => {
-                const ok = isImplemented(e);
+                const ok = isImplemented(e) || !!(e.impl && indicatorById(e.impl));
+                const userScript = e.impl?.startsWith(SCRIPT_PREFIX) ?? false;
                 const showGroup =
                   e.group && !query && cat !== 'favourites' && list[k - 1]?.group !== e.group;
                 return (
@@ -260,6 +299,20 @@ export function IndicatorsDialog({
                         <Star size={12} />
                       </button>
                       <span className="ind-name">{e.name}</span>
+                      {(userScript || e.impl === 'custom-script') && (
+                        <button
+                          className="ht-icon-btn"
+                          aria-label={`Edit ${e.name}`}
+                          title="Open in the Script Editor"
+                          onClick={() =>
+                            openScriptEditor(
+                              userScript ? e.impl!.slice(SCRIPT_PREFIX.length) : null,
+                            )
+                          }
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      )}
                       {ok ? (
                         <button
                           className="ht-icon-btn"
@@ -276,6 +329,18 @@ export function IndicatorsDialog({
                   </div>
                 );
               })}
+              {cat === 'custom' && !query && (
+                <div className="ind-row">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid="ind-new-script"
+                    onClick={() => openScriptEditor(null)}
+                  >
+                    <FilePlus size={12} /> {t('indicators.newScript')}
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="ind-chart">
               <div className="ind-head">{t('indicators.onChart', { n: draft.length })}</div>
@@ -397,7 +462,12 @@ export function IndicatorsDialog({
                   tabs={[
                     { value: 'inputs', label: 'Inputs' },
                     { value: 'style', label: 'Style' },
-                    { value: 'alerts', label: 'Alerts' },
+                    {
+                      value: 'alerts',
+                      label: selected.alerts.length
+                        ? `Alerts (${selected.alerts.length})`
+                        : 'Alerts',
+                    },
                     { value: 'visibility', label: 'Visibility' },
                     { value: 'advanced', label: 'Advanced' },
                   ]}
@@ -409,7 +479,14 @@ export function IndicatorsDialog({
                   {tab === 'style' && (
                     <StyleTab def={def} cfg={selected} onChange={(styles) => update({ styles })} />
                   )}
-                  {tab === 'alerts' && <p className="muted">{t('indicators.alertsPending')}</p>}
+                  {tab === 'alerts' && (
+                    <AlertsTab
+                      def={def}
+                      cfg={selected}
+                      tickSize={inst?.tickSize ?? 1}
+                      onChange={(alerts) => update({ alerts })}
+                    />
+                  )}
                   {tab === 'visibility' && (
                     <div className="ind-grid2">
                       {TF_CLASSES.map((c) => (
@@ -429,7 +506,12 @@ export function IndicatorsDialog({
                     </div>
                   )}
                   {tab === 'advanced' && (
-                    <AdvancedTab cfg={selected} draft={draft} update={update} />
+                    <AdvancedTab
+                      cfg={selected}
+                      draft={draft}
+                      update={update}
+                      chartInstrument={state.instrumentId}
+                    />
                   )}
                 </div>
                 <div className="ind-foot">
@@ -687,11 +769,17 @@ function AdvancedTab({
   cfg,
   draft,
   update,
+  chartInstrument,
 }: {
   cfg: IndicatorConfig;
   draft: IndicatorConfig[];
   update: (p: Partial<IndicatorConfig>) => void;
+  chartInstrument: string;
 }) {
+  const instruments = useMemo(
+    () => allInstruments(isTauri).filter((i) => i.id !== chartInstrument),
+    [chartInstrument],
+  );
   const before = draft.slice(
     0,
     draft.findIndex((c) => c.uid === cfg.uid),
@@ -750,14 +838,161 @@ function AdvancedTab({
           onChange={(h) => update({ height: h })}
         />
       </Row>
-      <Row label="Data source" help="Overlaying another symbol is not available yet.">
+      <Row
+        label="Timeframe"
+        help="Compute the indicator on higher-timeframe bars (the chart's bars merged per period) and map it onto this chart."
+      >
         <Select
-          aria-label="Data source"
-          value="chart"
-          onChange={() => {}}
-          options={[{ value: 'chart', label: "This chart's instrument" }]}
+          aria-label="Indicator timeframe"
+          value={cfg.tf}
+          onChange={(v) => update({ tf: v as TimeframeId })}
+          options={[
+            { value: 'chart', label: 'Chart timeframe' },
+            ...TIMEFRAMES.filter((x) =>
+              (MTF_TIMEFRAMES as readonly string[]).includes(x.value),
+            ).map((x) => ({ ...x })),
+          ]}
         />
       </Row>
+      {cfg.tf !== 'chart' && (
+        <Row
+          label="Higher-timeframe bar"
+          help="Closed: never repaints. Forming: follows the live bar."
+        >
+          <Select
+            aria-label="Higher-timeframe bar"
+            value={cfg.tfMode}
+            onChange={(v) => update({ tfMode: v as IndicatorConfig['tfMode'] })}
+            options={[
+              { value: 'closed', label: 'Last closed bar (no repaint)' },
+              { value: 'live', label: 'Forming bar (live)' },
+            ]}
+          />
+        </Row>
+      )}
+      <Row
+        label="Data source"
+        help="Compute the indicator on another instrument; values are mapped onto this chart by time (own scale by default)."
+      >
+        <Select
+          aria-label="Data source"
+          value={cfg.symbol || 'chart'}
+          onChange={(v) =>
+            update(
+              v === 'chart'
+                ? { symbol: '' }
+                : { symbol: v, scale: cfg.pane === 'overlay' && !cfg.symbol ? 'own' : cfg.scale },
+            )
+          }
+          options={[
+            { value: 'chart', label: "This chart's instrument" },
+            ...instruments.map((i) => ({ value: i.id, label: `${i.symbol} — ${i.displayName}` })),
+          ]}
+        />
+      </Row>
+    </div>
+  );
+}
+
+function AlertsTab({
+  def,
+  cfg,
+  tickSize,
+  onChange,
+}: {
+  def: AnyIndicator;
+  cfg: IndicatorConfig;
+  tickSize: number;
+  onChange: (a: IndicatorAlert[]) => void;
+}) {
+  const outs = seriesOutputIds(def);
+  const styles = resolveStyles(def, cfg.styles);
+  const opts = outs.map((o) => ({ value: o, label: styles[o]?.label ?? def.outputs[o]!.label }));
+  const set = (id: string, p: Partial<IndicatorAlert>) =>
+    onChange(cfg.alerts.map((a) => (a.id === id ? { ...a, ...p } : a)));
+  if (!outs.length) return <p className="muted">This indicator has no line outputs to alert on.</p>;
+  const precision = Math.max(0, Math.min(8, Math.ceil(-Math.log10(Math.min(tickSize, 1)) - 1e-9)));
+  return (
+    <div className="ind-alerts" data-testid="ind-alerts">
+      <p className="muted ind-note">
+        Alerts fire a toast, a sound and an Activity entry through the Alerts module. Price levels
+        are real prices.
+      </p>
+      {cfg.alerts.map((a) => (
+        <div key={a.id} className="ind-alert-row" data-testid="ind-alert-row">
+          <Checkbox label="" checked={a.enabled} onChange={(v) => set(a.id, { enabled: v })} />
+          <Select
+            small
+            aria-label="Alert output"
+            value={a.output}
+            onChange={(v) => set(a.id, { output: v })}
+            options={opts}
+          />
+          <Select
+            small
+            aria-label="Alert condition"
+            value={a.cond}
+            onChange={(v) => set(a.id, { cond: v as IndicatorAlert['cond'] })}
+            options={ALERT_CONDS.map((c) => ({ ...c }))}
+          />
+          <Select
+            small
+            aria-label="Alert target"
+            value={a.target === 'output' ? `o:${a.other}` : 'value'}
+            onChange={(v) =>
+              set(
+                a.id,
+                v === 'value' ? { target: 'value' } : { target: 'output', other: v.slice(2) },
+              )
+            }
+            options={[
+              { value: 'value', label: 'Level' },
+              ...opts.map((o) => ({ value: `o:${o.value}`, label: o.label })),
+            ]}
+          />
+          {a.target === 'value' && (
+            <NumberInput
+              aria-label="Alert level"
+              value={a.value}
+              min={-1e12}
+              max={1e12}
+              step={tickSize < 1 ? tickSize : 1}
+              precision={precision}
+              onChange={(v) => set(a.id, { value: v })}
+            />
+          )}
+          <Select
+            small
+            aria-label="Alert timing"
+            value={a.when}
+            onChange={(v) => set(a.id, { when: v as IndicatorAlert['when'] })}
+            options={[
+              { value: 'tick', label: 'Intrabar' },
+              { value: 'close', label: 'On bar close' },
+            ]}
+          />
+          <Checkbox label="Once" checked={a.once} onChange={(v) => set(a.id, { once: v })} />
+          <Checkbox label="Toast" checked={a.toast} onChange={(v) => set(a.id, { toast: v })} />
+          <Checkbox label="Sound" checked={a.sound} onChange={(v) => set(a.id, { sound: v })} />
+          <Checkbox label="Log" checked={a.log} onChange={(v) => set(a.id, { log: v })} />
+          <button
+            className="ht-icon-btn"
+            aria-label="Remove alert"
+            onClick={() => onChange(cfg.alerts.filter((x) => x.id !== a.id))}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      ))}
+      <Button
+        size="sm"
+        variant="outline"
+        data-testid="ind-add-alert"
+        disabled={cfg.alerts.length >= 20}
+        onClick={() => onChange([...cfg.alerts, newIndicatorAlert(outs[0]!, `a${newUid()}`)])}
+      >
+        <Bell size={12} /> Add alert
+      </Button>
     </div>
   );
 }

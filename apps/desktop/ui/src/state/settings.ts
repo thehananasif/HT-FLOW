@@ -983,12 +983,20 @@ export const SCHEMA = {
     alsoIn: ['common'],
     group: 'Rendering',
     label: 'Render / worker threads',
-    help: 'Web workers used for indicators, bar building and rendering (applied on next start).',
+    help: 'Web workers that compute chart indicators (max 8 used; applied on next start).',
     default: 2,
     min: 1,
     max: 16,
     step: 1,
-    wired: false,
+  }),
+  'performance.indicatorWorkers': bool({
+    section: 'performance',
+    alsoIn: ['common'],
+    group: 'Rendering',
+    label: 'Compute indicators in background workers',
+    help: 'Indicators without tape / feed inputs (and all user scripts) run off the main thread. Applied on next start.',
+    default: true,
+    keywords: 'worker thread pool indicator performance stage 8',
   }),
 
   // ---------------------------------------------------------------- Common settings (board 19)
