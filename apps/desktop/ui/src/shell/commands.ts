@@ -81,6 +81,36 @@ export function runCommand(id: string): void {
   registry.get(id)?.run();
 }
 
+/**
+ * A non-command palette row: an indicator to add to the chart, a settings key or section to open.
+ * Shown under its own header after the command results (see shell/paletteSearch.ts).
+ */
+export interface PaletteItem {
+  id: string;
+  group: 'Indicators' | 'Settings';
+  label: string;
+  /** Right-hand hint, e.g. the category or the settings section. */
+  hint?: string;
+  keywords?: string;
+  run(): void;
+}
+
+const itemProviders = new Set<() => PaletteItem[]>();
+
+/** Modules add palette rows (indicators, settings) through this registry; the palette reads it. */
+export function registerPaletteProvider(fn: () => PaletteItem[]): () => void {
+  itemProviders.add(fn);
+  notify();
+  return () => {
+    itemProviders.delete(fn);
+    notify();
+  };
+}
+
+export function paletteItems(): PaletteItem[] {
+  return [...itemProviders].flatMap((fn) => fn());
+}
+
 export function onCommandsChange(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
