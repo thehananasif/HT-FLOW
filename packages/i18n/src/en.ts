@@ -63,7 +63,8 @@ export const en = {
   'options.positions': 'Options positions',
   'options.noLegs': 'Click a bid to sell or an ask to buy, or pick a template.',
   'options.paperNote':
-    'Options are not modelled by the paper engine: strategies are stored as local options positions and marked to model.',
+    'Paper options: premium is paid (debit) or received (credit) at the quote, positions are marked to model and settle at intrinsic value on expiry.',
+  'options.clickMode': 'Click a quote',
   // drawings
   'drawings.toolbarAria': 'Drawing style',
   'drawings.colour': 'Colour',
