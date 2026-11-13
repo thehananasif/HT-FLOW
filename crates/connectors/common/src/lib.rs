@@ -7,17 +7,22 @@
 //! * [`ratelimit`]: token bucket per venue for REST.
 //! * [`clock`]: server clock offset measured at connect (clock-skew correction).
 //! * [`rest`]: REST client that applies both.
-//! * [`api`]: the venue-neutral [`api::MarketApi`] the desktop app dispatches on.
+//! * [`api`]: the venue-neutral [`api::MarketApi`] the desktop app dispatches on, with
+//!   newest-first trade paging and one-minute klines for the history backfill (P06).
+//! * [`mock_http`]: a scripted local HTTP server for REST tests (no live network in tests).
 
 pub mod api;
 pub mod book;
 pub mod clock;
 pub mod driver;
+pub mod mock_http;
 pub mod ratelimit;
 pub mod rest;
 pub mod util;
 
-pub use api::{BookLevels, MarketApi, SymbolSpec};
+pub use api::{
+    kline_trades, pick_kline_interval, BookLevels, Kline, MarketApi, SymbolSpec, TradesBack,
+};
 pub use book::L2Book;
 pub use clock::ClockSkew;
 pub use driver::{Action, Ping, Probe, Protocol, RestBook, StreamConfig};
