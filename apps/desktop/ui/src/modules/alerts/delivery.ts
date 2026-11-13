@@ -5,9 +5,8 @@
  * Transport:
  * - Telegram: the Bot API accepts GET, so the desktop app uses the existing native
  *   `net_fetch_text` command (the WebView CSP blocks remote fetch). Browser build: window.fetch.
- * - Discord: webhooks need POST. The desktop app calls the native `net_post_json` command, which
- *   is NOT in the Rust core yet (see docs/BLOCKERS.md); until it lands the send fails with a
- *   clear message. Browser build: window.fetch POST.
+ * - Discord: webhooks need POST. The desktop app calls the native `net_post_json` command
+ *   (https, Discord webhook hosts only). Browser build: window.fetch POST.
  */
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -107,14 +106,7 @@ async function sendDiscord(c: DeliveryConfig, text: string): Promise<void> {
   const body = discordBody(text);
   try {
     if (isTauri) {
-      try {
-        await invoke<string>('net_post_json', { url: c.discordWebhook, body });
-      } catch (e) {
-        const m = errText(e);
-        if (/not found|unknown command|net_post_json/i.test(m))
-          throw new Error('needs the native POST command (net_post_json) — see BLOCKERS');
-        throw e;
-      }
+      await invoke<string>('net_post_json', { url: c.discordWebhook, body });
     } else {
       const r = await fetch(c.discordWebhook, {
         method: 'POST',

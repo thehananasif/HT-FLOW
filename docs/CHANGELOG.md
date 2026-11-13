@@ -19,6 +19,7 @@
 
 ### Changed
 
+- Discord alerts work in the desktop app: new native `net_post_json` command (https only, Discord webhook hosts only, 64 KB body cap, 15 s timeout, no cookies).
 - Drawing "Alert on cross" now runs inside the Alerts engine (`drawing` condition): drawing alerts are listed in the Alerts window, use all alert actions, keep working while the chart is hidden, and deleting one there turns the drawing's flag off.
 - Settings → Alerts keys are wired: master switch, pop-up, flash title, default repeat / expiry / cool-down for new alerts, maximum active alerts.
 - Saved alerts are validated on load (`normalizeAlerts`); older saves get defaults for the new action flags.

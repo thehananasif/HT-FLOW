@@ -241,7 +241,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Drawing alerts unified with the engine (listed in Alerts, all actions, work with the chart hidden); funding-rate and liquidation conditions; generic indicator value condition + `addAlert()` / `pushValue()` API (`modules/alerts/api.ts`)
 - [x] Flash window / taskbar, per-alert sound (built-in or a local file saved in the profile), Telegram and Discord delivery (own bot token / webhook in the vault, test send, throttle), Settings → Alerts keys wired
 - [x] News-flatten fed by the Economic Calendar (high-impact events; SAMPLE optional); risk rules can be applied to every paper account and are used for new ones; locks / rules of all paper accounts survive restart
-- [ ] Discord from the desktop app needs a native POST command (`net_post_json`, see BLOCKERS); indicator values are only checked once the Indicators dialog pushes them; "Once per bar" repeat behaves like "Every time"; risk for broker accounts (no broker connectors)
+- [ ] indicator values are only checked once the Indicators dialog pushes them; "Once per bar" repeat behaves like "Every time"; risk for broker accounts (no broker connectors)
 
 ## P24 — Replay
 

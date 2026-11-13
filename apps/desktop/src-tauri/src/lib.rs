@@ -75,6 +75,7 @@ pub fn run() {
             market_cmds::market_subscribe,
             market_cmds::market_unsubscribe,
             net_cmds::net_fetch_text,
+            net_cmds::net_post_json,
             market_cmds::market_test,
             market_cmds::market_options_chain,
             data_cmds::recorder_set,
