@@ -91,21 +91,12 @@ export function FootprintQuickSettings() {
     />
   );
   const colour = (k: string, label: string) => (
-    <ColorSwatch
-      label={label}
-      value={sStr(s, k) || '#000000'}
-      onChange={(v) => set(k, v)}
-    />
+    <ColorSwatch label={label} value={sStr(s, k) || '#000000'} onChange={(v) => set(k, v)} />
   );
   const all = [...BUILTIN_PRESETS, ...user];
   const selected = all.find((p) => p.id === presetId);
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => !o && close()}
-      title="Footprint quick settings"
-      width={460}
-    >
+    <Dialog open onOpenChange={(o) => !o && close()} title="Footprint quick settings" width={460}>
       <div className="fpq" data-testid="fp-quick">
         <div className="fpq-sec">Presets</div>
         <Row label="Preset">
@@ -117,7 +108,10 @@ export function FootprintQuickSettings() {
             onChange={setPresetId}
             options={[
               { value: '', label: '— choose —' },
-              ...all.map((p) => ({ value: p.id, label: p.builtin ? `${p.name} (built-in)` : p.name })),
+              ...all.map((p) => ({
+                value: p.id,
+                label: p.builtin ? `${p.name} (built-in)` : p.name,
+              })),
             ]}
           />
           <Button
@@ -181,7 +175,10 @@ export function FootprintQuickSettings() {
                 template: chart.template === 'candles-vp' ? 'footprint' : chart.template,
               } as Partial<WindowState>)
             }
-            options={FOOTPRINT_MODES.map((m) => ({ value: m.id, label: `${m.group} · ${m.label}` }))}
+            options={FOOTPRINT_MODES.map((m) => ({
+              value: m.id,
+              label: `${m.group} · ${m.label}`,
+            }))}
           />
         </Row>
         <Row label="Ticks per row">
@@ -196,7 +193,11 @@ export function FootprintQuickSettings() {
           {num('other.autoTransformWidth', 'Auto-collapse width', 0, 200, 1, 'px')}
         </Row>
         <Row label="POC">
-          <Checkbox checked={sBool(s, 'fp.poc')} onChange={(v) => set('fp.poc', v)} label="Box per bar" />
+          <Checkbox
+            checked={sBool(s, 'fp.poc')}
+            onChange={(v) => set('fp.poc', v)}
+            label="Box per bar"
+          />
           {colour('fp.pocBorder', 'POC colour')}
         </Row>
         <Row label="Value area">

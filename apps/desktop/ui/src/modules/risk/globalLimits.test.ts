@@ -12,7 +12,12 @@ const OFF: GlobalRiskLimits = {
   lockUntil: 'tomorrow',
 };
 const ctx = { position: 0, lastPx: 1000, dayPnl: 0, tradesToday: 0 };
-const buy = (qty: number, extra = {}) => ({ side: 'buy' as const, qty, type: 'market' as const, ...extra });
+const buy = (qty: number, extra = {}) => ({
+  side: 'buy' as const,
+  qty,
+  type: 'market' as const,
+  ...extra,
+});
 
 describe('Settings → Risk global limits', () => {
   it('all limits off → every order passes', () => {

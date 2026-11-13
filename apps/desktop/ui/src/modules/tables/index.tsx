@@ -6,7 +6,14 @@ import { instrumentById } from '../../state/instruments';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { risk } from '../risk/engine';
-import { fmtClock, fmtMoney, maskAccount, privacyOptions, usePrivacy, useTimeFormat } from '../../state/format';
+import {
+  fmtClock,
+  fmtMoney,
+  maskAccount,
+  privacyOptions,
+  usePrivacy,
+  useTimeFormat,
+} from '../../state/format';
 import { confirmAction } from '../../state/confirm';
 
 /** Re-renders on every paper-engine event (fills land in all tables in the same frame). */

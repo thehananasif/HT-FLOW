@@ -5,58 +5,12 @@ import { backend } from '../../backend';
 import { instrumentById } from '../../state/instruments';
 import { hub } from '../../state/market';
 import { useSession } from '../../state/session';
-import { getSetting, onSettingChange } from '../../state/settings';
-import { canAddAlert, type AlertSettings } from './defaults';
-
-export { alertDefaults, canAddAlert, type AlertSettings } from './defaults';
 import { activityLog } from '../activity/log';
 
 const KEY = 'alerts.list';
 
 /** App-wide alert engine: runs on hub stores, independent of any open window (P23 / P41). */
 export const alerts = new AlertEngine();
-
-/* ---------------- Settings → Alerts (P27) ---------------- */
-
-export function alertSettings(): AlertSettings {
-  return {
-    repeat: getSetting('alerts.defaultRepeat'),
-    expiryDays: getSetting('alerts.defaultExpiryDays'),
-    cooldownSec: getSetting('alerts.cooldownSec'),
-  };
-}
-
-/** Adds an alert unless the limit is reached (then explains why). Returns whether it was added. */
-export function addAlert(a: Alert): boolean {
-  const max = getSetting('alerts.maxActive');
-  if (!canAddAlert(alerts.list().length, max)) {
-    toast('error', 'Alert limit reached', `At most ${max} alerts (Settings → Alerts).`);
-    return false;
-  }
-  alerts.add(a);
-  return true;
-}
-
-alerts.paused = !getSetting('alerts.enabled');
-onSettingChange('alerts.enabled', (on) => {
-  alerts.paused = !on;
-});
-
-let flashTimer: ReturnType<typeof setInterval> | null = null;
-/** Flashes the window title while the app is in the background (Settings → Alerts). */
-function flashTitle(text: string): void {
-  if (typeof document === 'undefined' || !document.hidden || flashTimer) return;
-  const original = document.title;
-  let n = 0;
-  flashTimer = setInterval(() => {
-    document.title = n++ % 2 ? original : `🔔 ${text}`;
-    if (!document.hidden || n > 20) {
-      if (flashTimer) clearInterval(flashTimer);
-      flashTimer = null;
-      document.title = original;
-    }
-  }, 700);
-}
 
 export const describe = (c: AlertCondition): string =>
   describeCondition(c, {
@@ -103,8 +57,7 @@ alerts.onFire(({ alert, message, px }) => {
   const id = alert.condition.instrumentId;
   const inst = id ? instrumentById(id) : undefined;
   const body = `${message}${px !== undefined && inst ? ` @ ${formatPrice(px, inst)}` : ''}`;
-  if (alert.actions.popup && getSetting('alerts.toast')) toast('warning', `Alert: ${title}`, body, 8000);
-  if (getSetting('alerts.flashTitle')) flashTitle(title);
+  if (alert.actions.popup) toast('warning', `Alert: ${title}`, body, 8000);
   if (alert.actions.sound) beep();
   if (
     alert.actions.desktop &&
@@ -133,10 +86,7 @@ export function notify(o: {
   log?: boolean;
 }): void {
   const inst = o.instrumentId ? instrumentById(o.instrumentId) : undefined;
-  if (alerts.paused) return;
-  if ((o.popup ?? true) && getSetting('alerts.toast'))
-    toast('warning', `Alert: ${o.title}`, o.body, 8000);
-  if (getSetting('alerts.flashTitle')) flashTitle(o.title);
+  if (o.popup ?? true) toast('warning', `Alert: ${o.title}`, o.body, 8000);
   if (o.sound ?? true) beep();
   if (o.log ?? true)
     activityLog.add({

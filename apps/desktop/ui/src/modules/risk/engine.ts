@@ -182,7 +182,8 @@ function breach(accountId: string, message: string): void {
 paper.preTradeChecks.push((req) => {
   const lim = globalLimits();
   const st = dayState(req.accountId);
-  const adds = !req.reduceOnly && increasesRisk(paper.position(req.accountId, req.instrumentId).qty, req.side);
+  const adds =
+    !req.reduceOnly && increasesRisk(paper.position(req.accountId, req.instrumentId).qty, req.side);
   if (adds && st.lockedUntil > Date.now()) return 'Trading is locked by Settings → Risk';
   const v = checkGlobalLimits(
     req,

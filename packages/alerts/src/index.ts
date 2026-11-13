@@ -223,11 +223,7 @@ export class AlertEngine {
     return r;
   }
 
-  /** Master switch (Settings → Alerts): while paused, alerts are kept but never trigger. */
-  paused = false;
-
   private fire(stale: Alert, message: string, px?: number): void {
-    if (this.paused) return;
     const now = this.now();
     const a = this.alerts.find((x) => x.id === stale.id);
     if (!a || alertStatus(a, now) !== 'waiting') return;

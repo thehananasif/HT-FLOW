@@ -18,6 +18,8 @@ import { installLogCapture, logBuffer, type LogLevel } from '../../state/log';
 import { hub, paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { playSound } from '../../sound';
+import { isTauri } from '../../backend';
+import { dataApi } from '../data-manager/api';
 import { engineFields, resolveCommission } from './model';
 
 export type AppearanceValues = Pick<
@@ -123,6 +125,15 @@ export function installSettingsEffects(): void {
       const el = document.documentElement;
       el.dir = layoutDirection(v);
       el.lang = v['general.language'];
+    }
+    // Settings → Data → recorder: turns the native tick-store recorder on / off (desktop only;
+    // only on a change so the Data Manager's own toggle is not overridden at start-up).
+    if (prev && changed('data.recorderEnabled') && isTauri) {
+      const on = v['data.recorderEnabled'];
+      void dataApi
+        .status()
+        .then((st) => dataApi.setRecorder(on, st.settings.instruments))
+        .catch(() => {});
     }
     if (changed('logs.level') || changed('logs.bufferSize'))
       logBuffer.configure({

@@ -1198,7 +1198,8 @@ export function appendedSlots(
   prevLast: number | null,
 ): number {
   if (prevLast === null || n === 0 || timeAt(n - 1) <= prevLast) return 0;
-  for (let i = n - 2, k = 0; i >= 0 && k < 5000; i--, k++) if (timeAt(i) <= prevLast) return n - 1 - i;
+  for (let i = n - 2, k = 0; i >= 0 && k < 5000; i--, k++)
+    if (timeAt(i) <= prevLast) return n - 1 - i;
   return 0;
 }
 
@@ -1207,7 +1208,11 @@ export function appendedSlots(
  * from the right edge (the view follows new bars); without it the offset shrinks by the new
  * slots so the visible bars stay where they are.
  */
-export function offsetAfterGrowth(rightOffset: number, appended: number, autoScroll: boolean): number {
+export function offsetAfterGrowth(
+  rightOffset: number,
+  appended: number,
+  autoScroll: boolean,
+): number {
   if (autoScroll || appended <= 0) return rightOffset;
   return rightOffset - appended;
 }

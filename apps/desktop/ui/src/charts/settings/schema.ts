@@ -742,7 +742,12 @@ export const TABS: TabDef[] = [
             40,
             'Bars switch to candles when a price row would be thinner than this.',
           ),
-          bool('fp.absorption', 'Absorption markers', false, 'Dot on heavy-volume rows at the bar high / low.'),
+          bool(
+            'fp.absorption',
+            'Absorption markers',
+            false,
+            'Dot on heavy-volume rows at the bar high / low.',
+          ),
         ],
       },
       {
@@ -856,7 +861,12 @@ export const TABS: TabDef[] = [
         id: 'fpva',
         label: 'Value area',
         rows: [
-          bool('fp.vaShow', 'Value area per bar', false, 'Shade the rows holding the value-area % of each bar.'),
+          bool(
+            'fp.vaShow',
+            'Value area per bar',
+            false,
+            'Shade the rows holding the value-area % of each bar.',
+          ),
           color('fp.vaColor', 'Color', '#64C8D8'),
           num('fp.vaPct', 'Value area %', 70, 1, 100),
         ],
@@ -884,7 +894,10 @@ export const TABS: TabDef[] = [
             'fp.imbDirection',
             'Comparison',
             'diagonal',
-            opts(['diagonal', 'Diagonal (ask vs bid one row lower)'], ['horizontal', 'Horizontal (same row)']),
+            opts(
+              ['diagonal', 'Diagonal (ask vs bid one row lower)'],
+              ['horizontal', 'Horizontal (same row)'],
+            ),
           ),
           color('fp.imbBid', 'Bid color', ''),
           color('fp.imbAsk', 'Ask color', ''),
@@ -909,7 +922,14 @@ export const TABS: TabDef[] = [
         rows: [
           num('fp.hideBelow', 'Hide values below', 0, 0, 1e9),
           num('fp.minVolume', 'Minimum volume', 0, 0, 1e9, 'Cells with less volume are not drawn.'),
-          num('fp.minDelta', 'Minimum |delta|', 0, 0, 1e9, 'Cells with a smaller absolute delta are not drawn.'),
+          num(
+            'fp.minDelta',
+            'Minimum |delta|',
+            0,
+            0,
+            1e9,
+            'Cells with a smaller absolute delta are not drawn.',
+          ),
           {
             key: 'fp.filters',
             label: 'Filters',

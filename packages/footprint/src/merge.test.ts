@@ -70,12 +70,7 @@ describe('footprint rows', () => {
       true,
     ]);
     // Min volume filter: 9 < 10 drops the 103 row.
-    expect(horizontalImbalances(rows, 3, 10).map((x) => x.buy)).toEqual([
-      false,
-      true,
-      true,
-      false,
-    ]);
+    expect(horizontalImbalances(rows, 3, 10).map((x) => x.buy)).toEqual([false, true, true, false]);
   });
 
   it('computes the value area per bar around the POC', () => {

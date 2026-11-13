@@ -36,7 +36,9 @@ export function marketSlippageTicks(
   qty: number,
   levels: Iterable<[number, number]>,
 ): number | null {
-  const sorted = [...levels].filter(([, q]) => q > 0).sort((a, b) => (side === 'buy' ? a[0] - b[0] : b[0] - a[0]));
+  const sorted = [...levels]
+    .filter(([, q]) => q > 0)
+    .sort((a, b) => (side === 'buy' ? a[0] - b[0] : b[0] - a[0]));
   if (!sorted.length) return null;
   const best = sorted[0]![0];
   let left = qty;

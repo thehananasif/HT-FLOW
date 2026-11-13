@@ -20,7 +20,11 @@ import { autoBracket, slippageReason, tradingDefaults } from './globalSettings';
 paper.preTradeChecks.push((req) => {
   const book = hub.peek(req.instrumentId)?.book;
   if (!book) return null;
-  return slippageReason(req, req.side === 'buy' ? book.asks : book.bids, tradingDefaults().slippageTicks);
+  return slippageReason(
+    req,
+    req.side === 'buy' ? book.asks : book.bids,
+    tradingDefaults().slippageTicks,
+  );
 });
 
 export function instrumentOf(id: string): Instrument | undefined {
@@ -180,7 +184,12 @@ export async function submitOrder(
     full.trail = { ...full.trail, atrTicks: instrumentAtr(full.instrumentId) };
   if (!opts.noConfirm) {
     const force = td.confirmOrders || (opts.click === true && !td.oneClick);
-    const ok = await confirmAction(confirmKindOf(full), 'Confirm order', describe(full, inst), force);
+    const ok = await confirmAction(
+      confirmKindOf(full),
+      'Confirm order',
+      describe(full, inst),
+      force,
+    );
     if (!ok) return null;
   }
   const o = paper.place(full);

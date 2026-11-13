@@ -38,7 +38,7 @@ export interface RiskVerdict {
 
 /** Whether the order adds to (or opens) a position. */
 export function increasesRisk(position: number, side: 'buy' | 'sell'): boolean {
-  return position === 0 || (position > 0) === (side === 'buy');
+  return position === 0 || position > 0 === (side === 'buy');
 }
 
 export function checkGlobalLimits(

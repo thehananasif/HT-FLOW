@@ -124,7 +124,13 @@ const base: Command[] = [
     run: withInst((id) => {
       const td = tradingDefaults();
       if (!td.orderHotkeys) return hotkeysOff();
-      void submitOrder({ instrumentId: id, side: 'sell', type: 'market', qty: td.qty, tif: td.tif });
+      void submitOrder({
+        instrumentId: id,
+        side: 'sell',
+        type: 'market',
+        qty: td.qty,
+        tif: td.tif,
+      });
     }),
   },
   {
