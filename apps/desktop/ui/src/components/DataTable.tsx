@@ -2,15 +2,18 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DropdownMenu, type MenuEntry } from '@htflow/ui-kit';
 import {
   applyView,
+  downloadBytes,
   downloadText,
   emptyView,
   groupRows,
   sanitizeView,
   toCsv,
+  toSheetRows,
   type CellValue,
   type SavedView,
   type TableView,
 } from './DataTable.utils';
+import { buildXlsx, XLSX_MIME } from './xlsx';
 import './DataTable.css';
 
 export type { SavedView, TableView } from './DataTable.utils';
@@ -104,6 +107,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
         dataCols.filter((c) => !view.hidden.includes(c.id)),
       ),
     );
+  const exportXlsx = () => {
+    const sheet = toSheetRows(
+      filtered,
+      dataCols.filter((c) => !view.hidden.includes(c.id)),
+    );
+    downloadBytes(
+      `${props.exportName ?? props.title ?? 'table'}.xlsx`.toLowerCase().replaceAll(' ', '-'),
+      buildXlsx(props.title ?? 'Table', sheet.header, sheet.rows),
+      XLSX_MIME,
+    );
+  };
   const saved = props.savedViews ?? [];
   const menu: MenuEntry[] = [
     { kind: 'label', id: 'l-cols', label: 'Columns' },
@@ -183,6 +197,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       : []),
     { kind: 'separator', id: 's2' },
     { id: 'csv', label: 'Export CSV', onSelect: exportCsv },
+    { id: 'xlsx', label: 'Export XLSX', onSelect: exportXlsx },
     { id: 'reset', label: 'Reset view', onSelect: () => setView(defaults) },
   ];
 

@@ -10,6 +10,8 @@
 - Watchlist "OI / Funding" column shows open interest and funding rate from the crypto connectors' stats streams, "—" when the feed has none.
 - Continuous-contract roll by volume: `frontContract` / `nextRoll` / `Catalog.frontCode` accept per-contract volumes and, for `volume` roll specs, roll as soon as the next contract trades more; without volume data the date rule applies.
 - Search index rejects non-matching entries with a whole-entry character mask; a vitest benchmark asserts < 50 ms on 10,000 generated instruments.
+- ui-kit `Table`: column resize and reorder with per-table persistence (`tableId`, setting `common.tableLayouts`, reset command and Settings editor); ui-kit `Popover` with portal rendering and flip / shift positioning.
+- Tables (P20): XLSX export from every table's menu (own minimal OOXML writer, no new dependency) and inline order modify (edit price / qty in the Orders table, Enter applies).
 
 ## Unreleased — round 3
 

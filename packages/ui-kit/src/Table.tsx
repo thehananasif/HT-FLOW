@@ -5,15 +5,23 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type PointerEvent as RPointerEvent,
   type ReactNode,
 } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import { saveTableLayout, useTableLayout } from './tableLayoutStore';
 import {
+  columnAt,
+  emptyLayout,
+  moveKey,
   nextSort,
+  orderKeys,
+  resizeWidth,
   scrollIntoViewTop,
   selectRow,
   sortRows,
   virtualRange,
+  type ColumnLayout,
   type SelectionState,
   type SortState,
 } from './tableLogic';
@@ -47,12 +55,21 @@ export interface TableProps<T> {
   onRowActivate?: (row: T) => void;
   empty?: ReactNode;
   className?: string;
+  /**
+   * Enables column resize (drag a header edge, double-click resets) and reorder (drag a header,
+   * or Alt+←/→ on a focused header). The layout is saved per id through the layout store
+   * (the app persists it in settings).
+   */
+  tableId?: string;
+  /** Controlled layout (overrides the store). */
+  layout?: ColumnLayout;
+  onLayoutChange?: (layout: ColumnLayout) => void;
   'aria-label': string;
 }
 
 /** Virtualized, sortable data table with fixed header, row selection and keyboard navigation. */
 export function Table<T>({
-  columns,
+  columns: columnsProp,
   rows,
   rowId,
   rowHeight = 22,
@@ -65,8 +82,34 @@ export function Table<T>({
   onRowActivate,
   empty,
   className,
+  tableId,
+  layout: layoutProp,
+  onLayoutChange,
   'aria-label': ariaLabel,
 }: TableProps<T>) {
+  const stored = useTableLayout(tableId);
+  const [localLayout, setLocalLayout] = useState<ColumnLayout>(emptyLayout);
+  const layout = layoutProp ?? (tableId ? stored : localLayout);
+  const adjustable = !!(tableId || layoutProp || onLayoutChange);
+  const commitLayout = (next: ColumnLayout) => {
+    if (!layoutProp) {
+      if (tableId) saveTableLayout(tableId, next);
+      else setLocalLayout(next);
+    }
+    onLayoutChange?.(next);
+  };
+  const keys = useMemo(() => columnsProp.map((c) => c.key), [columnsProp]);
+  const order = useMemo(() => orderKeys(keys, layout), [keys, layout]);
+  const columns = useMemo(() => {
+    const by = new Map(columnsProp.map((c) => [c.key, c]));
+    return order.map((k) => by.get(k)!);
+  }, [columnsProp, order]);
+  const [live, setLive] = useState<{ key: string; width: number } | null>(null);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dropKey, setDropKey] = useState<string | null>(null);
+  const head = useRef<HTMLDivElement>(null);
+  const suppressClick = useRef(false);
+
   const [sortLocal, setSortLocal] = useState<SortState | null>(null);
   const sort = sortProp === undefined ? sortLocal : sortProp;
   const [selLocal, setSelLocal] = useState<SelectionState>({ selected: new Set(), anchor: null });
@@ -102,7 +145,81 @@ export function Table<T>({
   useEffect(() => setCursor((c) => Math.min(c, Math.max(0, sorted.length - 1))), [sorted.length]);
 
   const range = virtualRange(sorted.length, rowHeight, scrollTop, viewH);
-  const template = columns.map((c) => (c.width ? `${c.width}px` : 'minmax(60px, 1fr)')).join(' ');
+  const widthOf = (c: TableColumn<T>) =>
+    live?.key === c.key ? live.width : (layout.widths[c.key] ?? c.width);
+  const template = columns
+    .map((c) => {
+      const w = widthOf(c);
+      return w ? `${w}px` : 'minmax(60px, 1fr)';
+    })
+    .join(' ');
+
+  const startResize = (e: RPointerEvent, c: TableColumn<T>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.currentTarget as HTMLElement).parentElement!;
+    const startX = e.clientX;
+    const startW = th.getBoundingClientRect().width;
+    let width = startW;
+    const move = (ev: PointerEvent) => {
+      width = resizeWidth(startW, ev.clientX - startX);
+      setLive({ key: c.key, width });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setLive(null);
+      if (width !== startW) commitLayout({ order, widths: { ...layout.widths, [c.key]: width } });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  const resetWidth = (key: string) => {
+    const widths = { ...layout.widths };
+    delete widths[key];
+    commitLayout({ order, widths });
+  };
+  const startReorder = (e: RPointerEvent, c: TableColumn<T>) => {
+    if (e.button !== 0 || !adjustable) return;
+    const startX = e.clientX;
+    let active = false;
+    let target = c.key;
+    const move = (ev: PointerEvent) => {
+      if (!active && Math.abs(ev.clientX - startX) < 5) return;
+      active = true;
+      const cells = [...(head.current?.querySelectorAll<HTMLElement>('[data-col]') ?? [])];
+      const i = columnAt(
+        cells.map((el) => el.getBoundingClientRect()),
+        ev.clientX,
+      );
+      target = cells[i]?.dataset.col ?? c.key;
+      setDragKey(c.key);
+      setDropKey(target);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDragKey(null);
+      setDropKey(null);
+      if (active) {
+        suppressClick.current = true;
+        setTimeout(() => (suppressClick.current = false), 0);
+        if (target !== c.key)
+          commitLayout({ order: moveKey(order, c.key, target), widths: layout.widths });
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  const keyReorder = (e: KeyboardEvent, c: TableColumn<T>) => {
+    if (!adjustable || !e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    const i = order.indexOf(c.key);
+    const j = e.key === 'ArrowLeft' ? i - 1 : i + 1;
+    if (j < 0 || j >= order.length) return;
+    e.preventDefault();
+    commitLayout({ order: moveKey(order, c.key, order[j]!), widths: layout.widths });
+  };
 
   const setSel = (next: SelectionState) => {
     anchor.current = next.anchor;
@@ -181,7 +298,12 @@ export function Table<T>({
       aria-multiselectable={selectionMode === 'multi' || undefined}
       style={height ? { height } : undefined}
     >
-      <div className="ht-table-head" role="row" style={{ gridTemplateColumns: template }}>
+      <div
+        ref={head}
+        className="ht-table-head"
+        role="row"
+        style={{ gridTemplateColumns: template }}
+      >
         {columns.map((c) => {
           const dir = sort?.key === c.key ? sort.dir : null;
           return (
@@ -190,6 +312,17 @@ export function Table<T>({
               role="columnheader"
               className="ht-table-th"
               data-align={c.align}
+              data-col={c.key}
+              data-dragging={dragKey === c.key || undefined}
+              data-drop={dropKey === c.key && dragKey !== c.key ? 'target' : undefined}
+              onPointerDown={adjustable ? (e) => startReorder(e, c) : undefined}
+              onKeyDown={(e) => keyReorder(e, c)}
+              onClickCapture={(e) => {
+                if (suppressClick.current) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }
+              }}
               aria-sort={dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : undefined}
             >
               {c.sortable ? (
@@ -200,6 +333,17 @@ export function Table<T>({
                 </button>
               ) : (
                 <span>{c.header}</span>
+              )}
+              {adjustable && (
+                <span
+                  className="ht-table-resize"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={`Resize column ${c.key}`}
+                  data-testid={`ht-resize-${c.key}`}
+                  onPointerDown={(e) => startResize(e, c)}
+                  onDoubleClick={() => resetWidth(c.key)}
+                />
               )}
             </div>
           );

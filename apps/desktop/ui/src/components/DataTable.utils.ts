@@ -144,3 +144,22 @@ export function downloadText(name: string, text: string, mime = 'text/csv;charse
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
+
+/** Header + data rows for the XLSX writer (numbers stay numeric). */
+export function toSheetRows<T>(
+  rows: readonly T[],
+  cols: ValueColumn<T>[],
+): { header: string[]; rows: CellValue[][] } {
+  return {
+    header: cols.map((c) => c.header),
+    rows: rows.map((r) => cols.map((c) => c.value(r))),
+  };
+}
+
+export function downloadBytes(name: string, data: Uint8Array, mime: string): void {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data as BlobPart], { type: mime }));
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}

@@ -8,6 +8,7 @@ import { ErrorBoundary } from './platform/ErrorBoundary';
 // Plugins register themselves on import (modules/*/index.tsx, feeds/*.ts).
 import './feeds/load';
 import './modules/load';
+import './state/tableLayouts';
 
 applyTheme('dark');
 

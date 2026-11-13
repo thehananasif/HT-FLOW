@@ -157,3 +157,22 @@
 .dt-cell-btn:hover {
   background: var(--ht-hover);
 }
+.dt-editable {
+  cursor: text;
+  border-bottom: 1px dotted var(--ht-muted);
+}
+.dt-inline-input {
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--ht-accent);
+  border-radius: 4px;
+  background: var(--ht-surface1);
+  color: var(--ht-text-primary);
+  font: inherit;
+  text-align: right;
+}
+.dt-inline-input[aria-invalid='true'] {
+  border-color: var(--ht-down, #e5534b);
+}
