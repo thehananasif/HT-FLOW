@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { ChartCore } from '@htflow/chart-engine';
+import { t } from '@htflow/i18n';
 import {
   deserialize,
   isTool,
@@ -213,7 +214,7 @@ export function activateTool(tool: ToolId | null, windowId = activeChartId()): v
   if (!windowId) return;
   const def = tool ? toolDef(tool) : null;
   if (tool && !def?.ready) {
-    toast('info', `${def?.label ?? tool} is not available yet`, def?.note);
+    toast('info', t('drawings.notAvailable', { name: def?.label ?? tool }), def?.note);
     return;
   }
   const ui = useDrawUi.getState();
@@ -246,17 +247,17 @@ export function runToolCommand(tool: ToolId, windowId = activeChartId()): void {
     ui.setLens(windowId, on);
     toast(
       'info',
-      on ? 'Magnifier on' : 'Magnifier off',
-      on ? 'Press M to turn it off.' : undefined,
+      on ? t('drawings.magnifierOnToast') : t('drawings.magnifierOff'),
+      on ? t('drawings.pressM') : undefined,
     );
   } else if (tool === 'remove-indicators') {
     const n = readExt(windowId).items.length;
     if (!n) {
-      toast('info', 'No indicators on this chart');
+      toast('info', t('drawings.noIndicators'));
       return;
     }
     writeIndicators(windowId, []);
-    toast('success', `Removed ${n} indicator${n === 1 ? '' : 's'}`);
+    toast('success', t('drawings.removedIndicators', { n, s: n === 1 ? '' : 's' }));
   }
 }
 

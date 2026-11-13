@@ -99,3 +99,70 @@ export function selectRow(
   const [lo, hi] = a < b ? [a, b] : [b, a];
   return { selected: new Set(ids.slice(lo, hi + 1)), anchor: state.anchor ?? id };
 }
+
+/* ------------------------------------------------------------------ column layout */
+
+/** User column layout of one table: key order and pixel widths (only resized columns have one). */
+export interface ColumnLayout {
+  order: string[];
+  widths: Record<string, number>;
+}
+
+export const MIN_COL_WIDTH = 40;
+export const MAX_COL_WIDTH = 1200;
+
+export const emptyLayout = (): ColumnLayout => ({ order: [], widths: {} });
+
+/** Cleans untrusted persisted data; unknown shapes fall back to an empty layout. */
+export function sanitizeLayout(v: unknown): ColumnLayout {
+  const out = emptyLayout();
+  if (typeof v !== 'object' || v === null) return out;
+  const o = v as { order?: unknown; widths?: unknown };
+  if (Array.isArray(o.order))
+    out.order = [...new Set(o.order.filter((k): k is string => typeof k === 'string'))].slice(
+      0,
+      200,
+    );
+  if (typeof o.widths === 'object' && o.widths !== null) {
+    for (const [k, w] of Object.entries(o.widths as Record<string, unknown>))
+      if (typeof w === 'number' && Number.isFinite(w))
+        out.widths[k] = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, Math.round(w)));
+  }
+  return out;
+}
+
+/** Keys in display order: saved order first (unknown keys dropped), new columns go at the end. */
+export function orderKeys(keys: readonly string[], layout: ColumnLayout): string[] {
+  const known = new Set(keys);
+  const head = layout.order.filter((k) => known.has(k));
+  const seen = new Set(head);
+  return [...head, ...keys.filter((k) => !seen.has(k))];
+}
+
+/** Moves `from` so it lands where `to` currently is. */
+export function moveKey(order: readonly string[], from: string, to: string): string[] {
+  const a = order.indexOf(from);
+  const b = order.indexOf(to);
+  if (a < 0 || b < 0 || a === b) return [...order];
+  const next = [...order];
+  next.splice(a, 1);
+  next.splice(b, 0, from);
+  return next;
+}
+
+/** New width after dragging a header edge by `delta` px. */
+export function resizeWidth(start: number, delta: number): number {
+  return Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, Math.round(start + delta)));
+}
+
+/** Index of the column whose range holds `x` (clamped to the ends). */
+export function columnAt(rects: readonly { left: number; right: number }[], x: number): number {
+  if (!rects.length) return -1;
+  for (let i = 0; i < rects.length; i++) if (x < rects[i]!.right) return i;
+  return rects.length - 1;
+}
+
+export interface LayoutStoreAdapter {
+  get(id: string): ColumnLayout | undefined;
+  set(id: string, layout: ColumnLayout | null): void;
+}

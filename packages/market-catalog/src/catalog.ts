@@ -3,7 +3,7 @@ import { FUTURES } from './seed/futures';
 import { CRYPTO } from './seed/crypto';
 import { DXFEED_GROUPS, OTHER } from './seed/other';
 import { SearchIndex } from './search';
-import { frontContract, nextRoll, parseContractCode } from './expiry';
+import { frontContract, nextRoll, parseContractCode, type ContractVolumes } from './expiry';
 
 /** Appendix A top-level groups, in order. */
 export const GROUP_ORDER = [
@@ -81,13 +81,13 @@ export class Catalog {
   }
 
   /** Front contract code ("CLZ6") for a dated future at `now`; the symbol otherwise. */
-  frontCode(i: CatalogInstrument, now = new Date()): string {
+  frontCode(i: CatalogInstrument, now = new Date(), volumes?: ContractVolumes): string {
     if (!i.contract) return i.symbol;
-    return frontContract(i.root, i.contract, now)?.code ?? i.symbol;
+    return frontContract(i.root, i.contract, now, 1, volumes)?.code ?? i.symbol;
   }
 
-  nextRoll(i: CatalogInstrument, now = new Date()) {
-    return i.contract ? nextRoll(i.root, i.contract, now) : null;
+  nextRoll(i: CatalogInstrument, now = new Date(), volumes?: ContractVolumes) {
+    return i.contract ? nextRoll(i.root, i.contract, now, 1, volumes) : null;
   }
 }
 

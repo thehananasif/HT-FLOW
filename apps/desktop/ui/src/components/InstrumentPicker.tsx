@@ -13,6 +13,7 @@ import {
   type FeedKind,
   type PickerEntry,
 } from '../state/instruments';
+import { INSTRUMENT_MIME, encodePayload } from '../dashboard/instrumentDrop';
 import './InstrumentPicker.css';
 
 const ROW_H = 24;
@@ -78,6 +79,7 @@ export function InstrumentPicker({
   const [active, setActive] = useState(0);
   const [noFeed, setNoFeed] = useState<PickerEntry | null>(null);
   const [scroll, setScroll] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: 8, top: 40 });
@@ -231,6 +233,7 @@ export function InstrumentPicker({
       role="dialog"
       aria-label="Instrument picker"
       style={{ left: pos.left, top: pos.top }}
+      data-dragging={dragging || undefined}
       tabIndex={-1}
       onKeyDown={onKey}
       data-testid="instrument-picker-popover"
@@ -314,6 +317,21 @@ export function InstrumentPicker({
                     setNoFeed(null);
                   }}
                   onDoubleClick={() => pick(e)}
+                  draggable={!!e.feeds[0]}
+                  onDragStart={(ev) => {
+                    const feedId = e.feeds[0]?.id;
+                    if (!feedId) return;
+                    ev.dataTransfer.setData(INSTRUMENT_MIME, encodePayload({ feedId, key: e.key }));
+                    ev.dataTransfer.setData('text/plain', e.symbol);
+                    ev.dataTransfer.effectAllowed = 'copyMove';
+                    // Let the picker get out of the way once the drag has started.
+                    setTimeout(() => setDragging(true), 0);
+                  }}
+                  onDragEnd={() => {
+                    setDragging(false);
+                    prefs.pushRecent(e.key);
+                    onClose();
+                  }}
                 >
                   <button
                     type="button"
@@ -378,7 +396,8 @@ export function InstrumentPicker({
           ) : (
             <span className="muted">
               {rows.length.toLocaleString()} instruments · ↑↓ to move · Enter / double-click to{' '}
-              {mode === 'open' ? 'open' : 'add'} · Esc to close
+              {mode === 'open' ? 'open' : 'add'} · drag onto a window (Ctrl: new chart) · Esc to
+              close
             </span>
           )}
         </div>

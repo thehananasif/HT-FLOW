@@ -16,7 +16,7 @@ import {
 } from '../../state/instruments';
 import { FeedStatusBadge, InstrumentPickerButton } from '../../components/InstrumentPicker';
 import { isModuleBuilt, registerModule, type ModuleViewProps } from '../registry';
-import { moveItem, RowStats, sparkPoints, statsFrom } from './stats';
+import { formatOiFunding, moveItem, RowStats, sparkPoints, statsFrom } from './stats';
 import './styles.css';
 
 // ------------------------------------------------------------------ params
@@ -248,7 +248,7 @@ function Row({
     volume: stats?.volume ?? Number.NaN,
     vwap: stats?.vwap ?? Number.NaN,
     delta: stats?.delta ?? Number.NaN,
-    oi: Number.NaN,
+    oi: store?.openInterest?.oi ?? Number.NaN,
     spark: stats?.changePct ?? Number.NaN,
   };
   useEffect(() => {
@@ -302,17 +302,15 @@ function Row({
             {Number.isFinite(v) ? `${v > 0 ? '+' : ''}${formatCompact(v)}` : '—'}
           </span>
         );
-      case 'oi':
-        // No feed in the app supplies open interest or funding yet.
+      case 'oi': {
+        // Fed by the crypto connectors' funding / open-interest streams; "—" when absent.
+        const f = formatOiFunding(store, formatCompact);
         return (
-          <span
-            key={c}
-            className="r tnum muted"
-            title="This feed has no open interest / funding data"
-          >
-            —
+          <span key={c} className={`r tnum${f.text === '—' ? ' muted' : ''}`} title={f.title}>
+            {f.text}
           </span>
         );
+      }
       case 'spark': {
         const pts = stats ? sparkPoints(stats.spark(), 64, 16) : '';
         return (

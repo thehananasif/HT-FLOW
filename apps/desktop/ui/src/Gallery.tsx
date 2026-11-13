@@ -36,6 +36,7 @@ import {
   SegmentedControl,
   Select,
   Skeleton,
+  Popover,
   Slider,
   StatusPill,
   Tabs,
@@ -106,6 +107,7 @@ export function Gallery() {
   const [col, setCol] = useState('#20C77A');
   const [dlg, setDlg] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [pop, setPop] = useState(false);
   const [fill, setFill] = useState('#20c77a80');
   const [swatches, setSwatches] = useState<string[]>(['#20c77a', '#f04a5d']);
   const [stops, setStops] = useState<GradientStop[]>([
@@ -355,6 +357,19 @@ export function Gallery() {
             <MenuSlider label="Standalone" value={menuSl} onChange={setMenuSl} />
           </div>
           <Button onClick={() => setSheet(true)}>Open sheet</Button>
+          <div style={{ overflow: 'hidden', width: 120, height: 36 }} data-testid="popover-clip">
+            <Popover
+              open={pop}
+              onOpenChange={setPop}
+              side="bottom"
+              testId="gallery-popover"
+              trigger={<Button onClick={() => setPop(!pop)}>Popover</Button>}
+            >
+              <div style={{ padding: 12, width: 220 }}>
+                Rendered through a portal: never clipped.
+              </div>
+            </Popover>
+          </div>
           <Sheet
             open={sheet}
             onOpenChange={setSheet}
@@ -375,6 +390,7 @@ export function Gallery() {
         <div style={{ width: 460, height: 220 }}>
           <Table<DemoRow>
             aria-label="Demo table"
+            tableId="gallery-demo"
             rows={rows}
             rowId={(r) => r.id}
             sort={sort}

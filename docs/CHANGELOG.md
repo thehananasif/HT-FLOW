@@ -6,11 +6,18 @@
 
 - Command Palette (Ctrl+K) searches indicators: every implemented catalog entry is listed under an "Indicators" header and adds itself to the active chart, as the Indicators dialog's "+" does. Pending entries are not listed.
 - Command Palette searches settings: every settings section and key is listed under a "Settings" header; choosing one opens the Settings window at that section. Command results stay first.
+- Instrument Picker rows can be dragged: drop on a window to change its symbol (modules keep it in their params), Ctrl+drop or drop on an empty dock area opens a new chart window (`dashboard/instrumentDrop.ts`, e2e `picker-drag.spec.ts`).
+- Watchlist "OI / Funding" column shows open interest and funding rate from the crypto connectors' stats streams, "—" when the feed has none.
+- Continuous-contract roll by volume: `frontContract` / `nextRoll` / `Catalog.frontCode` accept per-contract volumes and, for `volume` roll specs, roll as soon as the next contract trades more; without volume data the date rule applies.
+- Search index rejects non-matching entries with a whole-entry character mask; a vitest benchmark asserts < 50 ms on 10,000 generated instruments.
+- ui-kit `Table`: column resize and reorder with per-table persistence (`tableId`, setting `common.tableLayouts`, reset command and Settings editor); ui-kit `Popover` with portal rendering and flip / shift positioning.
+- Tables (P20): XLSX export from every table's menu (own minimal OOXML writer, no new dependency) and inline order modify (edit price / qty in the Orders table, Enter applies).
 
 ## Unreleased — round 3
 
 ### Changed
 
+- Drawing toolbar, menus, dialogs, Objects List and toasts, and the Smart Tape / Bid-Ask Tape / All Prices strings now go through `@htflow/i18n` (English text unchanged).
 - Smart DOM benchmark asserts the spec's 60 fps budget at p95 (16.7 ms) and a mean under 4 ms, instead of a p95 under 8 ms that failed only under CPU contention.
 - "Binance" in the Connections catalog now means Binance spot; "Binance COIN-M" is a new entry.
 - Paper maker fills now pay the maker fee (taker rate if unset) instead of half the taker rate.

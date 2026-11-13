@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Settings2 } from 'lucide-react';
 import { Chip, IconButton, Input, Select, alpha, theme } from '@htflow/ui-kit';
+import { t } from '@htflow/i18n';
 import { formatPrice, formatQty, type MarketStore } from '@htflow/market-data';
 import {
   PriceStatsAccumulator,
@@ -29,20 +30,20 @@ import '../smart-tape/styles.css';
 import './styles.css';
 
 const RANGES: { id: RangeKind; label: string }[] = [
-  { id: 'session', label: 'Session' },
-  { id: 'visible', label: 'Visible' },
-  { id: 'week', label: 'Week' },
+  { id: 'session', label: t('prices.rangeSession') },
+  { id: 'visible', label: t('prices.rangeVisible') },
+  { id: 'week', label: t('prices.rangeWeek') },
 ];
 
 const COLS: { id: LevelSortKey; label: string }[] = [
-  { id: 'px', label: 'Price' },
-  { id: 'volume', label: 'Volume' },
-  { id: 'bidVol', label: 'Bid' },
-  { id: 'askVol', label: 'Ask' },
-  { id: 'delta', label: 'Delta' },
-  { id: 'trades', label: 'Trades' },
-  { id: 'timeMs', label: 'Time' },
-  { id: 'lastSeen', label: 'Last seen' },
+  { id: 'px', label: t('prices.colPrice') },
+  { id: 'volume', label: t('prices.colVolume') },
+  { id: 'bidVol', label: t('prices.colBid') },
+  { id: 'askVol', label: t('prices.colAsk') },
+  { id: 'delta', label: t('prices.colDelta') },
+  { id: 'trades', label: t('prices.colTrades') },
+  { id: 'timeMs', label: t('prices.colTime') },
+  { id: 'lastSeen', label: t('prices.colLastSeen') },
 ];
 const SORT_KEYS = COLS.map((c) => c.id);
 
@@ -154,7 +155,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
   const maxTime = rows.reduce((a, l) => Math.max(a, l.timeMs), 0);
   const first = Math.max(0, Math.floor(scrollTop / ROW) - 5);
   const last = Math.min(rows.length, first + Math.ceil(height / ROW) + 10);
-  const t = theme();
+  const th = theme();
   const qp = inst.qtyPrecision;
   const q = (v: number) => formatQty(v, qp);
   const lastPx = store.lastTrade?.px;
@@ -185,7 +186,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
           </Chip>
         ))}
         <IconButton
-          label="All Prices settings"
+          label={t('prices.settings')}
           active={showSettings}
           onClick={() => setShowSettings((x) => !x)}
         >
@@ -195,7 +196,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
       {showSettings && (
         <div className="tape-filters">
           <label>
-            Visible range (min)
+            {t('prices.visibleRange')}
             <Input
               type="number"
               min={5}
@@ -205,7 +206,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
             />
           </label>
           <label>
-            Session starts (UTC hour)
+            {t('prices.sessionStart')}
             <Input
               type="number"
               min={0}
@@ -217,13 +218,13 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
             />
           </label>
           <label>
-            Ticks per row
+            {t('prices.ticksPerRow')}
             <Select
               small
               value={String(p.group)}
               options={[0, 1, 2, 5, 10, 25, 50, 100].map((g) => ({
                 value: String(g),
-                label: g ? String(g) : 'Auto',
+                label: g ? String(g) : t('prices.auto'),
               }))}
               onChange={(v) => set({ group: Number(v) })}
             />
@@ -234,7 +235,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
               set({ visibleMin: 60, sessionHour: 0, group: 0, sortKey: 'px', sortDir: 'desc' })
             }
           >
-            Reset to default
+            {t('prices.reset')}
           </button>
         </div>
       )}
@@ -275,7 +276,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
                   <i
                     style={{
                       width: `${maxVol ? (l.volume / maxVol) * 100 : 0}%`,
-                      background: alpha(t.clusterStrong, isPoc ? 0.75 : 0.45),
+                      background: alpha(th.clusterStrong, isPoc ? 0.75 : 0.45),
                     }}
                   />
                   <b>{q(l.volume)}</b>
@@ -284,7 +285,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
                 <span className="ap-c down">{q(l.askVol)}</span>
                 <span
                   className={`ap-c ${l.delta >= 0 ? 'up' : 'down'}`}
-                  style={{ background: alpha(l.delta >= 0 ? t.up : t.down, dA) }}
+                  style={{ background: alpha(l.delta >= 0 ? th.up : th.down, dA) }}
                 >
                   {l.delta > 0 ? '+' : ''}
                   {q(l.delta)}
@@ -293,7 +294,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
                 <span
                   className="ap-c muted"
                   style={{
-                    background: alpha(t.warning, maxTime ? (l.timeMs / maxTime) * 0.25 : 0),
+                    background: alpha(th.warning, maxTime ? (l.timeMs / maxTime) * 0.25 : 0),
                   }}
                 >
                   {fmtDuration(l.timeMs)}
@@ -304,13 +305,17 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
           })}
         </div>
         {!rows.length && (
-          <div className="tbl-empty">{store.ready ? 'No trades in range' : 'Loading…'}</div>
+          <div className="tbl-empty">
+            {store.ready ? t('prices.noTrades') : t('prices.loading')}
+          </div>
         )}
       </div>
       <div className="an-footer tnum">
-        POC {snap && !Number.isNaN(snap.poc) ? formatPrice(snap.poc, inst) : '—'} highlighted ·{' '}
-        {rows.length} rows · volume {snap ? q(snap.totalVolume) : '—'} · bid = sold into bid, ask =
-        bought at ask · sort by any column
+        {t('prices.footer', {
+          poc: snap && !Number.isNaN(snap.poc) ? formatPrice(snap.poc, inst) : '—',
+          rows: rows.length,
+          vol: snap ? q(snap.totalVolume) : '—',
+        })}
       </div>
     </div>
   );

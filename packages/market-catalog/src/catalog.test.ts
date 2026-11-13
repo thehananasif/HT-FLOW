@@ -193,6 +193,29 @@ describe('sessions', () => {
   });
 });
 
+describe('roll by volume', () => {
+  const now = d('2026-12-01');
+  const es = cat.byRoot('ES')!.contract!;
+  const volSpec = { ...es, roll: { kind: 'volume' as const, fallbackDaysBefore: 8 } };
+  it('falls back to the date rule without volume data', () => {
+    expect(frontContract('ES', volSpec, now)!.code).toBe(frontContract('ES', es, now)!.code);
+    expect(frontContract('ES', volSpec, now, 1, {})!.code).toBe('ESZ6');
+    expect(frontContract('ES', volSpec, now, 1, { ESZ6: 100 })!.code).toBe('ESZ6');
+  });
+  it('rolls as soon as the next contract trades more', () => {
+    expect(frontContract('ES', volSpec, now, 1, { ESZ6: 100, ESH7: 90 })!.code).toBe('ESZ6');
+    expect(frontContract('ES', volSpec, now, 1, { ESZ6: 100, ESH7: 150 })!.code).toBe('ESH7');
+    const r = nextRoll('ES', volSpec, now, 1, { ESZ6: 100, ESH7: 150 })!;
+    expect([r.from.code, r.to.code]).toEqual(['ESH7', 'ESM7']);
+  });
+  it('date rule still applies after the date-rule roll, and date specs ignore volume', () => {
+    expect(frontContract('ES', volSpec, d('2026-12-11'), 1, { ESZ6: 500, ESH7: 1 })!.code).toBe(
+      'ESH7',
+    );
+    expect(frontContract('ES', es, now, 1, { ESZ6: 100, ESH7: 150 })!.code).toBe('ESZ6');
+  });
+});
+
 describe('search', () => {
   const top = (q: string) => cat.index.search(q, { limit: 5 }).map((h) => h.doc.symbol);
   it('finds by symbol, root, name and exchange', () => {

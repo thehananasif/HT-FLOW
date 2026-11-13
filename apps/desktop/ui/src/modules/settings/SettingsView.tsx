@@ -61,6 +61,7 @@ import {
   AboutPanel,
   LogPanel,
   ModuleFoldersEditor,
+  TableLayoutsEditor,
   ModuleTogglesEditor,
   ProvidersEditor,
 } from './panels';
@@ -444,6 +445,8 @@ export function SettingsView({
                 return <ModuleTogglesEditor key={k} {...props} />;
               case 'moduleFolders':
                 return <ModuleFoldersEditor key={k} {...props} />;
+              case 'tableLayouts':
+                return <TableLayoutsEditor key={k} {...props} />;
             }
             return null;
           })}

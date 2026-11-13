@@ -196,3 +196,12 @@
   gap: 8px;
   color: var(--ht-warning);
 }
+
+/* While an instrument is dragged out, the picker turns see-through and lets drops reach the dock. */
+.ip-root[data-dragging] {
+  opacity: 0.25;
+  pointer-events: none;
+}
+.ip-row[draggable='true'] {
+  cursor: grab;
+}
