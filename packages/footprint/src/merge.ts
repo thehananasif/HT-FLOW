@@ -34,6 +34,39 @@ export function mergeRows(bar: Bar, rowTicks: number): Row[] {
   return [...m.values()].sort((a, b) => b.px - a.px);
 }
 
+/**
+ * Memoised `mergeRows` for renderers (P29): closed bars are merged once per row size instead of
+ * on every frame. The entry is rebuilt when the bar changes (volume, trade count or price levels),
+ * so the live bar stays exact. Callers must treat the returned rows as read-only.
+ */
+export class RowCache {
+  private cache = new WeakMap<
+    Bar,
+    { rt: number; vol: number; trades: number; n: number; rows: Row[] }
+  >();
+
+  rows(bar: Bar, rowTicks: number): Row[] {
+    const e = this.cache.get(bar);
+    if (
+      e &&
+      e.rt === rowTicks &&
+      e.vol === bar.vol &&
+      e.trades === bar.trades &&
+      e.n === bar.clusters.size
+    )
+      return e.rows;
+    const rows = mergeRows(bar, rowTicks);
+    this.cache.set(bar, {
+      rt: rowTicks,
+      vol: bar.vol,
+      trades: bar.trades,
+      n: bar.clusters.size,
+      rows,
+    });
+    return rows;
+  }
+}
+
 function toRow(px: number, c: Cluster): Row {
   return { px, bid: c.bid, ask: c.ask, trades: c.trades, vol: c.bid + c.ask, delta: c.ask - c.bid };
 }

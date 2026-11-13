@@ -100,20 +100,25 @@ describe('smart print reconstruction', () => {
   });
 
   it('absorbs 5,000 prints/sec for a minute quickly', () => {
-    const b = new TapeBuffer(65_536, { mode: 'timestamp', windowMs: 0 });
-    const t0 = performance.now();
-    for (let i = 0; i < 300_000; i++) {
-      b.push({
-        ts: i / 5,
-        px: 1000 + (i % 7),
-        qty: 1 + (i % 5),
-        side: i % 3 ? 'buy' : 'sell',
-        id: i,
-      });
+    // Median of 3 runs with a loose ceiling (suites share the CPU); strict numbers: `pnpm bench`.
+    const times: number[] = [];
+    for (let r = 0; r < 3; r++) {
+      const b = new TapeBuffer(65_536, { mode: 'timestamp', windowMs: 0 });
+      const t0 = performance.now();
+      for (let i = 0; i < 300_000; i++) {
+        b.push({
+          ts: i / 5,
+          px: 1000 + (i % 7),
+          qty: 1 + (i % 5),
+          side: i % 3 ? 'buy' : 'sell',
+          id: i,
+        });
+      }
+      times.push(performance.now() - t0);
+      expect(b.size).toBe(65_536);
     }
-    expect(b.size).toBe(65_536);
-    expect(performance.now() - t0).toBeLessThan(1500);
-  });
+    expect(times.sort((a, b) => a - b)[1]!).toBeLessThan(1500);
+  }, 30_000);
 });
 
 describe('filters', () => {

@@ -88,7 +88,7 @@ const HISTORY_PRINTS = 20_000;
 const ROW = 20;
 const HEAD = 22;
 
-interface Engine {
+export interface Engine {
   buf: TapeBuffer;
   speed: SpeedMeter;
   cursor: TradeCursor;
@@ -98,7 +98,7 @@ interface Engine {
   big: number;
 }
 
-function buildEngine(store: MarketStore, agg: AggregateMode, windowMs: number): Engine {
+export function buildEngine(store: MarketStore, agg: AggregateMode, windowMs: number): Engine {
   const buf = new TapeBuffer(65_536, { mode: agg, windowMs });
   const cursor = new TradeCursor();
   const tr = store.trades;
@@ -125,7 +125,7 @@ function buildEngine(store: MarketStore, agg: AggregateMode, windowMs: number): 
   };
 }
 
-function refreshBuckets(e: Engine, bigSize: number): void {
+export function refreshBuckets(e: Engine, bigSize: number): void {
   const n = Math.min(e.buf.size, 3000);
   const sizes = new Float64Array(n);
   for (let k = 0; k < n; k++) sizes[k] = e.buf.qtyAt(k);
@@ -133,7 +133,7 @@ function refreshBuckets(e: Engine, bigSize: number): void {
   e.big = bigPrintThreshold(bigSize, sizes);
 }
 
-interface DrawOpts {
+export interface DrawOpts {
   variant: TapeVariant;
   inst: Instrument;
   filter: TapeFilter;
@@ -143,7 +143,7 @@ interface DrawOpts {
   paused: boolean;
 }
 
-function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts): void {
+export function drawTape(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts): void {
   const ctx = c.getContext('2d');
   if (!ctx || w < 10) return;
   const dpr = window.devicePixelRatio || 1;
@@ -438,7 +438,7 @@ export function TapeView({
       if (!u.dirty && (u.paused || e.buf.version === lastVersion)) return;
       lastVersion = e.buf.version;
       u.dirty = false;
-      draw(c, w, h, e, {
+      drawTape(c, w, h, e, {
         variant,
         inst,
         filter: ft,

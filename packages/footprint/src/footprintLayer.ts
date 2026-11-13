@@ -4,7 +4,7 @@ import { footprintMode, type FootprintModeDef } from './modes';
 import {
   absorptionRows,
   imbalances,
-  mergeRows,
+  RowCache,
   passesFilter,
   stackedZones,
   valueAreaRows,
@@ -77,9 +77,18 @@ export function autoRowTicks(tickPx: number, minPx = 13): number {
   return 10000;
 }
 
-function rgba(hex: string, a: number): string {
-  const n = parseInt(hex.slice(1, 7), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+/** "rgba(r,g,b," prefix per hex colour: the parse runs once per colour, not once per cell (P29). */
+const RGBA_PREFIX = new Map<string, string>();
+
+export function rgba(hex: string, a: number): string {
+  let pre = RGBA_PREFIX.get(hex);
+  if (pre === undefined) {
+    const n = parseInt(hex.slice(1, 7), 16);
+    pre = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},`;
+    if (RGBA_PREFIX.size > 256) RGBA_PREFIX.clear();
+    RGBA_PREFIX.set(hex, pre);
+  }
+  return `${pre}${a})`;
 }
 
 /** Footprint / cluster renderer (P10, P46 board 21). */
@@ -88,6 +97,7 @@ export class FootprintLayer implements ChartLayer {
   settings: FootprintSettings;
   /** Rows used in the last frame (shared with gutters). */
   rowTicks = 1;
+  private rowCache = new RowCache();
 
   constructor(
     private series: () => BarSeries,
@@ -141,7 +151,7 @@ export class FootprintLayer implements ChartLayer {
     let maxSide = 1e-9;
     const rowsCache: Row[][] = [];
     for (let i = v.i0; i <= v.i1; i++) {
-      const rows = mergeRows(bars[i]!, rt);
+      const rows = this.rowCache.rows(bars[i]!, rt);
       rowsCache.push(rows);
       for (const r of rows) {
         const val = mode.content === 'trades' ? r.trades : r.vol;
@@ -157,7 +167,8 @@ export class FootprintLayer implements ChartLayer {
     ctx.rect(v.plot.x, 0, v.plot.w, v.plot.h);
     ctx.clip();
     ctx.textBaseline = 'middle';
-    ctx.font = v.font(fontSize);
+    const fonts = { n: v.font(fontSize), b: v.font(fontSize, 700) };
+    ctx.font = fonts.n;
 
     for (let i = v.i0; i <= v.i1; i++) {
       const rows = rowsCache[i - v.i0]!;
@@ -225,7 +236,7 @@ export class FootprintLayer implements ChartLayer {
           );
         }
         if (showText) {
-          this.drawText(v, mode, r, x, yTop + h / 2, cellW, k === pocIdx, imb?.[k], fontSize);
+          this.drawText(v, mode, r, x, yTop + h / 2, cellW, k === pocIdx, imb?.[k], fonts);
         }
       }
     }
@@ -250,21 +261,22 @@ export class FootprintLayer implements ChartLayer {
     const st = mode.style;
     const op = Math.max(0, Math.min(1, this.settings.cellOpacity ?? 1));
     const cm = this.settings.colorMode ?? 'volume';
-    const base = rgba(p.clusterStrong, (0.18 + kv * 0.55) * op);
-    const deltaCol = rgba(
-      dShare >= 0 ? p.up : p.down,
-      (0.15 + Math.min(1, Math.abs(dShare)) * 0.6 * (0.4 + kv * 0.6)) * op,
-    );
+    // Colour strings are built only by the branch that uses them (hot path: one call per cell).
+    const deltaCol = () =>
+      rgba(
+        dShare >= 0 ? p.up : p.down,
+        (0.15 + Math.min(1, Math.abs(dShare)) * 0.6 * (0.4 + kv * 0.6)) * op,
+      );
     switch (st) {
       case 'plain':
         if (cm === 'none') {
           ctx.fillStyle = rgba(p.surface3, 0.5 * op);
         } else if (cm === 'delta') {
-          ctx.fillStyle = deltaCol;
+          ctx.fillStyle = deltaCol();
         } else if (mode.content === 'bidask') {
           ctx.fillStyle = rgba(p.surface3, 0.9 * op);
         } else {
-          ctx.fillStyle = base;
+          ctx.fillStyle = rgba(p.clusterStrong, (0.18 + kv * 0.55) * op);
         }
         ctx.fillRect(x, y, w, h);
         return;
@@ -272,7 +284,7 @@ export class FootprintLayer implements ChartLayer {
         ctx.fillStyle =
           mode.content === 'delta'
             ? rgba(r.delta >= 0 ? p.up : p.down, 0.12 + (Math.abs(r.delta) / maxD) * 0.7)
-            : deltaCol;
+            : deltaCol();
         ctx.fillRect(x, y, w, h);
         return;
       case 'histogram':
@@ -331,26 +343,26 @@ export class FootprintLayer implements ChartLayer {
     w: number,
     poc: boolean,
     imb: { buy: boolean; sell: boolean } | undefined,
-    fontSize: number,
+    fonts: { n: string; b: string },
   ): void {
     const { ctx, palette: p } = v;
     const fmt = (n: number) => formatCompact(Math.round(n * 1000) / 1000);
-    ctx.font = v.font(fontSize, poc ? 700 : 400);
+    ctx.font = poc ? fonts.b : fonts.n;
     ctx.fillStyle = p.textPrimary;
     switch (mode.content) {
       case 'bidask': {
         const half = w / 2;
         ctx.textAlign = 'right';
         ctx.fillStyle = imb?.sell ? this.settings.colors?.imbSell || p.down : p.textSoft;
-        if (imb?.sell) ctx.font = v.font(fontSize, 700);
+        if (imb?.sell) ctx.font = fonts.b;
         ctx.fillText(fmt(r.bid), x + half - 6, y);
-        ctx.font = v.font(fontSize, poc ? 700 : 400);
+        ctx.font = poc ? fonts.b : fonts.n;
         ctx.textAlign = 'center';
         ctx.fillStyle = p.textTertiary;
         if (mode.style === 'plain' || mode.style === 'deltaColored') ctx.fillText('x', x + half, y);
         ctx.textAlign = 'left';
         ctx.fillStyle = imb?.buy ? this.settings.colors?.imbBuy || p.up : p.textSoft;
-        if (imb?.buy) ctx.font = v.font(fontSize, 700);
+        if (imb?.buy) ctx.font = fonts.b;
         ctx.fillText(fmt(r.ask), x + half + 6, y);
         return;
       }
