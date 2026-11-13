@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — round 6
+
+### Added
+
+- Older chart history now uses klines on every venue, not only Binance (P06): Bybit (`/v5/market/kline`, `linear` / `inverse` / `spot` via `BybitLinear::klines_in`), OKX (`/api/v5/market/history-candles`, `utc` bars from 6 h up), Bitget (`/api/v2/mix/market/history-candles`), Kraken Futures (`/api/charts/v1/trade/{symbol}/{resolution}`), Bitfinex (`/v2/candles/trade:{tf}:{symbol}/hist`), Phemex (`/exchange/public/md/v2/kline/list`), WhiteBIT (`/api/v1/public/kline`) and Deribit (`public/get_tradingview_chart_data`; USD-contract `cost` on inverse instruments, base `volume` on linear ones). Each venue's `MarketApi` now serves `kline_intervals()` / `klines()` and a new `kline_max_bars()` (page size × pages it will spend); `market_history_range` picks the smallest interval whose span fits in `min(5,000, kline_max_bars)` bars, so 4 h / 1 D charts and days beyond the trade endpoints' reach fill from one to a few cheap requests. Requests use the venue's token bucket and the shared `Retry-After` / exponential back-off (Bybit's HTTP-200 `retCode` 10006 / 10018 too); rate-limited answers show in the chart footer for every venue now (`throttled()` was missing on Bitget, Kraken, Bitfinex, Phemex, WhiteBIT and Deribit).
+- Estimated delta outside Binance: none of these venues reports the taker-buy share of a bar, so the shared `htflow_connector_common::directional_taker_buy` books the bar's volume by candle direction (close above open = all buys, below = all sells, equal = half and half). OHLC and total volume stay exact; the delta of a rebuilt bar follows the candle colour. Documented in the connector modules and in FEATURES (P06).
+- Tests: per-venue saved JSON fixtures (`crates/connectors/<venue>/tests/fixtures`), parser tests, paging / window / budget / error tests against the local mock HTTP server, and a `market_history_range` backfill test on OKX candles. The endpoints were wired from the venues' public documentation and have not been checked against the live APIs here (no network in tests).
+
 ## Unreleased — round 5
 
 ### Added

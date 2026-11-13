@@ -15,6 +15,7 @@ pub mod api;
 pub mod book;
 pub mod clock;
 pub mod driver;
+pub mod klines;
 pub mod mock_http;
 pub mod ratelimit;
 pub mod rest;
@@ -26,6 +27,7 @@ pub use api::{
 pub use book::L2Book;
 pub use clock::ClockSkew;
 pub use driver::{Action, Ping, Probe, Protocol, RestBook, StreamConfig};
+pub use klines::{bar, bar_text, directional_taker_buy, finish_klines, windows};
 pub use ratelimit::TokenBucket;
 pub use rest::Rest;
 pub use util::*;

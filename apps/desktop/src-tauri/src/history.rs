@@ -182,8 +182,12 @@ pub async fn load_range(
     // Klines for [from, real_from).
     let intervals = api.kline_intervals();
     if real_from > from && !intervals.is_empty() {
-        let iv = pick_kline_interval(intervals, real_from - from, MAX_KLINE_BARS)
-            .expect("non-empty intervals");
+        let iv = pick_kline_interval(
+            intervals,
+            real_from - from,
+            MAX_KLINE_BARS.min(api.kline_max_bars()),
+        )
+        .expect("non-empty intervals");
         out.kline_ms = Some(iv);
         // Bars must end before the first real trade; a range that is all klines keeps the bar
         // that straddles `to` (its synthetic points before `to` only).
@@ -307,6 +311,61 @@ mod tests {
             }
             Reply::status("404 Not Found", "{}")
         })
+    }
+
+    /// A venue other than Binance: OKX candles (100 per page, newest first) rebuild the days
+    /// beyond the trade endpoints' reach, with the volume split by candle direction.
+    #[tokio::test]
+    async fn okx_klines_fill_old_days() {
+        let srv = MockServer::start(|t| {
+            let after = query_param(t, "after")
+                .and_then(|v| v.parse::<i64>().ok())
+                .unwrap();
+            let end = (after / 60_000).min(3_000);
+            let rows: Vec<String> = ((end - 100).max(0)..end)
+                .rev()
+                .map(|m| {
+                    format!(
+                        r#"["{}","100","101","99","100.5","4","0","0","1"]"#,
+                        m * 60_000
+                    )
+                })
+                .collect();
+            Reply::ok(format!(
+                r#"{{"code":"0","msg":"","data":[{}]}}"#,
+                rows.join(",")
+            ))
+        });
+        let api = htflow_connector_okx::Okx::new(&srv.base, "ws://unused");
+        let sp = SymbolSpec::new("BTC-USDT-SWAP", TickSize::parse("0.1").unwrap(), 3);
+        let plan = Plan {
+            from_ms: 0,
+            to_ms: 10 * H,
+            now_ms: 400 * H,
+            max_pages: 10,
+            trades_recent_ms: DAY_MS,
+        };
+        let r = load_range(
+            &api,
+            &sp,
+            "okx-swap:BTC-USDT-SWAP",
+            None,
+            &[],
+            &[],
+            plan,
+            &mut |_| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!((r.downloaded, r.kline_ms), (0, Some(60_000)));
+        // 600 one-minute bars, 4 synthetic ticks each (bullish: only the buy side).
+        assert_eq!(r.synthetic, 600 * 4);
+        assert!(r
+            .trades
+            .iter()
+            .all(|t| t.aggressor != htflow_core_types::Aggressor::Sell));
+        let vol: f64 = r.trades.iter().map(|t| t.qty).sum();
+        assert!((vol - 600.0 * 4.0).abs() < 1e-6);
     }
 
     #[tokio::test]
