@@ -112,6 +112,25 @@ export const fmtClock = (ts: number, opts?: { seconds?: boolean; ms?: boolean })
 export const fmtDateTime = (ts: number, opts?: { seconds?: boolean; ms?: boolean }): string =>
   formatDateTime(ts, timeFormatOptions(), opts);
 
+/** Local time zone of an exchange by asset class (crypto trades in UTC, futures on CME time). */
+export function exchangeZone(assetClass: string | undefined): string {
+  return assetClass === 'crypto' ? 'UTC' : 'America/Chicago';
+}
+
+/**
+ * Tooltip text "Exchange 13:45:02 (America/Chicago)" for a timestamp, or undefined when
+ * Settings → Time zones → "Exchange time on hover" is off.
+ */
+export function exchangeTimeTitle(
+  ts: number,
+  assetClass: string | undefined,
+  enabled: boolean = getSetting('timezones.exchangeTimeOnHover'),
+): string | undefined {
+  if (!enabled) return undefined;
+  const zone = exchangeZone(assetClass);
+  return `Exchange ${formatClock(ts, { ...timeFormatOptions(), zone })} (${zone})`;
+}
+
 /** Subscribes a component to the settings the wrappers above read. */
 export function useTimeFormat(): TimeFormatOptions {
   const zone = useSetting('timezones.app');

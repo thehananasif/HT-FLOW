@@ -62,6 +62,7 @@ import {
 } from './model';
 import { QuickSettings } from './QuickSettings';
 import { FullSettings, heatFpsCap } from './FullSettings';
+import { gpuPreference, heatmapRenderer } from '../../charts/settings/performance';
 import { View3D } from './View3D';
 import { HeatDrawings, HEATMAP_TOOLS } from './drawings';
 import { StressFeed, type StressResult } from './stress';
@@ -541,12 +542,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
               camera={params.camera}
               onCamera={setCamera}
               height={s.surfaceHeight}
-              renderer={s.renderer3d}
-              powerPreference={
-                values['common.heatmapAdapter'] === 'auto'
-                  ? 'default'
-                  : (values['common.heatmapAdapter'] as 'high-performance' | 'low-power')
-              }
+              renderer={heatmapRenderer(s.renderer3d, values)}
+              powerPreference={gpuPreference(values)}
               background={palette.chartBg}
               onRenderer={setUsed3d}
             />

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — round 5
+
+### Added
+
+- Settings wired (P27, round 5): DOM font size, default price grouping of new DOMs, Buys / Sells window and swapped left / right click; Tape rows kept, minimum size, follow new trades, big-trade threshold, colour by side and beep on big trades; chart-axis and calendar / news time zones and exchange time on hover in tables and journal; FPS cap (charts, DOM, tape), renderer type and video adapter (3D heatmap); recorder disk budget and tick retention pushed to the native recorder. MBO history, backups and log files stay pending on native work (BLOCKERS).
+
 ## Unreleased — round 4
 
 ### Added
