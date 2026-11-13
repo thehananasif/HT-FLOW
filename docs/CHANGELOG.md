@@ -18,6 +18,10 @@
 
 - `modules/drawings/toolText.test.ts`: every drawing tool has a translated name, every tool with a note has a description key, and English output matches the package labels.
 
+### Fixed
+
+- Charts no longer freeze on 4 h (or 1 h, 1 D, 1 W): with few bars the view always counts as "scrolled past the first bar", and every redraw asked the feed for 240 bars of older history (40 days ≈ 28M simulated ticks for 4 h), then looped. Lazy left-scroll loading now starts only after a user scroll, asks for a capped chunk (2 h on simulated feeds, 1 day on live / replay), shows progress, and is cancelled when the timeframe changes; Go to date loads at most a day per step. Regression e2e `timeframe-coarse.spec.ts` (first paint under 1 s, no long tasks) and unit tests.
+
 ## Unreleased — round 4
 
 ### Added
