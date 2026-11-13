@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — round 5
+
+### Added
+
+- Settings wired (P27, round 5): DOM font size, default price grouping of new DOMs, Buys / Sells window and swapped left / right click; Tape rows kept, minimum size, follow new trades, big-trade threshold, colour by side and beep on big trades; chart-axis and calendar / news time zones and exchange time on hover in tables and journal; FPS cap (charts, DOM, tape), renderer type and video adapter (3D heatmap); recorder disk budget and tick retention pushed to the native recorder. MBO history, backups and log files stay pending on native work (BLOCKERS).
+- CSV importer in the Data manager: trades or OHLCV bars from a user-picked file with auto-detected delimiter, header, columns, time format (epoch s / ms / us / ns, ISO, d/m/y), time zone and side meaning, a preview of the first rows, rejected rows listed with line numbers, chunked streaming, and import to a `csv:` instrument that opens in charts and Replay.
+- "Custom WebSocket" connector in the Add-connection wizard: ws(s):// URL, `{symbol}` subscribe template and a JSON path mapping (price, qty, side, timestamp, optional book), reconnect with back-off, status in the Connections list, wizard test against the first message.
+
+### Changed
+
+- Drawing tool names and descriptions are translated through i18n (`drawings.tool.<id>`, `drawings.toolDesc.<id>`, group keys `drawings.menuGroup.*` and `drawings.toolbarGroup.*`). `@htflow/drawings` keeps its English labels as data; the UI layer (`modules/drawings/toolText.ts`) resolves them in the toolbar, Objects List, command palette, alerts and heatmap toolbar. English text is unchanged.
+- Chart right-click menu strings (`charts/menu.ts`) go through i18n under `chartMenu.*`, with interpolated labels for pane, limit/stop order and overlay items. English text is unchanged.
+- `drawingName` in `@htflow/drawings` takes an optional label resolver, used by the Objects List.
+
+### Tests
+
+- `modules/drawings/toolText.test.ts`: every drawing tool has a translated name, every tool with a note has a description key, and English output matches the package labels.
+
 ## Unreleased — round 4
 
 ### Added

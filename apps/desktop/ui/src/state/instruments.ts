@@ -64,11 +64,12 @@ function feedRefs(includeLive: boolean): FeedRef[] {
       out.push({ id: i.id, kind: 'live', label: 'Binance Futures', instrument: i });
   for (const p of feedProviders()) {
     if (p.desktopOnly && !includeLive) continue;
-    const kind: FeedKind = p.prefix.startsWith('replay')
-      ? 'replay'
-      : /delay|dxfeed/i.test(p.label + p.prefix)
-        ? 'delayed'
-        : 'live';
+    const kind: FeedKind =
+      p.prefix.startsWith('replay') || p.prefix === 'csv:'
+        ? 'replay'
+        : /delay|dxfeed/i.test(p.label + p.prefix)
+          ? 'delayed'
+          : 'live';
     for (const i of p.instruments()) out.push({ id: i.id, kind, label: p.label, instrument: i });
   }
   return out;

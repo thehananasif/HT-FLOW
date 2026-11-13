@@ -29,7 +29,7 @@ import {
   openUrl,
   useStore,
   useTick,
-  userTimezone,
+  useCalendarTimezone,
 } from '../rss/shared';
 import { reader } from '../rss/store';
 import { allEvents, calendar } from '../calendar/store';
@@ -145,7 +145,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
       off();
     };
   }, []);
-  const tz = userTimezone();
+  const tz = useCalendarTimezone();
   const chip = (win.params?.chip as NewsChip | undefined) ?? 'all';
   const followActive = win.params?.followActive === true;
   const alerts = (win.params?.alerts as string[] | undefined) ?? [];

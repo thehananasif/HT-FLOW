@@ -17,6 +17,7 @@ import {
 import { FOOTPRINT_GROUPS, FOOTPRINT_MODES, footprintMode } from '@htflow/footprint';
 import { toolDef, toolsIn, type ToolGroup, type ToolId } from '@htflow/drawings';
 import { activateTool, controllers, openObjectsList, useDrawUi } from '../modules/drawings/store';
+import { tk, toolbarGroupLabel, toolLabel, toolNote } from '../modules/drawings/toolText';
 
 /** Drawing groups (P45): each flyout lists tools of @htflow/drawings (P12). */
 const DRAW_GROUPS: { id: string; label: string; icon: typeof Minus; tools: ToolId[] }[] = [
@@ -146,8 +147,8 @@ export function SideTools({
         <div key={g.id} className="st-rel">
           <button
             className="st-btn"
-            aria-label={g.label}
-            title={g.label}
+            aria-label={toolbarGroupLabel(g.id, g.label)}
+            title={toolbarGroupLabel(g.id, g.label)}
             aria-expanded={open === g.id}
             data-has-tool={(tool && g.tools.includes(tool)) || undefined}
             onClick={() => setOpen(open === g.id ? null : g.id)}
@@ -156,8 +157,8 @@ export function SideTools({
             <ChevronRight size={7} className="st-chev" />
           </button>
           {open === g.id && (
-            <div className="st-flyout" role="menu" aria-label={g.label}>
-              <div className="ht-menu-label">{g.label}</div>
+            <div className="st-flyout" role="menu" aria-label={toolbarGroupLabel(g.id, g.label)}>
+              <div className="ht-menu-label">{toolbarGroupLabel(g.id, g.label)}</div>
               {g.tools.map((id) => {
                 const def = toolDef(id)!;
                 return (
@@ -167,12 +168,14 @@ export function SideTools({
                     aria-checked={tool === id}
                     className="st-item"
                     disabled={!def.ready}
-                    title={def.note}
+                    title={toolNote(id)}
                     onClick={act(() => activateTool(id, windowId))}
                   >
                     <span className="st-check" />
-                    {def.label}
-                    {!def.ready && <span className="ht-menu-sc">pending</span>}
+                    {toolLabel(id)}
+                    {!def.ready && (
+                      <span className="ht-menu-sc">{tk('drawings.pending', 'pending')}</span>
+                    )}
                     {def.ready && def.shortcut && (
                       <span className="ht-menu-sc">{def.shortcut}</span>
                     )}

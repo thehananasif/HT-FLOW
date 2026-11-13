@@ -792,7 +792,7 @@ export const SCHEMA = {
     help: 'Time zone of chart time axes and session separators.',
     default: 'app',
     special: ZONE_SPECIAL,
-    wired: false,
+    wired: true,
   }),
   'timezones.calendar': tz({
     section: 'timezones',
@@ -802,7 +802,7 @@ export const SCHEMA = {
     help: 'Time zone of the economic calendar and news (P39).',
     default: 'app',
     special: [ZONE_SPECIAL[0]!],
-    wired: false,
+    wired: true,
   }),
   'timezones.exchangeTimeOnHover': bool({
     section: 'timezones',
@@ -810,7 +810,7 @@ export const SCHEMA = {
     label: 'Exchange time on hover',
     help: 'Show the exchange local time in tooltips over times (charts, tables).',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'timezones.clocks': custom<string[]>({
     section: 'timezones',
@@ -947,21 +947,21 @@ export const SCHEMA = {
       { value: 'webgl2', label: 'WebGL2 (GPU)' },
       { value: 'canvas2d', label: 'Canvas 2D' },
     ],
-    wired: false,
+    wired: true,
   }),
   'performance.videoAdapter': oneOf({
     section: 'performance',
     alsoIn: ['common'],
     group: 'Rendering',
     label: 'Video adapter',
-    help: 'GPU preference on PCs with integrated + discrete graphics (applied on next start).',
+    help: 'GPU preference of WebGL contexts (3D heatmap) on PCs with integrated + discrete graphics; the Heatmap rendering adapter wins when set.',
     default: 'auto',
     options: [
       { value: 'auto', label: 'Auto' },
       { value: 'high-performance', label: 'Discrete (high performance)' },
       { value: 'low-power', label: 'Integrated (low power)' },
     ],
-    wired: false,
+    wired: true,
   }),
   'performance.showDebugInfo': bool({
     section: 'performance',
@@ -990,7 +990,7 @@ export const SCHEMA = {
     max: 240,
     step: 5,
     unit: 'fps',
-    wired: false,
+    wired: true,
   }),
   'performance.workerCount': num({
     section: 'performance',
@@ -1236,7 +1236,7 @@ export const SCHEMA = {
     max: 2000,
     step: 1,
     unit: 'GB',
-    wired: false,
+    wired: true,
   }),
   'common.tickRetentionDays': num({
     section: 'common',
@@ -1249,7 +1249,7 @@ export const SCHEMA = {
     max: 3650,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'common.domLevels': num({
     section: 'common',
@@ -2017,7 +2017,7 @@ export const SCHEMA = {
     max: 18,
     step: 1,
     unit: 'px',
-    wired: false,
+    wired: true,
   }),
   'dom.autoCenter': bool({
     section: 'dom',
@@ -2033,7 +2033,7 @@ export const SCHEMA = {
     help: 'Ticks per row of a newly opened DOM.',
     default: '1',
     options: ['1', '2', '5', '10', '20', '50'].map((v) => ({ value: v, label: `${v} tick` })),
-    wired: false,
+    wired: true,
   }),
   'dom.bigLotThreshold': num({
     section: 'dom',
@@ -2055,7 +2055,7 @@ export const SCHEMA = {
     max: 600,
     step: 1,
     unit: 's',
-    wired: false,
+    wired: true,
   }),
   'dom.invertClicks': bool({
     section: 'dom',
@@ -2063,7 +2063,7 @@ export const SCHEMA = {
     label: 'Swap left / right click',
     help: 'Left click sells and right click buys (default: left buys, right sells).',
     default: false,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Tape (P27)
@@ -2076,7 +2076,7 @@ export const SCHEMA = {
     min: 100,
     max: 100_000,
     step: 100,
-    wired: false,
+    wired: true,
   }),
   'tape.minSize': num({
     section: 'tape',
@@ -2087,7 +2087,7 @@ export const SCHEMA = {
     min: 0,
     max: 1_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'tape.autoScroll': bool({
     section: 'tape',
@@ -2095,7 +2095,7 @@ export const SCHEMA = {
     label: 'Follow new trades',
     help: 'Keep the newest trade in view.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'tape.showMs': bool({
     section: 'tape',
@@ -2113,7 +2113,7 @@ export const SCHEMA = {
     min: 0,
     max: 1_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'tape.colorBySide': bool({
     section: 'tape',
@@ -2121,7 +2121,7 @@ export const SCHEMA = {
     label: 'Colour by aggressor side',
     help: 'Green for buyer-initiated, red for seller-initiated trades.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'tape.beepOnBig': bool({
     section: 'tape',
@@ -2129,7 +2129,7 @@ export const SCHEMA = {
     label: 'Beep on big trades',
     help: 'Play the "big trade" sound for trades above the threshold.',
     default: false,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Trading (P27)

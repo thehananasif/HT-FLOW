@@ -8,6 +8,7 @@ import { DataTable, Pill, tableParams, type DataColumn } from '../../components/
 import { registerModule, type ModuleViewProps } from '../registry';
 import { risk } from '../risk/engine';
 import {
+  exchangeTimeTitle,
   fmtClock,
   fmtMoney,
   maskAccount,
@@ -417,7 +418,14 @@ const orderCols: DataColumn<Order>[] = [
     header: 'Time',
     width: 0.9,
     value: (o) => o.createdAt,
-    render: (o) => <span className="muted">{time(o.createdAt)}</span>,
+    render: (o) => (
+      <span
+        className="muted"
+        title={exchangeTimeTitle(o.createdAt, instrumentById(o.instrumentId)?.assetClass)}
+      >
+        {time(o.createdAt)}
+      </span>
+    ),
   },
   {
     id: 'instrument',
@@ -592,7 +600,14 @@ const tradeCols: DataColumn<Fill>[] = [
     header: 'Time',
     width: 1,
     value: (f) => f.ts,
-    render: (f) => <span className="muted">{time(f.ts, true)}</span>,
+    render: (f) => (
+      <span
+        className="muted"
+        title={exchangeTimeTitle(f.ts, instrumentById(f.instrumentId)?.assetClass)}
+      >
+        {time(f.ts, true)}
+      </span>
+    ),
   },
   {
     id: 'instrument',

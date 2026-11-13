@@ -55,6 +55,16 @@ export function layoutDirection(v: Pick<SettingsValues, 'general.rtl' | 'general
   return rtl ? 'rtl' : 'ltr';
 }
 
+/** Recorder limits from Settings → Common → Database & recorder (retention days, disk budget GB). */
+export function recorderLimits(
+  v: Pick<SettingsValues, 'common.recorderMaxGb' | 'common.tickRetentionDays'>,
+): { retentionDays: number; maxDiskGb: number } {
+  return {
+    retentionDays: Math.max(1, Math.round(v['common.tickRetentionDays'])),
+    maxDiskGb: Math.max(1, v['common.recorderMaxGb']),
+  };
+}
+
 /** Deletes the session and Cache API data (Settings → Privacy → clear caches). */
 export function clearLocalCaches(): void {
   try {
@@ -126,13 +136,27 @@ export function installSettingsEffects(): void {
       el.dir = layoutDirection(v);
       el.lang = v['general.language'];
     }
-    // Settings → Data → recorder: turns the native tick-store recorder on / off (desktop only;
-    // only on a change so the Data Manager's own toggle is not overridden at start-up).
-    if (prev && changed('data.recorderEnabled') && isTauri) {
-      const on = v['data.recorderEnabled'];
+    // Settings → Data → recorder: turns the native tick-store recorder on / off and applies its
+    // disk budget / retention (desktop only; only on a change so the Data Manager's own toggle
+    // and limits are not overridden at start-up).
+    if (
+      prev &&
+      isTauri &&
+      (changed('data.recorderEnabled') ||
+        changed('common.recorderMaxGb') ||
+        changed('common.tickRetentionDays'))
+    ) {
+      const lim = recorderLimits(v);
       void dataApi
         .status()
-        .then((st) => dataApi.setRecorder(on, st.settings.instruments))
+        .then((st) =>
+          dataApi.setRecorder(
+            v['data.recorderEnabled'],
+            st.settings.instruments,
+            lim.retentionDays,
+            lim.maxDiskGb,
+          ),
+        )
         .catch(() => {});
     }
     // Settings → Data → cache size: caps the native history cache (also at start-up).
