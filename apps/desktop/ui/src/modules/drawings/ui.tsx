@@ -39,6 +39,7 @@ import {
 } from '@htflow/drawings';
 import type { ChartWindowState } from '@htflow/workspace';
 import { useWindows } from '../../state/windows';
+import { toolLabel, toolNote } from './toolText';
 import { hub, paper, PAPER_ACCOUNT } from '../../state/market';
 import type { ModuleViewProps } from '../registry';
 import { EmojiPicker } from './emoji';
@@ -85,8 +86,10 @@ function instrumentOf(instrumentId: string) {
 
 function nameOf(d: Drawing, instrumentId: string): string {
   const inst = instrumentOf(instrumentId);
-  return drawingName(d, (px) =>
-    inst ? formatPrice(Math.round(px), inst) : String(Math.round(px)),
+  return drawingName(
+    d,
+    (px) => (inst ? formatPrice(Math.round(px), inst) : String(Math.round(px))),
+    toolLabel,
   );
 }
 
@@ -117,8 +120,8 @@ export function DrawingsOverlay({
     >
       {def && (
         <div className="dr-hint">
-          {def.label}
-          {def.note ? ` — ${def.note}` : ''} · Esc to cancel
+          {toolLabel(def.id)}
+          {toolNote(def.id) ? ` — ${toolNote(def.id)}` : ''} · Esc to cancel
         </div>
       )}
       {d && showBar && !def && (
@@ -129,7 +132,7 @@ export function DrawingsOverlay({
           onContextMenu={(e) => e.stopPropagation()}
         >
           <span className="dr-name" data-testid="dr-name">
-            {nSel > 1 ? t('drawings.nSelected', { n: nSel }) : toolDef(d.type)?.label}
+            {nSel > 1 ? t('drawings.nSelected', { n: nSel }) : toolLabel(d.type)}
           </span>
           <input
             type="color"
@@ -310,7 +313,7 @@ function PropertiesDialog({
     <Dialog
       open
       onOpenChange={(o) => !o && close()}
-      title={def?.label ?? t('drawings.drawing')}
+      title={def ? toolLabel(d.type) : t('drawings.drawing')}
       width={460}
     >
       <div className="col gap12 dr-props">

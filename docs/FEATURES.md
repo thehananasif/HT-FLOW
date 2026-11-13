@@ -157,7 +157,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] ZigZag volume profile, CVD correlation, Magnifier (M), Remove indicators; Ctrl+Z / Ctrl+Y / Del / Ctrl+A registry commands; drawings on both Order Flow (Dark) panes; Objects List ribbon button
 - [x] i18n of drawing strings (toolbar, menus, dialogs, Objects List, toasts)
 - [x] Ctrl+Z / Ctrl+Y / Del act on the active chart even when the last click was outside any window
-- [ ] i18n of drawing tool names and descriptions (`@htflow/drawings` labels still English)
+- [x] i18n of drawing tool names and descriptions (`drawings.tool.<id>`, `drawings.toolDesc.<id>`; `@htflow/drawings` keeps English data and the UI layer translates)
 
 ## P13 — Indicator framework
 
@@ -269,7 +269,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Full menu in spec order: Buy Limit / Sell Stop (or Sell Limit / Buy Stop) at cursor price with the Trading Panel account + ATM bracket, Set alert, Trading Panel, DOM Trader, Lock trading, Go to date, Change instrument, Mode ▸, Mouse ▸, Price scale ▸, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window ▸, Clone, Hide panels, Trading session ▸, Refresh, Reload history, ◂ Load 1 more day, Add replay template, Reset, Export ▸ (PNG, CSV bars, CSV clusters, JSON, template JSON), Full screen, Settings
 - [x] Context-aware menus: drawing (edit / clone / lock / hide / delete), indicator legend or pane (settings / hide / remove / move pane), order line (cancel / move), position (close / breakeven), price scale, time scale, sub-panes; every item has a Command Palette entry; Playwright clicks through the menu (`e2e/chart-menu.spec.ts`)
-- [ ] i18n of menu strings
+- [x] i18n of the chart menu's own strings (`chartMenu.*`: scale, trade, template, mouse, layout, export and window items)
+- [ ] Chart menu entries that come from other modules are still English: chart template and layout preset names, footprint mode names, time zones, display and trading-session modes, mouse modes
 
 ## P27 — Settings & customization centre
 

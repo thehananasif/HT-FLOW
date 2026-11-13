@@ -4,19 +4,14 @@
  * per flagged drawing, so drawing alerts show up in the Alerts window, share its actions
  * (Telegram / Discord, flash, sounds) and keep firing while the chart window is closed or hidden.
  */
-import {
-  alertChannels,
-  describeAlertEvent,
-  detectAlert,
-  supportsAlert,
-  toolDef,
-} from '@htflow/drawings';
+import { alertChannels, describeAlertEvent, detectAlert, supportsAlert } from '@htflow/drawings';
 import type { Alert, AlertCondition } from '@htflow/alerts';
 import { formatPrice } from '@htflow/market-data';
 import { instrumentById } from '../../state/instruments';
 import { useWindows } from '../../state/windows';
 import { alerts, onDrawingAlertRemoved } from '../alerts/runtime';
 import { mutate, readDrawings } from './store';
+import { toolLabel } from './toolText';
 
 type DrawingCond = Extract<AlertCondition, { kind: 'drawing' }>;
 
@@ -52,7 +47,7 @@ export function wantedDrawingAlerts(
           instrumentId: w.instrumentId,
           windowId: w.id,
           drawingId: d.id,
-          label: toolDef(d.type)?.label ?? 'Drawing',
+          label: toolLabel(d.type),
         },
         popup: ch.toast,
         sound: ch.sound,
@@ -129,7 +124,7 @@ alerts.setDrawingDetector((c, prev, cur) => {
   if (!ev) return null;
   const inst = instrumentById(c.instrumentId);
   const level = Math.round(ev.level);
-  const label = toolDef(d.type)?.label ?? 'drawing';
+  const label = toolLabel(d.type);
   return {
     message: `${describeAlertEvent(ev, label)} @ ${inst ? formatPrice(level, inst) : level}`,
     px: cur.px,

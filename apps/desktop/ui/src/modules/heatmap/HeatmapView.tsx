@@ -42,7 +42,8 @@ import {
   formatPrice,
   type Instrument,
 } from '@htflow/market-data';
-import { toolDef, type Drawing, type ToolId } from '@htflow/drawings';
+import { type Drawing, type ToolId } from '@htflow/drawings';
+import { toolLabel } from '../drawings/toolText';
 import { useMarketStore, useStoreTicker } from '../../charts/useMarket';
 import { usePalette } from '../../charts/palette';
 import { useSettingsStore } from '../../state/settings';
@@ -486,8 +487,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
                 key={t.id}
                 type="button"
                 className="hm-tool"
-                aria-label={t.label}
-                title={t.label}
+                aria-label={toolLabel(t.id)}
+                title={toolLabel(t.id)}
                 aria-pressed={dr?.tool === t.id}
                 onClick={() => dr?.setTool(t.id)}
               >
@@ -681,7 +682,7 @@ function DrawPanel({
                   className="hm-obj-name"
                   onClick={() => dr.ctrl.host.select(d.id)}
                 >
-                  {toolDef(d.type)?.label ?? d.type}
+                  {toolLabel(d.type)}
                 </button>
                 <button
                   type="button"

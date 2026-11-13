@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased — round 4
+## Unreleased — round 5
+
+### Changed
+
+- Drawing tool names and descriptions are translated through i18n (`drawings.tool.<id>`, `drawings.toolDesc.<id>`, group keys `drawings.menuGroup.*` and `drawings.toolbarGroup.*`). `@htflow/drawings` keeps its English labels as data; the UI layer (`modules/drawings/toolText.ts`) resolves them in the toolbar, Objects List, command palette, alerts and heatmap toolbar. English text is unchanged.
+- Chart right-click menu strings (`charts/menu.ts`) go through i18n under `chartMenu.*`, with interpolated labels for pane, limit/stop order and overlay items. English text is unchanged.
+- `drawingName` in `@htflow/drawings` takes an optional label resolver, used by the Objects List.
+
+### Tests
+
+- `modules/drawings/toolText.test.ts`: every drawing tool has a translated name, every tool with a note has a description key, and English output matches the package labels.
 
 ### Added
 

@@ -35,6 +35,7 @@ import {
   useDrawUi,
 } from './store';
 import { MagnifierLayer } from './lens';
+import { menuGroupLabel, toolLabel, toolPendingLabel } from './toolText';
 import { DrawingsOverlay, ObjectsList } from './ui';
 
 /** One controller per built chart (rebuilt with the chart on template / timeframe change). */
@@ -108,7 +109,7 @@ function ensure(ctx: ChartExtensionContext) {
 
 function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
   const { ctrl } = ensure(ctx);
-  const name = toolDef(d.type)?.label ?? t('drawings.drawing');
+  const name = toolDef(d.type) ? toolLabel(d.type) : t('drawings.drawing');
   const sel = selectionOf(ctx.windowId);
   const inGroup = sel.length > 1 && sel.includes(d.id);
   return [
@@ -215,10 +216,10 @@ registerChartExtension({
           ...TOOL_GROUPS.map((g): MenuEntry => ({
             kind: 'submenu',
             id: `dr-g-${g.id}`,
-            label: g.label,
+            label: menuGroupLabel(g.id, g.label),
             items: toolsIn(g.id).map((t) => ({
               id: `dr-t-${t.id}`,
-              label: t.ready ? t.label : `${t.label} (pending)`,
+              label: t.ready ? toolLabel(t.id) : toolPendingLabel(t.id),
               shortcut: t.shortcut,
               disabled: !t.ready,
               checked: active === t.id,
@@ -355,8 +356,8 @@ const cmds: Command[] = [
   ...TOOLS.filter((tool) => tool.ready).map((tool): Command => ({
     id: `draw.${tool.id}`,
     label: tool.command
-      ? t('drawings.cmdDrawing', { label: tool.label })
-      : t('drawings.cmdDraw', { label: tool.label }),
+      ? t('drawings.cmdDrawing', { label: toolLabel(tool.id) })
+      : t('drawings.cmdDraw', { label: toolLabel(tool.id) }),
     group: 'Drawing',
     shortcut: tool.shortcut,
     scope: tool.id === 'magnifier' ? 'chart' : undefined,

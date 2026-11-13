@@ -14,6 +14,7 @@ import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import { toast } from '@htflow/ui-kit';
 import { backend } from '../../backend';
 import { useWindows } from '../../state/windows';
+import { toolLabel, toolNote } from './toolText';
 import { readExt, writeExt as writeIndicators } from '../indicators/state';
 import type { ChartExtensionContext } from '../../charts/extensions';
 
@@ -214,7 +215,11 @@ export function activateTool(tool: ToolId | null, windowId = activeChartId()): v
   if (!windowId) return;
   const def = tool ? toolDef(tool) : null;
   if (tool && !def?.ready) {
-    toast('info', t('drawings.notAvailable', { name: def?.label ?? tool }), def?.note);
+    toast(
+      'info',
+      t('drawings.notAvailable', { name: toolLabel(tool) }),
+      toolNote(tool) ?? undefined,
+    );
     return;
   }
   const ui = useDrawUi.getState();
