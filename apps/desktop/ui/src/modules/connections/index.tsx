@@ -5,6 +5,8 @@ import { isTauri } from '../../backend';
 import { isVenueEnabled, setVenueEnabled, venueStats } from '../../state/liveFeed';
 import { registerModule } from '../registry';
 import { DataManager } from '../data-manager/view';
+import { openCsvImport } from '../data-manager/import/ui';
+import { customWsState, setCustomWsEnabled } from '../../feeds/customWs';
 import { ConnectionWizard } from './Wizard';
 import { useConnections, venueOf } from './store';
 import { latencyLevel, providerById, type ConnectionConfig, type LatencyLevel } from './providers';
@@ -80,6 +82,45 @@ function rowFor(c: ConnectionConfig): Row {
       connected: true,
     };
   }
+  if (p.form === 'ws') {
+    const w = customWsState(c.id);
+    const st = w.status;
+    const host = (() => {
+      try {
+        return new URL(c.ws?.url ?? '').host;
+      } catch {
+        return c.ws?.url ?? '';
+      }
+    })();
+    let status: RowStatus = 'disconnected';
+    let label = 'Disconnected';
+    if (!w.enabled) label = 'Disconnected';
+    else if (!st) label = 'Connected · idle';
+    else if (st.state === 'live') {
+      status = 'connected';
+      label = 'Connected';
+    } else if (st.state === 'connecting') {
+      status = 'connecting';
+      label = 'Connecting…';
+    } else if (st.state === 'error') {
+      status = 'error';
+      label = `Error: ${st.message ?? 'disconnected'}`;
+    }
+    if (w.enabled && !st) status = 'connected';
+    const live = w.enabled && st?.state === 'live';
+    return {
+      ...base,
+      type: 'Custom feed',
+      subtitle: `${host} · ${c.ws?.symbol ?? ''} · ${w.feeds} streaming`,
+      status,
+      label,
+      latency: live ? st!.latencyMs : null,
+      latencyText: live ? `${st!.latencyMs.toFixed(0)} ms` : '—',
+      msgs: live ? st!.msgsPerSec : null,
+      canToggle: true,
+      connected: w.enabled,
+    };
+  }
   const v = venue!;
   const st = venueStats(v);
   const enabled = isVenueEnabled(v);
@@ -139,6 +180,7 @@ function Connections({ onData }: { onData: () => void }) {
     for (const r of rows) {
       const v = venueOf(r.c);
       if (v && r.canToggle) setVenueEnabled(v, on);
+      else if (r.c.provider === 'custom-ws') setCustomWsEnabled(r.c.id, on);
     }
   };
   return (
@@ -200,7 +242,11 @@ function Connections({ onData }: { onData: () => void }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setVenueEnabled(venueOf(r.c)!, !r.connected)}
+                        onClick={() =>
+                          r.c.provider === 'custom-ws'
+                            ? setCustomWsEnabled(r.c.id, !r.connected)
+                            : setVenueEnabled(venueOf(r.c)!, !r.connected)
+                        }
                       >
                         {r.connected ? 'Disconnect' : 'Connect'}
                       </Button>
@@ -254,7 +300,17 @@ function Connections({ onData }: { onData: () => void }) {
           <b className="tnum">{gaps}</b>
         </div>
       </div>
-      {wizard && <ConnectionWizard open edit={wizard.edit} onClose={() => setWizard(null)} />}
+      {wizard && (
+        <ConnectionWizard
+          open
+          edit={wizard.edit}
+          onClose={() => setWizard(null)}
+          onImport={() => {
+            openCsvImport();
+            onData();
+          }}
+        />
+      )}
     </div>
   );
 }
