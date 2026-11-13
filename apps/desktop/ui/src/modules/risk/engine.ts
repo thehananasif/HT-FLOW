@@ -10,6 +10,8 @@ import { backend } from '../../backend';
 import { hub, paper } from '../../state/market';
 import { useSession } from '../../state/session';
 import { activityLog } from '../activity/log';
+import { allEvents, calendar } from '../calendar/store';
+import { newsFromCalendar } from './news';
 
 const KEY = 'risk.settings';
 export const localTimeZone = (): string => {
@@ -25,6 +27,8 @@ interface Saved {
   locks: RiskLockSnapshot;
   /** Salted SHA-256 of the override password (never the password itself). */
   override: { salt: string; hash: string } | null;
+  /** "Apply to all paper accounts" rules, used for accounts without their own. */
+  defaults?: RiskRules | null;
 }
 
 /** The app-wide risk engine: pre-trade checks and loss monitoring on the paper engine. */
@@ -43,12 +47,39 @@ export async function sha256Hex(text: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Rules / locks loaded for accounts that do not exist yet (paper accounts load after risk). */
+let savedRules: Record<string, RiskRules> = {};
+let pendingLocks: RiskLockSnapshot = {};
+/** Rules for accounts without their own (every new paper account); null = built-in defaults. */
+let defaultsSaved: RiskRules | null = null;
+
 function save(): void {
-  const rules: Record<string, RiskRules> = {};
+  const rules: Record<string, RiskRules> = { ...savedRules };
   for (const id of paper.accounts.keys()) rules[id] = risk.rules(id);
-  const data: Saved = { rules, locks: risk.snapshotLocks(), override };
+  savedRules = rules;
+  const data: Saved = {
+    rules,
+    locks: { ...pendingLocks, ...risk.snapshotLocks() },
+    override,
+    defaults: defaultsSaved,
+  };
   void backend.saveSettings(KEY, data);
 }
+
+/** Re-applies rules and locks once their paper accounts exist (created after the risk load). */
+function applyPending(): void {
+  const ready: RiskLockSnapshot = {};
+  for (const [id, l] of Object.entries(pendingLocks))
+    if (paper.accounts.has(id)) {
+      ready[id] = l;
+      delete pendingLocks[id];
+    }
+  if (Object.keys(ready).length) {
+    risk.restoreLocks(ready);
+    notify();
+  }
+}
+paper.subscribe(applyPending);
 
 export const riskStore = {
   subscribe(fn: () => void): () => void {
@@ -75,6 +106,23 @@ export const riskStore = {
     risk.setRules(accountId, rules);
     save();
     notify();
+  },
+  /**
+   * Applies rules to every paper account (existing ones and any created later): they become the
+   * default rules too.
+   */
+  saveRulesForAll(rules: RiskRules): number {
+    let n = 0;
+    for (const a of paper.accounts.values())
+      if (a.kind === 'paper') {
+        risk.setRules(a.id, rules);
+        n++;
+      }
+    risk.defaultRules = rules;
+    defaultsSaved = rules;
+    save();
+    notify();
+    return n;
   },
   unlock(accountId: string): void {
     risk.unlock(accountId);
@@ -106,14 +154,43 @@ function onSession(): void {
   if (id === loadedFor) return;
   loadedFor = id;
   if (!id) return;
+  const tz = localTimeZone();
+  risk.defaultRules = defaultRiskRules(tz);
+  savedRules = {};
+  pendingLocks = {};
+  defaultsSaved = null;
   void backend.loadSettings<Saved>(KEY).then((s) => {
     if (!s) return;
-    for (const [acc, r] of Object.entries(s.rules ?? {}))
-      risk.setRules(acc, sanitizeRiskRules(r, localTimeZone()));
+    savedRules = {};
+    for (const [acc, r] of Object.entries(s.rules ?? {})) {
+      const clean = sanitizeRiskRules(r, tz);
+      savedRules[acc] = clean;
+      // Rules for accounts that do not exist yet are kept by id and apply once they are created.
+      risk.setRules(acc, clean);
+    }
+    defaultsSaved = s.defaults ? sanitizeRiskRules(s.defaults, tz) : null;
+    if (defaultsSaved) risk.defaultRules = defaultsSaved;
     override = s.override ?? null;
-    if (s.locks) risk.restoreLocks(s.locks);
+    pendingLocks = { ...(s.locks ?? {}) };
+    applyPending();
     notify();
   });
 }
+
+/* ---------------- news-flatten ← Economic Calendar ---------------- */
+
+/** Upcoming high-impact calendar events fed to the "Flatten before news" rule. */
+export function newsFeed(now = Date.now()) {
+  const s = calendar.get();
+  return newsFromCalendar(allEvents(s, now), now, { includeSample: s.newsFlattenSample });
+}
+
+function syncNews(): void {
+  if (!calendar.loaded) return;
+  risk.setNewsEvents(newsFeed());
+}
+calendar.subscribe(syncNews);
+setInterval(syncNews, 30_000);
+syncNews();
 useSession.subscribe(onSession);
 onSession();

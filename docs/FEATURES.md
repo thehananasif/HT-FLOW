@@ -192,7 +192,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] ATM templates (`packages/trading/src/atm.ts`): SL ticks / $ / % / ATR / trailing, up to 8 weighted targets in $ / % / points / ticks, auto-breakeven, trailing steps, 5 presets; ATM & Trading Setup window (editor, JSON import / export); picker in Trading Panel, DOM and DOM Trader
 - [x] Chart trading (chart extension): position line with live P&L and ✕ close, draggable working-order and SL / TP lines with ✕ cancel, B / S fill markers, right-click order menu; all styles configurable
 - [x] Multiple paper accounts (create, rename, starting balance and currency, reset, delete); order confirmations per order type; account picker shows the routed account (replay); minimal options positions model in the engine
-- [ ] Chart right-click Buy / Sell and Dashboard Flatten / Breakeven still use the default paper account without ATM; risk engine covers the default account only; options model not connected to the Options Board; saved accounts keep settings, not balances / positions; OCO checkbox inert
+- [x] Chart right-click Buy / Sell, Dashboard Flatten / Breakeven and the risk meter use the selected paper account; the risk engine covers every paper account; saved accounts keep settings and cash balance
+- [ ] Chart right-click orders have no ATM; options model not connected to the Options Board; open positions are not saved across restarts; OCO checkbox inert
 - [x] Tests: bracket with 3 targets fills correctly; PnL matches hand calculation
 
 ## P18 — Options Board & analytics
@@ -229,7 +230,10 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Risk engine (P41): daily loss (flatten + lock to next day), trailing drawdown, max position per instrument, orders per minute, trades per day, trading hours with time zone, profit target; 80% warnings; prop-firm / conservative presets; hashed override password; locks survive restart; title-bar meter shows Locked
 - [x] Alerts (`@htflow/alerts`): price cross, big trade, bar delta, DOM level within N ticks, connection lost; count / expiry / cooldown; popup, beep, desktop notification, activity log; Alerts window; chart right-click "Set alert" and alert lines
-- [ ] Indicator / drawing / liquidation / funding alert conditions, Telegram / Discord, flash window, custom sound; news-flatten has a hook but no calendar feed; risk covers paper accounts only
+- [x] Drawing alerts unified with the engine (listed in Alerts, all actions, work with the chart hidden); funding-rate and liquidation conditions; generic indicator value condition + `addAlert()` / `pushValue()` API (`modules/alerts/api.ts`)
+- [x] Flash window / taskbar, per-alert sound (built-in or a local file saved in the profile), Telegram and Discord delivery (own bot token / webhook in the vault, test send, throttle), Settings → Alerts keys wired
+- [x] News-flatten fed by the Economic Calendar (high-impact events; SAMPLE optional); risk rules can be applied to every paper account and are used for new ones; locks / rules of all paper accounts survive restart
+- [ ] Discord from the desktop app needs a native POST command (`net_post_json`, see BLOCKERS); indicator values are only checked once the Indicators dialog pushes them; "Once per bar" repeat behaves like "Every time"; risk for broker accounts (no broker connectors)
 
 ## P24 — Replay
 

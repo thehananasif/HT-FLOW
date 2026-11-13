@@ -8,9 +8,12 @@ import {
   type RiskRuleId,
   type RiskRules,
 } from '@htflow/trading';
-import { paper, PAPER_ACCOUNT } from '../../state/market';
+import { paper } from '../../state/market';
+import { activeAccount } from '../../trading/accounts';
 import { registerModule } from '../registry';
-import { localTimeZone, risk, riskStore } from './engine';
+import { localTimeZone, newsFeed, risk, riskStore } from './engine';
+import { calendar } from '../calendar/store';
+import { useStore } from '../rss/shared';
 import './styles.css';
 
 const RULES: { id: RiskRuleId; label: string; action: string; unit: string }[] = [
@@ -160,11 +163,20 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
     setDirty(true);
   };
   const errors = validateRiskRules(draft);
+  const [toAll, setToAll] = useState(false);
   const commit = () => {
-    riskStore.saveRules(acc.id, draft);
+    if (toAll) {
+      const n = riskStore.saveRulesForAll(draft);
+      toast('success', 'Risk rules saved', `All ${n} paper accounts (and new ones)`);
+    } else {
+      riskStore.saveRules(acc.id, draft);
+      toast('success', 'Risk rules saved', acc.name);
+    }
     setDirty(false);
-    toast('success', 'Risk rules saved', acc.name);
   };
+  const cal = useStore(calendar);
+  const news = newsFeed();
+  const nextNews = news.find((n) => n.ts > Date.now());
   const usedPct = Math.round(st.dailyLossUsed * 100);
   const badge = st.locked
     ? 'Locked'
@@ -293,6 +305,24 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
           );
         })}
       </div>
+      <div className="risk-news muted" data-testid="risk-news-feed">
+        <span className="grow">
+          News feed: Economic Calendar · {news.length} high-impact event
+          {news.length === 1 ? '' : 's'} this week
+          {nextNews ? ` · next: ${nextNews.title} ${new Date(nextNews.ts).toLocaleString()}` : ''}
+        </span>
+        <label className="ht-check">
+          <input
+            type="checkbox"
+            checked={cal.newsFlattenSample}
+            data-testid="risk-news-sample"
+            onChange={(e) =>
+              calendar.set({ ...calendar.get(), newsFlattenSample: e.target.checked })
+            }
+          />
+          Count SAMPLE events
+        </label>
+      </div>
       {errors.length > 0 && <div className="risk-err">{errors.join(' · ')}</div>}
       <div className="risk-foot">
         <select
@@ -316,6 +346,21 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
           <option value="default">Reset to defaults</option>
         </select>
         <span className="grow" />
+        <label
+          className="ht-check"
+          title="Save these rules to every paper account and use them for new accounts"
+        >
+          <input
+            type="checkbox"
+            checked={toAll}
+            data-testid="risk-apply-all"
+            onChange={(e) => {
+              setToAll(e.target.checked);
+              setDirty(true);
+            }}
+          />
+          Apply to all paper accounts
+        </label>
         <Button size="sm" variant="outline" onClick={() => setAsk('set')}>
           Override password…
         </Button>
@@ -358,7 +403,7 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
 registerModule({
   id: 'risk',
   view: function RiskModule({ state, setParams }) {
-    const account = (state.params?.account as string | undefined) ?? PAPER_ACCOUNT;
+    const account = (state.params?.account as string | undefined) ?? activeAccount();
     return <RiskWindow account={account} setAccount={(a) => setParams({ account: a })} />;
   },
 });

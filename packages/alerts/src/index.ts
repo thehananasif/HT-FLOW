@@ -19,7 +19,51 @@ export type AlertCondition =
       side: 'bid' | 'ask' | 'any';
     }
   /** Feed disconnected or in error (instrumentId null = any connection). */
-  | { kind: 'connection-lost'; instrumentId: string | null };
+  | { kind: 'connection-lost'; instrumentId: string | null }
+  /**
+   * Funding rate (live perpetuals) ≥ / ≤ value, or |rate| ≥ value. `value` is in percent per
+   * funding interval (0.01 = 0.01 %). Fires when the rate enters the condition.
+   */
+  | { kind: 'funding'; instrumentId: string; op: 'gte' | 'lte' | 'abs-gte'; value: number }
+  /**
+   * Liquidations (live derivatives venues): one liquidation ≥ minQty (windowMs = 0), or the sum
+   * of liquidations within a rolling window ≥ minQty. `side` is the liquidation order side:
+   * 'sell' = longs liquidated, 'buy' = shorts liquidated.
+   */
+  | {
+      kind: 'liquidation';
+      instrumentId: string;
+      side: 'buy' | 'sell' | 'any';
+      minQty: number;
+      windowMs: number;
+    }
+  /**
+   * Last price crosses / enters / exits a chart drawing (P12 "alert on cross"). The geometry is
+   * resolved at evaluation time through `AlertEngine.setDrawingDetector`, so moving the drawing
+   * moves the alert.
+   */
+  | {
+      kind: 'drawing';
+      instrumentId: string;
+      windowId: string;
+      drawingId: string;
+      /** Tool label shown in lists ("Trend line", "Rectangle"…). */
+      label: string;
+    }
+  /**
+   * A value series pushed by its producer (indicators, studies, strategies) through
+   * `AlertEngine.onValue(instrumentId, key, value)`: crosses / is ≥ / ≤ a level.
+   */
+  | {
+      kind: 'indicator';
+      instrumentId: string;
+      /** Series key chosen by the producer, e.g. "rsi(14)@chart-3". */
+      key: string;
+      /** Human label, e.g. "RSI (14)". */
+      label: string;
+      op: 'cross-up' | 'cross-down' | 'cross' | 'gte' | 'lte';
+      value: number;
+    };
 
 export type AlertKind = AlertCondition['kind'];
 
@@ -28,6 +72,14 @@ export interface AlertActions {
   sound: boolean;
   desktop: boolean;
   log: boolean;
+  /** Flash the window / taskbar button. */
+  flash?: boolean;
+  /** Send to the user's Telegram bot (token + chat id in the vault). */
+  telegram?: boolean;
+  /** Send to the user's Discord webhook (URL in the vault). */
+  discord?: boolean;
+  /** Sound to play: a built-in sound id or "custom:<id>" (empty = the Alert sound event). */
+  soundRef?: string;
 }
 
 export interface Alert {
@@ -82,7 +134,22 @@ export const DEFAULT_ACTIONS: AlertActions = {
   sound: true,
   desktop: false,
   log: true,
+  flash: false,
+  telegram: false,
+  discord: false,
 };
+
+export const ALERT_KINDS: AlertKind[] = [
+  'price-cross',
+  'big-trade',
+  'bar-delta',
+  'dom-size',
+  'connection-lost',
+  'funding',
+  'liquidation',
+  'drawing',
+  'indicator',
+];
 
 export function newAlert(
   condition: AlertCondition,
@@ -121,7 +188,74 @@ export function validateCondition(c: AlertCondition): string[] {
     pos(c.minQty, 'Size');
     if (!Number.isFinite(c.withinTicks) || c.withinTicks < 0) e.push('Ticks must be 0 or more');
   }
+  if (c.kind === 'funding') {
+    if (!Number.isFinite(c.value)) e.push('Enter a funding rate');
+    else if (c.op === 'abs-gte' && c.value <= 0) e.push('Funding rate must be greater than 0');
+  }
+  if (c.kind === 'liquidation') {
+    pos(c.minQty, 'Size');
+    if (!Number.isFinite(c.windowMs) || c.windowMs < 0) e.push('Window must be 0 or more');
+  }
+  if (c.kind === 'drawing' && (!c.windowId || !c.drawingId)) e.push('Choose a drawing');
+  if (c.kind === 'indicator') {
+    if (!c.key) e.push('Choose an indicator');
+    if (!Number.isFinite(c.value)) e.push('Enter a value');
+  }
   return e;
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object';
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * Validates a saved alert (profile settings, imports). Unknown kinds and broken shapes are
+ * dropped (null); missing optional fields get defaults so older saves keep working.
+ */
+export function normalizeAlert(raw: unknown): Alert | null {
+  if (!isObj(raw) || typeof raw.id !== 'string' || !isObj(raw.condition)) return null;
+  const c = raw.condition as unknown as AlertCondition;
+  if (!ALERT_KINDS.includes(c.kind)) return null;
+  if (c.kind !== 'connection-lost' && typeof c.instrumentId !== 'string') return null;
+  if (validateCondition(c).length) return null;
+  const act = isObj(raw.actions) ? raw.actions : {};
+  const flag = (k: keyof AlertActions, d: boolean): boolean =>
+    typeof act[k] === 'boolean' ? (act[k] as boolean) : d;
+  const actions: AlertActions = {
+    popup: flag('popup', true),
+    sound: flag('sound', true),
+    desktop: flag('desktop', false),
+    log: flag('log', true),
+    flash: flag('flash', false),
+    telegram: flag('telegram', false),
+    discord: flag('discord', false),
+  };
+  if (typeof act.soundRef === 'string' && act.soundRef) actions.soundRef = act.soundRef;
+  return {
+    id: raw.id,
+    condition: c,
+    actions,
+    enabled: raw.enabled !== false,
+    maxTriggers: finite(raw.maxTriggers) && raw.maxTriggers >= 0 ? Math.floor(raw.maxTriggers) : 0,
+    fired: finite(raw.fired) && raw.fired >= 0 ? Math.floor(raw.fired) : 0,
+    lastFiredAt: finite(raw.lastFiredAt) ? raw.lastFiredAt : null,
+    expiresAt: finite(raw.expiresAt) ? raw.expiresAt : null,
+    cooldownMs: finite(raw.cooldownMs) && raw.cooldownMs >= 0 ? raw.cooldownMs : 30_000,
+    createdAt: finite(raw.createdAt) ? raw.createdAt : 0,
+  };
+}
+
+export function normalizeAlerts(raw: unknown): Alert[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Alert[] = [];
+  const seen = new Set<string>();
+  for (const r of raw) {
+    const a = normalizeAlert(r);
+    if (a && !seen.has(a.id)) {
+      seen.add(a.id);
+      out.push(a);
+    }
+  }
+  return out;
 }
 
 export interface DescribeOptions {
@@ -140,9 +274,60 @@ export function describeCondition(c: AlertCondition, o: DescribeOptions = {}): s
       return `${sym(c.instrumentId)} ${Math.round(c.barMs / 60_000)}m bar delta ${c.op === 'gte' ? '≥' : '≤'} ${c.value}`;
     case 'dom-size':
       return `${sym(c.instrumentId)} DOM ${c.side === 'any' ? 'level' : c.side} ≥ ${c.minQty} within ${c.withinTicks} ticks`;
+    case 'funding':
+      return `${sym(c.instrumentId)} funding ${c.op === 'gte' ? '≥' : c.op === 'lte' ? '≤' : '|rate| ≥'} ${c.value}%`;
+    case 'liquidation': {
+      const who = c.side === 'sell' ? 'long ' : c.side === 'buy' ? 'short ' : '';
+      return c.windowMs > 0
+        ? `${sym(c.instrumentId)} ${who}liquidations ≥ ${c.minQty} in ${fmtWindow(c.windowMs)}`
+        : `${sym(c.instrumentId)} ${who}liquidation ≥ ${c.minQty}`;
+    }
+    case 'drawing':
+      return `${sym(c.instrumentId)} ${c.label} (drawing)`;
+    case 'indicator': {
+      const ops = {
+        'cross-up': 'crosses above',
+        'cross-down': 'crosses below',
+        cross: 'crosses',
+        gte: '≥',
+        lte: '≤',
+      } as const;
+      return `${sym(c.instrumentId)} ${c.label} ${ops[c.op]} ${c.value}`;
+    }
     default:
       return `Connection lost (${c.instrumentId ? sym(c.instrumentId) : 'any'})`;
   }
+}
+
+function fmtWindow(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min`;
+  return `${Math.round(ms / 3_600_000)} h`;
+}
+
+function round(v: number, dp: number): number {
+  const k = 10 ** dp;
+  return Math.round(v * k) / k;
+}
+
+/** Drawing alerts: the UI resolves the drawing and its geometry (null = no event). */
+export type DrawingDetector = (
+  c: Extract<AlertCondition, { kind: 'drawing' }>,
+  prev: { t: number; px: number },
+  cur: { t: number; px: number },
+) => { message: string; px?: number } | null;
+
+export interface FundingLike {
+  ts: number;
+  /** Rate per funding interval as a fraction (0.0001 = 0.01 %). */
+  rate: number;
+}
+
+export interface LiquidationLike {
+  ts: number;
+  side: 'buy' | 'sell';
+  px: number;
+  qty: number;
 }
 
 interface Runtime {
@@ -152,6 +337,11 @@ interface Runtime {
   barFired?: boolean;
   domActive?: boolean;
   states?: Map<string, string>;
+  /** Funding / liquidation-window / indicator "condition currently true" latch. */
+  active?: boolean;
+  liq?: { ts: number; qty: number }[];
+  lastValue?: number;
+  lastSample?: { t: number; px: number };
 }
 
 const BAD = new Set(['disconnected', 'error']);
@@ -163,7 +353,14 @@ export class AlertEngine {
   private fireListeners = new Set<(f: AlertFire) => void>();
   private changeListeners = new Set<() => void>();
 
+  private drawingDetector: DrawingDetector | null = null;
+
   constructor(private now: () => number = () => Date.now()) {}
+
+  /** Installs the resolver for `drawing` conditions (the UI owns the drawings). */
+  setDrawingDetector(fn: DrawingDetector | null): void {
+    this.drawingDetector = fn;
+  }
 
   list(): Alert[] {
     return this.alerts;
@@ -236,11 +433,25 @@ export class AlertEngine {
   onTrades(instrumentId: string, trades: readonly TradeLike[]): void {
     for (const a of [...this.alerts]) {
       const c = a.condition;
-      if (!a.enabled || c.kind === 'connection-lost' || c.kind === 'dom-size') continue;
+      if (!a.enabled) continue;
+      if (
+        c.kind !== 'price-cross' &&
+        c.kind !== 'big-trade' &&
+        c.kind !== 'bar-delta' &&
+        c.kind !== 'drawing'
+      )
+        continue;
       if (c.instrumentId !== instrumentId) continue;
       const r = this.runtime(a.id);
       for (const t of trades) {
-        if (c.kind === 'price-cross') {
+        if (c.kind === 'drawing') {
+          const prev = r.lastSample;
+          const cur = { t: t.ts, px: t.px };
+          r.lastSample = cur;
+          if (!prev || prev.px === cur.px || !this.drawingDetector) continue;
+          const hit = this.drawingDetector(c, prev, cur);
+          if (hit) this.fire(a, hit.message, hit.px ?? t.px);
+        } else if (c.kind === 'price-cross') {
           const prev = r.lastPx;
           r.lastPx = t.px;
           if (prev === undefined) continue;
@@ -302,4 +513,80 @@ export class AlertEngine {
         this.fire(a, `Connection ${state}: ${instrumentId}`);
     }
   }
+
+  /** Funding rate updates (live perpetuals). */
+  onFunding(instrumentId: string, f: FundingLike): void {
+    if (!Number.isFinite(f.rate)) return;
+    const pct = f.rate * 100;
+    for (const a of [...this.alerts]) {
+      const c = a.condition;
+      if (!a.enabled || c.kind !== 'funding' || c.instrumentId !== instrumentId) continue;
+      const r = this.runtime(a.id);
+      const hit =
+        c.op === 'gte'
+          ? pct >= c.value
+          : c.op === 'lte'
+            ? pct <= c.value
+            : Math.abs(pct) >= c.value;
+      const was = r.active ?? false;
+      r.active = hit;
+      if (hit && !was) this.fire(a, `Funding rate ${round(pct, 4)}%`);
+    }
+  }
+
+  /** Liquidations as they arrive (live derivatives venues). */
+  onLiquidations(instrumentId: string, list: readonly LiquidationLike[]): void {
+    for (const a of [...this.alerts]) {
+      const c = a.condition;
+      if (!a.enabled || c.kind !== 'liquidation' || c.instrumentId !== instrumentId) continue;
+      const r = this.runtime(a.id);
+      for (const l of list) {
+        if (c.side !== 'any' && l.side !== c.side) continue;
+        const who = l.side === 'sell' ? 'Long' : 'Short';
+        if (c.windowMs <= 0) {
+          if (l.qty >= c.minQty) this.fire(a, `${who} liquidation ${round(l.qty, 6)}`, l.px);
+          continue;
+        }
+        r.liq = [...(r.liq ?? []), { ts: l.ts, qty: l.qty }].filter(
+          (x) => l.ts - x.ts < c.windowMs,
+        );
+        const sum = r.liq.reduce((s, x) => s + x.qty, 0);
+        const hit = sum >= c.minQty;
+        const was = r.active ?? false;
+        r.active = hit;
+        if (hit && !was)
+          this.fire(a, `${round(sum, 6)} liquidated in ${fmtWindow(c.windowMs)}`, l.px);
+      }
+    }
+  }
+
+  /**
+   * Pushes one value of a series (indicator line, study output) for `indicator` alerts. `px` is
+   * the price shown with the alert (optional).
+   */
+  onValue(instrumentId: string, key: string, value: number, px?: number): void {
+    if (!Number.isFinite(value)) return;
+    for (const a of [...this.alerts]) {
+      const c = a.condition;
+      if (!a.enabled || c.kind !== 'indicator') continue;
+      if (c.instrumentId !== instrumentId || c.key !== key) continue;
+      const r = this.runtime(a.id);
+      const prev = r.lastValue;
+      r.lastValue = value;
+      if (c.op === 'gte' || c.op === 'lte') {
+        const hit = c.op === 'gte' ? value >= c.value : value <= c.value;
+        const was = r.active ?? false;
+        r.active = hit;
+        if (hit && !was) this.fire(a, `${c.label} ${round(value, 6)}`, px);
+        continue;
+      }
+      if (prev === undefined) continue;
+      const up = prev < c.value && value >= c.value;
+      const down = prev > c.value && value <= c.value;
+      if ((up && c.op !== 'cross-down') || (down && c.op !== 'cross-up'))
+        this.fire(a, `${c.label} crossed ${up ? 'above' : 'below'} ${c.value}`, px);
+    }
+  }
 }
+
+export * from './delivery';

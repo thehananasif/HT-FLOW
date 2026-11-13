@@ -5,7 +5,8 @@ import { specLabel, type BarSpec, type MarketStore } from '@htflow/market-data';
 import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import type { ChartCore, HitInfo } from '@htflow/chart-engine';
 import { useWindows } from '../state/windows';
-import { hub, paper, PAPER_ACCOUNT } from '../state/market';
+import { hub, paper } from '../state/market';
+import { activeAccount } from '../trading/accounts';
 import { InstrumentPicker } from '../components/InstrumentPicker';
 import { buildChart, type ChartHandle } from './buildChart';
 import { usePalette } from './palette';
@@ -376,7 +377,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   const order = (side: 'buy' | 'sell', type: 'limit' | 'stop') => {
     if (menuPx === null) return;
     const o = paper.place({
-      accountId: PAPER_ACCOUNT,
+      accountId: activeAccount(),
       instrumentId: inst.id,
       side,
       type,

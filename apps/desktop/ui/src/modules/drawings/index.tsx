@@ -1,8 +1,5 @@
 import './styles.css';
 import {
-  alertChannels,
-  describeAlertEvent,
-  detectAlert,
   DrawingController,
   DrawingsLayer,
   History,
@@ -13,13 +10,12 @@ import {
   TOOL_GROUPS,
   TOOLS,
   toolsIn,
-  type AlertSample,
   type Drawing,
 } from '@htflow/drawings';
-import { formatPrice, specKey } from '@htflow/market-data';
+import { specKey } from '@htflow/market-data';
 import type { ChartCore } from '@htflow/chart-engine';
 import { type MenuEntry } from '@htflow/ui-kit';
-import { notify } from '../alerts/runtime';
+import './alerts';
 import { registerChartExtension, type ChartExtensionContext } from '../../charts/extensions';
 import { commands, onCommandsChange, registerCommands, type Command } from '../../shell/commands';
 import { registerModule } from '../registry';
@@ -109,45 +105,6 @@ function ensure(ctx: ChartExtensionContext) {
   return entry;
 }
 
-/** Drawings that already fired (shared across charts so synced drawings alert once). */
-const firedAt = new Map<string, number>();
-
-/**
- * Alert on cross (P12): the last price crossing a line / channel boundary or entering / leaving a
- * rectangle fires toast, sound and an activity-log entry through the alerts runtime.
- */
-function watchAlerts(ctx: ChartExtensionContext): () => void {
-  let prev: AlertSample | null = null;
-  return ctx.store.subscribe(() => {
-    const last = ctx.store.lastTrade;
-    if (!last) return;
-    const cur: AlertSample = { t: last.ts, px: last.px };
-    const before = prev;
-    prev = cur;
-    if (!before || before.px === cur.px) return;
-    const inst = ctx.store.instrument;
-    for (const d of readDrawings(ctx.windowId)) {
-      if (!d.alert || d.hidden || !supportsAlert(d.type)) continue;
-      const ev = detectAlert(d, before, cur);
-      if (!ev) continue;
-      const ch = alertChannels(d);
-      const now = Date.now();
-      const was = firedAt.get(d.id);
-      if (was !== undefined && (ch.once || now - was < 1500)) continue;
-      firedAt.set(d.id, now);
-      const label = toolDef(d.type)?.label ?? 'drawing';
-      notify({
-        title: `${inst.symbol} ${describeAlertEvent(ev, label)}`,
-        body: `${label} @ ${formatPrice(Math.round(ev.level), inst)} · last ${formatPrice(cur.px, inst)}`,
-        instrumentId: inst.id,
-        popup: ch.toast,
-        sound: ch.sound,
-        log: ch.log,
-      });
-    }
-  });
-}
-
 function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
   const { ctrl } = ensure(ctx);
   const name = toolDef(d.type)?.label ?? 'Drawing';
@@ -231,12 +188,10 @@ registerChartExtension({
         if (k >= 0) core.pointerHandlers.splice(k, 1);
       });
     }
-    const unAlerts = watchAlerts(ctx);
     return () => {
       const i = ctx.core.pointerHandlers.indexOf(entry.ctrl);
       if (i >= 0) ctx.core.pointerHandlers.splice(i, 1);
       restore.forEach((r) => r());
-      unAlerts();
       if (controllers.get(ctx.windowId) === entry) controllers.delete(ctx.windowId);
     };
   },
