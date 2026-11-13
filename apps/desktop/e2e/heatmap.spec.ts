@@ -112,7 +112,7 @@ test('Heatmap: open from the ribbon, change gradient, toggle bubbles and 3D', as
 
   // 7. Commands are in the Command Palette.
   await page.keyboard.press('Control+k');
-  const search = page.getByRole('dialog', { name: 'Command palette' }).getByRole('textbox');
+  const search = page.getByRole('dialog', { name: 'Command palette' }).getByRole('combobox');
   await expect(search).toBeFocused();
   await search.fill('Heatmap: toggle 3D');
   await expect(page.getByRole('option', { name: /Heatmap: toggle 3D mode/ })).toBeVisible();
