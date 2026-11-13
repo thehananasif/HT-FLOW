@@ -232,6 +232,8 @@ export class MarketStore {
 
   /** Set by the hub from FeedSource.capabilities when the feed declares them. */
   declaredCapabilities: FeedCapabilities | null = null;
+  /** Kind of the feed behind this store (simulated feeds generate older history on demand only). */
+  feedKind: 'mock' | 'live' | 'replay' | null = null;
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -322,6 +324,7 @@ export class MarketHub {
     const feed = this.factory(instrumentId);
     const store = new MarketStore(feed.instrument);
     store.declaredCapabilities = feed.capabilities ?? null;
+    store.feedKind = feed.kind;
     const u1 = feed.subscribe((b) => {
       if (store.ready) store.ingest(b);
     });

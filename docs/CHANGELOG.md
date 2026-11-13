@@ -19,9 +19,17 @@
 - Indicators (P13): Alerts tab (output vs level or another output, intrabar / bar close, once, toast / sound / log via the Alerts module), timeframe override for any indicator, another symbol as data source, drag an indicator to another pane by its legend title.
 - Indicators (P13 / P14): HT Script — sandboxed indicator language (interpreter, no eval / globals / DOM / network), Script Editor window with live error line, per-user library, `.htind` export / import and file association; Custom Formula and Custom script catalog entries implemented (264 of 281).
 - Stage 8: indicator engine worker pool (`IndicatorPool`, `EngineHost`, `RemoteRuntime`); setting "Compute indicators in background workers"; `performance.workerCount` is now wired.
+- Chart right-click menu (P26) completed in the spec order: Buy / Sell at cursor, Set alert, Trading Panel, DOM Trader, Lock trading, Go to date, Change instrument, Mode ▸, Mouse ▸, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window ▸, Clone window, Hide panels, Trading session ▸, Refresh, Reload all historical data, ◂ Load 1 more day, Add replay template, Reset, Export ▸, Full screen, Settings. Extension items are placed in their spec slots (`charts/menuSlots.ts`).
+- Context-aware chart menus: on an indicator legend row or indicator sub-pane → Indicator settings / Hide / Remove / Move to pane ▸ (price pane, new pane, pane up / down); drawing and order-line items now come first; price / time axis menus unchanged.
+- Chart right-click Buy / Sell orders go through the shared order path: the account picked in the Trading Panel, its selected ATM bracket and order confirmations. The price falls back to the pointer when no crosshair is set yet.
+- P31: Snapshots submenu at the top of the chart template menu (take snapshot of the whole chart state, restore, delete, copy PNG; saved per profile); per-chart "Load days" (default from Settings → Common → Default load days, now wired) with background loading for real / replay feeds; "◂ Load 1 more day" button, menu item and command; previous-session volume profile on the left of candle and footprint charts (POC highlighted, value area tinted, POC price label; Chart settings → Grid toggle).
+- Commands: Chart: ◂ Load 1 more day, Chart: Take snapshot, Chart: Lock / unlock trading.
 
 ### Changed
 
+- Window-scoped hotkeys (Ctrl+Z / Ctrl+Y / Del / Ctrl+R / Shift+B…) fall back to the active window when the last click was outside any window (status bar, ribbon, a closed menu).
+- Chart full screen no longer defaults to F11 (F11 is the Triangle drawing tool per Appendix C); Ctrl + double-click stays the default, a key can be bound in Settings → Hot keys.
+- Long menus scroll within the window instead of running off screen.
 - Discord alerts work in the desktop app: new native `net_post_json` command (https only, Discord webhook hosts only, 64 KB body cap, 15 s timeout, no cookies).
 - Drawing "Alert on cross" now runs inside the Alerts engine (`drawing` condition): drawing alerts are listed in the Alerts window, use all alert actions, keep working while the chart is hidden, and deleting one there turns the drawing's flag off.
 - Settings → Alerts keys are wired: master switch, pop-up, flash title, default repeat / expiry / cool-down for new alerts, maximum active alerts.

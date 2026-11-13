@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { BarSeries, MarketStore } from '@htflow/market-data';
-import type { ChartCore, ChartLayer } from '@htflow/chart-engine';
+import type { ChartCore, ChartLayer, HitInfo } from '@htflow/chart-engine';
 import type { MenuEntry } from '@htflow/ui-kit';
 import type { ChartWindowState } from '@htflow/workspace';
 
@@ -19,14 +19,25 @@ export interface ChartExtensionContext {
   setExt(value: unknown): void;
 }
 
+/** Where a chart context menu was opened. */
+export interface MenuAt {
+  x: number;
+  y: number;
+  hit: HitInfo;
+  core: ChartCore | null;
+}
+
 export interface ChartExtension {
   id: string;
   /** Extra layers for the main core; called whenever the chart is (re)built. */
   layers?(ctx: ChartExtensionContext): ChartLayer[];
   /** Called once per build; return a disposer. Use for pointer handlers, subscriptions, … */
   attach?(ctx: ChartExtensionContext): (() => void) | void;
-  /** Extra right-click items at the cursor price (ticks). */
-  menu?(ctx: ChartExtensionContext, px: number | null): MenuEntry[];
+  /**
+   * Extra right-click items at the cursor price (ticks). `at` is where the menu opened (canvas px
+   * of the core under the cursor) and what is there (pane, axis…), for context-aware items.
+   */
+  menu?(ctx: ChartExtensionContext, px: number | null, at?: MenuAt): MenuEntry[];
   /** React overlay rendered over the chart area (toolbars, dialogs). */
   Overlay?: ComponentType<{ windowId: string; state: ChartWindowState }>;
 }

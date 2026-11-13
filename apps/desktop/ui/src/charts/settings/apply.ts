@@ -226,6 +226,10 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
     L.sessions.line = stroke(sLine(s, 'grid.sessionLine'));
     L.sessions.offsetMs = win ? win[0] : 0;
   }
+  if (L.prevProfile) {
+    L.prevProfile.visible = sBool(s, 'grid.prevSessionProfile');
+    L.prevProfile.offsetMs = win ? win[0] : 0;
+  }
   if (L.shade) {
     L.shade.visible = !!win || sBool(s, 'grid.sessionShade');
     L.shade.beginMs = win ? win[0] : 0;

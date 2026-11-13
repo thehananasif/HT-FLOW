@@ -11,6 +11,9 @@ import { chartSettings, extState, patchChartExt, setChartSetting } from './setti
 import { useChartSettingsUi } from './settingsUi';
 import { applyTemplateTo, useChartTemplates } from './templateStore';
 import { allTemplates } from './templates';
+import { takeSnapshot } from './snapshotStore';
+import { paper } from '../state/market';
+import { activeAccount } from '../trading/accounts';
 
 const MODE_KEYS: Record<string, string> = {
   bars: 'Shift+B',
@@ -168,12 +171,38 @@ const STATIC: Command[] = [
     run: act('export-template'),
   },
   {
+    // Default gesture is Ctrl + double-click on the chart (Appendix C); F11 belongs to the
+    // Triangle drawing tool. Bind a key in Settings → Hot keys if wanted.
     id: 'chart.fullscreen',
-    label: 'Chart: Full screen',
+    label: 'Chart: Full screen (Ctrl + double-click)',
     group: 'Chart',
-    shortcut: 'F11',
     scope: 'chart',
     run: act('fullscreen'),
+  },
+  {
+    id: 'chart.load-day',
+    label: 'Chart: ◂ Load 1 more day of history',
+    group: 'Chart',
+    keywords: 'history older load days',
+    run: act('load-day'),
+  },
+  {
+    id: 'chart.snapshot.take',
+    label: 'Chart: Take snapshot (save chart state)',
+    group: 'Chart',
+    keywords: 'snapshot template restore',
+    run: onActive((id) => void takeSnapshot(id)),
+  },
+  {
+    id: 'chart.lock-trading',
+    label: 'Chart: Lock / unlock trading (active account)',
+    group: 'Trading',
+    run: onActive((id) => {
+      const w = useWindows.getState().windows[id];
+      if (w?.kind !== 'chart') return;
+      const acc = paper.route(activeAccount(), w.instrumentId);
+      paper.setLocked(acc, !paper.accounts.get(acc)?.locked);
+    }),
   },
   { id: 'chart.clone', label: 'Chart: Clone window', group: 'Layout', run: onActive(cloneWindow) },
   {
