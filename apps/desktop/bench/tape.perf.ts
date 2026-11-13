@@ -43,7 +43,7 @@ describe('tape (headless frame cost)', () => {
         book: { ts: t0, bids: [[8_999_999, 5]], asks: [[9_000_000, 5]] },
         end: t0,
       });
-      const e = tape.buildEngine(store, 'timestamp', 50);
+      const e = tape.buildEngine(store, 'timestamp', 50, 65_536);
       tape.refreshBuckets(e, 0);
       const canvas = document.createElement('canvas');
       const live = prints(rate * 30, t0, rate, 9);
@@ -64,6 +64,7 @@ describe('tape (headless frame cost)', () => {
             buckets: true,
             scroll: 0,
             paused: false,
+            colorBySide: true,
           });
         },
         { warmup: 20, runs: 300 },

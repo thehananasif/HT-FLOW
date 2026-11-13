@@ -8,6 +8,7 @@ import {
   type InstrumentSummary,
   type RecorderStatus,
 } from './api';
+import { ImportedFiles } from './import/ImportedList';
 import './styles.css';
 
 const fmtDate = (ms: number) =>
@@ -39,11 +40,14 @@ export function DataManager() {
 
   if (!isTauri) {
     return (
-      <EmptyState title="Data manager runs in the desktop app">
-        Recorded ticks and depth live in the local tick store on your PC (%APPDATA%\HTFlow\ticks).
-        The browser preview has no tick store — open HT Flow for Windows to record, browse, export
-        and delete history.
-      </EmptyState>
+      <div className="col fill pad12 gap12 dm-root">
+        <ImportedFiles />
+        <EmptyState title="Data manager runs in the desktop app">
+          Recorded ticks and depth live in the local tick store on your PC (%APPDATA%\HTFlow\ticks).
+          The browser preview has no tick store — open HT Flow for Windows to record, browse, export
+          and delete history.
+        </EmptyState>
+      </div>
     );
   }
 
@@ -127,6 +131,7 @@ export function DataManager() {
           Refresh
         </Button>
       </div>
+      <ImportedFiles />
       {limitErr && <div className="ht-error">{limitErr}</div>}
       {error && <div className="ht-error">{error}</div>}
       <div className="row gap8">

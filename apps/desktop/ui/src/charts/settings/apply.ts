@@ -16,6 +16,7 @@ import {
 import { formatCompact, type Instrument, type MarketStore } from '@htflow/market-data';
 import { getSetting } from '../../state/settings';
 import type { ChartHandle } from '../buildChart';
+import { effectiveMaxFps } from './performance';
 import { globalCandleColors, globalChartOptions } from './globals';
 import { sBool, sLine, sNum, sStr, type ChartSettings, type LineValue } from './schema';
 
@@ -131,11 +132,9 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
     },
     timeFormat: sStr(s, 'scales.timeFormat') === '12h' ? '12h' : '24h',
   };
-  const fps = sBool(s, 'update.custom')
-    ? sNum(s, 'update.fps')
-    : sBool(s, 'update.highPerformance')
-      ? 30
-      : 0;
+  const fps = effectiveMaxFps(
+    sBool(s, 'update.custom') ? sNum(s, 'update.fps') : sBool(s, 'update.highPerformance') ? 30 : 0,
+  );
   const tz = resolveTimeZone(sStr(s, 'scales.timeZone'), inst);
   for (const core of h.cores) {
     core.setPalette(pal);

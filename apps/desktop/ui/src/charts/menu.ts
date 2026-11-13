@@ -12,6 +12,7 @@ import {
   type ChartWindowState,
   type WindowState,
 } from '@htflow/workspace';
+import { t } from '@htflow/i18n';
 import { runCommand } from '../shell/commands';
 import { useWindows } from '../state/windows';
 import type { ChartHandle } from './buildChart';
@@ -74,22 +75,22 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
 
   const scaleItems: MenuEntry[] = [
     ...choice('scales.mode', 'scale', [
-      { value: 'linear', label: 'Linear' },
-      { value: 'log', label: 'Logarithmic' },
-      { value: 'percent', label: 'Percent' },
-      { value: 'indexed', label: 'Indexed to 100' },
+      { value: 'linear', label: t('chartMenu.linear') },
+      { value: 'log', label: t('chartMenu.log') },
+      { value: 'percent', label: t('chartMenu.percent') },
+      { value: 'indexed', label: t('chartMenu.indexed') },
     ]),
     sep('sc1'),
     {
       id: 'invert',
-      label: 'Invert scale',
+      label: t('chartMenu.invertScale'),
       shortcut: 'Alt+I',
       checked: sBool(s, 'scales.invert'),
       onSelect: set('scales.invert', !sBool(s, 'scales.invert')),
     },
     {
       id: 'autofit',
-      label: 'Auto-fit (auto scale)',
+      label: t('chartMenu.autoFit'),
       onSelect: () => {
         c.handle?.cores.forEach((core) => {
           core.autoScale = true;
@@ -101,16 +102,16 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     {
       kind: 'submenu',
       id: 'axis-side',
-      label: 'Price axis',
+      label: t('chartMenu.priceAxis'),
       items: choice('scales.side', 'side', [
-        { value: 'right', label: 'Right' },
-        { value: 'left', label: 'Left' },
-        { value: 'both', label: 'Both' },
+        { value: 'right', label: t('chartMenu.right') },
+        { value: 'left', label: t('chartMenu.left') },
+        { value: 'both', label: t('chartMenu.both') },
       ]),
     },
     {
       id: 'scale-settings',
-      label: 'Scale settings…',
+      label: t('chartMenu.scaleSettings'),
       onSelect: () => openChartSettings(id),
     },
   ];
@@ -119,26 +120,31 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
   const sessionItems = choice('session.trading', 'sess', TRADING_SESSIONS);
 
   if (c.hit.area === 'price-axis') {
-    return [{ kind: 'label', id: 'l', label: 'Price scale' }, ...scaleItems];
+    return [{ kind: 'label', id: 'l', label: t('chartMenu.priceScale') }, ...scaleItems];
   }
   if (c.hit.area === 'time-axis') {
     return [
-      { kind: 'label', id: 'l', label: 'Time axis' },
-      { kind: 'submenu', id: 'tz', label: 'Time zone', items: tzItems },
-      { kind: 'submenu', id: 'sess', label: 'Trading session', items: sessionItems },
+      { kind: 'label', id: 'l', label: t('chartMenu.timeAxis') },
+      { kind: 'submenu', id: 'tz', label: t('chartMenu.timeZone'), items: tzItems },
+      { kind: 'submenu', id: 'sess', label: t('chartMenu.tradingSession'), items: sessionItems },
       {
         id: 'gaps',
-        label: 'Show time gaps',
+        label: t('chartMenu.showTimeGaps'),
         checked: sBool(s, 'scales.gaps'),
         onSelect: set('scales.gaps', !sBool(s, 'scales.gaps')),
       },
       ...choice('scales.timeFormat', 'tf', [
-        { value: '24h', label: '24-hour time' },
-        { value: '12h', label: '12-hour time' },
+        { value: '24h', label: t('chartMenu.time24') },
+        { value: '12h', label: t('chartMenu.time12') },
       ]),
       sep('t1'),
-      { id: 'goto', label: 'Go to date…', shortcut: 'Ctrl+G', onSelect: act('goto-date') },
-      { id: 'reset', label: 'Reset', shortcut: 'Ctrl+R', onSelect: act('reset') },
+      {
+        id: 'goto',
+        label: t('chartMenu.goToDate'),
+        shortcut: 'Ctrl+G',
+        onSelect: act('goto-date'),
+      },
+      { id: 'reset', label: t('chartMenu.reset'), shortcut: 'Ctrl+R', onSelect: act('reset') },
     ];
   }
   if ((c.hit.area === 'pane' || c.hit.area === 'separator') && c.hit.layerId) {
@@ -146,28 +152,34 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     const layer = c.handle?.main.layers.find((l) => l.id === layerId);
     const maximised = c.handle?.main.maximizedPane === layerId;
     return [
-      { kind: 'label', id: 'l', label: `Pane · ${layer?.paneLabel ?? layerId}` },
+      { kind: 'label', id: 'l', label: t('chartMenu.pane', { name: layer?.paneLabel ?? layerId }) },
       {
         id: 'max',
-        label: maximised ? 'Restore pane' : 'Maximize pane',
+        label: maximised ? t('chartMenu.restorePane') : t('chartMenu.maximizePane'),
         onSelect: () => c.handle?.main.toggleMaximizePane(layerId),
       },
       {
         id: 'reset-panes',
-        label: 'Reset pane heights',
+        label: t('chartMenu.resetPaneHeights'),
         onSelect: () => {
           c.handle?.main.resetPanes();
           patchChartExt(id, { panes: {} });
         },
       },
       ...(layerId === 'volume-pane'
-        ? [{ id: 'hide-vol', label: 'Hide volume pane', onSelect: set('volume.pane', false) }]
+        ? [
+            {
+              id: 'hide-vol',
+              label: t('chartMenu.hideVolumePane'),
+              onSelect: set('volume.pane', false),
+            },
+          ]
         : []),
       ...slotExtensionItems(c.extensionItems).context,
       sep('p1'),
       {
         id: 'settings',
-        label: 'Settings…',
+        label: t('chartMenu.settings'),
         shortcut: 'Ctrl+S',
         onSelect: () => openChartSettings(id),
       },
@@ -189,12 +201,12 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
               above
                 ? {
                     id: 'sl',
-                    label: `Sell Limit at ${priceLabel}`,
+                    label: t('chartMenu.sellLimitAt', { price: priceLabel }),
                     onSelect: () => c.order('sell', 'limit'),
                   }
                 : {
                     id: 'bl',
-                    label: `Buy Limit at ${priceLabel}`,
+                    label: t('chartMenu.buyLimitAt', { price: priceLabel }),
                     onSelect: () => c.order('buy', 'limit'),
                   },
             ]
@@ -204,12 +216,12 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
               above
                 ? {
                     id: 'bs',
-                    label: `Buy Stop at ${priceLabel}`,
+                    label: t('chartMenu.buyStopAt', { price: priceLabel }),
                     onSelect: () => c.order('buy', 'stop'),
                   }
                 : {
                     id: 'ss',
-                    label: `Sell Stop at ${priceLabel}`,
+                    label: t('chartMenu.sellStopAt', { price: priceLabel }),
                     onSelect: () => c.order('sell', 'stop'),
                   },
             ]
@@ -227,7 +239,7 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     onSelect: () => applyTemplateTo(id, t.id),
   });
   const templates: MenuEntry[] = [
-    { kind: 'label', id: 'tb', label: 'Built-in chart types' },
+    { kind: 'label', id: 'tb', label: t('chartMenu.builtInTypes') },
     ...CHART_TEMPLATES.map((t) => ({
       id: `b-${t.id}`,
       label: t.label,
@@ -237,40 +249,55 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     ...(favs.length
       ? [
           sep('tf'),
-          { kind: 'label' as const, id: 'tfl', label: 'Favourites' },
+          { kind: 'label' as const, id: 'tfl', label: t('chartMenu.favourites') },
           ...favs.map(tplItem),
         ]
       : []),
     ...(users.length
       ? [
           sep('tu'),
-          { kind: 'label' as const, id: 'tul', label: 'My templates' },
+          { kind: 'label' as const, id: 'tul', label: t('chartMenu.myTemplates') },
           ...users.map(tplItem),
         ]
       : []),
     sep('tp'),
-    { kind: 'submenu', id: 'presets', label: 'Style presets', items: presets.map(tplItem) },
+    {
+      kind: 'submenu',
+      id: 'presets',
+      label: t('chartMenu.stylePresets'),
+      items: presets.map(tplItem),
+    },
     sep('ts'),
-    { id: 'save-tpl', label: 'Save as template…', onSelect: act('save-template') },
-    { id: 'export-tpl', label: 'Export template JSON', onSelect: act('export-template') },
+    { id: 'save-tpl', label: t('chartMenu.saveTemplate'), onSelect: act('save-template') },
+    {
+      id: 'export-tpl',
+      label: t('chartMenu.exportTemplateJson'),
+      onSelect: act('export-template'),
+    },
     {
       id: 'manage-tpl',
-      label: 'Manage templates…',
+      label: t('chartMenu.manageTemplates'),
       onSelect: () => useChartSettingsUi.getState().open(id, 'templates'),
     },
   ];
 
   const compare = c.ext.compare ?? [];
   const overlay: MenuEntry[] = [
-    { id: 'ov-add', label: 'Add instrument…', onSelect: act('overlay') },
+    { id: 'ov-add', label: t('chartMenu.addInstrument'), onSelect: act('overlay') },
     ...compare.map((o) => ({
       id: `ov-${o.instrumentId}`,
-      label: `Remove ${o.instrumentId.split(':').pop()}`,
+      label: t('chartMenu.removeOverlay', { symbol: o.instrumentId.split(':').pop() ?? '' }),
       onSelect: () =>
         patchChartExt(id, { compare: compare.filter((x) => x.instrumentId !== o.instrumentId) }),
     })),
     ...(compare.length
-      ? [{ id: 'ov-clear', label: 'Remove all overlays', onSelect: act('clear-overlays') }]
+      ? [
+          {
+            id: 'ov-clear',
+            label: t('chartMenu.removeAllOverlays'),
+            onSelect: act('clear-overlays'),
+          },
+        ]
       : []),
   ];
 
@@ -278,13 +305,13 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     ...choice('crosshair.mouseMode', 'mm', MOUSE_MODES.slice(0, 2)),
     {
       id: 'mm-global',
-      label: 'Global Crosshair',
+      label: t('chartMenu.globalCrosshair'),
       checked: sStr(s, 'crosshair.sync') === 'global',
       onSelect: set('crosshair.sync', sStr(s, 'crosshair.sync') === 'global' ? 'off' : 'global'),
     },
     {
       id: 'mm-sync',
-      label: 'Sync Crosshair',
+      label: t('chartMenu.syncCrosshair'),
       checked: sStr(s, 'crosshair.sync') === 'link',
       onSelect: set('crosshair.sync', sStr(s, 'crosshair.sync') === 'link' ? 'off' : 'link'),
     },
@@ -302,25 +329,30 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     sep('s1'),
     {
       id: 'tp',
-      label: 'Trading Panel',
+      label: t('chartMenu.tradingPanel'),
       shortcut: 'T',
       onSelect: () => useWindows.getState().setTradingPanel(!useWindows.getState().tradingPanel),
     },
-    { id: 'domt', label: 'DOM Trader', checked: c.domTrader, onSelect: c.toggleDomTrader },
-    { id: 'lock', label: 'Lock trading', checked: c.locked, onSelect: c.toggleLock },
+    {
+      id: 'domt',
+      label: t('chartMenu.domTrader'),
+      checked: c.domTrader,
+      onSelect: c.toggleDomTrader,
+    },
+    { id: 'lock', label: t('chartMenu.lockTrading'), checked: c.locked, onSelect: c.toggleLock },
     ...ex.trading,
     sep('s2'),
-    { id: 'goto', label: 'Go to date…', shortcut: 'Ctrl+G', onSelect: act('goto-date') },
-    { id: 'chg-inst', label: 'Change Instrument…', onSelect: act('change-instrument') },
+    { id: 'goto', label: t('chartMenu.goToDate'), shortcut: 'Ctrl+G', onSelect: act('goto-date') },
+    { id: 'chg-inst', label: t('chartMenu.changeInstrument'), onSelect: act('change-instrument') },
     {
       kind: 'submenu',
       id: 'mode',
-      label: 'Mode',
+      label: t('chartMenu.mode'),
       items: [
         {
           kind: 'submenu',
           id: 'fp',
-          label: 'Footprint',
+          label: t('chartMenu.footprint'),
           items: [
             ...FOOTPRINT_MODES.map((m) => ({
               id: m.id,
@@ -336,7 +368,7 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
             sep('fps'),
             {
               id: 'fp-settings',
-              label: 'Footprint settings…',
+              label: t('chartMenu.footprintSettings'),
               onSelect: () => useChartSettingsUi.getState().open(id, 'footprint'),
             },
           ],
@@ -351,19 +383,19 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
         }),
       ],
     },
-    { kind: 'submenu', id: 'mouse', label: 'Mouse', items: mouseItems },
-    { kind: 'submenu', id: 'scale', label: 'Price scale', items: scaleItems },
+    { kind: 'submenu', id: 'mouse', label: t('chartMenu.mouse'), items: mouseItems },
+    { kind: 'submenu', id: 'scale', label: t('chartMenu.priceScale'), items: scaleItems },
     sep('s3'),
-    { kind: 'submenu', id: 'templates', label: 'Templates', items: templates },
+    { kind: 'submenu', id: 'templates', label: t('chartMenu.templates'), items: templates },
     ...ex.indicators,
-    { kind: 'submenu', id: 'overlay', label: 'Overlay', items: overlay },
+    { kind: 'submenu', id: 'overlay', label: t('chartMenu.overlay'), items: overlay },
     ...ex.drawing,
     ...ex.strategies,
     sep('s4'),
     {
       kind: 'submenu',
       id: 'layouts',
-      label: 'Layouts',
+      label: t('chartMenu.layouts'),
       items: [
         ...LAYOUT_PRESETS.map((p) => ({
           id: `lay-${p.id}`,
@@ -371,73 +403,85 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
           onSelect: () => runCommand(`layout.${p.id}`),
         })),
         sep('l1'),
-        { id: 'split-r', label: 'Split right', onSelect: () => runCommand('split-right') },
-        { id: 'split-d', label: 'Split down', onSelect: () => runCommand('split-down') },
-        { id: 'detach', label: 'Detach (floating)', onSelect: () => runCommand('detach') },
+        {
+          id: 'split-r',
+          label: t('chartMenu.splitRight'),
+          onSelect: () => runCommand('split-right'),
+        },
+        {
+          id: 'split-d',
+          label: t('chartMenu.splitDown'),
+          onSelect: () => runCommand('split-down'),
+        },
+        { id: 'detach', label: t('chartMenu.detach'), onSelect: () => runCommand('detach') },
       ],
     },
     {
       kind: 'submenu',
       id: 'linked',
-      label: 'Create linked window',
+      label: t('chartMenu.createLinked'),
       items: [
         ...CHART_TEMPLATES.map((t) => ({
           id: `lk-${t.id}`,
           label: t.label,
           onSelect: () => openLinkedWindow(id, 'chart', t.id),
         })),
-        { id: 'lk-dom', label: 'DOM', onSelect: () => openLinkedWindow(id, 'dom') },
+        { id: 'lk-dom', label: t('chartMenu.dom'), onSelect: () => openLinkedWindow(id, 'dom') },
       ],
     },
-    { id: 'clone', label: 'Clone window', onSelect: () => cloneWindow(id) },
+    { id: 'clone', label: t('chartMenu.cloneWindow'), onSelect: () => cloneWindow(id) },
     {
       id: 'hide-panels',
-      label: 'Hide panels',
+      label: t('chartMenu.hidePanels'),
       checked: sBool(s, 'other.hidePanels'),
       onSelect: set('other.hidePanels', !sBool(s, 'other.hidePanels')),
     },
     sep('s5'),
-    { kind: 'submenu', id: 'session', label: 'Trading session', items: sessionItems },
-    { id: 'refresh', label: 'Refresh', onSelect: act('refresh') },
-    { id: 'reload', label: 'Reload all historical data', onSelect: act('reload-history') },
-    { id: 'load-day', label: '◂ Load 1 more day of history', onSelect: act('load-day') },
+    { kind: 'submenu', id: 'session', label: t('chartMenu.tradingSession'), items: sessionItems },
+    { id: 'refresh', label: t('chartMenu.refresh'), onSelect: act('refresh') },
+    { id: 'reload', label: t('chartMenu.reloadHistory'), onSelect: act('reload-history') },
+    { id: 'load-day', label: t('chartMenu.loadDay'), onSelect: act('load-day') },
     ...ex.replay,
-    { id: 'reset', label: 'Reset', shortcut: 'Ctrl+R', onSelect: act('reset') },
+    { id: 'reset', label: t('chartMenu.reset'), shortcut: 'Ctrl+R', onSelect: act('reset') },
     {
       kind: 'submenu',
       id: 'export',
-      label: 'Export…',
+      label: t('chartMenu.export'),
       items: [
-        { id: 'png', label: 'PNG image', onSelect: act('export-png') },
-        { id: 'csv', label: 'CSV of bars', onSelect: act('export-csv') },
-        { id: 'csvc', label: 'CSV of clusters', onSelect: act('export-clusters') },
-        { id: 'json', label: 'JSON of bars', onSelect: act('export-json') },
-        { id: 'tjson', label: 'Template JSON', onSelect: act('export-template') },
+        { id: 'png', label: t('chartMenu.exportPng'), onSelect: act('export-png') },
+        { id: 'csv', label: t('chartMenu.exportCsvBars'), onSelect: act('export-csv') },
+        { id: 'csvc', label: t('chartMenu.exportCsvClusters'), onSelect: act('export-clusters') },
+        { id: 'json', label: t('chartMenu.exportJsonBars'), onSelect: act('export-json') },
+        {
+          id: 'tjson',
+          label: t('chartMenu.exportTemplateShort'),
+          onSelect: act('export-template'),
+        },
       ],
     },
     sep('s6'),
     ...ex.more,
     {
       id: 'datawin',
-      label: 'Data window',
+      label: t('chartMenu.dataWindow'),
       checked: sBool(s, 'crosshair.dataWindow'),
       onSelect: set('crosshair.dataWindow', !sBool(s, 'crosshair.dataWindow')),
     },
     {
       id: 'pin',
-      label: 'Pin (keep instrument)',
+      label: t('chartMenu.pin'),
       checked: c.ext.pinned === true,
       onSelect: () => patchChartExt(id, { pinned: !c.ext.pinned }),
     },
     {
       id: 'fullscreen',
-      label: 'Full screen mode',
+      label: t('chartMenu.fullScreen'),
       shortcut: 'Ctrl+dbl-click',
       onSelect: act('fullscreen'),
     },
     {
       id: 'settings',
-      label: 'Settings…',
+      label: t('chartMenu.settings'),
       shortcut: 'Ctrl+S',
       onSelect: () => openChartSettings(id),
     },

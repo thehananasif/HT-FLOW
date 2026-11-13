@@ -42,7 +42,8 @@ import {
   formatPrice,
   type Instrument,
 } from '@htflow/market-data';
-import { toolDef, type Drawing, type ToolId } from '@htflow/drawings';
+import { type Drawing, type ToolId } from '@htflow/drawings';
+import { toolLabel } from '../drawings/toolText';
 import { useMarketStore, useStoreTicker } from '../../charts/useMarket';
 import { usePalette } from '../../charts/palette';
 import { useSettingsStore } from '../../state/settings';
@@ -62,6 +63,7 @@ import {
 } from './model';
 import { QuickSettings } from './QuickSettings';
 import { FullSettings, heatFpsCap } from './FullSettings';
+import { gpuPreference, heatmapRenderer } from '../../charts/settings/performance';
 import { View3D } from './View3D';
 import { HeatDrawings, HEATMAP_TOOLS } from './drawings';
 import { StressFeed, type StressResult } from './stress';
@@ -486,8 +488,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
                 key={t.id}
                 type="button"
                 className="hm-tool"
-                aria-label={t.label}
-                title={t.label}
+                aria-label={toolLabel(t.id)}
+                title={toolLabel(t.id)}
                 aria-pressed={dr?.tool === t.id}
                 onClick={() => dr?.setTool(t.id)}
               >
@@ -541,12 +543,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
               camera={params.camera}
               onCamera={setCamera}
               height={s.surfaceHeight}
-              renderer={s.renderer3d}
-              powerPreference={
-                values['common.heatmapAdapter'] === 'auto'
-                  ? 'default'
-                  : (values['common.heatmapAdapter'] as 'high-performance' | 'low-power')
-              }
+              renderer={heatmapRenderer(s.renderer3d, values)}
+              powerPreference={gpuPreference(values)}
               background={palette.chartBg}
               onRenderer={setUsed3d}
             />
@@ -681,7 +679,7 @@ function DrawPanel({
                   className="hm-obj-name"
                   onClick={() => dr.ctrl.host.select(d.id)}
                 >
-                  {toolDef(d.type)?.label ?? d.type}
+                  {toolLabel(d.type)}
                 </button>
                 <button
                   type="button"

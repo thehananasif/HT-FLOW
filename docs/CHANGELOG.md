@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased — round 5
+
+### Added
+
+- Settings wired (P27, round 5): DOM font size, default price grouping of new DOMs, Buys / Sells window and swapped left / right click; Tape rows kept, minimum size, follow new trades, big-trade threshold, colour by side and beep on big trades; chart-axis and calendar / news time zones and exchange time on hover in tables and journal; FPS cap (charts, DOM, tape), renderer type and video adapter (3D heatmap); recorder disk budget and tick retention pushed to the native recorder. MBO history, backups and log files stay pending on native work (BLOCKERS).
+- CSV importer in the Data manager: trades or OHLCV bars from a user-picked file with auto-detected delimiter, header, columns, time format (epoch s / ms / us / ns, ISO, d/m/y), time zone and side meaning, a preview of the first rows, rejected rows listed with line numbers, chunked streaming, and import to a `csv:` instrument that opens in charts and Replay.
+- "Custom WebSocket" connector in the Add-connection wizard: ws(s):// URL, `{symbol}` subscribe template and a JSON path mapping (price, qty, side, timestamp, optional book), reconnect with back-off, status in the Connections list, wizard test against the first message.
+- Paper accounts keep their open state across restarts (P17): positions, working orders (with OCO groups and pending ATM brackets), live ATM management and options positions are saved with the cash balance in the encrypted profile store (`PaperEngine.exportAccountState` / `importAccountState`, validated by `normalizeAccountState`). The latest state is flushed before the window closes. Restoring re-bases both risk layers (`RiskEngine.snapshotDay` / `restoreDay`, Settings → Risk day counters): the same trading day continues its day P&L and trade count, another day starts at the restored equity, so a restored balance is never mistaken for a loss made today.
+- OCO in the Trading Panel works (P17): with OCO ticked, every resting order sent from the panel (order entry, BUY / SELL ASK / BID) joins one group; the first fill (even partial) or cancel cancels the other orders. Status line with "New group", OCO badge on working orders, OCO line in the order confirmation; commands "Toggle OCO", "Start a new OCO group" and "Link the last two working orders as OCO". Engine: `OrderRequest.oco`, `ocoGroupId()`, `linkOco` / `unlinkOco`; bracket SL / TP groups keep their own rules.
+- Paper options (P18): the Options Board trades options in the paper engine. "Send as paper order" books every leg, and a new "Click a quote: Add leg / Trade now" setting buys at the ask or sells at the bid at once. Premium debit / credit is recorded per fill (`premiumFlow`), positions are marked to model with `@htflow/options` pricing (`paperOptionMark`: Black-Scholes, or Black-76 on spot × the expiry's forward basis, the position's IV and rate) and settle at intrinsic value when they expire (`settleExpiredOptions`, logged in Trading Activity). Options appear in the Positions table (OPT pill, model mark, open P&L, Close; Flatten all closes them), in account equity and the risk engine, and in the Options Strategy Analyser's positions tab (debit / credit, mark, P&L, days left, Analyse loads them into the builder, Close). Strategies saved by the old local model stay listed as "Saved strategies".
+- Custom WebSocket works in the desktop app: new native commands `custom_ws_open(url, subscribe?)`, `custom_ws_send(id, text)` and `custom_ws_close(id)` (`src-tauri/src/custom_ws.rs`, tokio-tungstenite already used by the connectors) open the socket in the core and stream raw text frames plus open / closed / error status over a Tauri Channel. ws:// and wss:// only, 1 MB frame cap, automatic pong, 20 s keep-alive ping, 60 s stale detection, clean close handshake, at most 64 open sockets. In the desktop build `CustomWsFeed` and the wizard test use this transport (`modules/connections/nativeWs.ts`); the web build keeps the browser WebSocket. The webview CSP is not widened. Connection errors from the core (bad URL, refused, oversized frame) are shown in the status line.
+
+### Changed
+
+- Drawing tool names and descriptions are translated through i18n (`drawings.tool.<id>`, `drawings.toolDesc.<id>`, group keys `drawings.menuGroup.*` and `drawings.toolbarGroup.*`). `@htflow/drawings` keeps its English labels as data; the UI layer (`modules/drawings/toolText.ts`) resolves them in the toolbar, Objects List, command palette, alerts and heatmap toolbar. English text is unchanged.
+- Chart right-click menu strings (`charts/menu.ts`) go through i18n under `chartMenu.*`, with interpolated labels for pane, limit/stop order and overlay items. English text is unchanged.
+- `drawingName` in `@htflow/drawings` takes an optional label resolver, used by the Objects List.
+
+### Tests
+
+- `custom_ws` Rust tests against a local tokio-tungstenite echo server (subscribe, relayed frames, pong to a server ping, client close handshake, server close, oversized frame, refused connection, URL validation); `modules/connections/nativeWs.test.ts` drives `CustomWsFeed` and the wizard test over the native transport with a fake `invoke` / Channel and checks the desktop / web transport switch.
+- `modules/drawings/toolText.test.ts`: every drawing tool has a translated name, every tool with a note has a description key, and English output matches the package labels.
+
+### Fixed
+
+- Charts no longer freeze on 4 h (or 1 h, 1 D, 1 W): with few bars the view always counts as "scrolled past the first bar", and every redraw asked the feed for 240 bars of older history (40 days ≈ 28M simulated ticks for 4 h), then looped. Lazy left-scroll loading now starts only after a user scroll, asks for a capped chunk (2 h on simulated feeds, 1 day on live / replay), shows progress, and is cancelled when the timeframe changes; Go to date loads at most a day per step. Regression e2e `timeframe-coarse.spec.ts` (first paint under 1 s, no long tasks) and unit tests.
+
 ## Unreleased — round 4
 
 ### Added

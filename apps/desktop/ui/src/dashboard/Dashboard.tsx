@@ -32,7 +32,6 @@ import {
 import { FOOTPRINT_MODES } from '@htflow/footprint';
 import {
   CHART_TEMPLATES,
-  domState,
   LAYOUT_PRESETS,
   windowTitle,
   type ChartTemplateId,
@@ -64,6 +63,7 @@ import {
 import { MODULES } from '../shell/modules';
 import { ChartWindow } from '../charts/ChartWindow';
 import { newChartState } from '../charts/settings/globals';
+import { newDomState } from '../trading/dom/globalSettings';
 import { DomWindow } from '../trading/DomView';
 import { TradingPanel } from '../trading/TradingPanel';
 import { ModuleWindow } from './ModuleWindow';
@@ -568,7 +568,7 @@ export function Dashboard({ version }: { version: string }) {
         group: 'Analysis' as const,
         run: () => {
           if (m.id === 'chart') openWindow(newChartState(inst(), 'footprint'));
-          else if (m.id === 'smart-dom') openWindow(domState(inst()));
+          else if (m.id === 'smart-dom') openWindow(newDomState(inst()));
           else
             openWindow({ kind: 'module', module: m.id }, m.id === 'replay' ? { dir: 'right' } : {});
         },

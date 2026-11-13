@@ -6,6 +6,7 @@ import {
   type BracketSpec,
   type Fill,
   type InstrumentEconomics,
+  type OptionFill,
   type OptionPosition,
   type OptionTradeRequest,
   type Order,
@@ -81,6 +82,33 @@ export type PostFillHook = (fill: Fill, engine: PaperEngine) => void;
 let seq = 0;
 const nextId = (p: string) => `${p}${Date.now().toString(36)}${(++seq).toString(36)}`;
 
+/** A fresh one-cancels-other group id for `OrderRequest.oco`. */
+export const ocoGroupId = (): string => nextId('oco-u');
+
+/** A user OCO group (not a bracket's SL / TP group): any fill or cancel cancels the rest. */
+const userOco = (o: Order) => !!o.oco && !o.parentId;
+
+/**
+ * Open state of one account that survives a restart (P17): positions, working orders, pending
+ * brackets of working entries, live ATM management and options positions.
+ */
+export interface AccountState {
+  v: 1;
+  positions: Position[];
+  orders: Order[];
+  brackets: { entryId: string; spec: BracketSpec }[];
+  managed: {
+    entryId: string;
+    instrumentId: string;
+    dir: 1 | -1;
+    avg: number;
+    breakeven?: { trigger: number; offset: number };
+    steps: { trigger: number; stopOffset: number }[];
+    beDone: boolean;
+  }[];
+  options: OptionPosition[];
+}
+
 /**
  * Paper trading engine (P17). Market orders walk the live book; resting limits fill when the tape
  * trades through them; stops trigger on last trade. Brackets attach SL + N take-profit targets (OCO).
@@ -96,11 +124,7 @@ export class PaperEngine {
   >();
   private managed = new Map<string, ManagedBracket>();
   private options = new Map<string, OptionPosition>();
-  readonly optionFills: (OptionTradeRequest & {
-    ts: number;
-    commission: number;
-    realized: number;
-  })[] = [];
+  readonly optionFills: OptionFill[] = [];
   private optionModel: OptionMarkModel | null = null;
   /** Stop / MIT / trailing orders that became market orders (slippage applies to their fills). */
   private triggered = new Set<string>();
@@ -339,6 +363,7 @@ export class PaperEngine {
     };
     if (req.displayQty !== undefined) order.displayQty = req.displayQty;
     if (req.trail) order.trail = { ...req.trail };
+    if (req.oco) order.oco = req.oco;
     const reject = (reason: string) => {
       order.status = 'rejected';
       order.reason = reason;
@@ -378,6 +403,14 @@ export class PaperEngine {
       if (!reduces) return reject('Reduce-only order would increase position');
       order.qty = Math.min(order.qty, Math.abs(pos.qty));
     }
+    if (req.oco) {
+      for (const x of this.orders.values()) {
+        if (x.oco !== req.oco) continue;
+        if (x.parentId) return reject('OCO group belongs to a bracket');
+        if (x.filled > 0) return reject('OCO group already filled');
+        if (x.status === 'cancelled') return reject('OCO group already cancelled');
+      }
+    }
     for (const check of this.preTradeChecks) {
       const reason = check(req, this);
       if (reason) return reject(reason);
@@ -406,7 +439,46 @@ export class PaperEngine {
     if (!o || (o.status !== 'working' && o.status !== 'partial')) return false;
     o.status = 'cancelled';
     o.updatedAt = this.now();
+    // One-cancels-other: cancelling one order of a user OCO group cancels the rest.
+    if (userOco(o))
+      for (const x of this.orders.values())
+        if (x.oco === o.oco && x.id !== o.id && isWorking(x)) {
+          x.status = 'cancelled';
+          x.reason = 'OCO sibling cancelled';
+          x.updatedAt = o.updatedAt;
+        }
     if (!silent) this.emit();
+    return true;
+  }
+
+  /**
+   * Links working orders of one account into a new user OCO group (the first fill or cancel
+   * cancels the others). Returns the group id, or null when fewer than two orders qualify.
+   */
+  linkOco(orderIds: string[]): string | null {
+    const os = orderIds
+      .map((id) => this.orders.get(id))
+      .filter((o): o is Order => !!o && isWorking(o) && !o.parentId && o.filled === 0);
+    if (os.length < 2 || os.some((o) => o.accountId !== os[0]!.accountId)) return null;
+    const group = ocoGroupId();
+    for (const o of os) {
+      o.oco = group;
+      o.updatedAt = this.now();
+    }
+    this.emit();
+    return group;
+  }
+
+  /** Removes an order from its user OCO group (it then works on its own). */
+  unlinkOco(orderId: string): boolean {
+    const o = this.orders.get(orderId);
+    if (!o || !userOco(o) || !isWorking(o)) return false;
+    const group = o.oco;
+    o.oco = undefined;
+    const rest = [...this.orders.values()].filter((x) => x.oco === group && isWorking(x));
+    // A group of one is no group.
+    if (rest.length === 1) rest[0]!.oco = undefined;
+    this.emit();
     return true;
   }
 
@@ -705,9 +777,17 @@ export class PaperEngine {
     };
     this.fills.push(fill);
     if (this.postFillHooks.length) this.pendingFills.push(fill);
+    // User OCO groups: the first fill (even partial) cancels the other orders of the group.
+    if (userOco(o))
+      for (const x of this.orders.values())
+        if (x.oco === o.oco && x.id !== o.id && isWorking(x)) {
+          x.status = 'cancelled';
+          x.reason = 'OCO sibling filled';
+          x.updatedAt = this.now();
+        }
     if (o.status === 'filled') {
       this.triggered.delete(o.id);
-      if (o.oco)
+      if (o.oco && !userOco(o))
         for (const x of this.orders.values())
           if (x.oco === o.oco && x.id !== o.id) this.reduceOco(x, o);
       const br = this.brackets.get(o.id);
@@ -826,7 +906,7 @@ export class PaperEngine {
     return m ? { breakevenDone: m.beDone } : undefined;
   }
 
-  // ------------------------------------------------------------------ options (minimal model)
+  // ------------------------------------------------------------------ options (P18)
 
   /** Sets the mark-to-model hook used by optionUnrealized / markOptions. */
   setOptionMarkModel(fn: OptionMarkModel | null): void {
@@ -839,18 +919,32 @@ export class PaperEngine {
     );
   }
 
+  optionPosition(id: string): OptionPosition | undefined {
+    for (const p of this.options.values()) if (p.id === id) return p;
+    return undefined;
+  }
+
+  /** Current premium per unit of an option: model mark, else the last mark. */
+  optionMark(p: OptionPosition): number | undefined {
+    const m = this.optionModel?.(p);
+    return m !== undefined && Number.isFinite(m) ? m : p.mark;
+  }
+
   /**
-   * Buys or sells option contracts at a premium. Buying debits premium × qty × multiplier against
-   * the position (shown as premiumFlow), selling credits it; closing books realized PnL into the
-   * balance like a futures position, so balance = start + realized − commissions stays true.
+   * Buys or sells option contracts at a premium. The premium paid (debit) or received (credit) is
+   * recorded on the fill (`premiumFlow`) and carried by the position (`premiumFlow()`); the cash
+   * balance books realized P&L when contracts close, like a futures position, so
+   * balance = start + realized − commissions and equity = balance + mark-to-model P&L.
    */
-  tradeOption(req: OptionTradeRequest): OptionPosition | string {
+  tradeOption(req: OptionTradeRequest, reason?: OptionFill['reason']): OptionPosition | string {
     const acc = this.accounts.get(req.accountId);
     if (!acc) return 'Unknown account';
     if (acc.locked) return 'Trading locked';
     if (!(req.qty > 0)) return 'Quantity must be > 0';
     if (!(req.premium >= 0)) return 'Premium must be >= 0';
     if (!(req.strike > 0)) return 'Strike must be > 0';
+    if (reason !== 'expiry' && req.expiryTs !== undefined && req.expiryTs <= this.now())
+      return 'Option has expired';
     const mult = req.multiplier ?? 1;
     const key = `${req.accountId}|${req.underlyingId}|${req.right}|${req.strike}|${req.expiry}`;
     let p = this.options.get(key);
@@ -869,6 +963,9 @@ export class PaperEngine {
       };
       this.options.set(key, p);
     }
+    // Model inputs follow the latest trade (a new IV / rate re-marks the whole position).
+    for (const k of ['name', 'expiryTs', 'iv', 'model', 'r', 'q', 'basis'] as const)
+      if (req[k] !== undefined) (p as unknown as Record<string, unknown>)[k] = req[k];
     const signed = req.side === 'buy' ? req.qty : -req.qty;
     let realized = 0;
     if (p.qty === 0 || Math.sign(p.qty) === Math.sign(signed)) {
@@ -884,12 +981,43 @@ export class PaperEngine {
       p.qty = n;
       p.realized += realized;
     }
-    const commission = acc.commissionPerUnit * req.qty;
+    const commission = reason === 'expiry' ? 0 : acc.commissionPerUnit * req.qty;
     acc.balance += realized - commission;
     p.mark = req.premium;
-    this.optionFills.push({ ...req, multiplier: mult, ts: this.now(), commission, realized });
+    this.optionFills.push({
+      ...req,
+      id: nextId('of'),
+      multiplier: mult,
+      ts: this.now(),
+      commission,
+      realized,
+      premiumFlow: -signed * req.premium * mult,
+      ...(reason ? { reason } : {}),
+    });
     this.emit();
     return p;
+  }
+
+  /** Closes an option position at `premium` (default: the current model / last mark). */
+  closeOption(id: string, premium?: number): OptionPosition | string {
+    const p = this.optionPosition(id);
+    if (!p || !p.qty) return 'No open position';
+    const px = premium ?? this.optionMark(p);
+    if (px === undefined) return 'No mark for this option';
+    return this.tradeOption(
+      {
+        accountId: p.accountId,
+        underlyingId: p.underlyingId,
+        right: p.right,
+        strike: p.strike,
+        expiry: p.expiry,
+        side: p.qty > 0 ? 'sell' : 'buy',
+        qty: Math.abs(p.qty),
+        premium: Math.max(0, px),
+        multiplier: p.multiplier,
+      },
+      'close',
+    );
   }
 
   /** Net premium paid (> 0) or received (< 0) for the open contracts of a position. */
@@ -908,35 +1036,128 @@ export class PaperEngine {
     this.emit();
   }
 
+  /** Mark-to-model P&L of one option position (0 without a mark). */
+  optionPnl(p: OptionPosition): number {
+    const m = this.optionMark(p);
+    return m === undefined ? 0 : (m - p.avgPremium) * p.qty * p.multiplier;
+  }
+
   optionUnrealized(accountId: string): number {
     let u = 0;
-    for (const p of this.optionPositions(accountId)) {
-      const m = this.optionModel?.(p) ?? p.mark;
-      if (m !== undefined) u += (m - p.avgPremium) * p.qty * p.multiplier;
-    }
+    for (const p of this.optionPositions(accountId)) u += this.optionPnl(p);
     return u;
   }
 
   /** Settles an expiring option at intrinsic value against the underlying price (price units). */
   expireOption(id: string, underlyingPx: number): boolean {
-    const p = [...this.options.values()].find((x) => x.id === id);
-    if (!p || !p.qty) return false;
+    const p = this.optionPosition(id);
+    if (!p || !p.qty || !Number.isFinite(underlyingPx)) return false;
     const intrinsic =
       p.right === 'call'
         ? Math.max(0, underlyingPx - p.strike)
         : Math.max(0, p.strike - underlyingPx);
-    const r = this.tradeOption({
-      accountId: p.accountId,
-      underlyingId: p.underlyingId,
-      right: p.right,
-      strike: p.strike,
-      expiry: p.expiry,
-      side: p.qty > 0 ? 'sell' : 'buy',
-      qty: Math.abs(p.qty),
-      premium: intrinsic,
-      multiplier: p.multiplier,
-    });
-    return typeof r !== 'string';
+    // Settlement is not a trade: it goes through even on a locked account.
+    const acc = this.accounts.get(p.accountId);
+    const wasLocked = acc?.locked ?? false;
+    if (acc) acc.locked = false;
+    try {
+      const r = this.tradeOption(
+        {
+          accountId: p.accountId,
+          underlyingId: p.underlyingId,
+          right: p.right,
+          strike: p.strike,
+          expiry: p.expiry,
+          side: p.qty > 0 ? 'sell' : 'buy',
+          qty: Math.abs(p.qty),
+          premium: intrinsic,
+          multiplier: p.multiplier,
+        },
+        'expiry',
+      );
+      return typeof r !== 'string';
+    } finally {
+      if (acc) acc.locked = wasLocked;
+    }
+  }
+
+  /** Expiry instant of an option (explicit, else 08:00 UTC on the expiry date). */
+  static optionExpiryTs(p: Pick<OptionPosition, 'expiry' | 'expiryTs'>): number {
+    return p.expiryTs ?? Date.parse(`${p.expiry}T08:00:00Z`);
+  }
+
+  /**
+   * Settles every open option whose expiry has passed at intrinsic value against the underlying
+   * price from `spotOf` (price units; options without a price wait). Returns how many settled.
+   */
+  settleExpiredOptions(spotOf: (underlyingId: string) => number | undefined, now = this.now()) {
+    let n = 0;
+    for (const p of this.optionPositions()) {
+      if (PaperEngine.optionExpiryTs(p) > now) continue;
+      const s = spotOf(p.underlyingId);
+      if (s !== undefined && Number.isFinite(s) && this.expireOption(p.id, s)) n++;
+    }
+    return n;
+  }
+
+  // ------------------------------------------------------------------ persistence (P17)
+
+  /** Open state of an account for saving (copies; fills and history are not included). */
+  exportAccountState(accountId: string): AccountState {
+    const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+    const orders = [...this.orders.values()].filter(
+      (o) => o.accountId === accountId && isWorking(o),
+    );
+    return {
+      v: 1,
+      positions: this.allPositions(accountId).map(({ instrumentId, qty, avgPx, realized }) => ({
+        instrumentId,
+        qty,
+        avgPx,
+        realized,
+      })),
+      orders: clone(orders),
+      brackets: [...this.brackets]
+        .filter(([id, b]) => b.accountId === accountId && this.orders.has(id))
+        .map(([entryId, b]) => ({ entryId, spec: clone(b.spec) })),
+      managed: [...this.managed.values()]
+        .filter((m) => m.accountId === accountId)
+        .map(({ accountId: _a, ...m }) => clone(m)),
+      options: clone(this.optionPositions(accountId)),
+    };
+  }
+
+  /**
+   * Replaces an account's open state with a saved one (restart): positions, working orders,
+   * brackets and options. The cash balance is restored separately (it already includes the
+   * realized P&L). Orders keep their ids, so OCO groups and bracket links survive.
+   */
+  importAccountState(accountId: string, s: AccountState): boolean {
+    if (!this.accounts.has(accountId)) return false;
+    this.clearAccountState(accountId);
+    for (const p of s.positions)
+      if (p.qty !== 0)
+        this.positions.set(`${accountId}|${p.instrumentId}`, {
+          ...p,
+          instrumentId: p.instrumentId,
+        });
+    for (const o of s.orders) if (isWorking(o)) this.orders.set(o.id, { ...o, accountId });
+    for (const b of s.brackets)
+      if (this.orders.has(b.entryId)) {
+        const e = this.orders.get(b.entryId)!;
+        this.brackets.set(b.entryId, { accountId, instrumentId: e.instrumentId, spec: b.spec });
+      }
+    for (const m of s.managed) this.managed.set(m.entryId, { ...m, accountId });
+    for (const p of s.options)
+      if (p.qty !== 0) {
+        const op = { ...p, accountId };
+        this.options.set(
+          `${accountId}|${op.underlyingId}|${op.right}|${op.strike}|${op.expiry}`,
+          op,
+        );
+      }
+    this.emit();
+    return true;
   }
 }
 

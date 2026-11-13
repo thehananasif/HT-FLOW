@@ -19,6 +19,7 @@ import { allInstruments, instrumentById } from '../../state/instruments';
 import { downloadText, toCsv } from '../../components/DataTable.utils';
 import { registerModule } from '../registry';
 import {
+  exchangeTimeTitle,
   fmtClock,
   fmtDate,
   formatNumber,
@@ -751,7 +752,15 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
                       onClick={() => setSelected(t.id)}
                       data-testid="journal-row"
                     >
-                      <td className="muted">{dateTime(t.exitTs)}</td>
+                      <td
+                        className="muted"
+                        title={exchangeTimeTitle(
+                          t.exitTs,
+                          instrumentById(t.instrumentId)?.assetClass,
+                        )}
+                      >
+                        {dateTime(t.exitTs)}
+                      </td>
                       <td className="mono">{sym(t.instrumentId)}</td>
                       <td className={t.side === 'long' ? 'up b' : 'down b'}>
                         {t.side.toUpperCase()}

@@ -26,6 +26,8 @@ import {
   type TapeFilter,
 } from '@htflow/tape';
 import { useMarketStore } from '../../charts/useMarket';
+import { effectiveMaxFps, frameInterval } from '../../charts/settings/performance';
+import { useSettingsStore } from '../../state/settings';
 import type { ModuleViewProps } from '../registry';
 import {
   InstrumentPicker,
@@ -36,6 +38,14 @@ import {
   primeAudio,
   useFollowedInstrument,
 } from './shared';
+import {
+  anchoredScroll,
+  effectiveBigSize,
+  effectiveFilter,
+  effectiveSound,
+  sideColor,
+  tapeCapacity,
+} from './globalSettings';
 import './styles.css';
 
 export type TapeVariant = 'smart' | 'bidask';
@@ -98,11 +108,16 @@ export interface Engine {
   big: number;
 }
 
-export function buildEngine(store: MarketStore, agg: AggregateMode, windowMs: number): Engine {
-  const buf = new TapeBuffer(65_536, { mode: agg, windowMs });
+export function buildEngine(
+  store: MarketStore,
+  agg: AggregateMode,
+  windowMs: number,
+  capacity: number,
+): Engine {
+  const buf = new TapeBuffer(capacity, { mode: agg, windowMs });
   const cursor = new TradeCursor();
   const tr = store.trades;
-  const start = Math.max(0, tr.length - HISTORY_PRINTS);
+  const start = Math.max(0, tr.length - Math.min(HISTORY_PRINTS, capacity));
   const ss = sessionStart(store.lastTs || Date.now());
   // CVD baseline: session delta up to the first trade shown.
   let i0 = start;
@@ -141,6 +156,7 @@ export interface DrawOpts {
   buckets: boolean;
   scroll: number;
   paused: boolean;
+  colorBySide: boolean;
 }
 
 export function drawTape(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts): void {
@@ -237,11 +253,15 @@ export function drawTape(c: HTMLCanvasElement, w: number, h: number, e: Engine, 
     const side = e.buf.sideAt(k);
     const q = e.buf.qtyAt(k);
     const big = q >= e.big;
-    const sc = side > 0 ? th.up : side < 0 ? th.down : th.textSecondary;
+    const sc = sideColor(side, o.colorBySide, {
+      up: th.up,
+      down: th.down,
+      neutral: th.textSecondary,
+    });
     const bucket = sizeBucket(q, e.thresholds);
     if (o.variant === 'smart') {
       const a = big ? 0.28 : o.buckets ? (BUCKET_A[bucket] ?? 0.16) : 0;
-      if (a > 0 && side !== 0) {
+      if (a > 0 && side !== 0 && o.colorBySide) {
         ctx.fillStyle = alpha(sc, a);
         ctx.fillRect(0, y, w, ROW);
       }
@@ -335,8 +355,11 @@ export function TapeView({
   const [paused, setPaused] = useState(false);
   const [stress, setStress] = useState(false);
   const [meter, setMeter] = useState({ pps: 0, vps: 0, big: Number.POSITIVE_INFINITY });
-  const ui = useRef({ p, paused, scroll: 0, stress, dirty: true });
+  const g = useSettingsStore((st) => st.values);
+  const ui = useRef({ p, g, paused, scroll: 0, stress, dirty: true });
   ui.current.p = p;
+  ui.current.g = g;
+  const capacity = tapeCapacity(g);
   ui.current.paused = paused;
   ui.current.stress = stress;
   const set = (patch: Partial<TapeParams>) => setParams(patch as Record<string, unknown>);
@@ -368,31 +391,38 @@ export function TapeView({
     let stressT = performance.now();
     let stressId = 1e12;
     let lastKey = '';
+    let lastFrame = 0;
     const frame = () => {
       raf = requestAnimationFrame(frame);
       const u = ui.current;
       if (!store.ready) return;
+      const tNow = performance.now();
+      if (tNow - lastFrame < frameInterval(effectiveMaxFps(0, u.g))) return;
+      lastFrame = tNow;
       if (!e) {
-        e = buildEngine(store, u.p.agg, u.p.windowMs);
-        refreshBuckets(e, u.p.bigSize);
+        e = buildEngine(store, u.p.agg, u.p.windowMs, capacity);
+        refreshBuckets(e, effectiveBigSize(u.p.bigSize, u.g));
       }
       // Ingest new trades (at most once per frame) with the current best bid / ask.
       const [from, to] = e.cursor.next(store.trades);
       const bb = store.book.bestBid;
       const ba = store.book.bestAsk;
       const tick = inst.tickSize;
-      const f = u.p.filter;
+      const f = effectiveFilter(u.p.filter, u.g);
       const ft: TapeFilter = {
         ...f,
         minPx: f.minPx === null ? null : Math.round(f.minPx / tick),
         maxPx: f.maxPx === null ? null : Math.round(f.maxPx / tick),
       };
       let soundSide = 0;
+      let added = 0;
+      const sound = effectiveSound(u.p.sound, u.g);
       const ingest = (tr: (typeof store.trades)[number], b: number, a: number) => {
         const created = e!.buf.push(tr, b, a);
+        if (created) added++;
         e!.speed.add(tr.ts, tr.qty, created ? 1 : 0);
         const q = e!.buf.qtyAt(0);
-        if (u.p.sound && q >= e!.big && passesRaw(ft, q, e!.buf.sideAt(0), tr.px))
+        if (sound && q >= e!.big && passesRaw(ft, q, e!.buf.sideAt(0), tr.px))
           soundSide = e!.buf.sideAt(0) || 1;
       };
       for (let i = from; i < to; i++) ingest(store.trades[i]!, bb, ba);
@@ -418,18 +448,19 @@ export function TapeView({
           );
         }
       } else stressT = performance.now();
+      if (added) u.scroll = anchoredScroll(u.scroll, added, u.g['tape.autoScroll']);
       if (soundSide) beep(soundSide);
       const now = performance.now();
       if (now - lastBuckets > 2000) {
         lastBuckets = now;
-        refreshBuckets(e, u.p.bigSize);
+        refreshBuckets(e, effectiveBigSize(u.p.bigSize, u.g));
       }
       if (now - lastMeter > 500) {
         lastMeter = now;
         const r = e.speed.rate(store.lastTs || Date.now());
         setMeter({ pps: r.printsPerSec, vps: r.volPerSec, big: e.big });
       }
-      const key = JSON.stringify(u.p) + u.paused;
+      const key = JSON.stringify([u.p, u.paused, u.g['tape.colorBySide'], u.g['tape.minSize']]);
       if (key !== lastKey) {
         lastKey = key;
         u.dirty = true;
@@ -444,8 +475,9 @@ export function TapeView({
         filter: ft,
         cols: u.p.cols,
         buckets: u.p.buckets,
-        scroll: u.paused ? u.scroll : 0,
+        scroll: u.paused || !u.g['tape.autoScroll'] ? u.scroll : 0,
         paused: u.paused,
+        colorBySide: u.g['tape.colorBySide'],
       });
     };
     raf = requestAnimationFrame(frame);
@@ -455,7 +487,7 @@ export function TapeView({
     };
     // Rebuild when the instrument or the aggregation changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, p.agg, p.windowMs, variant]);
+  }, [store, p.agg, p.windowMs, variant, capacity]);
 
   const sizeChips = variant === 'bidask';
   return (
@@ -655,7 +687,7 @@ export function TapeView({
         className="tape-canvas-wrap"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => {
-          ui.current.scroll = 0;
+          if (ui.current.g['tape.autoScroll']) ui.current.scroll = 0;
           setPaused(false);
         }}
         onWheel={(ev) => {
@@ -671,8 +703,8 @@ export function TapeView({
           pps: Math.round(meter.pps),
           vps: formatCompact(Number(meter.vps.toFixed(2))),
           big: Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—',
-          auto: p.bigSize ? '' : ' (auto)',
-          sound: p.sound ? t('tape.on') : t('tape.off'),
+          auto: effectiveBigSize(p.bigSize, g) ? '' : ' (auto)',
+          sound: effectiveSound(p.sound, g) ? t('tape.on') : t('tape.off'),
         })}
       </div>
     </div>

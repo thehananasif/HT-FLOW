@@ -80,7 +80,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Connectors: OKX swap (seqId + checksum), Binance spot / COIN-M / USDⓈ-M (rebuilt on the driver; proper aggTrades time-range backfill), Deribit (change_id chain; options chain via `market_options_chain`), Bitget v2, Kraken Futures, Bitfinex (spot + F0), Phemex, WhiteBIT; funding / open interest / liquidations as `MarketEvent::Stats` with `onFunding` / `onOpenInterest` / `onLiquidation` on the store; recorded-message tests for every venue
 - [ ] Not run against live exchanges; stats not recorded in the tick store; Phemex / WhiteBIT gaps undetectable; short REST history on Phemex / WhiteBIT / Bitfinex; OKX / Bybit / Kraken / Phemex spot, OKX dated futures, BitMEX; quote / bookTicker event; Deribit chain not wired into the Options Board yet
 - [!] Rithmic, CQG, dxFeed, Interactive Brokers, Tradovate, Alpaca — need user credentials / SDKs (see BLOCKERS)
-- [ ] CSV / Parquet importer, "Custom WebSocket" JSON-mapping connector
+- [x] "Custom WebSocket" connector (Connections → Add connection → Other): ws(s):// URL, optional subscribe message (JSON, `{symbol}` template), JSON path mapping for price / qty / side / timestamp and optional book bids / asks (snapshot or delta); a `custom-ws:<connection>:<symbol>` FeedSource with status, msgs/s, reconnect back-off 0.5 s → 30 s, Connect / Disconnect; wizard "Test connection" parses the first message; unit tests with sample messages and a fake socket, e2e against a mocked ws server
+- [x] Custom WebSocket in the desktop app: the Rust core opens the socket (`custom_ws_open` / `custom_ws_send` / `custom_ws_close`, `src-tauri/src/custom_ws.rs`) and relays raw text frames to the UI over a Tauri Channel (batched every 16 ms); ws:// and wss:// only, 1 MB frame / message cap, keep-alive ping every 20 s, dead link after 60 s of silence, close handshake on disconnect; UTF-8 binary frames are forwarded as text; the CSP is unchanged. The feed keeps the same mapping, status and back-off reconnect in both builds (browser WebSocket in the web build)
+- [ ] Custom WebSocket: no history / backfill, no compressed frames, no auth headers
 - [x] Connections window (P32): per-connection status, latency colours, msgs/s, accounts, Connect / Disconnect / Edit / remove, Connect all / Disconnect all, auto-connect on start, summary cards; two-step add-connection wizard (provider tree with spec groups, FREE / YOUR ACCOUNT tags, per-type forms, Test connection, credentials in the vault)
 - [ ] Providers without a connector show "Coming soon / requires SDK" (see BLOCKERS); simulator rows cannot be disconnected
 - [ ] Acceptance: BTCUSDT 1-hour soak with zero sequence gaps (needs a Windows run with network access to Binance)
@@ -91,6 +93,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] `crates/tick-store`: per-instrument per-UTC-day trade and depth files, zstd columnar blocks of 1,000 records with CRC, block index, crash-safe (torn block ignored, index rebuilt), recorder thread (1 s flush, 10 s fsync; depth deltas, full snapshots, 250 ms top-25 snapshots), day compaction, retention by age / max disk, coverage file, CSV export; tick store registered as the preferred replay source
 - [ ] Memory-mapped reads; bars cache; Parquet export; Bybit history beyond the latest 1,000 trades; Binance time-range backfill (reuses recent trades)
 - [ ] Binance public archives (data.binance.vision) import
+- [x] CSV importer (Data manager → Import CSV…, command "Import CSV"): trades (time, price, qty, optional side) or OHLCV bars; auto-detects delimiter, header, columns and time format (epoch s / ms / us / ns, ISO, d/m/y text), time zone and side semantics (incl. is_buyer_maker); preview of the first rows with per-row validation; rejected rows listed with line numbers; streamed in chunks (no whole-file string); imported data becomes a `csv:<name>` instrument that opens in charts and in Replay ("Imported files" source), kept in memory and IndexedDB
+- [ ] CSV importer: Parquet files, depth / book CSV, writing imports into the Rust tick store (imports live in the browser store), bars become 4 synthetic trades each
 - [x] Data manager (ribbon + Connections tab): stored instruments, date ranges, per-day sizes, delete per instrument / day, trades / depth CSV export, recorder on / off, retention and max-disk settings
 - [ ] "Set dates" dialog, "Reload all historical data"
 - [~] Acceptance: 30 days of BTCUSDT into a 1m footprint in < 5 s — the store reads 2M trades in ~0.11 s (projects to ~4.7 s for 30 days, synthetic data); the UI path still sends history as JSON over IPC and aggregates in TypeScript
@@ -157,7 +161,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] ZigZag volume profile, CVD correlation, Magnifier (M), Remove indicators; Ctrl+Z / Ctrl+Y / Del / Ctrl+A registry commands; drawings on both Order Flow (Dark) panes; Objects List ribbon button
 - [x] i18n of drawing strings (toolbar, menus, dialogs, Objects List, toasts)
 - [x] Ctrl+Z / Ctrl+Y / Del act on the active chart even when the last click was outside any window
-- [ ] i18n of drawing tool names and descriptions (`@htflow/drawings` labels still English)
+- [x] i18n of drawing tool names and descriptions (`drawings.tool.<id>`, `drawings.toolDesc.<id>`; `@htflow/drawings` keeps English data and the UI layer translates)
 
 ## P13 — Indicator framework
 
@@ -204,14 +208,18 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Chart trading (chart extension): position line with live P&L and ✕ close, draggable working-order and SL / TP lines with ✕ cancel, B / S fill markers, right-click order menu; all styles configurable
 - [x] Multiple paper accounts (create, rename, starting balance and currency, reset, delete); order confirmations per order type; account picker shows the routed account (replay); minimal options positions model in the engine
 - [x] Chart right-click Buy / Sell (with the Trading Panel's ATM bracket and confirmations), Dashboard Flatten / Breakeven and the risk meter use the selected paper account; the risk engine covers every paper account; saved accounts keep settings and cash balance
-- [ ] Options model not connected to the Options Board; open positions are not saved across restarts; OCO checkbox inert
+- [x] Open state survives restarts: positions, working orders (OCO groups, pending brackets, ATM management) and options are saved per paper account in the encrypted profile store and restored with the balance; the risk engine and Settings → Risk limits continue the same trading day (day P&L, trade count) after a restart
+- [x] OCO checkbox: resting orders placed while ticked form one-cancels-other groups (first fill or cancel cancels the rest), shown in the Trading Panel and the Orders table; commands to toggle, start a new group and link the last two orders
+- [x] Options in the paper engine: premium debit / credit, mark-to-model P&L with `@htflow/options`, expiry settlement at intrinsic value, Positions table rows
+- [ ] Fills / trade history are not saved with the account state (the Trades table and journal start empty after a restart); options have no pre-trade risk rules (max position etc. apply to futures only)
 - [x] Tests: bracket with 3 targets fills correctly; PnL matches hand calculation
 
 ## P18 — Options Board & analytics
 
 - [x] `@htflow/options`: Black-Scholes (dividend / funding yield) and Black-76 with full Greeks, IV solver (Newton + bisection), strategies (payoff at expiry and T+n, breakevens, max profit / loss incl. unlimited, probability of profit, Greeks totals), 13 templates, simulated chains for all Sim instruments, Deribit provider (recorded-fixture tests); validated against Hull / Haug references within 0.5%
 - [x] Options Strategy Analyser window: series filters, expiry blocks (calls / strike + IV / puts, ITM tint, spot line), click bid to sell / ask to buy, strategy builder with canvas payoff chart and T+n slider, readouts, local options positions tab with live P&L
-- [ ] Options not modelled by the paper engine (local positions only); Appendix B options indicators exported but not on charts yet; live Deribit in the desktop app needs `net_fetch_text` (now merged) wiring check; CME options need a user feed
+- [x] Options Board trades on paper: Send as paper order books each leg in the paper engine, "Click a quote: Trade now" buys at the ask / sells at the bid at once; positions tab shows paper options (debit / credit, model mark, P&L, days left, Analyse into the builder, Close); they also appear in the Positions table
+- [ ] Appendix B options indicators exported but not on charts yet; live Deribit in the desktop app needs `net_fetch_text` (now merged) wiring check; CME options need a user feed
 
 ## P19 — Forward curve
 
@@ -269,7 +277,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Full menu in spec order: Buy Limit / Sell Stop (or Sell Limit / Buy Stop) at cursor price with the Trading Panel account + ATM bracket, Set alert, Trading Panel, DOM Trader, Lock trading, Go to date, Change instrument, Mode ▸, Mouse ▸, Price scale ▸, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window ▸, Clone, Hide panels, Trading session ▸, Refresh, Reload history, ◂ Load 1 more day, Add replay template, Reset, Export ▸ (PNG, CSV bars, CSV clusters, JSON, template JSON), Full screen, Settings
 - [x] Context-aware menus: drawing (edit / clone / lock / hide / delete), indicator legend or pane (settings / hide / remove / move pane), order line (cancel / move), position (close / breakeven), price scale, time scale, sub-panes; every item has a Command Palette entry; Playwright clicks through the menu (`e2e/chart-menu.spec.ts`)
-- [ ] i18n of menu strings
+- [x] i18n of the chart menu's own strings (`chartMenu.*`: scale, trade, template, mouse, layout, export and window items)
+- [ ] Chart menu entries that come from other modules are still English: chart template and layout preset names, footprint mode names, time zones, display and trading-session modes, mouse modes
 
 ## P27 — Settings & customization centre
 
@@ -278,7 +287,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Settings wired: date format / 24h / app time zone in tables, journal, tape and divergence; first day of week; start-up workspace; autosave; confirmations (flatten, close window, exit, table actions); notifications show / duration / max; DOM levels, row height, auto-centre, big lot; tape ms; RTL flag; clear caches on logout; log level and buffer size
 - [x] Sections Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy & security (telemetry off, clear caches / logs, reset all), Logs (viewer), Custom modules (P43: enable / disable modules, module folders placeholder), About & updates (licences, links); about 150 new keys; RTL preview flag
 - [x] Settings wired (round 4): Chart (default timeframe of new charts, auto-scroll, wick / border colours up / down, crosshair axis labels, magnet → crosshair snap, status line → indicator values), Footprint (cell content of new charts, colouring, opacity, font size, min row height, value area, absorption, delta / volume / cumulative-delta rows), Trading (default qty, quick sizes, order type, TIF, one-click, order hot keys, slippage guard, auto SL / TP, order / position lines, confirm orders), Data (conflation, local timestamps, re-subscribe back-off, recorder on / off), Risk (app-wide order / position / collar / trades / daily-loss limits, warn %, warn / block / flatten, lock duration), Privacy (mask accounts, hide balances) and number format
-- [ ] Data provider priority and cache size need native work (see BLOCKERS); DOM / tape leftovers (font size, grouping, invert clicks, tape rows / filters / beep), time-zone, performance, MBO / backup and log-file keys still `wired: false`; alerts keys handled by the alerts work; native log files, settings folder, module-folder loading and updater need the native core; per-chart Settings (Ctrl+S) in progress; languages other than English
+- [x] Settings wired (round 5): DOM (font size, default grouping of new DOMs, Buys / Sells window, swap left / right click), Tape (rows kept, minimum size, follow new trades, big-trade threshold, colour by side, beep on big), Time zones (chart axis, calendar / news, exchange time on hover), Performance (FPS cap on charts / DOM / tape, renderer type and video adapter for the 3D heatmap), recorder disk budget and tick retention
+- [ ] Data provider priority and cache size need native work (see BLOCKERS); MBO history and backup keys, log-file keys (`logs.keepDays`, `logs.folder`), settings folder, module-folder loading and updater need the native core; alerts keys handled by the alerts work; per-chart Settings (Ctrl+S) in progress; languages other than English
 
 ## P28 — Remaining modules
 

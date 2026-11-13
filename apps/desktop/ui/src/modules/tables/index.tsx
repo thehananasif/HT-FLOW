@@ -1,13 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from '@htflow/ui-kit';
 import { formatPrice } from '@htflow/market-data';
-import type { Account, Fill, Order, Position } from '@htflow/trading';
+import type { Account, Fill, OptionPosition, Order, Position } from '@htflow/trading';
 import { hub, paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { risk } from '../risk/engine';
 import {
+  exchangeTimeTitle,
   fmtClock,
   fmtMoney,
   maskAccount,
@@ -62,7 +63,8 @@ const sidePill = (s: 'buy' | 'sell') => (
 const mark = (id: string) => hub.peek(id)?.lastTrade?.px;
 
 function openPnl(accountId: string): number {
-  let open = 0;
+  // Options count at their mark-to-model P&L (P18).
+  let open = paper.optionUnrealized(accountId);
   for (const p of paper.allPositions(accountId)) {
     const m = mark(p.instrumentId);
     if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
@@ -171,11 +173,26 @@ function Accounts({ state, setParams }: ModuleViewProps) {
 
 /* ------------------------------------------------------------------ Positions */
 
-type PosRow = Position & { accountId: string };
+/** A futures position, or a paper options position (P18) when `option` is set. */
+type PosRow = Position & { accountId: string; option?: OptionPosition };
 const upnl = (p: PosRow) => {
+  if (p.option) return paper.optionPnl(p.option);
   const m = mark(p.instrumentId);
   return m !== undefined ? paper.unrealized(p.accountId, p.instrumentId, m) : 0;
 };
+const optLabel = (o: OptionPosition) =>
+  o.name ?? `${sym(o.underlyingId)} ${o.expiry} ${o.strike} ${o.right === 'call' ? 'C' : 'P'}`;
+const optionRow = (o: OptionPosition): PosRow => ({
+  instrumentId: optLabel(o),
+  accountId: o.accountId,
+  qty: o.qty,
+  avgPx: o.avgPremium,
+  realized: o.realized,
+  option: o,
+});
+const premium = (v: number | undefined) =>
+  v === undefined ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: 4 });
+const markOf = (p: PosRow) => (p.option ? paper.optionMark(p.option) : mark(p.instrumentId));
 
 const positionCols: DataColumn<PosRow>[] = [
   {
@@ -183,7 +200,15 @@ const positionCols: DataColumn<PosRow>[] = [
     header: 'Instrument',
     width: 1.1,
     mono: true,
-    value: (p) => sym(p.instrumentId),
+    value: (p) => (p.option ? p.instrumentId : sym(p.instrumentId)),
+    render: (p) =>
+      p.option ? (
+        <span title="Paper option · premium per unit, marked to model">
+          {p.instrumentId} <Pill tone="info">OPT</Pill>
+        </span>
+      ) : (
+        sym(p.instrumentId)
+      ),
   },
   {
     id: 'account',
@@ -205,14 +230,14 @@ const positionCols: DataColumn<PosRow>[] = [
     header: 'Avg price',
     align: 'right',
     value: (p) => p.avgPx,
-    render: (p) => px(p.instrumentId, p.avgPx),
+    render: (p) => (p.option ? premium(p.avgPx) : px(p.instrumentId, p.avgPx)),
   },
   {
     id: 'mark',
     header: 'Mark',
     align: 'right',
-    value: (p) => mark(p.instrumentId),
-    render: (p) => px(p.instrumentId, mark(p.instrumentId)),
+    value: (p) => markOf(p),
+    render: (p) => (p.option ? premium(markOf(p)) : px(p.instrumentId, markOf(p))),
   },
   {
     id: 'open',
@@ -228,50 +253,78 @@ const positionCols: DataColumn<PosRow>[] = [
     align: 'right',
     action: true,
     value: () => '',
-    render: (p) => (
-      <>
-        <button
-          className="dt-cell-btn"
-          onClick={() =>
-            void confirmAction(
-              'tableAction',
-              {
-                title: 'Close position',
-                body: `Close the ${sym(p.instrumentId)} position of ${accName(p.accountId)} at market?`,
-                confirmLabel: 'Close position',
-                danger: true,
-              },
-              { fromTable: true },
-            ).then((ok) => ok && paper.flatten(p.accountId, p.instrumentId))
-          }
-        >
-          Close
-        </button>
-        <button
-          className="dt-cell-btn"
-          onClick={() =>
-            void confirmAction(
-              'tableAction',
-              {
-                title: 'Reverse position',
-                body: `Reverse the ${sym(p.instrumentId)} position of ${accName(p.accountId)} at market?`,
-                confirmLabel: 'Reverse',
-              },
-              { fromTable: true },
-            ).then((ok) => ok && paper.reverse(p.accountId, p.instrumentId))
-          }
-        >
-          Reverse
-        </button>
-      </>
-    ),
+    render: (p) => {
+      const opt = p.option;
+      if (opt)
+        return (
+          <button
+            className="dt-cell-btn"
+            data-testid="close-option-row"
+            onClick={() =>
+              void confirmAction(
+                'tableAction',
+                {
+                  title: 'Close option',
+                  body: `Close ${p.instrumentId} of ${accName(p.accountId)} at the model mark?`,
+                  confirmLabel: 'Close option',
+                  danger: true,
+                },
+                { fromTable: true },
+              ).then((ok) => {
+                if (!ok) return;
+                const r = paper.closeOption(opt.id);
+                if (typeof r === 'string') toast('error', 'Could not close', r);
+              })
+            }
+          >
+            Close
+          </button>
+        );
+      return (
+        <>
+          <button
+            className="dt-cell-btn"
+            onClick={() =>
+              void confirmAction(
+                'tableAction',
+                {
+                  title: 'Close position',
+                  body: `Close the ${sym(p.instrumentId)} position of ${accName(p.accountId)} at market?`,
+                  confirmLabel: 'Close position',
+                  danger: true,
+                },
+                { fromTable: true },
+              ).then((ok) => ok && paper.flatten(p.accountId, p.instrumentId))
+            }
+          >
+            Close
+          </button>
+          <button
+            className="dt-cell-btn"
+            onClick={() =>
+              void confirmAction(
+                'tableAction',
+                {
+                  title: 'Reverse position',
+                  body: `Reverse the ${sym(p.instrumentId)} position of ${accName(p.accountId)} at market?`,
+                  confirmLabel: 'Reverse',
+                },
+                { fromTable: true },
+              ).then((ok) => ok && paper.reverse(p.accountId, p.instrumentId))
+            }
+          >
+            Reverse
+          </button>
+        </>
+      );
+    },
   },
 ];
 
 function Positions({ state, setParams }: ModuleViewProps) {
   useTicker();
   usePrivacy();
-  const rows = paper.allPositions();
+  const rows: PosRow[] = [...paper.allPositions(), ...paper.optionPositions().map(optionRow)];
   const net = rows.reduce((s, p) => s + upnl(p), 0);
   return (
     <DataTable
@@ -280,7 +333,7 @@ function Positions({ state, setParams }: ModuleViewProps) {
       subtitle={`${rows.length} open`}
       rows={rows}
       columns={positionCols}
-      rowKey={(p) => `${p.accountId}|${p.instrumentId}`}
+      rowKey={(p) => (p.option ? p.option.id : `${p.accountId}|${p.instrumentId}`)}
       empty="No open positions"
       actions={
         <button
@@ -295,7 +348,12 @@ function Positions({ state, setParams }: ModuleViewProps) {
                 danger: true,
               },
               { fromTable: true },
-            ).then((ok) => ok && [...paper.accounts.keys()].forEach((a) => paper.flattenAll(a)))
+            ).then((ok) => {
+              if (!ok) return;
+              for (const a of paper.accounts.keys()) paper.flattenAll(a);
+              // Options close at their model mark (positions without a mark stay open).
+              for (const o of paper.optionPositions()) paper.closeOption(o.id);
+            })
           }
         >
           Flatten all
@@ -417,7 +475,14 @@ const orderCols: DataColumn<Order>[] = [
     header: 'Time',
     width: 0.9,
     value: (o) => o.createdAt,
-    render: (o) => <span className="muted">{time(o.createdAt)}</span>,
+    render: (o) => (
+      <span
+        className="muted"
+        title={exchangeTimeTitle(o.createdAt, instrumentById(o.instrumentId)?.assetClass)}
+      >
+        {time(o.createdAt)}
+      </span>
+    ),
   },
   {
     id: 'instrument',
@@ -592,7 +657,14 @@ const tradeCols: DataColumn<Fill>[] = [
     header: 'Time',
     width: 1,
     value: (f) => f.ts,
-    render: (f) => <span className="muted">{time(f.ts, true)}</span>,
+    render: (f) => (
+      <span
+        className="muted"
+        title={exchangeTimeTitle(f.ts, instrumentById(f.instrumentId)?.assetClass)}
+      >
+        {time(f.ts, true)}
+      </span>
+    ),
   },
   {
     id: 'instrument',

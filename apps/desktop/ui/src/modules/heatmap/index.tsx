@@ -4,6 +4,7 @@ import { toast } from '@htflow/ui-kit';
 import { registerCommands, runCommand, type Command } from '../../shell/commands';
 import { registerModule } from '../registry';
 import { targetHeatmap, type HeatmapApi } from './api';
+import { toolLabel } from '../drawings/toolText';
 import { HEATMAP_TOOLS } from './drawings';
 import { HeatmapView } from './HeatmapView';
 import { COLUMN_WIDTHS, columnLabel, type HeatmapModuleSettings } from './model';
@@ -158,7 +159,7 @@ const cmds: Command[] = [
   },
   ...HEATMAP_TOOLS.map((t): Command => ({
     id: `heatmap.draw.${t.id}`,
-    label: `Heatmap: draw ${t.label}`,
+    label: `Heatmap: draw ${toolLabel(t.id)}`,
     group: 'Drawing',
     keywords: 'heatmap drawing tool',
     run: withHeatmap((a) => a.tool(t.id)),

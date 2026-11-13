@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { WindowState } from '@htflow/workspace';
 import { backend, isTauri } from '../../backend';
 import { useSession } from '../../state/session';
+import { getSetting, useSetting } from '../../state/settings';
 import { useWindows } from '../../state/windows';
 import { runCommand } from '../../shell/commands';
 import { allInstruments } from '../../state/instruments';
@@ -190,6 +191,20 @@ export function userTimezone(): string {
     Intl.DateTimeFormat().resolvedOptions().timeZone ||
     'UTC'
   );
+}
+
+/** Settings → Time zones → Calendar: "app" follows the application zone. */
+export function resolveCalendarZone(setting: string, appZone: string): string {
+  return !setting || setting === 'app' || setting === 'exchange' ? appZone : setting;
+}
+
+export function calendarTimezone(): string {
+  return resolveCalendarZone(getSetting('timezones.calendar'), getSetting('timezones.app'));
+}
+
+/** Zone of the calendar and news times; re-renders when either time-zone setting changes. */
+export function useCalendarTimezone(): string {
+  return resolveCalendarZone(useSetting('timezones.calendar'), useSetting('timezones.app'));
 }
 
 export const fmtClock = (t: number, tz: string) => {
