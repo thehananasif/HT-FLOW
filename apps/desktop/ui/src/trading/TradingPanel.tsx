@@ -21,6 +21,7 @@ import {
 } from './orders';
 import { setPrefs, useTradingPrefs, type SlKind, type TpUnit } from './prefs';
 import { openTradingSetup } from './setupNav';
+import { nextOcoGroup, ocoGroupState, useOco } from './oco';
 import './trading.css';
 
 export function usePaperTick() {
@@ -119,11 +120,13 @@ function OrderEntry({
   qty,
   tif,
   reduceOnly,
+  ocoFor,
 }: {
   instrumentId: string;
   qty: number;
   tif: TimeInForce;
   reduceOnly: boolean;
+  ocoFor: (type: OrderRequest['type']) => string | undefined;
 }) {
   const inst = instrumentById(instrumentId) ?? hub.peek(instrumentId)?.instrument;
   const tick = inst?.tickSize ?? 1;
@@ -166,6 +169,8 @@ function OrderEntry({
     if (needsStop) req.stopPx = toTicks(stop);
     if (type === 'trailing-stop') req.trail = { kind: trailKind, amount: trail };
     if (type === 'iceberg') req.displayQty = display;
+    const oco = ocoFor(req.type);
+    if (oco) req.oco = oco;
     void submitOrder(req);
   };
   return (
@@ -284,6 +289,11 @@ function WorkingOrders({ instrumentId, accountId }: { instrumentId: string; acco
           data-role={o.role ?? 'order'}
         >
           <span className="grow tnum">{orderLineLabel(o, inst)}</span>
+          {o.oco && !o.parentId && (
+            <span className="ot-badge" title={`OCO group ${o.oco}`} data-testid="tp-oco-badge">
+              OCO
+            </span>
+          )}
           {o.atm && <span className="ot-badge">{o.atm}</span>}
           <button className="ot-x" aria-label="Cancel order" onClick={() => void cancelOrder(o)}>
             ✕
@@ -311,7 +321,9 @@ export function TradingPanel() {
   const presets = useMemo(() => parseQtyPresets(presetsRaw), [presetsRaw]);
   const [qty, setQty] = useState(defQty);
   useEffect(() => setQty(defQty), [defQty]);
-  const [oco, setOco] = useState(false);
+  const oco = useOco();
+  const ocoState = ocoGroupState(oco.group);
+  const ocoWorking = ocoState.fired ? 0 : ocoState.working.length;
   const [reduceOnly, setReduceOnly] = useState(false);
   const [tif, setTif] = useState<TimeInForce>(tifOf(defTif));
   useEffect(() => setTif(tifOf(defTif)), [defTif]);
@@ -325,7 +337,17 @@ export function TradingPanel() {
 
   const send = (side: Side, type: OrderRequest['type'], px?: number) => {
     if (!instrumentId) return;
-    void submitOrder({ instrumentId, side, type, qty, px, tif, reduceOnly });
+    const group = nextOcoGroup(type);
+    void submitOrder({
+      instrumentId,
+      side,
+      type,
+      qty,
+      px,
+      tif,
+      reduceOnly,
+      ...(group ? { oco: group } : {}),
+    });
   };
   const book = store?.book;
 
@@ -464,7 +486,9 @@ export function TradingPanel() {
         </div>
       </div>
       <div className="row between center-y tp-row">
-        <Checkbox checked={oco} onChange={setOco} label="OCO" />
+        <span title="One-cancels-other: resting orders placed while ticked form one group; the first fill or cancel cancels the others">
+          <Checkbox checked={oco.enabled} onChange={oco.setEnabled} label="OCO" />
+        </span>
         <Select
           small
           value={tif}
@@ -476,6 +500,18 @@ export function TradingPanel() {
           aria-label="Time in force"
         />
       </div>
+      {oco.enabled && (
+        <div className="row between center-y tp-row muted" data-testid="oco-status">
+          <span>
+            {ocoWorking === 0
+              ? 'OCO: the next resting order starts a group'
+              : `OCO group: ${ocoWorking} working · the next order joins`}
+          </span>
+          <button className="ht-chip" onClick={oco.newGroup} disabled={ocoWorking === 0}>
+            New group
+          </button>
+        </div>
+      )}
       <div className="tp-row">
         <Checkbox checked={reduceOnly} onChange={setReduceOnly} label="Reduce-Only" />
       </div>
@@ -484,7 +520,13 @@ export function TradingPanel() {
       </div>
       {instrumentId && (
         <fieldset className="ot-fieldset" disabled={acc.locked}>
-          <OrderEntry instrumentId={instrumentId} qty={qty} tif={tif} reduceOnly={reduceOnly} />
+          <OrderEntry
+            instrumentId={instrumentId}
+            qty={qty}
+            tif={tif}
+            reduceOnly={reduceOnly}
+            ocoFor={nextOcoGroup}
+          />
         </fieldset>
       )}
       <div className="row between center-y tp-row tp-section">

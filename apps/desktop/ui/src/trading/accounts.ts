@@ -3,6 +3,10 @@ import { paper, PAPER_ACCOUNT } from '../state/market';
 import { Persisted } from './persist';
 import { normalizeSavedAccounts, type SavedAccount } from './accountsModel';
 import { setPrefs, tradingPrefs } from './prefs';
+import { risk, restoreRiskDay } from '../modules/risk/engine';
+import { beforeExit } from '../state/exit';
+// Options mark-to-model and expiry settlement (P18).
+import './optionsModel';
 
 export type { SavedAccount };
 
@@ -23,7 +27,33 @@ const snapshot = (): SavedAccount[] =>
     startingBalance: a.startingBalance,
     slippageTicks: a.slippageTicks ?? 0,
     balance: a.balance,
+    // Open positions, working orders and options survive a restart (P17).
+    state: paper.exportAccountState(a.id),
+    risk: risk.snapshotDay(a.id),
   }));
+
+/** Nothing happened on the account this session, so its saved state may be applied. */
+const untouched = (id: string): boolean => {
+  const a = paper.accounts.get(id);
+  return (
+    !!a &&
+    a.balance === a.startingBalance &&
+    !paper.fills.some((f) => f.accountId === id) &&
+    !paper.optionFills.some((f) => f.accountId === id) &&
+    paper.workingOrders(id).length === 0 &&
+    paper.allPositions(id).length === 0 &&
+    paper.optionPositions(id).length === 0
+  );
+};
+
+/** Balance and open state of a saved account, then the risk engines re-based on it. */
+function restoreOpenState(s: SavedAccount): void {
+  const a = paper.accounts.get(s.id);
+  if (!a) return;
+  a.balance = s.balance;
+  if (s.state) paper.importAccountState(s.id, s.state);
+  restoreRiskDay(s.id, s.risk);
+}
 
 let applying = false;
 
@@ -38,25 +68,24 @@ store.onLoaded(() => {
     for (const s of saved) {
       const cur = paper.accounts.get(s.id);
       if (!cur) {
-        const a = paper.createAccount({
+        paper.createAccount({
           id: s.id,
           name: s.name,
           currency: s.currency,
           startingBalance: s.startingBalance,
           slippageTicks: s.slippageTicks,
         });
-        a.balance = s.balance;
+        restoreOpenState(s);
       } else {
-        const fresh =
-          !paper.fills.some((f) => f.accountId === s.id) && cur.balance === cur.startingBalance;
+        const fresh = untouched(s.id);
         paper.updateAccount(s.id, {
           name: s.name,
           currency: s.currency,
           startingBalance: s.startingBalance,
           slippageTicks: s.slippageTicks,
         });
-        // An account untouched this session resumes at its saved balance.
-        if (fresh) cur.balance = s.balance;
+        // An account untouched this session resumes at its saved balance and open state.
+        if (fresh) restoreOpenState(s);
       }
     }
   } finally {
@@ -66,13 +95,21 @@ store.onLoaded(() => {
 });
 
 let last = '';
-paper.subscribe(() => {
+function persistNow(): void {
   if (applying || !store.loaded) return;
   const snap = snapshot();
   const json = JSON.stringify(snap);
   if (json === last) return;
   last = json;
   store.set(snap);
+}
+paper.subscribe(persistNow);
+// Trades between paper events still move risk day counters: save them now and then.
+setInterval(persistNow, 5_000);
+// Write the latest open state before the window closes (the store debounces writes).
+beforeExit.push(() => {
+  persistNow();
+  return store.flush();
 });
 
 /** Keeps the selected account valid (falls back to the default paper account). */

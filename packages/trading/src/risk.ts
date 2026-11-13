@@ -272,6 +272,14 @@ export interface RiskStatus {
   state: 'ok' | 'warning' | 'locked';
 }
 
+/** Day counters of one account saved with its paper state (P17 persistence). */
+export interface RiskDaySnapshot {
+  day: string;
+  dayStartEquity: number;
+  peakEquity: number;
+  tradesToday: number;
+}
+
 /** What survives a restart: active locks. */
 export interface RiskLockSnapshot {
   [accountId: string]: { until: number | 'manual'; rule: RiskRuleId | 'manual'; reason: string };
@@ -381,7 +389,8 @@ export class RiskEngine {
       if (m !== undefined && Number.isFinite(m))
         open += this.engine.unrealized(accountId, p.instrumentId, m);
     }
-    return acc.balance + open;
+    // Options positions count at their mark-to-model value (P18).
+    return acc.balance + open + this.engine.optionUnrealized(accountId);
   }
 
   /** Account state, rolling the trading day (and lifting day locks) when it changed. */
@@ -611,6 +620,42 @@ export class RiskEngine {
     st.peakEquity = this.equity(accountId);
     this.engine.setLocked(accountId, false);
     this.emitEvent(accountId, 'unlock', 'manual', 'Account unlocked (override)');
+  }
+
+  /** Day counters of an account for saving with its paper state. */
+  snapshotDay(accountId: string): RiskDaySnapshot | undefined {
+    const st = this.states.get(accountId);
+    if (!st) return undefined;
+    return {
+      day: st.day,
+      dayStartEquity: st.dayStartEquity,
+      peakEquity: st.peakEquity,
+      tradesToday: st.tradesToday,
+    };
+  }
+
+  /**
+   * Re-bases an account after its paper state was restored (restart). The same trading day keeps
+   * its start equity and trade count, so day P&L continues; another day starts from the restored
+   * equity. Without this, the restored balance would look like a loss (or gain) made today.
+   */
+  restoreDay(accountId: string, snap?: RiskDaySnapshot | null): void {
+    if (!this.engine.accounts.has(accountId)) return;
+    const st = this.acct(accountId);
+    const eq = this.equity(accountId);
+    const same =
+      !!snap &&
+      snap.day === st.day &&
+      Number.isFinite(snap.dayStartEquity) &&
+      snap.tradesToday >= 0;
+    st.dayStartEquity = same ? snap.dayStartEquity : eq;
+    st.tradesToday = same ? snap.tradesToday : 0;
+    const start = this.engine.accounts.get(accountId)?.startingBalance ?? eq;
+    st.peakEquity = Math.max(
+      eq,
+      snap && Number.isFinite(snap.peakEquity) ? snap.peakEquity : start,
+    );
+    st.warned.clear();
   }
 
   /** Forget day counters (paper account reset). */
