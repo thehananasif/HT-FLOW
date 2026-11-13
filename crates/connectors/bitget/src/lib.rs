@@ -425,6 +425,10 @@ impl MarketApi for Bitget {
     fn history_from_start(&self) -> bool {
         false
     }
+    /// The REST trades endpoint takes a start / end time, so past windows load directly.
+    fn windowed_trades(&self) -> bool {
+        true
+    }
     fn stream(
         &self,
         spec: SymbolSpec,

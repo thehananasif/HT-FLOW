@@ -436,6 +436,110 @@ pub async fn market_history(
     })
 }
 
+/// Older history for "Load days" / "◂ Load 1 more day" / left-scroll (see `history.rs`).
+#[derive(Debug, Serialize)]
+pub struct WireRange {
+    trades: Vec<(i64, i64, f64, i8, u64)>,
+    local: usize,
+    cached: usize,
+    downloaded: usize,
+    /// Trades rebuilt from klines (bar-level detail only).
+    synthetic: usize,
+    pages: u32,
+    kline_ms: Option<i64>,
+}
+
+/// Default REST budget for real trades per call (~30 s at Binance's public rate).
+pub const DEFAULT_TRADE_PAGES: u32 = 60;
+/// Longest range one call may ask for.
+pub const MAX_RANGE_MS: i64 = 400 * crate::history::DAY_MS;
+
+/// Newest-first backfill of `[from_ms, to_ms)`: tick store → history cache → REST trades for
+/// the last day (paged backwards within `max_pages`) → klines for everything older. Streams
+/// [`crate::history::Progress`] on `progress`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn market_history_range(
+    state: State<'_, MarketState>,
+    data: State<'_, DataState>,
+    cache: State<'_, crate::history_cache::CacheState>,
+    venue: String,
+    symbol: String,
+    from_ms: i64,
+    to_ms: i64,
+    max_pages: Option<u32>,
+    progress: Channel<crate::history::Progress>,
+) -> CmdResult<WireRange> {
+    let venue = state.clients.parse(&venue)?;
+    let sp = spec(&state, venue, &symbol).await?;
+    let inst = format!("{}:{}", venue.id(), sp.symbol);
+    let now = now_ns() / 1_000_000;
+    let to = to_ms.min(now);
+    let from = from_ms.max(to - MAX_RANGE_MS);
+    if from >= to {
+        return Ok(WireRange {
+            trades: Vec::new(),
+            local: 0,
+            cached: 0,
+            downloaded: 0,
+            synthetic: 0,
+            pages: 0,
+            kline_ms: None,
+        });
+    }
+    let svc: Arc<RecorderService> = data.0.clone();
+    let (local, gaps) = {
+        let inst = inst.clone();
+        let tick = sp.tick;
+        tauri::async_runtime::spawn_blocking(move || {
+            let (lo, hi) = (from * 1_000_000, to * 1_000_000);
+            let cov = svc.rec.lock().expect("recorder").coverage(&inst)?;
+            let (recs, _) = svc.store.read_trades(&inst, lo, hi, Some(tick))?;
+            let gaps = cov.gaps(lo, hi, 2_000_000_000);
+            Ok::<_, CmdError>((recs.iter().map(|r| r.to_trade()).collect::<Vec<_>>(), gaps))
+        })
+        .await
+        .map_err(|e| CmdError::new("market.internal", e.to_string()))??
+    };
+    let plan = crate::history::Plan {
+        from_ms: from,
+        to_ms: to,
+        now_ms: now,
+        max_pages: max_pages.unwrap_or(DEFAULT_TRADE_PAGES).min(2_000),
+        trades_recent_ms: crate::history::DAY_MS,
+    };
+    let mut last_sent = Instant::now() - Duration::from_secs(1);
+    let mut on_progress = |p: crate::history::Progress| {
+        // At most ~10 updates per second, plus the final one.
+        if p.phase == "done" || last_sent.elapsed() >= Duration::from_millis(100) {
+            last_sent = Instant::now();
+            let _ = progress.send(p);
+        }
+    };
+    let api = state.clients.api(venue).clone();
+    let r = crate::history::load_range(
+        api.as_ref(),
+        &sp,
+        &inst,
+        Some(&cache.0),
+        &local,
+        &gaps,
+        plan,
+        &mut on_progress,
+    )
+    .await
+    .map_err(CmdError::from)?;
+    Ok(WireRange {
+        trades: r.trades.iter().map(wire_trade).collect(),
+        local: r.local,
+        cached: r.cached,
+        downloaded: r.downloaded,
+        synthetic: r.synthetic,
+        pages: r.pages,
+        kline_ms: r.kline_ms,
+    })
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestResult {

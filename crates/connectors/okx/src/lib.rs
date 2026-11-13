@@ -18,7 +18,7 @@ use futures_util::future::BoxFuture;
 use htflow_connector_common::{
     driver, hash_id, levels, num_f64, num_text, raw_levels, scale_qty, Action, BookLevels,
     ClockSkew, ConnectorError, L2Book, MarketApi, Ping, Protocol, Rest, Result, StreamConfig,
-    SymbolSpec, TokenBucket,
+    SymbolSpec, TokenBucket, TradesBack,
 };
 use htflow_core_types::{
     decimals_of, Aggressor, BookSnapshot, MarketEvent, MarketStat, Side, TickSize, Trade,
@@ -496,6 +496,57 @@ impl Okx {
     }
 }
 
+impl Okx {
+    /// Newest-first download of `[from_ms, to_ms)` (P06 "Load days"): the first
+    /// `history-trades` page is anchored by timestamp (`type=2&after=to_ms`), the next pages
+    /// continue by trade id (`type=1&after=<oldest id>`), 100 rows each, until `from_ms` or the
+    /// page budget.
+    pub async fn trades_before(
+        &self,
+        spec: &SymbolSpec,
+        from_ms: i64,
+        to_ms: i64,
+        max_pages: u32,
+    ) -> Result<TradesBack> {
+        let mut out = TradesBack {
+            covered_from_ms: to_ms,
+            ..TradesBack::default()
+        };
+        let mut cursor = format!("type=2&after={to_ms}");
+        let mut all: Vec<Trade> = Vec::new();
+        while out.pages < max_pages && from_ms < to_ms {
+            let rows: Vec<wire::TradeRow> = self
+                .get(&format!(
+                    "/api/v5/market/history-trades?instId={}&{cursor}&limit=100",
+                    spec.symbol
+                ))
+                .await?;
+            out.pages += 1;
+            let oldest = rows
+                .iter()
+                .filter_map(|r| r.ts.parse::<i64>().ok().map(|ts| (ts, r)))
+                .min_by_key(|(ts, _)| *ts);
+            let Some((oldest_ms, oldest_row)) = oldest else {
+                out.covered_from_ms = from_ms; // start of the available history
+                break;
+            };
+            for r in &rows {
+                all.push(trade(spec, r, None)?);
+            }
+            if oldest_ms < from_ms {
+                out.covered_from_ms = from_ms;
+                break;
+            }
+            out.covered_from_ms = (oldest_ms + 1).min(to_ms);
+            cursor = format!("type=1&after={}", oldest_row.trade_id);
+        }
+        let lo = out.covered_from_ms * 1_000_000;
+        all.retain(|t| t.exchange_ts_ns >= lo);
+        out.trades = finish_trades(all, out.covered_from_ms, to_ms - 1);
+        Ok(out)
+    }
+}
+
 /// Sort oldest first, drop duplicates, keep `[from_ms, to_ms]`.
 pub fn finish_trades(mut v: Vec<Trade>, from_ms: i64, to_ms: i64) -> Vec<Trade> {
     let (lo, hi) = (from_ms * 1_000_000, (to_ms + 1) * 1_000_000);
@@ -525,6 +576,21 @@ impl MarketApi for Okx {
     }
     fn history_from_start(&self) -> bool {
         false
+    }
+    fn windowed_trades(&self) -> bool {
+        true
+    }
+    fn trades_back<'a>(
+        &'a self,
+        spec: &'a SymbolSpec,
+        from_ms: i64,
+        to_ms: i64,
+        max_pages: u32,
+    ) -> BoxFuture<'a, Result<TradesBack>> {
+        Box::pin(self.trades_before(spec, from_ms, to_ms, max_pages))
+    }
+    fn throttled(&self) -> u64 {
+        self.rest.throttled_count()
     }
     fn stream(
         &self,
@@ -718,5 +784,48 @@ mod tests {
         let f = finish_trades(dup, 0, 2000);
         assert_eq!(f.iter().map(|t| t.trade_id).collect::<Vec<_>>(), vec![1, 2]);
         assert_eq!(finish_trades(f, 950, 2000).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn trades_before_pages_newest_first() {
+        use htflow_connector_common::mock_http::{query_param, MockServer, Reply};
+        // Trade id i at ts 1000 + i * 10 ms, ids 0..1000.
+        let srv = MockServer::start(|t| {
+            let after: i64 = query_param(t, "after").unwrap().parse().unwrap();
+            // type=2: earlier than a timestamp; type=1: earlier than a trade id.
+            let end_id = if query_param(t, "type") == Some("2") {
+                (after - 1000 + 9) / 10
+            } else {
+                after
+            };
+            let rows: Vec<String> = ((end_id - 100).max(0)..end_id.min(1000))
+                .rev()
+                .map(|i| {
+                    format!(
+                        r#"{{"instId":"BTC-USDT-SWAP","side":"buy","sz":"1","px":"42000","tradeId":"{i}","ts":"{}"}}"#,
+                        1000 + i * 10
+                    )
+                })
+                .collect();
+            Reply::ok(format!(
+                r#"{{"code":"0","msg":"","data":[{}]}}"#,
+                rows.join(",")
+            ))
+        });
+        let okx = Okx::new(&srv.base, "ws://unused");
+        let sp = spec();
+        // [3000, 6000): ids 200..500, newest page first.
+        let r = okx.trades_before(&sp, 3000, 6000, 50).await.unwrap();
+        assert_eq!(r.covered_from_ms, 3000);
+        assert_eq!(r.trades.len(), 300);
+        assert_eq!(r.trades[0].exchange_ts_ns, 3_000_000_000);
+        let reqs = srv.requests();
+        assert!(reqs[0].contains("type=2&after=6000"), "{reqs:?}");
+        assert!(reqs[1].contains("type=1&after=400"), "{reqs:?}");
+        // A budget of one page.
+        let r = okx.trades_before(&sp, 3000, 6000, 1).await.unwrap();
+        assert_eq!(r.covered_from_ms, 5001);
+        assert_eq!(r.trades.len(), 99);
+        assert!(okx.windowed_trades());
     }
 }

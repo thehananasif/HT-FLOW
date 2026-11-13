@@ -446,7 +446,21 @@ function validateTableLayouts(v: unknown): Record<string, ColumnLayout> | undefi
   return out;
 }
 
-const KNOWN_PROVIDERS = ['binance-futures', 'bybit-linear', 'replay', 'mock'];
+const KNOWN_PROVIDERS = [
+  'binance-futures',
+  'binance-spot',
+  'binance-coinm',
+  'bybit-linear',
+  'okx-swap',
+  'bitget',
+  'deribit',
+  'kraken-futures',
+  'bitfinex',
+  'phemex',
+  'whitebit',
+  'replay',
+  'mock',
+];
 
 function validateIdList(v: unknown): string[] | undefined {
   if (!Array.isArray(v) || v.length > 200) return undefined;
@@ -2257,7 +2271,7 @@ export const SCHEMA = {
     editor: 'providers',
     validate: validateProviders,
     keywords: 'connector feed source order priority',
-    wired: false,
+    wired: true,
   }),
   'data.autoReconnect': bool({
     section: 'data',
@@ -2315,13 +2329,13 @@ export const SCHEMA = {
     section: 'data',
     group: 'Recorder & cache',
     label: 'Cache size',
-    help: 'Disk space for downloaded history and derived bars.',
+    help: 'Disk space for downloaded history (ticks and bars, desktop app). The least recently used files go first when it is full.',
     default: 512,
     min: 64,
     max: 65_536,
     step: 64,
     unit: 'MB',
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Alerts (P27)
