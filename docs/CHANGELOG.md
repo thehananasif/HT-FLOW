@@ -6,6 +6,10 @@
 
 - Settings wired (P27, round 5): DOM font size, default price grouping of new DOMs, Buys / Sells window and swapped left / right click; Tape rows kept, minimum size, follow new trades, big-trade threshold, colour by side and beep on big trades; chart-axis and calendar / news time zones and exchange time on hover in tables and journal; FPS cap (charts, DOM, tape), renderer type and video adapter (3D heatmap); recorder disk budget and tick retention pushed to the native recorder. MBO history, backups and log files stay pending on native work (BLOCKERS).
 
+### Fixed
+
+- Charts no longer freeze on 4 h (or 1 h, 1 D, 1 W): with few bars the view always counts as "scrolled past the first bar", and every redraw asked the feed for 240 bars of older history (40 days ≈ 28M simulated ticks for 4 h), then looped. Lazy left-scroll loading now starts only after a user scroll, asks for a capped chunk (2 h on simulated feeds, 1 day on live / replay), shows progress, and is cancelled when the timeframe changes; Go to date loads at most a day per step. Regression e2e `timeframe-coarse.spec.ts` (first paint under 1 s, no long tasks) and unit tests.
+
 ## Unreleased — round 4
 
 ### Added
