@@ -41,7 +41,7 @@ Data sets (deterministic, seeded):
 
 ## Flaky timing tests (P29)
 
-Timing assertions in `pnpm test` are smoke checks only, because every suite shares the CPU. `heatmap/pixelBuffer.test.ts` now asserts determinism and cell counts and uses the median of 7 frames against a loose ceiling; `market-data/barTypes.test.ts` gets a 60 s timeout on the hour-of-prints equivalence tests (they are functional checks that took > 5 s under load); `tape.test.ts` uses the median of 3 runs. Strict budgets live only in `pnpm bench`, whose own assertions are also generous (6× the budget) so that a slow machine never fails CI — the report shows the real Pass / Miss.
+Timing assertions in `pnpm test` are smoke checks only, because every suite shares the CPU. `heatmap/pixelBuffer.test.ts` now asserts determinism and cell counts and uses the median of 7 frames against a loose ceiling; `market-data/barTypes.test.ts` gets a 60 s timeout on the hour-of-prints equivalence tests (they are functional checks that took > 5 s under load); `tape.test.ts` uses the median of 3 runs; `market-catalog/searchBench.test.ts` keeps its median-of-7 per query but guards at 250 ms (it failed once at load average 21). Strict budgets live only in `pnpm bench`, whose own assertions are also generous (6× the budget) so that a slow machine never fails CI — the report shows the real Pass / Miss.
 
 <!-- bench:start -->
 

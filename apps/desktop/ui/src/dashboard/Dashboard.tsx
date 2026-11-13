@@ -716,31 +716,55 @@ export function Dashboard({ version }: { version: string }) {
         </div>
         {tradingPanel && <TradingPanel />}
       </div>
-      <div className="ws-tabs" role="tablist" aria-label="Workspace layouts">
-        {doc.tabs.map((t) => (
-          <div
-            key={t.id}
-            className="ws-tab"
-            role="tab"
-            aria-selected={t.id === doc.activeTab}
-            onClick={() => t.id !== doc.activeTab && switchTab(t.id)}
-            onDoubleClick={() => renameTab(t.id)}
-          >
-            {t.name}
-            {doc.tabs.length > 1 && (
-              <button
-                className="ws-tab-x"
-                aria-label={`Close ${t.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeTab(t.id);
-                }}
-              >
-                <X size={11} />
-              </button>
-            )}
-          </div>
-        ))}
+      <div className="ws-tabs">
+        {/* Tabs: roving focus (← / →, Home / End), Enter / Space opens, F2 renames, Delete closes. */}
+        <div className="ws-tablist" role="tablist" aria-label="Workspace layouts">
+          {doc.tabs.map((t, i) => (
+            <div
+              key={t.id}
+              className="ws-tab"
+              role="tab"
+              tabIndex={t.id === doc.activeTab ? 0 : -1}
+              aria-selected={t.id === doc.activeTab}
+              aria-keyshortcuts={doc.tabs.length > 1 ? 'F2 Delete' : 'F2'}
+              onClick={() => t.id !== doc.activeTab && switchTab(t.id)}
+              onDoubleClick={() => renameTab(t.id)}
+              onKeyDown={(e) => {
+                const tabs = [
+                  ...e.currentTarget.parentElement!.querySelectorAll<HTMLElement>('[role="tab"]'),
+                ];
+                const go = (k: number) => tabs[(k + tabs.length) % tabs.length]?.focus();
+                if (e.key === 'ArrowRight') go(i + 1);
+                else if (e.key === 'ArrowLeft') go(i - 1);
+                else if (e.key === 'Home') go(0);
+                else if (e.key === 'End') go(tabs.length - 1);
+                else if (e.key === 'Enter' || e.key === ' ') {
+                  if (t.id !== doc.activeTab) switchTab(t.id);
+                } else if (e.key === 'F2') renameTab(t.id);
+                else if (e.key === 'Delete' && doc.tabs.length > 1) closeTab(t.id);
+                else return;
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              {t.name}
+              {doc.tabs.length > 1 && (
+                // Mouse affordance only (a tab's children are presentational); keyboard: Delete.
+                <span
+                  className="ws-tab-x"
+                  aria-hidden="true"
+                  title={`Close ${t.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(t.id);
+                  }}
+                >
+                  <X size={11} />
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
         <button className="ws-tab ws-tab-add" aria-label="Add layout" onClick={addTab}>
           <Plus size={13} />
         </button>

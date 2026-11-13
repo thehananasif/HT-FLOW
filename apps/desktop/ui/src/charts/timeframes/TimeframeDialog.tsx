@@ -92,7 +92,10 @@ export function TimeframeHeader({ windowId, s }: { windowId: string; s: ChartWin
         </Chip>
       ))}
       {!pinned.some((q) => sameBase(q, cur)) && <Chip selected>{specLabel(cur)}</Chip>}
-      <DropdownMenu items={items} trigger={<MenuTrigger aria-label="Timeframe">TF</MenuTrigger>} />
+      <DropdownMenu
+        items={items}
+        trigger={<MenuTrigger aria-label="TF: Timeframe">TF</MenuTrigger>}
+      />
     </>
   );
 }

@@ -279,9 +279,9 @@ function Row({
             </span>
           }
         >
-          <span className="st-help" aria-label={`Help: ${d.label}`}>
-            <HelpCircle size={12} />
-          </span>
+          <button type="button" className="st-help" aria-label={`Help: ${d.label}`}>
+            <HelpCircle size={12} aria-hidden />
+          </button>
         </Tooltip>
       </span>
       <span className="st-row-ctl">
@@ -320,7 +320,17 @@ export function SettingsView({
   const [errors, setErrors] = useState<Partial<Record<SettingKey, string>>>({});
   const [preview, setPreview] = useState(true);
   const dirtyRef = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const session = useSession((s) => s.session);
+
+  // P29 keyboard navigation: opening Settings (Ctrl+, / palette / menu) moves focus into it, on
+  // the current section, so keyboard users land in the window they just opened.
+  useEffect(() => {
+    const nav = rootRef.current?.querySelector<HTMLElement>(
+      '.st-nav-item[aria-current="page"], .st-nav-item',
+    );
+    nav?.focus({ preventScroll: true });
+  }, []);
 
   // External changes (profile loaded, import) refresh the draft when there are no local edits.
   useEffect(() => {
@@ -621,7 +631,7 @@ export function SettingsView({
   })();
 
   return (
-    <div className="st-root" data-testid="settings-window">
+    <div className="st-root" data-testid="settings-window" ref={rootRef}>
       <nav className="st-nav" aria-label="Settings sections">
         {SECTIONS.map((s) => (
           <button
