@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Kbd } from '@htflow/ui-kit';
-import { commands, onCommandsChange, type Command } from './commands';
+import { commands, onCommandsChange, paletteItems, type Command } from './commands';
+import { rowKey, searchPalette, type PaletteRow } from './paletteSearch';
 
-/** Ctrl+K — searches commands, instruments, layouts and modules. */
+/** Ctrl+K — searches commands, indicators, settings, instruments, layouts and modules. */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
@@ -18,32 +19,17 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       inputRef.current?.focus();
     }
   }, [open]);
-  const list = useMemo(() => {
-    const all = commands();
-    if (!q.trim()) return all.slice(0, 60);
-    const terms = q.toLowerCase().split(/\s+/);
-    return all
-      .map((c) => {
-        const hay = `${c.label} ${c.group} ${c.keywords ?? ''}`.toLowerCase();
-        let score = 0;
-        for (const t of terms) {
-          const i = hay.indexOf(t);
-          if (i < 0) return null;
-          score += i === 0 ? 3 : hay[i - 1] === ' ' ? 2 : 1;
-        }
-        return { c, score };
-      })
-      .filter((x): x is { c: Command; score: number } => !!x)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 60)
-      .map((x) => x.c);
+  const list = useMemo<PaletteRow[]>(
+    () => searchPalette(q, commands(), paletteItems()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, open]);
+    [q, open],
+  );
   if (!open) return null;
-  const run = (c: Command | undefined) => {
-    if (!c) return;
+  const run = (row: PaletteRow | undefined) => {
+    if (!row) return;
     onClose();
-    c.run();
+    if (row.kind === 'command') row.command.run();
+    else row.item.run();
   };
   return (
     <div className="palette-scrim" onMouseDown={onClose}>
@@ -76,23 +62,53 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           }}
         />
         <div className="palette-list" role="listbox">
-          {list.map((c, i) => (
-            <div
-              key={c.id}
-              role="option"
-              aria-selected={i === sel}
-              className="palette-item"
-              onMouseEnter={() => setSel(i)}
-              onClick={() => run(c)}
-            >
-              <span className="palette-group">{c.group}</span>
-              <span className="palette-label">{c.label}</span>
-              {c.shortcut && <Kbd>{c.shortcut}</Kbd>}
-            </div>
-          ))}
+          {list.map((row, i) => {
+            // Headers separate the item groups; they are not selectable, so `sel` indexes `list`.
+            const prev = list[i - 1];
+            const header =
+              row.kind === 'item' && (prev?.kind !== 'item' || prev.item.group !== row.item.group)
+                ? row.item.group
+                : null;
+            const key = rowKey(row);
+            return (
+              <Fragment key={key}>
+                {header && (
+                  <div className="palette-header" role="presentation">
+                    {header}
+                  </div>
+                )}
+                <div
+                  role="option"
+                  aria-selected={i === sel}
+                  className="palette-item"
+                  onMouseEnter={() => setSel(i)}
+                  onClick={() => run(row)}
+                >
+                  {row.kind === 'command' ? (
+                    <CommandRow command={row.command} />
+                  ) : (
+                    <>
+                      <span className="palette-label">{row.item.label}</span>
+                      {row.item.hint && <span className="palette-hint">{row.item.hint}</span>}
+                    </>
+                  )}
+                </div>
+              </Fragment>
+            );
+          })}
           {!list.length && <div className="palette-empty">No matches</div>}
         </div>
       </div>
     </div>
+  );
+}
+
+function CommandRow({ command: c }: { command: Command }) {
+  return (
+    <>
+      <span className="palette-group">{c.group}</span>
+      <span className="palette-label">{c.label}</span>
+      {c.shortcut && <Kbd>{c.shortcut}</Kbd>}
+    </>
   );
 }

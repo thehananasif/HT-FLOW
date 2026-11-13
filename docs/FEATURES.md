@@ -37,7 +37,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Docking workspace (dockview): tabs, horizontal / vertical splits, drag tabs to re-dock, floating windows, maximize panel
 - [!] Detach to a separate OS window / multi-monitor — floating in-app window today (see BLOCKERS)
 - [x] Right Trading Panel slot, status bar, Command Palette (Ctrl+K) searching commands, symbols, layouts and modules
-- [~] Command Palette searching indicators and settings — those modules do not exist yet
+- [x] Command Palette searching indicators and settings — indicators (catalog entries with an implementation) add to the active chart; settings sections and keys open the Settings window at their section; results grouped under "Indicators" and "Settings" after the commands
 - [x] Command Palette focuses its search box synchronously when it opens, so keystrokes no longer reach the chart underneath
 - [x] Dev-only "UI Gallery" page (`?gallery`) showing every component in its states
 

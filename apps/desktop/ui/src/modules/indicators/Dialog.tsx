@@ -6,7 +6,6 @@ import {
   SOURCES,
   TF_CLASSES,
   TIMEFRAMES,
-  createConfig,
   newUid,
   resolveInputs,
   resolveStyles,
@@ -39,6 +38,7 @@ import type { ChartWindowState } from '@htflow/workspace';
 import { backend } from '../../backend';
 import { useWindows } from '../../state/windows';
 import { instrumentById } from '../../state/instruments';
+import { buildIndicatorConfig } from './config';
 import { readExt, useIndicatorDialog, writeExt } from './state';
 
 type Tab = 'inputs' | 'style' | 'alerts' | 'visibility' | 'advanced';
@@ -124,10 +124,8 @@ export function IndicatorsDialog({
   };
 
   const add = (e: CatalogEntry) => {
-    const d = e.impl ? indicatorById(e.impl) : undefined;
-    if (!d) return;
-    const cfg = createConfig(d);
-    cfg.inputs = { ...resolveInputs(d.inputs, { ...cfg.inputs, ...e.inputs }) };
+    const cfg = buildIndicatorConfig(e);
+    if (!cfg) return;
     setDraft([...draft, cfg]);
     setSel(cfg.uid);
     setTab('inputs');
