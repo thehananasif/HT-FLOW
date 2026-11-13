@@ -15,6 +15,8 @@ import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { registerCommands } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
+import { useSettingsStore } from '../../state/settings';
+import { chartSettingFor } from '../../charts/settings/state';
 import { IndicatorsDialog } from './Dialog';
 import { EXT_ID, contexts, readExt, targetChart, useIndicatorDialog, writeExt } from './state';
 import './styles.css';
@@ -70,6 +72,11 @@ registerChartExtension({
     const spacer = new PaneSpacerLayer(scene);
     let last: unknown = Symbol('none');
     const apply = () => {
+      const show = chartSettingFor(ctx.windowId, 'other.indicatorValues') !== false;
+      if (show !== scene.showValues) {
+        scene.showValues = show;
+        core.invalidate();
+      }
       const w = useWindows.getState().windows[ctx.windowId];
       const raw = w?.kind === 'chart' ? w.ext?.[EXT_ID] : undefined;
       if (raw === last) return;
@@ -85,7 +92,12 @@ registerChartExtension({
       for (const c of others) c.setLayers([...c.layers.filter((l) => !isOurs(l)), spacer]);
     };
     apply();
-    const unsub = useWindows.subscribe(apply);
+    const unsubWin = useWindows.subscribe(apply);
+    const unsubSet = useSettingsStore.subscribe(apply);
+    const unsub = () => {
+      unsubWin();
+      unsubSet();
+    };
     let pressed: Hotspot | null = null;
     const ph: PointerHandler = {
       onDown(_v, x, y) {

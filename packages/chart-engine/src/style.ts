@@ -13,7 +13,14 @@ export interface ChartStyle {
   background2: string;
   /** barStep > 0 draws a vertical line every N bars instead of at time steps. */
   grid: { h: boolean; v: boolean; line: StrokeStyle; barStep: number };
-  crosshair: { line: StrokeStyle; labelBg: string; labelText: string; snap: boolean };
+  crosshair: {
+    line: StrokeStyle;
+    labelBg: string;
+    labelText: string;
+    snap: boolean;
+    /** Price / time labels on the axes (default on). */
+    labels?: boolean;
+  };
   axis: { bg: string; text: string; fontSize: number; border: boolean };
   /** 24-hour or 12-hour axis labels. */
   timeFormat: '24h' | '12h';

@@ -41,6 +41,8 @@ export interface ChartLayers {
   highLow?: HighLowMarksLayer;
   compare?: CompareLayer;
   footprint?: FootprintLayer;
+  /** Cluster statistics rows under the footprint (Settings → Footprint row toggles). */
+  stats?: StatsRowsLayer;
   /** Palette overrides used only by the footprint layer (bid / ask / main / text colours). */
   footprintPalette?: PaletteOverride;
 }
@@ -220,7 +222,7 @@ export function buildChart(
           () => store.book,
           () => fp.rowTicks,
         ),
-        new StatsRowsLayer(series),
+        (L.stats = new StatsRowsLayer(series)),
         ...frontLayers(),
         L.lastPrice,
         L.legend,

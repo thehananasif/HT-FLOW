@@ -48,6 +48,11 @@ export interface CandleStyle {
   areaLine: StrokeStyle;
   areaTop: string;
   areaBottom: string;
+  /** Wick / border colours per direction ('' = body / border colour). */
+  wickUp?: string;
+  wickDown?: string;
+  borderUp?: string;
+  borderDown?: string;
 }
 
 export const DEFAULT_CANDLE_STYLE: CandleStyle = {
@@ -140,7 +145,10 @@ export class CandlesLayer implements ChartLayer {
       const doji = b.c === b.o && this.mode === 'bars' && st.dojiColor;
       const col = doji ? st.dojiColor : this.isUp(i) ? upCol : downCol;
       const x = Math.round(cx) + 0.5;
-      ctx.strokeStyle = st.sameBorderAsBody || this.mode === 'bars' ? col : borderCol;
+      const up = !doji && this.isUp(i);
+      const wick = this.mode === 'bars' ? '' : (up ? st.wickUp : st.wickDown) || '';
+      const dirBorder = (up ? st.borderUp : st.borderDown) || '';
+      ctx.strokeStyle = wick || (st.sameBorderAsBody || this.mode === 'bars' ? col : borderCol);
       ctx.lineWidth = this.mode === 'bars' ? st.barWidth : 1;
       ctx.beginPath();
       ctx.moveTo(x, Math.round(v.yOf(b.h)));
@@ -166,13 +174,13 @@ export class CandlesLayer implements ChartLayer {
       const h = Math.max(1, yBot - yTop);
       const left = Math.round(cx - bodyW / 2);
       if (this.mode === 'transparent') {
-        ctx.strokeStyle = col;
+        ctx.strokeStyle = dirBorder || col;
         ctx.strokeRect(left + 0.5, yTop + 0.5, bodyW - 1, h);
       } else {
         ctx.fillStyle = col;
         ctx.fillRect(left, yTop, bodyW, h);
-        if (st.border && bodyW > 2) {
-          ctx.strokeStyle = st.sameBorderAsBody ? col : borderCol;
+        if ((st.border || dirBorder) && bodyW > 2) {
+          ctx.strokeStyle = dirBorder || (st.sameBorderAsBody ? col : borderCol);
           ctx.lineWidth = st.borderWidth;
           ctx.strokeRect(left + 0.5, yTop + 0.5, bodyW - 1, h);
           ctx.lineWidth = 1;
@@ -538,7 +546,14 @@ export class SessionSeparatorLayer implements ChartLayer {
 }
 
 export type StatRowKey =
-  'delta' | 'sessionDelta' | 'volume' | 'trades' | 'deltaPct' | 'maxDelta' | 'minDelta';
+  | 'delta'
+  | 'sessionDelta'
+  | 'volume'
+  | 'trades'
+  | 'deltaPct'
+  | 'maxDelta'
+  | 'minDelta'
+  | 'cumDelta';
 
 const STAT_LABELS: Record<StatRowKey, string> = {
   delta: 'Delta',
@@ -548,6 +563,7 @@ const STAT_LABELS: Record<StatRowKey, string> = {
   deltaPct: 'Delta %',
   maxDelta: 'Max delta',
   minDelta: 'Min delta',
+  cumDelta: 'Cum. delta',
 };
 
 /** Cluster statistics rows under the chart (P10/P46): each row toggleable and colour-graded. */
@@ -562,6 +578,12 @@ export class StatsRowsLayer implements ChartLayer {
     version: -1,
     values: new Float64Array(0),
   };
+
+  private cumAll: { version: number; values: Float64Array } = {
+    version: -1,
+    values: new Float64Array(0),
+  };
+  private seriesVersion = -1;
 
   constructor(private series: () => BarSeries) {}
 
@@ -600,6 +622,17 @@ export class StatsRowsLayer implements ChartLayer {
         return b.maxDelta;
       case 'minDelta':
         return b.minDelta;
+      case 'cumDelta': {
+        // Cumulative delta over every loaded bar (never resets).
+        if (this.cumAll.version !== this.seriesVersion) {
+          const s = this.series();
+          const out = new Float64Array(s.bars.length);
+          let acc = 0;
+          for (let k = 0; k < s.bars.length; k++) out[k] = acc += s.bars[k]!.delta;
+          this.cumAll = { version: this.seriesVersion, values: out };
+        }
+        return this.cumAll.values[i] ?? 0;
+      }
     }
   }
 
@@ -608,6 +641,7 @@ export class StatsRowsLayer implements ChartLayer {
     const bars = s.bars;
     const { ctx, palette: p } = v;
     const sd = this.sessionDeltas(s);
+    this.seriesVersion = s.version * 1e7 + s.bars.length;
     const top = v.bottom.y + 2;
     ctx.save();
     ctx.beginPath();
@@ -627,7 +661,7 @@ export class StatsRowsLayer implements ChartLayer {
         const k = Math.min(1, Math.abs(val) / max);
         let bg: string;
         if (key === 'volume') bg = rgba(p.textSoft, this.style === 'heat' ? 0.08 + k * 0.3 : 0.04);
-        else if (key === 'sessionDelta' && this.style === 'footprint')
+        else if ((key === 'sessionDelta' || key === 'cumDelta') && this.style === 'footprint')
           bg = rgba(p.info, 0.25 + k * 0.5);
         else bg = rgba(val >= 0 ? p.up : p.down, 0.12 + k * (this.style === 'heat' ? 0.65 : 0.4));
         ctx.fillStyle = bg;

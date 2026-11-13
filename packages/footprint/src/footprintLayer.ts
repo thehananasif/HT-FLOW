@@ -1,7 +1,16 @@
 import { barsRange, type ChartLayer, type ChartView } from '@htflow/chart-engine';
 import { formatCompact, type BarSeries, type OrderBook } from '@htflow/market-data';
 import { footprintMode, type FootprintModeDef } from './modes';
-import { diagonalImbalances, mergeRows, stackedZones, type Row } from './merge';
+import {
+  absorptionRows,
+  imbalances,
+  mergeRows,
+  passesFilter,
+  stackedZones,
+  valueAreaRows,
+  type ImbalanceDirection,
+  type Row,
+} from './merge';
 
 export interface FootprintSettings {
   mode: string;
@@ -10,9 +19,32 @@ export interface FootprintSettings {
   /** Below this slot width the footprint collapses to candles (Chart settings: "Candle width to auto transform"). */
   autoCandleWidth: number;
   showPoc: boolean;
-  imbalance: { enabled: boolean; ratio: number; minVolume: number; stacked: number };
+  imbalance: {
+    enabled: boolean;
+    ratio: number;
+    minVolume: number;
+    stacked: number;
+    /** Diagonal (ask vs bid one row lower) or horizontal (ask vs bid on the same row). */
+    direction?: ImbalanceDirection;
+  };
   /** Hide values below this. */
   hideBelow: number;
+  /** Cell filters: rows under this volume / |delta| are not drawn. */
+  filters?: { minVolume: number; minDelta: number };
+  /** Value area per bar: shading of the rows holding `pct` (0..1) of the bar volume. */
+  valueArea?: { show: boolean; pct: number; color: string };
+  /** Element colours ('' = theme). Bid / ask / text colours come through the palette override. */
+  colors?: { poc: string; imbBuy: string; imbSell: string };
+  /** What the plain cell background follows, and its strength (0..1). */
+  colorMode?: 'volume' | 'delta' | 'none';
+  cellOpacity?: number;
+  /** Largest cell font (auto-fit shrinks below it; fixed when autoFont is false). */
+  fontSize?: number;
+  autoFont?: boolean;
+  /** Bars collapse to candles when a price row would be thinner than this (px). */
+  minCellHeight?: number;
+  /** Mark absorption rows (heavy volume at the bar's high / low). */
+  absorption?: boolean;
 }
 
 export const DEFAULT_FOOTPRINT: FootprintSettings = {
@@ -20,9 +52,23 @@ export const DEFAULT_FOOTPRINT: FootprintSettings = {
   ticksPerRow: 'auto',
   autoCandleWidth: 20,
   showPoc: true,
-  imbalance: { enabled: true, ratio: 3, minVolume: 0, stacked: 3 },
+  imbalance: { enabled: true, ratio: 3, minVolume: 0, stacked: 3, direction: 'diagonal' },
   hideBelow: 0,
+  filters: { minVolume: 0, minDelta: 0 },
+  valueArea: { show: false, pct: 0.7, color: '' },
+  colors: { poc: '', imbBuy: '', imbSell: '' },
+  colorMode: 'volume',
+  cellOpacity: 1,
+  fontSize: 12,
+  autoFont: true,
+  minCellHeight: 9,
+  absorption: false,
 };
+
+/** Font size of footprint cell text for a row height (auto-fit capped at `max`, or fixed). */
+export function cellFontSize(rowH: number, max = 12, auto = true): number {
+  return auto ? Math.max(8, Math.min(max, Math.floor(rowH - 3))) : max;
+}
 
 const ROW_STEPS = [1, 2, 4, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
 
@@ -54,8 +100,16 @@ export class FootprintLayer implements ChartLayer {
     return footprintMode(this.settings.mode);
   }
 
+  /** Ticks per row for a view (auto picks the smallest step that keeps rows ≥ min cell height). */
+  rowTicksFor(v: ChartView): number {
+    const s = this.settings;
+    const minH = Math.max(1, s.minCellHeight ?? 9);
+    return s.ticksPerRow === 'auto' ? autoRowTicks(v.tickPx, Math.max(13, minH)) : s.ticksPerRow;
+  }
+
   collapsed(v: ChartView): boolean {
-    return v.slotWidth < this.settings.autoCandleWidth;
+    if (v.slotWidth < this.settings.autoCandleWidth) return true;
+    return this.rowTicksFor(v) * v.tickPx < (this.settings.minCellHeight ?? 0);
   }
 
   priceRange(i0: number, i1: number) {
@@ -64,7 +118,7 @@ export class FootprintLayer implements ChartLayer {
 
   draw(v: ChartView): void {
     const s = this.settings;
-    this.rowTicks = s.ticksPerRow === 'auto' ? autoRowTicks(v.tickPx) : s.ticksPerRow;
+    this.rowTicks = this.rowTicksFor(v);
     if (this.collapsed(v)) return;
     const bars = this.series().bars;
     const { ctx, palette: p } = v;
@@ -74,7 +128,12 @@ export class FootprintLayer implements ChartLayer {
     const stripW = Math.min(8, Math.max(3, Math.floor(v.slotWidth * 0.08)));
     const cellW = v.slotWidth - stripW - 4;
     const showText = rowH >= 9 && cellW >= 22;
-    const fontSize = Math.max(8, Math.min(12, Math.floor(rowH - 3)));
+    const fontSize = cellFontSize(rowH, s.fontSize ?? 12, s.autoFont !== false);
+    const filt = s.filters ?? { minVolume: 0, minDelta: 0 };
+    const va = s.valueArea;
+    const col = s.colors ?? { poc: '', imbBuy: '', imbSell: '' };
+    const imbBuy = col.imbBuy || p.up;
+    const imbSell = col.imbSell || p.down;
 
     // Visible max for colour grading.
     let maxV = 1e-9;
@@ -108,17 +167,35 @@ export class FootprintLayer implements ChartLayer {
       for (let k = 1; k < rows.length; k++) if (rows[k]!.vol > rows[pocIdx]!.vol) pocIdx = k;
       const imb =
         s.imbalance.enabled && (mode.content === 'bidask' || mode.content === 'delta')
-          ? diagonalImbalances(rows, s.imbalance.ratio, s.imbalance.minVolume)
+          ? imbalances(
+              rows,
+              s.imbalance.direction ?? 'diagonal',
+              s.imbalance.ratio,
+              s.imbalance.minVolume,
+            )
           : null;
 
       if (imb && s.imbalance.stacked > 1) {
         for (const [lo, hi, side] of stackedZones(rows, imb, s.imbalance.stacked)) {
           const y0 = v.yOf(hi + rt - 0.5);
           const y1 = v.yOf(lo - 0.5);
-          ctx.fillStyle = rgba(side === 'buy' ? p.up : p.down, 0.12);
+          ctx.fillStyle = rgba(side === 'buy' ? imbBuy : imbSell, 0.12);
           ctx.fillRect(x + cellW, y0, v.plot.x + v.plot.w - x - cellW, y1 - y0);
         }
       }
+
+      // Value area per bar: tinted block behind the cells + a bracket at the left edge.
+      const vaRows = va?.show ? valueAreaRows(rows, va.pct) : null;
+      if (vaRows) {
+        const yHi = v.yOf(rows[vaRows.hi]!.px + rt - 0.5);
+        const yLo = v.yOf(rows[vaRows.lo]!.px - 0.5);
+        const vc = va!.color || p.info;
+        ctx.fillStyle = rgba(vc, 0.16);
+        ctx.fillRect(x - 2, Math.min(yHi, yLo), cellW + 2, Math.abs(yLo - yHi));
+        ctx.fillStyle = vc;
+        ctx.fillRect(x - 2, Math.min(yHi, yLo), 2, Math.abs(yLo - yHi));
+      }
+      const absorb = s.absorption ? new Set(absorptionRows(rows)) : null;
 
       for (let k = 0; k < rows.length; k++) {
         const r = rows[k]!;
@@ -127,11 +204,18 @@ export class FootprintLayer implements ChartLayer {
         if (yTop > v.plot.h || yTop + h < 0) continue;
         const val = mode.content === 'trades' ? r.trades : r.vol;
         if (val < s.hideBelow) continue;
+        if (!passesFilter(r, filt.minVolume, filt.minDelta)) continue;
         const kv = val / maxV;
         const dShare = r.vol ? r.delta / r.vol : 0;
         this.drawCell(v, mode, r, x, yTop, cellW, h, kv, dShare, maxV, maxD, maxSide);
+        if (absorb?.has(k)) {
+          ctx.fillStyle = p.warning;
+          ctx.beginPath();
+          ctx.arc(x + cellW - 4, yTop + h / 2, Math.min(3, h / 3), 0, Math.PI * 2);
+          ctx.fill();
+        }
         if (s.showPoc && k === pocIdx) {
-          ctx.strokeStyle = p.textPrimary;
+          ctx.strokeStyle = col.poc || p.textPrimary;
           ctx.lineWidth = 1;
           ctx.strokeRect(
             Math.round(x) + 0.5,
@@ -164,20 +248,25 @@ export class FootprintLayer implements ChartLayer {
   ): void {
     const { ctx, palette: p } = v;
     const st = mode.style;
-    const base = rgba(p.clusterStrong, 0.18 + kv * 0.55);
+    const op = Math.max(0, Math.min(1, this.settings.cellOpacity ?? 1));
+    const cm = this.settings.colorMode ?? 'volume';
+    const base = rgba(p.clusterStrong, (0.18 + kv * 0.55) * op);
     const deltaCol = rgba(
       dShare >= 0 ? p.up : p.down,
-      0.15 + Math.min(1, Math.abs(dShare)) * 0.6 * (0.4 + kv * 0.6),
+      (0.15 + Math.min(1, Math.abs(dShare)) * 0.6 * (0.4 + kv * 0.6)) * op,
     );
     switch (st) {
       case 'plain':
-        if (mode.content === 'bidask') {
-          ctx.fillStyle = rgba(p.surface3, 0.9);
-          ctx.fillRect(x, y, w, h);
+        if (cm === 'none') {
+          ctx.fillStyle = rgba(p.surface3, 0.5 * op);
+        } else if (cm === 'delta') {
+          ctx.fillStyle = deltaCol;
+        } else if (mode.content === 'bidask') {
+          ctx.fillStyle = rgba(p.surface3, 0.9 * op);
         } else {
           ctx.fillStyle = base;
-          ctx.fillRect(x, y, w, h);
         }
+        ctx.fillRect(x, y, w, h);
         return;
       case 'deltaColored':
         ctx.fillStyle =
@@ -252,7 +341,7 @@ export class FootprintLayer implements ChartLayer {
       case 'bidask': {
         const half = w / 2;
         ctx.textAlign = 'right';
-        ctx.fillStyle = imb?.sell ? p.down : p.textSoft;
+        ctx.fillStyle = imb?.sell ? this.settings.colors?.imbSell || p.down : p.textSoft;
         if (imb?.sell) ctx.font = v.font(fontSize, 700);
         ctx.fillText(fmt(r.bid), x + half - 6, y);
         ctx.font = v.font(fontSize, poc ? 700 : 400);
@@ -260,7 +349,7 @@ export class FootprintLayer implements ChartLayer {
         ctx.fillStyle = p.textTertiary;
         if (mode.style === 'plain' || mode.style === 'deltaColored') ctx.fillText('x', x + half, y);
         ctx.textAlign = 'left';
-        ctx.fillStyle = imb?.buy ? p.up : p.textSoft;
+        ctx.fillStyle = imb?.buy ? this.settings.colors?.imbBuy || p.up : p.textSoft;
         if (imb?.buy) ctx.font = v.font(fontSize, 700);
         ctx.fillText(fmt(r.ask), x + half + 6, y);
         return;

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { BarSeries, type Trade } from '@htflow/market-data';
-import { diagonalImbalances, mergeRows, stackedZones } from './merge';
+import {
+  absorptionRows,
+  diagonalImbalances,
+  horizontalImbalances,
+  imbalances,
+  mergeRows,
+  passesFilter,
+  stackedZones,
+  valueAreaRows,
+} from './merge';
 
 const tr = (px: number, qty: number, side: 'buy' | 'sell', i: number): Trade => ({
   ts: i,
@@ -46,5 +55,42 @@ describe('footprint rows', () => {
     expect(imb.map((x) => x.buy)).toEqual([true, true, true, false]);
     expect(imb.map((x) => x.sell)).toEqual([false, false, false, false]);
     expect(stackedZones(rows, imb, 3)).toEqual([[101, 103, 'buy']]);
+  });
+
+  it('detects horizontal imbalances on the same row', () => {
+    const rows = mergeRows(bar, 1);
+    // 103: 9 vs 1 → buy; 102: 12 vs 2 → buy; 101: 10 vs 3 → buy (3.33x); 100: bid 2 vs ask 1 → 2x
+    const h = horizontalImbalances(rows, 3, 0);
+    expect(h.map((x) => x.buy)).toEqual([true, true, true, false]);
+    expect(h.map((x) => x.sell)).toEqual([false, false, false, false]);
+    expect(imbalances(rows, 'horizontal', 2, 0).map((x) => x.sell)).toEqual([
+      false,
+      false,
+      false,
+      true,
+    ]);
+    // Min volume filter: 9 < 10 drops the 103 row.
+    expect(horizontalImbalances(rows, 3, 10).map((x) => x.buy)).toEqual([
+      false,
+      true,
+      true,
+      false,
+    ]);
+  });
+
+  it('computes the value area per bar around the POC', () => {
+    const rows = mergeRows(bar, 1); // vols 10, 14, 13, 3 → total 40
+    expect(valueAreaRows(rows, 0.7)).toEqual({ hi: 0, lo: 2, poc: 1 }); // 14 + 13 = 27 < 28 → + 10
+    expect(valueAreaRows(rows, 0.3)).toEqual({ hi: 1, lo: 1, poc: 1 });
+    expect(valueAreaRows([], 0.7)).toBeNull();
+  });
+
+  it('filters cells by min volume and min delta, and finds absorption', () => {
+    const rows = mergeRows(bar, 1);
+    expect(rows.filter((r) => passesFilter(r, 11, 0)).map((r) => r.px)).toEqual([102, 101]);
+    expect(rows.filter((r) => passesFilter(r, 0, 8)).map((r) => r.px)).toEqual([103, 102]);
+    // avg 10; the 103 high row (10) is not ≥ 1.5 × avg, the 100 low row (3) neither.
+    expect(absorptionRows(rows, 1.5)).toEqual([]);
+    expect(absorptionRows(rows, 0.9)).toEqual([0]);
   });
 });
