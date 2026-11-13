@@ -38,6 +38,8 @@ export interface CalendarSettings {
   alertOn: boolean;
   alertMinutes: number;
   alertImpact: ImpactFilter;
+  /** Let SAMPLE events trigger the risk "flatten before news" rule (off: real sources only). */
+  newsFlattenSample: boolean;
 }
 
 const IMPACTS: ImpactFilter[] = ['all', 'medium', 'high'];
@@ -54,6 +56,7 @@ export function defaultCalendar(): CalendarSettings {
     alertOn: true,
     alertMinutes: 5,
     alertImpact: 'high',
+    newsFlattenSample: false,
   };
 }
 
@@ -92,6 +95,7 @@ export function normalizeCalendar(raw: unknown): CalendarSettings {
     alertOn: raw.alertOn !== false,
     alertMinutes: Number.isFinite(m) && m >= 0 && m <= 240 ? Math.round(m) : d.alertMinutes,
     alertImpact: imp(raw.alertImpact, d.alertImpact),
+    newsFlattenSample: raw.newsFlattenSample === true,
   };
 }
 

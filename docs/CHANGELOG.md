@@ -12,6 +12,18 @@
 - Search index rejects non-matching entries with a whole-entry character mask; a vitest benchmark asserts < 50 ms on 10,000 generated instruments.
 - ui-kit `Table`: column resize and reorder with per-table persistence (`tableId`, setting `common.tableLayouts`, reset command and Settings editor); ui-kit `Popover` with portal rendering and flip / shift positioning.
 - Tables (P20): XLSX export from every table's menu (own minimal OOXML writer, no new dependency) and inline order modify (edit price / qty in the Orders table, Enter applies).
+- Alerts (P23): funding-rate conditions (rate ≥ / ≤ / |rate| ≥, in %) and liquidation conditions (single print or rolling 1 / 5 / 15 min sum, longs / shorts) fed by the crypto connectors' funding and liquidation streams.
+- Alerts (P23): generic `indicator` value condition (crosses above / below, ≥ / ≤) fed with `pushValue()`; public API `modules/alerts/api.ts` (`addAlert(condition, options)`, `removeAlert`, `listAlerts`, `pushValue`, `testAlert`, `setAllEnabled`) for the Indicators dialog and other modules.
+- Alerts (P23): new actions Flash window (taskbar flash on desktop + flashing title), Telegram and Discord (user's own bot token / webhook, kept in the encrypted vault; validation, "Send test", 20 sends / min throttle, secrets redacted from errors); per-alert sound with built-in sounds or a local sound file added to the profile; ▶ Test button per alert; palette commands Alerts: Open / Pause-resume / Enable all / Disable all / Send test.
+- Risk (P23): "Apply to all paper accounts" saves rules to every paper account and makes them the defaults for new accounts; news-flatten is fed by the Economic Calendar (high-impact timed events; SAMPLE events only when "Count SAMPLE events" is on); feed status line in the Risk window.
+
+### Changed
+
+- Drawing "Alert on cross" now runs inside the Alerts engine (`drawing` condition): drawing alerts are listed in the Alerts window, use all alert actions, keep working while the chart is hidden, and deleting one there turns the drawing's flag off.
+- Settings → Alerts keys are wired: master switch, pop-up, flash title, default repeat / expiry / cool-down for new alerts, maximum active alerts.
+- Saved alerts are validated on load (`normalizeAlerts`); older saves get defaults for the new action flags.
+- Dashboard Flatten all / Breakeven, chart right-click Buy / Sell and the title-bar risk meter use the selected paper account (not always the default one); the Risk window opens on the selected account.
+- Paper accounts keep their cash balance across restarts (open positions are not saved yet); risk rules and locks of non-default accounts survive restarts (they used to be dropped when the account loaded after the risk settings).
 
 ## Unreleased — round 3
 

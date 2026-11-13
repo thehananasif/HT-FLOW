@@ -2323,7 +2323,6 @@ export const SCHEMA = {
     label: 'Alerts enabled',
     help: 'Master switch. Off keeps your alerts but stops them from triggering.',
     default: true,
-    wired: false,
   }),
   'alerts.toast': bool({
     section: 'alerts',
@@ -2331,7 +2330,6 @@ export const SCHEMA = {
     label: 'Pop-up notification',
     help: 'Show a notification when an alert triggers.',
     default: true,
-    wired: false,
   }),
   'alerts.flashTitle': bool({
     section: 'alerts',
@@ -2339,7 +2337,6 @@ export const SCHEMA = {
     label: 'Flash the window title',
     help: 'Flash the title bar when an alert triggers while HT Flow is in the background.',
     default: false,
-    wired: false,
   }),
   'alerts.defaultRepeat': oneOf({
     section: 'alerts',
@@ -2352,7 +2349,6 @@ export const SCHEMA = {
       { value: 'every', label: 'Every time' },
       { value: 'bar', label: 'Once per bar' },
     ],
-    wired: false,
   }),
   'alerts.defaultExpiryDays': num({
     section: 'alerts',
@@ -2364,7 +2360,6 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
   }),
   'alerts.cooldownSec': num({
     section: 'alerts',
@@ -2376,7 +2371,6 @@ export const SCHEMA = {
     max: 86_400,
     step: 1,
     unit: 's',
-    wired: false,
   }),
   'alerts.maxActive': num({
     section: 'alerts',
@@ -2387,7 +2381,6 @@ export const SCHEMA = {
     min: 1,
     max: 5000,
     step: 1,
-    wired: false,
   }),
 
   // ---------------------------------------------------------------- Risk (P27)

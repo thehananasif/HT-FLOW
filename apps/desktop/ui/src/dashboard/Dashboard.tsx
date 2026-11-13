@@ -49,7 +49,8 @@ import { getSetting, settingsReady, useSetting } from '../state/settings';
 import { activeInstrument, useWindows } from '../state/windows';
 import { INSTRUMENT_MIME, decodePayload, resolveDrop, retargetPatch } from './instrumentDrop';
 import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../state/instruments';
-import { paper, PAPER_ACCOUNT } from '../state/market';
+import { paper } from '../state/market';
+import { activeAccount, routedAccount } from '../trading/accounts';
 import { isTauri } from '../backend';
 import { TitleBar } from '../shell/TitleBar';
 import { Ribbon } from '../shell/Ribbon';
@@ -507,16 +508,16 @@ export function Dashboard({ version }: { version: string }) {
       },
       {
         id: 'flatten-all',
-        label: 'Flatten all positions (paper)',
+        label: 'Flatten all positions (selected account)',
         group: 'Trading',
-        run: () => paper.flattenAll(PAPER_ACCOUNT),
+        run: () => paper.flattenAll(activeAccount()),
       },
       {
         id: 'breakeven',
         label: 'Breakeven',
         group: 'Trading',
         shortcut: 'H',
-        run: () => paper.breakeven(PAPER_ACCOUNT, inst()),
+        run: () => paper.breakeven(routedAccount(inst()).id, inst()),
       },
       ...LAYOUT_PRESETS.map((p) => ({
         id: `layout.${p.id}`,
@@ -755,15 +756,19 @@ function RiskMeter() {
       clearInterval(i);
     };
   }, []);
-  const st = risk.status(PAPER_ACCOUNT);
-  const rule = risk.rules(PAPER_ACCOUNT).dailyLossLimit;
+  const accId = activeAccount();
+  const st = risk.status(accId);
+  const rule = risk.rules(accId).dailyLossLimit;
+  const accName = paper.accounts.get(accId)?.name ?? accId;
   const pct = st.locked ? 1 : Math.min(1, st.dailyLossUsed);
   const loss = Math.max(0, -st.dayPnl);
-  const title = st.locked
-    ? `Locked: ${st.lockReason ?? ''}`
-    : rule.enabled
-      ? `Daily loss ${loss.toFixed(2)} of ${rule.value} limit (${Math.round(pct * 100)}%)`
-      : 'Daily loss limit is off';
+  const title =
+    `${accName} · ` +
+    (st.locked
+      ? `Locked: ${st.lockReason ?? ''}`
+      : rule.enabled
+        ? `Daily loss ${loss.toFixed(2)} of ${rule.value} limit (${Math.round(pct * 100)}%)`
+        : 'Daily loss limit is off');
   return (
     <div className="tb-risk" title={title} data-testid="risk-meter" data-state={st.state}>
       <span className="muted">{st.locked ? 'Locked' : 'Daily risk'}</span>
