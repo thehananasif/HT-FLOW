@@ -20,6 +20,7 @@ import {
   Slider,
   toast,
 } from '@htflow/ui-kit';
+import { t } from '@htflow/i18n';
 import { formatPrice, specKey, specLabel, TIMEFRAME_PRESETS } from '@htflow/market-data';
 import {
   ALERT_TRIGGERS,
@@ -124,41 +125,44 @@ export function DrawingsOverlay({
         <div
           className="dr-toolbar"
           role="toolbar"
-          aria-label="Drawing style"
+          aria-label={t('drawings.toolbarAria')}
           onContextMenu={(e) => e.stopPropagation()}
         >
           <span className="dr-name" data-testid="dr-name">
-            {nSel > 1 ? `${nSel} selected` : toolDef(d.type)?.label}
+            {nSel > 1 ? t('drawings.nSelected', { n: nSel }) : toolDef(d.type)?.label}
           </span>
           <input
             type="color"
-            aria-label="Colour"
-            title="Colour"
+            aria-label={t('drawings.colour')}
+            title={t('drawings.colour')}
             value={d.style.color.slice(0, 7)}
             onChange={(e) => setStyle(windowId, d.id, { color: e.target.value })}
           />
           <Select
             small
-            aria-label="Line width"
+            aria-label={t('drawings.lineWidth')}
             value={String(d.style.width)}
             onChange={(v) => setStyle(windowId, d.id, { width: Number(v) })}
-            options={[1, 2, 3, 4, 6].map((w) => ({ value: String(w), label: `${w} px` }))}
+            options={[1, 2, 3, 4, 6].map((w) => ({
+              value: String(w),
+              label: t('drawings.px', { n: w }),
+            }))}
           />
           <Select
             small
-            aria-label="Line style"
+            aria-label={t('drawings.lineStyle')}
             value={d.style.dash}
             onChange={(v) => setStyle(windowId, d.id, { dash: v as Dash })}
             options={[
-              { value: 'solid', label: 'Solid' },
-              { value: 'dashed', label: 'Dashed' },
-              { value: 'dotted', label: 'Dotted' },
+              { value: 'solid', label: t('drawings.solid') },
+              { value: 'dashed', label: t('drawings.dashed') },
+              { value: 'dotted', label: t('drawings.dotted') },
             ]}
           />
           <button
             className="dr-btn"
-            aria-label="Fill"
-            title="Fill"
+            aria-label={t('drawings.fill')}
+            title={t('drawings.fill')}
             aria-pressed={!!d.style.fill}
             onClick={() => setStyle(windowId, d.id, { fill: d.style.fill ? '' : d.style.color })}
           >
@@ -166,8 +170,8 @@ export function DrawingsOverlay({
           </button>
           <button
             className="dr-btn"
-            aria-label={d.locked ? 'Unlock' : 'Lock'}
-            title={d.locked ? 'Unlock' : 'Lock'}
+            aria-label={d.locked ? t('drawings.unlock') : t('drawings.lock')}
+            title={d.locked ? t('drawings.unlock') : t('drawings.lock')}
             aria-pressed={d.locked}
             onClick={() => patchGroup(windowId, d.id, (x) => ({ ...x, locked: !d.locked }))}
           >
@@ -176,8 +180,8 @@ export function DrawingsOverlay({
           {nSel === 1 && supportsAlert(d.type) && (
             <button
               className="dr-btn"
-              aria-label="Alert on cross"
-              title="Alert on cross / enter / exit"
+              aria-label={t('drawings.alertOnCross')}
+              title={t('drawings.alertTitle')}
               aria-pressed={d.alert}
               onClick={() => patchOne(windowId, d.id, (x) => ({ ...x, alert: !x.alert }))}
             >
@@ -187,8 +191,8 @@ export function DrawingsOverlay({
           {nSel > 1 && (
             <button
               className="dr-btn"
-              aria-label="Alert on cross"
-              title="Alert on cross / enter / exit (lines, channels, rectangles)"
+              aria-label={t('drawings.alertOnCross')}
+              title={t('drawings.alertTitleLines')}
               aria-pressed={d.alert}
               onClick={() =>
                 mutateSelection(windowId, (x) =>
@@ -202,8 +206,8 @@ export function DrawingsOverlay({
           {nSel === 1 && (
             <button
               className="dr-btn"
-              aria-label="Clone"
-              title="Clone"
+              aria-label={t('drawings.clone')}
+              title={t('drawings.clone')}
               onClick={() => controllers.get(windowId)?.ctrl.clone(d.id)}
             >
               <Copy size={14} />
@@ -211,16 +215,16 @@ export function DrawingsOverlay({
           )}
           <button
             className="dr-btn"
-            aria-label={nSel > 1 ? 'Delete selected drawings' : 'Delete drawing'}
-            title="Delete (Del)"
+            aria-label={nSel > 1 ? t('drawings.deleteSelected') : t('drawings.deleteDrawing')}
+            title={t('drawings.deleteTitle')}
             onClick={() => removeSelection(windowId, d.id)}
           >
             <Trash2 size={14} />
           </button>
           <button
             className="dr-btn"
-            aria-label="More properties"
-            title="Properties…"
+            aria-label={t('drawings.moreProps')}
+            title={t('drawings.properties')}
             onClick={() => useDrawUi.getState().edit({ windowId, id: d.id })}
           >
             <MoreHorizontal size={14} />
@@ -280,7 +284,7 @@ function PropertiesDialog({
       prop(d, 'risk', 0),
     );
     if (!(p.qty > 0) || p.slTicks <= 0 || p.tpTicks <= 0) {
-      toast('error', 'Cannot place order', 'Check quantity, target and stop.');
+      toast('error', t('drawings.cannotPlace'), t('drawings.checkQty'));
       return;
     }
     const o = paper.place({
@@ -292,18 +296,30 @@ function PropertiesDialog({
       px: Math.round(p.entry),
       bracket: { slTicks: p.slTicks, tpTicks: [p.tpTicks] },
     });
-    if (o.status === 'rejected') toast('error', 'Order rejected', o.reason);
-    else toast('success', `${side === 'long' ? 'Buy' : 'Sell'} limit ${p.qty} placed (paper)`);
+    if (o.status === 'rejected') toast('error', t('drawings.orderRejected'), o.reason);
+    else
+      toast(
+        'success',
+        t('drawings.orderPlaced', {
+          side: side === 'long' ? t('drawings.buy') : t('drawings.sell'),
+          qty: p.qty,
+        }),
+      );
   };
   return (
-    <Dialog open onOpenChange={(o) => !o && close()} title={def?.label ?? 'Drawing'} width={460}>
+    <Dialog
+      open
+      onOpenChange={(o) => !o && close()}
+      title={def?.label ?? t('drawings.drawing')}
+      width={460}
+    >
       <div className="col gap12 dr-props">
         {nSel > 1 && (
           <div className="muted" data-testid="dr-group-note">
-            Style and option changes apply to all {nSel} selected drawings.
+            {t('drawings.groupNote', { n: nSel })}
           </div>
         )}
-        <div className="dr-swatches" role="radiogroup" aria-label="Colour">
+        <div className="dr-swatches" role="radiogroup" aria-label={t('drawings.colour')}>
           {SWATCHES.map((c) => (
             <button
               key={c}
@@ -316,7 +332,7 @@ function PropertiesDialog({
           ))}
         </div>
         <div className="dr-grid">
-          <Field label="Opacity %">
+          <Field label={t('drawings.opacity')}>
             <NumberInput
               value={Math.round(d.style.opacity * 100)}
               min={5}
@@ -325,10 +341,10 @@ function PropertiesDialog({
               onChange={(v) => st({ opacity: v / 100 })}
             />
           </Field>
-          <Field label="Width px">
+          <Field label={t('drawings.widthPx')}>
             <NumberInput value={d.style.width} min={1} max={8} onChange={(v) => st({ width: v })} />
           </Field>
-          <Field label="Fill opacity %">
+          <Field label={t('drawings.fillOpacity')}>
             <NumberInput
               value={Math.round(d.style.fillOpacity * 100)}
               min={0}
@@ -337,7 +353,7 @@ function PropertiesDialog({
               onChange={(v) => st({ fillOpacity: v / 100 })}
             />
           </Field>
-          <Field label="Font size">
+          <Field label={t('drawings.fontSize')}>
             <NumberInput
               value={d.style.fontSize}
               min={8}
@@ -346,10 +362,10 @@ function PropertiesDialog({
             />
           </Field>
         </div>
-        <Field label="Text">
+        <Field label={t('drawings.text')}>
           <textarea
             className="ht-input dr-text"
-            aria-label="Drawing text"
+            aria-label={t('drawings.drawingText')}
             value={d.style.text}
             rows={2}
             onChange={(e) => st({ text: e.target.value })}
@@ -359,43 +375,43 @@ function PropertiesDialog({
           <Checkbox
             checked={d.extendLeft}
             onChange={(v) => upd((x) => ({ ...x, extendLeft: v }))}
-            label="Extend left"
+            label={t('drawings.extendLeft')}
           />
           <Checkbox
             checked={d.extendRight}
             onChange={(v) => upd((x) => ({ ...x, extendRight: v }))}
-            label="Extend right"
+            label={t('drawings.extendRight')}
           />
           <Checkbox
             checked={d.showLabels}
             onChange={(v) => upd((x) => ({ ...x, showLabels: v }))}
-            label="Show price / time labels"
+            label={t('drawings.showLabels')}
           />
           <Checkbox
             checked={d.locked}
             onChange={(v) => upd((x) => ({ ...x, locked: v }))}
-            label="Locked"
+            label={t('drawings.locked')}
           />
           <Checkbox
             checked={d.sync}
             onChange={(v) => upd((x) => ({ ...x, sync: v }))}
-            label="Sync to all charts of this instrument"
+            label={t('drawings.syncAll')}
           />
           <Checkbox
             checked={d.hidden}
             onChange={(v) => upd((x) => ({ ...x, hidden: v }))}
-            label="Hidden"
+            label={t('drawings.hidden')}
           />
         </div>
         {d.type === 'emoji' && (
           <div>
-            <div className="ht-menu-label">Emoji</div>
+            <div className="ht-menu-label">{t('drawings.emoji')}</div>
             <EmojiPicker
               value={prop<string>(d, 'glyph', '⭐')}
               onPick={(g) => setProp('glyph', g)}
             />
             <div className="dr-grid">
-              <Field label="Size px">
+              <Field label={t('drawings.sizePx')}>
                 <NumberInput
                   value={prop(d, 'size', 20)}
                   min={8}
@@ -408,22 +424,22 @@ function PropertiesDialog({
         )}
         {canAlert && (
           <div className="dr-alert" data-testid="dr-alert-section">
-            <div className="ht-menu-label">Alert</div>
+            <div className="ht-menu-label">{t('drawings.alert')}</div>
             <Checkbox
               checked={d.alert}
               onChange={(v) => upd((x) => ({ ...x, alert: v }))}
               label={
                 trigs.includes('cross') && trigs.length === 1
-                  ? 'Alert on cross'
-                  : 'Alert on cross / enter / exit'
+                  ? t('drawings.alertOnCross')
+                  : t('drawings.alertTitle')
               }
             />
             {d.alert && (
               <div className="dr-grid">
                 {trigs.length > 1 && (
-                  <Field label="Trigger">
+                  <Field label={t('drawings.trigger')}>
                     <Select
-                      aria-label="Alert trigger"
+                      aria-label={t('drawings.alertTrigger')}
                       value={alertTrigger(d)}
                       onChange={(v) => setProp('alertOn', v)}
                       options={ALERT_TRIGGERS.filter((t) => trigs.includes(t.value)).map((t) => ({
@@ -436,22 +452,22 @@ function PropertiesDialog({
                 <Checkbox
                   checked={ch.toast}
                   onChange={(v) => setProp('alertToast', v)}
-                  label="Popup (toast)"
+                  label={t('drawings.popup')}
                 />
                 <Checkbox
                   checked={ch.sound}
                   onChange={(v) => setProp('alertSound', v)}
-                  label="Sound"
+                  label={t('drawings.sound')}
                 />
                 <Checkbox
                   checked={ch.log}
                   onChange={(v) => setProp('alertLog', v)}
-                  label="Activity log"
+                  label={t('drawings.activityLog')}
                 />
                 <Checkbox
                   checked={ch.once}
                   onChange={(v) => setProp('alertOnce', v)}
-                  label="Only once"
+                  label={t('drawings.onlyOnce')}
                 />
               </div>
             )}
@@ -459,7 +475,7 @@ function PropertiesDialog({
         )}
         {d.type === 'regression-channel' && (
           <div className="dr-grid">
-            <Field label="Outer band σ">
+            <Field label={t('drawings.outerSigma')}>
               <NumberInput
                 value={prop(d, 'sigma', 2)}
                 min={0.1}
@@ -469,7 +485,7 @@ function PropertiesDialog({
                 onChange={(v) => setProp('sigma', v)}
               />
             </Field>
-            <Field label="Inner band σ (0 = off)">
+            <Field label={t('drawings.innerSigma')}>
               <NumberInput
                 value={prop(d, 'sigma2', 0)}
                 min={0}
@@ -483,7 +499,7 @@ function PropertiesDialog({
         )}
         {d.type === 'anchored-vwap' && (
           <div className="dr-grid">
-            <Field label="Band 1 × σ (0 = off)">
+            <Field label={t('drawings.band1Sigma')}>
               <NumberInput
                 value={prop(d, 'band1', 1)}
                 min={0}
@@ -493,7 +509,7 @@ function PropertiesDialog({
                 onChange={(v) => setProp('band1', v)}
               />
             </Field>
-            <Field label="Band 2 × σ (0 = off)">
+            <Field label={t('drawings.band2Sigma')}>
               <NumberInput
                 value={prop(d, 'band2', 2)}
                 min={0}
@@ -507,7 +523,7 @@ function PropertiesDialog({
         )}
         {d.type === 'zigzag-vp' && (
           <div className="dr-grid">
-            <Field label="Reversal (ticks)">
+            <Field label={t('drawings.reversal')}>
               <NumberInput
                 value={prop(d, 'reversal', 20)}
                 min={1}
@@ -518,12 +534,12 @@ function PropertiesDialog({
             <Checkbox
               checked={prop(d, 'showZigzag', true)}
               onChange={(v) => setProp('showZigzag', v)}
-              label="Show ZigZag line"
+              label={t('drawings.showZigzag')}
             />
             <Checkbox
               checked={prop(d, 'legLabels', false)}
               onChange={(v) => setProp('legLabels', v)}
-              label="Leg size labels"
+              label={t('drawings.legLabels')}
             />
           </div>
         )}
@@ -532,9 +548,9 @@ function PropertiesDialog({
             <Checkbox
               checked={prop(d, 'showCvd', true)}
               onChange={(v) => setProp('showCvd', v)}
-              label="Draw CVD line"
+              label={t('drawings.drawCvd')}
             />
-            <Field label="Weak correlation below">
+            <Field label={t('drawings.weakCorr')}>
               <NumberInput
                 value={prop(d, 'corrWarn', 0.3)}
                 min={-1}
@@ -548,7 +564,7 @@ function PropertiesDialog({
         )}
         {isPos && (
           <div className="dr-grid">
-            <Field label="Quantity">
+            <Field label={t('drawings.quantity')}>
               <NumberInput
                 value={prop(d, 'qty', 1)}
                 min={0}
@@ -556,7 +572,7 @@ function PropertiesDialog({
                 onChange={(v) => setProp('qty', v)}
               />
             </Field>
-            <Field label="Risk $ (0 = use quantity)">
+            <Field label={t('drawings.riskDollar')}>
               <NumberInput
                 value={prop(d, 'risk', 0)}
                 min={0}
@@ -565,23 +581,23 @@ function PropertiesDialog({
               />
             </Field>
             <Button variant="outline" onClick={placeOrder}>
-              Place as order (paper)
+              {t('drawings.placeOrder')}
             </Button>
           </div>
         )}
         {isProfile && (
           <div className="dr-grid">
-            <Field label="Profile">
+            <Field label={t('drawings.profile')}>
               <Select
                 value={prop<string>(d, 'mode', 'volume')}
                 onChange={(v) => setProp('mode', v)}
                 options={[
-                  { value: 'volume', label: 'Volume' },
-                  { value: 'tpo', label: 'TPO (30 min)' },
+                  { value: 'volume', label: t('drawings.volume') },
+                  { value: 'tpo', label: t('drawings.tpo') },
                 ]}
               />
             </Field>
-            <Field label="Value area %">
+            <Field label={t('drawings.valueArea')}>
               <NumberInput
                 value={prop(d, 'va', 70)}
                 min={10}
@@ -594,12 +610,12 @@ function PropertiesDialog({
         )}
         {levels && (
           <div className="dr-levels">
-            <div className="ht-menu-label">Levels</div>
+            <div className="ht-menu-label">{t('drawings.levels')}</div>
             {levels.map((l, i) => (
               <div key={i} className="dr-level">
                 <input
                   type="checkbox"
-                  aria-label={`Level ${l.value} enabled`}
+                  aria-label={t('drawings.levelEnabled', { v: l.value })}
                   checked={l.enabled}
                   onChange={(e) =>
                     setLevels((ls) =>
@@ -617,7 +633,7 @@ function PropertiesDialog({
                 />
                 <input
                   type="color"
-                  aria-label={`Level ${l.value} colour`}
+                  aria-label={t('drawings.levelColour', { v: l.value })}
                   value={(l.color || d.style.color).slice(0, 7)}
                   onChange={(e) =>
                     setLevels((ls) =>
@@ -627,7 +643,7 @@ function PropertiesDialog({
                 />
                 <button
                   className="dr-btn"
-                  aria-label={`Remove level ${l.value}`}
+                  aria-label={t('drawings.removeLevel', { v: l.value })}
                   onClick={() => setLevels((ls) => ls.filter((_, k) => k !== i))}
                 >
                   <Trash2 size={13} />
@@ -638,19 +654,19 @@ function PropertiesDialog({
               size="sm"
               onClick={() => setLevels((ls) => [...ls, { value: 1, color: '', enabled: true }])}
             >
-              Add level
+              {t('drawings.addLevel')}
             </Button>
           </div>
         )}
         <div>
-          <div className="ht-menu-label">Visible on timeframes</div>
+          <div className="ht-menu-label">{t('drawings.visibleOn')}</div>
           <div className="dr-tfs">
             <Checkbox
               checked={allTf}
               onChange={(v) =>
                 upd((x) => ({ ...x, visibleOn: v ? 'all' : [specKey(state.timeframe)] }))
               }
-              label="All"
+              label={t('drawings.all')}
             />
             {!allTf &&
               tfs.map((t) => (
@@ -673,11 +689,11 @@ function PropertiesDialog({
         </div>
         <div className="row gap8">
           <Button variant="destructive" onClick={() => (removeSelection(windowId, id), close())}>
-            {nSel > 1 ? `Delete ${nSel}` : 'Delete'}
+            {nSel > 1 ? t('drawings.deleteN', { n: nSel }) : t('drawings.delete')}
           </Button>
           <div className="grow" />
           <Button variant="primary" onClick={close}>
-            Done
+            {t('drawings.done')}
           </Button>
         </div>
       </div>
@@ -696,17 +712,17 @@ export function ObjectsList(_props: ModuleViewProps) {
   const win = windowId ? useWindows.getState().windows[windowId] : null;
   const items = windowId ? [...readDrawings(windowId)].sort((a, b) => b.z - a.z) : [];
   if (!windowId || win?.kind !== 'chart')
-    return <div className="tbl-empty">Open a chart to list its drawings.</div>;
+    return <div className="tbl-empty">{t('drawings.openChartToList')}</div>;
   return (
     <div className="col fill dr-objects" data-testid="objects-list">
       <div className="row gap8 dr-objects-head">
         <span className="muted">
-          {instrumentOf(win.instrumentId)?.symbol ?? win.instrumentId} · {items.length} object
-          {items.length === 1 ? '' : 's'}
+          {instrumentOf(win.instrumentId)?.symbol ?? win.instrumentId} ·{' '}
+          {t('drawings.objectsCount', { n: items.length, s: items.length === 1 ? '' : 's' })}
         </span>
         <div className="grow" />
         <Button size="xs" disabled={!items.length} onClick={() => mutate(windowId, () => [])}>
-          Delete all
+          {t('drawings.deleteAll')}
         </Button>
       </div>
       <div className="tbl-wrap">
@@ -736,32 +752,32 @@ export function ObjectsList(_props: ModuleViewProps) {
                 <td className="dr-actions" onClick={(e) => e.stopPropagation()}>
                   <button
                     className="dr-btn"
-                    aria-label={d.hidden ? 'Show' : 'Hide'}
-                    title={d.hidden ? 'Show' : 'Hide'}
+                    aria-label={d.hidden ? t('drawings.show') : t('drawings.hide')}
+                    title={d.hidden ? t('drawings.show') : t('drawings.hide')}
                     onClick={() => patchOne(windowId, d.id, (x) => ({ ...x, hidden: !x.hidden }))}
                   >
                     {d.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                   <button
                     className="dr-btn"
-                    aria-label={d.locked ? 'Unlock' : 'Lock'}
-                    title={d.locked ? 'Unlock' : 'Lock'}
+                    aria-label={d.locked ? t('drawings.unlock') : t('drawings.lock')}
+                    title={d.locked ? t('drawings.unlock') : t('drawings.lock')}
                     onClick={() => patchOne(windowId, d.id, (x) => ({ ...x, locked: !x.locked }))}
                   >
                     {d.locked ? <Lock size={13} /> : <Unlock size={13} />}
                   </button>
                   <button
                     className="dr-btn"
-                    aria-label="Edit"
-                    title="Edit…"
+                    aria-label={t('drawings.edit')}
+                    title={t('drawings.editEllipsis')}
                     onClick={() => useDrawUi.getState().edit({ windowId, id: d.id })}
                   >
                     <Pencil size={13} />
                   </button>
                   <button
                     className="dr-btn"
-                    aria-label="Delete"
-                    title="Delete"
+                    aria-label={t('drawings.delete')}
+                    title={t('drawings.delete')}
                     onClick={() => removeOne(windowId, d.id)}
                   >
                     <Trash2 size={13} />
@@ -771,7 +787,7 @@ export function ObjectsList(_props: ModuleViewProps) {
             ))}
           </tbody>
         </table>
-        {!items.length && <div className="tbl-empty">No drawings on this chart</div>}
+        {!items.length && <div className="tbl-empty">{t('drawings.noDrawings')}</div>}
       </div>
     </div>
   );
@@ -786,19 +802,19 @@ function PrefsDialog({ windowId }: { windowId: string }) {
     <Dialog
       open
       onOpenChange={(o) => !o && useDrawUi.getState().openPrefs(false)}
-      title="Drawing preferences"
+      title={t('drawings.prefsTitle')}
       width={420}
     >
       <div className="col gap12 dr-props" data-testid="drawing-prefs">
         <Checkbox
           checked={p.magnet}
           onChange={(v) => set({ magnet: v })}
-          label="Magnet to OHLC / cluster prices"
+          label={t('drawings.magnetOhlc')}
         />
-        <Field label={`Magnet sensitivity: ${p.magnetPx} px`}>
+        <Field label={t('drawings.magnetSensitivityPx', { px: p.magnetPx })}>
           <div className="row gap8">
             <Slider
-              label="Magnet sensitivity"
+              label={t('drawings.magnetSensitivity')}
               value={p.magnetPx}
               min={2}
               max={40}
@@ -813,9 +829,9 @@ function PrefsDialog({ windowId }: { windowId: string }) {
             />
           </div>
         </Field>
-        <div className="row gap8 dr-presets" role="group" aria-label="Magnet presets">
+        <div className="row gap8 dr-presets" role="group" aria-label={t('drawings.magnetPresets')}>
           <Button size="xs" aria-pressed={!p.magnet} onClick={() => set({ magnet: false })}>
-            Off
+            {t('drawings.off')}
           </Button>
           {[4, 8, 12, 16, 24].map((n) => (
             <Button
@@ -824,7 +840,7 @@ function PrefsDialog({ windowId }: { windowId: string }) {
               aria-pressed={p.magnet && p.magnetPx === n}
               onClick={() => set({ magnet: true, magnetPx: n })}
             >
-              {n} px
+              {t('drawings.px', { n })}
             </Button>
           ))}
         </div>
@@ -832,27 +848,27 @@ function PrefsDialog({ windowId }: { windowId: string }) {
           <Checkbox
             checked={p.snapTicks}
             onChange={(v) => set({ snapTicks: v })}
-            label="Snap to ticks"
+            label={t('drawings.snapToTicks')}
           />
           <Checkbox
             checked={p.keep}
             onChange={(v) => set({ keep: v })}
-            label="Keep drawing (stay in tool)"
+            label={t('drawings.keepDrawingPrefs')}
           />
           <Checkbox
             checked={p.toolbar}
             onChange={(v) => set({ toolbar: v })}
-            label="Style toolbar"
+            label={t('drawings.styleToolbar')}
           />
           <Checkbox
             checked={lens}
             onChange={() => runToolCommand('magnifier', windowId)}
-            label="Magnifier on (M)"
+            label={t('drawings.magnifierOn')}
           />
         </div>
-        <Field label={`Magnifier zoom: ${p.lensZoom}×`}>
+        <Field label={t('drawings.magnifierZoom', { z: p.lensZoom })}>
           <Slider
-            label="Magnifier zoom"
+            label={t('drawings.magnifierZoomLabel')}
             value={p.lensZoom}
             min={1.5}
             max={8}
@@ -860,9 +876,9 @@ function PrefsDialog({ windowId }: { windowId: string }) {
             onChange={(v) => set({ lensZoom: v })}
           />
         </Field>
-        <Field label={`Magnifier size: ${p.lensSize} px`}>
+        <Field label={t('drawings.magnifierSize', { px: p.lensSize })}>
           <Slider
-            label="Magnifier size"
+            label={t('drawings.magnifierSizeLabel')}
             value={p.lensSize}
             min={60}
             max={300}
@@ -873,7 +889,7 @@ function PrefsDialog({ windowId }: { windowId: string }) {
         <div className="row gap8">
           <div className="grow" />
           <Button variant="primary" onClick={() => useDrawUi.getState().openPrefs(false)}>
-            Done
+            {t('drawings.done')}
           </Button>
         </div>
       </div>

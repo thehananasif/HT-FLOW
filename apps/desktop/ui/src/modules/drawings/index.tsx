@@ -16,6 +16,7 @@ import {
   type AlertSample,
   type Drawing,
 } from '@htflow/drawings';
+import { t } from '@htflow/i18n';
 import { formatPrice, specKey } from '@htflow/market-data';
 import type { ChartCore } from '@htflow/chart-engine';
 import { type MenuEntry } from '@htflow/ui-kit';
@@ -135,10 +136,14 @@ function watchAlerts(ctx: ChartExtensionContext): () => void {
       const was = firedAt.get(d.id);
       if (was !== undefined && (ch.once || now - was < 1500)) continue;
       firedAt.set(d.id, now);
-      const label = toolDef(d.type)?.label ?? 'drawing';
+      const label = toolDef(d.type)?.label ?? t('drawings.drawingLower');
       notify({
         title: `${inst.symbol} ${describeAlertEvent(ev, label)}`,
-        body: `${label} @ ${formatPrice(Math.round(ev.level), inst)} · last ${formatPrice(cur.px, inst)}`,
+        body: t('drawings.alertBody', {
+          label,
+          level: formatPrice(Math.round(ev.level), inst),
+          last: formatPrice(cur.px, inst),
+        }),
         instrumentId: inst.id,
         popup: ch.toast,
         sound: ch.sound,
@@ -150,7 +155,7 @@ function watchAlerts(ctx: ChartExtensionContext): () => void {
 
 function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
   const { ctrl } = ensure(ctx);
-  const name = toolDef(d.type)?.label ?? 'Drawing';
+  const name = toolDef(d.type)?.label ?? t('drawings.drawing');
   const sel = selectionOf(ctx.windowId);
   const inGroup = sel.length > 1 && sel.includes(d.id);
   return [
@@ -158,15 +163,15 @@ function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
     { kind: 'label', id: 'dr-l', label: name },
     {
       id: 'dr-edit',
-      label: 'Edit drawing…',
+      label: t('drawings.editDrawing'),
       onSelect: () => useDrawUi.getState().edit({ windowId: ctx.windowId, id: d.id }),
     },
-    { id: 'dr-clone', label: 'Clone drawing', onSelect: () => ctrl.clone(d.id) },
+    { id: 'dr-clone', label: t('drawings.cloneDrawing'), onSelect: () => ctrl.clone(d.id) },
     ...(supportsAlert(d.type)
       ? [
           {
             id: 'dr-alert',
-            label: 'Alert on cross',
+            label: t('drawings.alertOnCross'),
             checked: d.alert,
             onSelect: () => ctrl.update(d.id, (x) => ({ ...x, alert: !x.alert })),
           },
@@ -174,19 +179,19 @@ function drawingMenu(ctx: ChartExtensionContext, d: Drawing): MenuEntry[] {
       : []),
     {
       id: 'dr-lock',
-      label: d.locked ? 'Unlock drawing' : 'Lock drawing',
+      label: d.locked ? t('drawings.unlockDrawing') : t('drawings.lockDrawing'),
       onSelect: () => ctrl.update(d.id, (x) => ({ ...x, locked: !x.locked })),
     },
     {
       id: 'dr-hide',
-      label: 'Hide drawing',
+      label: t('drawings.hideDrawing'),
       onSelect: () => ctrl.update(d.id, (x) => ({ ...x, hidden: true })),
     },
-    { id: 'dr-front', label: 'Bring to front', onSelect: () => ctrl.bringToFront(d.id) },
-    { id: 'dr-back', label: 'Send to back', onSelect: () => ctrl.sendToBack(d.id) },
+    { id: 'dr-front', label: t('drawings.bringFront'), onSelect: () => ctrl.bringToFront(d.id) },
+    { id: 'dr-back', label: t('drawings.sendBack'), onSelect: () => ctrl.sendToBack(d.id) },
     {
       id: 'dr-del',
-      label: inGroup ? 'Delete selected drawings' : 'Delete drawing',
+      label: inGroup ? t('drawings.deleteSelected') : t('drawings.deleteDrawing'),
       shortcut: 'Del',
       onSelect: () => void (inGroup ? ctrl.removeSelected() : ctrl.remove(d.id)),
     },
@@ -254,7 +259,7 @@ registerChartExtension({
       {
         kind: 'submenu',
         id: 'dr-objects',
-        label: 'Drawing objects',
+        label: t('drawings.drawingObjects'),
         items: [
           ...TOOL_GROUPS.map((g): MenuEntry => ({
             kind: 'submenu',
@@ -271,39 +276,43 @@ registerChartExtension({
           })),
           {
             id: 'dr-magnifier',
-            label: 'Magnifier',
+            label: t('drawings.magnifier'),
             shortcut: 'M',
             checked: !!ui.lens[ctx.windowId],
             onSelect: () => runToolCommand('magnifier', ctx.windowId),
           },
           {
             id: 'dr-remove-ind',
-            label: 'Remove indicators',
+            label: t('drawings.removeIndicators'),
             onSelect: () => runToolCommand('remove-indicators', ctx.windowId),
           },
           { kind: 'separator', id: 'dr-s2' },
-          { id: 'dr-list', label: 'Objects List', onSelect: openObjectsList },
+          { id: 'dr-list', label: t('drawings.objectsList'), onSelect: openObjectsList },
           {
             kind: 'submenu',
             id: 'dr-actions',
-            label: 'Actions',
+            label: t('drawings.actions'),
             items: [
               {
                 id: 'dr-a-del',
-                label: 'Delete selected',
+                label: t('drawings.deleteSelectedAction'),
                 shortcut: 'Del',
                 onSelect: () => void ctrl.removeSelected(),
               },
-              { id: 'dr-a-all', label: 'Delete all drawings', onSelect: () => ctrl.removeAll() },
+              {
+                id: 'dr-a-all',
+                label: t('drawings.deleteAllDrawings'),
+                onSelect: () => ctrl.removeAll(),
+              },
               {
                 id: 'dr-a-undo',
-                label: 'Undo',
+                label: t('drawings.undo'),
                 shortcut: 'Ctrl+Z',
                 onSelect: () => void ctrl.undo(),
               },
               {
                 id: 'dr-a-redo',
-                label: 'Redo',
+                label: t('drawings.redo'),
                 shortcut: 'Ctrl+Y',
                 onSelect: () => void ctrl.redo(),
               },
@@ -313,17 +322,17 @@ registerChartExtension({
           {
             kind: 'submenu',
             id: 'dr-magnet',
-            label: `Magnet sensitivity, px (${p.magnet ? p.magnetPx : 'off'})`,
+            label: t('drawings.magnetMenu', { v: p.magnet ? p.magnetPx : t('drawings.offLower') }),
             items: [
               {
                 id: 'dr-m-off',
-                label: 'Off',
+                label: t('drawings.off'),
                 checked: !p.magnet,
                 onSelect: () => ui.setPrefs({ magnet: false }),
               },
               ...[4, 8, 12, 16, 24].map((n) => ({
                 id: `dr-m-${n}`,
-                label: `${n} px`,
+                label: t('drawings.px', { n }),
                 checked: p.magnet && p.magnetPx === n,
                 onSelect: () => ui.setPrefs({ magnet: true, magnetPx: n }),
               })),
@@ -331,37 +340,37 @@ registerChartExtension({
               {
                 kind: 'slider',
                 id: 'dr-m-slider',
-                label: 'Sensitivity',
+                label: t('drawings.sensitivity'),
                 value: p.magnetPx,
                 min: 2,
                 max: 40,
                 step: 1,
-                format: (v: number) => `${v} px`,
+                format: (v: number) => t('drawings.px', { n: v }),
                 onChange: (v: number) => ui.setPrefs({ magnet: true, magnetPx: v }),
               },
             ],
           },
           {
             id: 'dr-snap',
-            label: 'Snap to ticks',
+            label: t('drawings.snapToTicks'),
             checked: p.snapTicks,
             onSelect: () => ui.setPrefs({ snapTicks: !p.snapTicks }),
           },
           {
             id: 'dr-keep',
-            label: 'Keep Drawing',
+            label: t('drawings.keepDrawingMenu'),
             checked: p.keep,
             onSelect: () => ui.setPrefs({ keep: !p.keep }),
           },
           {
             id: 'dr-bar',
-            label: 'Drawing objects toolbar',
+            label: t('drawings.objectsToolbar'),
             checked: p.toolbar,
             onSelect: () => ui.setPrefs({ toolbar: !p.toolbar }),
           },
           {
             id: 'dr-prefs',
-            label: 'Drawing preferences…',
+            label: t('drawings.prefsMenu'),
             onSelect: () => ui.openPrefs(true),
           },
         ],
@@ -371,7 +380,7 @@ registerChartExtension({
   Overlay: DrawingsOverlay,
 });
 
-registerModule({ id: 'drawing-objects', label: 'Objects List', view: ObjectsList });
+registerModule({ id: 'drawing-objects', label: t('drawings.objectsList'), view: ObjectsList });
 
 const ctrlOf = () => {
   const id = activeChartId();
@@ -392,44 +401,51 @@ const typing = (): boolean => {
 };
 
 const cmds: Command[] = [
-  ...TOOLS.filter((t) => t.ready).map((t): Command => ({
-    id: `draw.${t.id}`,
-    label: t.command ? `Drawing: ${t.label}` : `Draw: ${t.label}`,
+  ...TOOLS.filter((tool) => tool.ready).map((tool): Command => ({
+    id: `draw.${tool.id}`,
+    label: tool.command
+      ? t('drawings.cmdDrawing', { label: tool.label })
+      : t('drawings.cmdDraw', { label: tool.label }),
     group: 'Drawing',
-    shortcut: t.shortcut,
-    scope: t.id === 'magnifier' ? 'chart' : undefined,
-    keywords: `drawing ${t.group}`,
-    run: () => activateTool(t.id),
+    shortcut: tool.shortcut,
+    scope: tool.id === 'magnifier' ? 'chart' : undefined,
+    keywords: `drawing ${tool.group}`,
+    run: () => activateTool(tool.id),
   })),
-  { id: 'draw.objects', label: 'Drawing: Objects List', group: 'Drawing', run: openObjectsList },
+  {
+    id: 'draw.objects',
+    label: t('drawings.cmdObjectsList'),
+    group: 'Drawing',
+    run: openObjectsList,
+  },
   {
     id: 'draw.keep',
-    label: 'Drawing: Keep Drawing (stay in tool)',
+    label: t('drawings.cmdKeep'),
     group: 'Drawing',
     run: () => useDrawUi.getState().setPrefs({ keep: !useDrawUi.getState().prefs.keep }),
   },
   {
     id: 'draw.magnet',
-    label: 'Drawing: Toggle magnet',
+    label: t('drawings.cmdToggleMagnet'),
     group: 'Drawing',
     run: () => useDrawUi.getState().setPrefs({ magnet: !useDrawUi.getState().prefs.magnet }),
   },
   {
     id: 'draw.snap',
-    label: 'Drawing: Toggle snap to ticks',
+    label: t('drawings.cmdToggleSnap'),
     group: 'Drawing',
     run: () => useDrawUi.getState().setPrefs({ snapTicks: !useDrawUi.getState().prefs.snapTicks }),
   },
   {
     id: 'draw.prefs',
-    label: 'Drawing: Preferences (magnet sensitivity, magnifier)',
+    label: t('drawings.cmdPrefs'),
     group: 'Drawing',
     keywords: 'magnet slider lens zoom',
     run: () => useDrawUi.getState().openPrefs(true),
   },
   {
     id: 'draw.alert',
-    label: 'Drawing: Toggle alert on cross (selected)',
+    label: t('drawings.cmdToggleAlert'),
     group: 'Drawing',
     keywords: 'alert cross enter exit line channel rectangle',
     run: () => {
@@ -439,7 +455,7 @@ const cmds: Command[] = [
   },
   {
     id: 'draw.lock',
-    label: 'Drawing: Lock / unlock selected',
+    label: t('drawings.cmdLock'),
     group: 'Drawing',
     run: () => {
       const id = activeChartId();
@@ -448,7 +464,7 @@ const cmds: Command[] = [
   },
   {
     id: 'draw.select-all',
-    label: 'Drawing: Select all drawings',
+    label: t('drawings.cmdSelectAll'),
     group: 'Drawing',
     shortcut: 'Ctrl+A',
     scope: 'chart',
@@ -465,7 +481,7 @@ const cmds: Command[] = [
   },
   {
     id: 'draw.delete',
-    label: 'Drawing: Delete selected',
+    label: t('drawings.cmdDeleteSelected'),
     group: 'Drawing',
     shortcut: 'Del',
     scope: 'chart',
@@ -475,13 +491,13 @@ const cmds: Command[] = [
   },
   {
     id: 'draw.delete-all',
-    label: 'Drawing: Delete all drawings',
+    label: t('drawings.cmdDeleteAll'),
     group: 'Drawing',
     run: () => ctrlOf()?.removeAll(),
   },
   {
     id: 'draw.undo',
-    label: 'Drawing: Undo',
+    label: t('drawings.cmdUndo'),
     group: 'Drawing',
     shortcut: 'Ctrl+Z',
     scope: 'chart',
@@ -491,7 +507,7 @@ const cmds: Command[] = [
   },
   {
     id: 'draw.redo',
-    label: 'Drawing: Redo',
+    label: t('drawings.cmdRedo'),
     group: 'Drawing',
     shortcut: 'Ctrl+Y',
     scope: 'chart',

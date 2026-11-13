@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, BellOff, SlidersHorizontal } from 'lucide-react';
 import { Checkbox, Chip, IconButton, Input, Select, alpha, theme } from '@htflow/ui-kit';
+import { t } from '@htflow/i18n';
 import {
   formatCompact,
   formatPrice,
@@ -40,14 +41,14 @@ import './styles.css';
 export type TapeVariant = 'smart' | 'bidask';
 
 export const SMART_COLUMNS = [
-  { id: 'time', label: 'Time', w: 1.55 },
-  { id: 'price', label: 'Price', w: 1.2 },
-  { id: 'size', label: 'Size', w: 1 },
-  { id: 'side', label: 'Side', w: 0.6 },
-  { id: 'bid', label: 'Bid', w: 1.1 },
-  { id: 'ask', label: 'Ask', w: 1.1 },
-  { id: 'cvd', label: 'CVD', w: 1.1 },
-  { id: 'trades', label: 'Trades', w: 0.7 },
+  { id: 'time', label: t('tape.colTime'), w: 1.55 },
+  { id: 'price', label: t('tape.colPrice'), w: 1.2 },
+  { id: 'size', label: t('tape.colSize'), w: 1 },
+  { id: 'side', label: t('tape.colSide'), w: 0.6 },
+  { id: 'bid', label: t('tape.colBid'), w: 1.1 },
+  { id: 'ask', label: t('tape.colAsk'), w: 1.1 },
+  { id: 'cvd', label: t('tape.colCvd'), w: 1.1 },
+  { id: 'trades', label: t('tape.colTrades'), w: 0.7 },
 ] as const;
 type ColId = (typeof SMART_COLUMNS)[number]['id'];
 const ALL_COLS = SMART_COLUMNS.map((c) => c.id);
@@ -147,8 +148,8 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
   if (!ctx || w < 10) return;
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const t = theme();
-  ctx.fillStyle = t.chartBg;
+  const th = theme();
+  ctx.fillStyle = th.chartBg;
   ctx.fillRect(0, 0, w, h);
   ctx.textBaseline = 'middle';
   const font = (bold: boolean) => `${bold ? 600 : 400} 11px "Geist", "Segoe UI", sans-serif`;
@@ -184,10 +185,10 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
     const tw = w * 0.26;
     const rest = (w - tw) / 3;
     cols = [
-      { id: 'time', label: 'Time', x: 0, w: tw, align: 'left' },
-      { id: 'sell', label: 'Bid (sell)', x: tw, w: rest, align: 'right' },
-      { id: 'price', label: 'Price', x: tw + rest, w: rest, align: 'center' },
-      { id: 'buy', label: 'Ask (buy)', x: tw + 2 * rest, w: rest, align: 'left' },
+      { id: 'time', label: t('tape.colTime'), x: 0, w: tw, align: 'left' },
+      { id: 'sell', label: t('tape.bidSell'), x: tw, w: rest, align: 'right' },
+      { id: 'price', label: t('tape.colPrice'), x: tw + rest, w: rest, align: 'center' },
+      { id: 'buy', label: t('tape.askBuy'), x: tw + 2 * rest, w: rest, align: 'left' },
     ];
   }
   const text = (s: string, cc: Col, y: number) => {
@@ -205,12 +206,12 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
   };
 
   // Header
-  ctx.fillStyle = t.surface1;
+  ctx.fillStyle = th.surface1;
   ctx.fillRect(0, 0, w, HEAD);
-  ctx.fillStyle = t.border;
+  ctx.fillStyle = th.border;
   ctx.fillRect(0, HEAD - 1, w, 1);
   ctx.font = font(false);
-  ctx.fillStyle = t.textSecondary;
+  ctx.fillStyle = th.textSecondary;
   for (const cc of cols) text(cc.label.toUpperCase(), cc, HEAD / 2);
 
   // Collect visible rows (newest first, filtered), skipping `scroll` passing rows.
@@ -236,7 +237,7 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
     const side = e.buf.sideAt(k);
     const q = e.buf.qtyAt(k);
     const big = q >= e.big;
-    const sc = side > 0 ? t.up : side < 0 ? t.down : t.textSecondary;
+    const sc = side > 0 ? th.up : side < 0 ? th.down : th.textSecondary;
     const bucket = sizeBucket(q, e.thresholds);
     if (o.variant === 'smart') {
       const a = big ? 0.28 : o.buckets ? (BUCKET_A[bucket] ?? 0.16) : 0;
@@ -248,20 +249,20 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
       ctx.fillStyle = alpha(sc, 0.12);
       ctx.fillRect(0, y, w, ROW);
     }
-    ctx.fillStyle = t.divider;
+    ctx.fillStyle = th.divider;
     ctx.fillRect(0, y + ROW - 1, w, 1);
     ctx.font = font(big);
     for (const cc of cols) {
       let s = '';
-      let color = t.textSoft;
+      let color = th.textSoft;
       switch (cc.id) {
         case 'time':
           s = fmtTime(e.buf.tsAt(k));
-          color = t.textSecondary;
+          color = th.textSecondary;
           break;
         case 'price':
           s = px(e.buf.pxAt(k));
-          color = o.variant === 'smart' ? sc : t.textPrimary;
+          color = o.variant === 'smart' ? sc : th.textPrimary;
           break;
         case 'size':
           s = formatQty(q, qp);
@@ -273,21 +274,21 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
           break;
         case 'bid':
           s = px(e.buf.bidAt(k));
-          color = t.textSecondary;
+          color = th.textSecondary;
           break;
         case 'ask':
           s = px(e.buf.askAt(k));
-          color = t.textSecondary;
+          color = th.textSecondary;
           break;
         case 'cvd': {
           const v = e.buf.cvdAt(k);
           s = (v > 0 ? '+' : '') + formatCompact(Number(v.toFixed(qp)));
-          color = v >= 0 ? t.up : t.down;
+          color = v >= 0 ? th.up : th.down;
           break;
         }
         case 'trades':
           s = String(e.buf.tradesAt(k));
-          color = t.textSecondary;
+          color = th.textSecondary;
           break;
         case 'sell':
         case 'buy': {
@@ -308,17 +309,13 @@ function draw(c: HTMLCanvasElement, w: number, h: number, e: Engine, o: DrawOpts
     }
   });
   if (!ks.length) {
-    ctx.fillStyle = t.textTertiary;
+    ctx.fillStyle = th.textTertiary;
     ctx.textAlign = 'center';
     ctx.font = font(false);
-    ctx.fillText(
-      e.buf.size ? 'No prints match the filters' : 'Waiting for prints…',
-      w / 2,
-      HEAD + 30,
-    );
+    ctx.fillText(e.buf.size ? t('tape.noMatch') : t('tape.waiting'), w / 2, HEAD + 30);
   }
   if (o.paused) {
-    ctx.fillStyle = alpha(t.warning, 0.9);
+    ctx.fillStyle = alpha(th.warning, 0.9);
     ctx.fillRect(0, HEAD, 2, h - HEAD);
   }
 }
@@ -474,35 +471,37 @@ export function TapeView({
             <Chip
               selected={p.filter.minSize > 0}
               onClick={() => setShowFilters(true)}
-              title="Minimum print size"
+              title={t('tape.minPrintSize')}
             >
-              ≥ {p.filter.minSize > 0 ? formatQty(p.filter.minSize, inst.qtyPrecision) : '…'}
+              {t('tape.minChip', {
+                n: p.filter.minSize > 0 ? formatQty(p.filter.minSize, inst.qtyPrecision) : '…',
+              })}
             </Chip>
             <Chip selected={p.filter.minSize === 0} onClick={() => setFilter({ minSize: 0 })}>
-              All
+              {t('tape.all')}
             </Chip>
           </>
         ) : (
           <>
             <Chip selected={p.filter.minSize > 0} onClick={() => setShowFilters((x) => !x)}>
-              Size ≥ {formatQty(p.filter.minSize, inst.qtyPrecision)}
+              {t('tape.sizeGe', { n: formatQty(p.filter.minSize, inst.qtyPrecision) })}
             </Chip>
             <Chip
               selected={p.agg !== 'none'}
               onClick={() => set({ agg: p.agg === 'none' ? 'timestamp' : 'none' })}
-              title="Aggregate fills into smart prints"
+              title={t('tape.aggregateTitle')}
             >
-              Aggregate
+              {t('tape.aggregate')}
             </Chip>
           </>
         )}
         <span className="grow" />
-        {paused && <span className="tape-paused">Paused</span>}
+        {paused && <span className="tape-paused">{t('tape.paused')}</span>}
         <span className="tape-speed tnum" data-testid="tape-speed">
-          {Math.round(meter.pps)} prints/s
+          {t('tape.printsPerSec', { n: Math.round(meter.pps) })}
         </span>
         <IconButton
-          label={p.sound ? 'Big-print sound on' : 'Big-print sound off'}
+          label={p.sound ? t('tape.bigSoundOn') : t('tape.bigSoundOff')}
           active={p.sound}
           onClick={() => {
             primeAudio();
@@ -511,14 +510,18 @@ export function TapeView({
         >
           {p.sound ? <Bell size={13} /> : <BellOff size={13} />}
         </IconButton>
-        <IconButton label="Filters" active={showFilters} onClick={() => setShowFilters((x) => !x)}>
+        <IconButton
+          label={t('tape.filters')}
+          active={showFilters}
+          onClick={() => setShowFilters((x) => !x)}
+        >
           <SlidersHorizontal size={13} />
         </IconButton>
       </div>
       {showFilters && (
         <div className="tape-filters" data-testid="tape-filters">
           <label>
-            Min size
+            {t('tape.minSize')}
             <Input
               type="number"
               min={0}
@@ -528,68 +531,68 @@ export function TapeView({
             />
           </label>
           <label>
-            Max size
+            {t('tape.maxSize')}
             <Input
               type="number"
               min={0}
               value={p.filter.maxSize || ''}
-              placeholder="no limit"
+              placeholder={t('tape.noLimit')}
               onChange={(ev) => setFilter({ maxSize: Number(ev.target.value) || 0 })}
             />
           </label>
           <label>
-            Side
+            {t('tape.side')}
             <Select<SideFilter>
               small
               value={p.filter.side}
               options={[
-                { value: 'all', label: 'All' },
-                { value: 'buy', label: 'Buys' },
-                { value: 'sell', label: 'Sells' },
+                { value: 'all', label: t('tape.all') },
+                { value: 'buy', label: t('tape.buys') },
+                { value: 'sell', label: t('tape.sells') },
               ]}
               onChange={(v) => setFilter({ side: v })}
             />
           </label>
           <label>
-            Price from
+            {t('tape.priceFrom')}
             <Input
               type="number"
               step={inst.tickSize}
               value={p.filter.minPx ?? ''}
-              placeholder="any"
+              placeholder={t('tape.any')}
               onChange={(ev) =>
                 setFilter({ minPx: ev.target.value === '' ? null : Number(ev.target.value) })
               }
             />
           </label>
           <label>
-            Price to
+            {t('tape.priceTo')}
             <Input
               type="number"
               step={inst.tickSize}
               value={p.filter.maxPx ?? ''}
-              placeholder="any"
+              placeholder={t('tape.any')}
               onChange={(ev) =>
                 setFilter({ maxPx: ev.target.value === '' ? null : Number(ev.target.value) })
               }
             />
           </label>
           <label>
-            Aggregation
+            {t('tape.aggregation')}
             <Select<AggregateMode>
               small
               value={p.agg}
               options={[
-                { value: 'none', label: 'Off (every fill)' },
-                { value: 'timestamp', label: 'Same timestamp + side' },
-                { value: 'window', label: 'Time window' },
+                { value: 'none', label: t('tape.aggOff') },
+                { value: 'timestamp', label: t('tape.aggTimestamp') },
+                { value: 'window', label: t('tape.aggWindow') },
               ]}
               onChange={(v) => set({ agg: v })}
             />
           </label>
           {p.agg === 'window' && (
             <label>
-              Window (ms)
+              {t('tape.windowMs')}
               <Input
                 type="number"
                 min={1}
@@ -600,12 +603,14 @@ export function TapeView({
             </label>
           )}
           <label>
-            Big print ≥
+            {t('tape.bigPrint')}
             <Input
               type="number"
               min={0}
               value={p.bigSize || ''}
-              placeholder={`auto (${Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—'})`}
+              placeholder={t('tape.auto', {
+                n: Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—',
+              })}
               onChange={(ev) => set({ bigSize: Math.max(0, Number(ev.target.value) || 0) })}
             />
           </label>
@@ -614,7 +619,7 @@ export function TapeView({
               <Checkbox
                 checked={p.buckets}
                 onChange={(v) => set({ buckets: v })}
-                label="Colour by size bucket"
+                label={t('tape.colourBySize')}
               />
               <div className="tape-cols">
                 {SMART_COLUMNS.map((cc) => (
@@ -634,18 +639,14 @@ export function TapeView({
               </div>
             </>
           )}
-          <Checkbox
-            checked={stress}
-            onChange={setStress}
-            label="Load test: inject 5,000 synthetic prints/s (not saved)"
-          />
+          <Checkbox checked={stress} onChange={setStress} label={t('tape.loadTest')} />
           <button
             className="ht-btn ht-btn--xs"
             onClick={() =>
               set({ filter: normalizeFilter({}), agg: 'timestamp', bigSize: 0, buckets: true })
             }
           >
-            Reset to default
+            {t('tape.resetDefault')}
           </button>
         </div>
       )}
@@ -665,10 +666,14 @@ export function TapeView({
         <canvas ref={canvasRef} data-testid={`tape-canvas-${variant}`} />
       </div>
       <div className="an-footer tnum">
-        {variant === 'bidask' ? 'Speed ' : ''}
-        {Math.round(meter.pps)} prints/s · {formatCompact(Number(meter.vps.toFixed(2)))} vol/s · big
-        prints ≥ {Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—'}
-        {p.bigSize ? '' : ' (auto)'} · sound {p.sound ? 'on' : 'off'} · hover pauses, wheel scrolls
+        {variant === 'bidask' ? t('tape.speed') : ''}
+        {t('tape.footer', {
+          pps: Math.round(meter.pps),
+          vps: formatCompact(Number(meter.vps.toFixed(2))),
+          big: Number.isFinite(meter.big) ? formatQty(meter.big, inst.qtyPrecision) : '—',
+          auto: p.bigSize ? '' : ' (auto)',
+          sound: p.sound ? t('tape.on') : t('tape.off'),
+        })}
       </div>
     </div>
   );

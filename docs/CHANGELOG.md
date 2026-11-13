@@ -17,6 +17,7 @@
 
 ### Changed
 
+- Drawing toolbar, menus, dialogs, Objects List and toasts, and the Smart Tape / Bid-Ask Tape / All Prices strings now go through `@htflow/i18n` (English text unchanged).
 - Smart DOM benchmark asserts the spec's 60 fps budget at p95 (16.7 ms) and a mean under 4 ms, instead of a p95 under 8 ms that failed only under CPU contention.
 - "Binance" in the Connections catalog now means Binance spot; "Binance COIN-M" is a new entry.
 - Paper maker fills now pay the maker fee (taker rate if unset) instead of half the taker rate.

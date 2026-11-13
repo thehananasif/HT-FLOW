@@ -155,7 +155,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Anchors with drag editing, magnet (off / weak / strong presets), lock / hide / clone / delete, style toolbar (colour, width, dash, fill, text), extend left / right, per-timeframe visibility, sync across linked charts, Objects List window, Undo / Redo history, hotkeys
 - [x] Alert on cross for lines, rays, channels and rectangles (cross / enter / exit), bell toggle + dialog, fires through the alerts runtime; emoji picker; regression inner / outer σ and anchored-VWAP band fields; magnet slider (px) in Drawing preferences; multi-select (Shift+click, Ctrl+drag box, Ctrl+A) with group move / delete / style
 - [x] ZigZag volume profile, CVD correlation, Magnifier (M), Remove indicators; Ctrl+Z / Ctrl+Y / Del / Ctrl+A registry commands; drawings on both Order Flow (Dark) panes; Objects List ribbon button
-- [ ] i18n of drawing strings; registry Ctrl+Z needs the last pointer-down inside a chart
+- [x] i18n of drawing strings (toolbar, menus, dialogs, Objects List, toasts)
+- [ ] i18n of drawing tool names and descriptions (`@htflow/drawings` labels still English)
+- [ ] registry Ctrl+Z needs the last pointer-down inside a chart
 
 ## P13 — Indicator framework
 
@@ -184,7 +186,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] `@htflow/tape`: typed-array ring buffer, smart-print aggregation (same timestamp / time window / off) with VWAP, high / low, fill count, bid / ask, CVD; filters, auto size buckets, big-print threshold, prints/s and volume/s
 - [x] Smart Tape (canvas, hideable columns, size-bucket colours, big-print highlight and sound, pause on hover, wheel scroll-back, filters panel), Bid/Ask Tape (split sells / price / buys, size chips, speed meter), All Prices (virtualised, sortable, volume bar, delta, time-at-price heat, POC, Session / Visible / Week, row grouping); follow the active chart / DOM or pick an instrument
-- [ ] Strings through i18n; measured 5,000 prints/s frame rate; Visible range is a rolling window (no chart visible-range API yet)
+- [x] Strings through i18n (Smart Tape, Bid/Ask Tape, All Prices)
+- [ ] measured 5,000 prints/s frame rate; Visible range is a rolling window (no chart visible-range API yet)
 
 ## P17 — Trading Panel, orders & paper engine
 
