@@ -439,8 +439,8 @@ export function ConnectionWizard({
                 {provider.form === 'ws' && (
                   <div className="cx-note">
                     The URL is contacted directly from this PC. Nothing is sent anywhere else. In
-                    the desktop app the webview must allow the host (see docs/BLOCKERS.md, Custom
-                    WebSocket).
+                    the desktop app the connection is opened by the HT Flow core (ws:// and wss://
+                    only, messages up to 1 MB).
                   </div>
                 )}
                 {test && (

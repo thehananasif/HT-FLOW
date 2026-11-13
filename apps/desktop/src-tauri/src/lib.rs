@@ -3,6 +3,7 @@
 
 mod auth_cmds;
 mod crash;
+mod custom_ws;
 mod data_cmds;
 mod error;
 mod market_cmds;
@@ -52,6 +53,7 @@ pub fn run() {
                 locked: AtomicBool::new(false),
             });
             app.manage(market_cmds::MarketState::default());
+            app.manage(custom_ws::CustomWsState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -76,6 +78,9 @@ pub fn run() {
             market_cmds::market_unsubscribe,
             net_cmds::net_fetch_text,
             net_cmds::net_post_json,
+            custom_ws::custom_ws_open,
+            custom_ws::custom_ws_send,
+            custom_ws::custom_ws_close,
             market_cmds::market_test,
             market_cmds::market_options_chain,
             data_cmds::recorder_set,
