@@ -15,6 +15,7 @@ import type {
   FeedStatus,
   FundingStat,
   HistoryData,
+  HistoryProgress,
   Instrument,
   LiquidationStat,
   MarketStat,
@@ -64,6 +65,8 @@ export class MarketStore {
   loadingOlder = false;
   /** True once the feed returned no older data. */
   historyExhausted = false;
+  /** Progress of the older-history download in flight (feeds that report it). */
+  historyProgress: HistoryProgress | null = null;
   private series = new Map<string, BarSeries>();
   private listeners = new Set<() => void>();
   private tradeListeners = new Set<(trades: Trade[]) => void>();
@@ -150,6 +153,11 @@ export class MarketStore {
       this.loadingOlder = false;
       this.bump();
     }
+  }
+
+  setHistoryProgress(p: HistoryProgress | null): void {
+    this.historyProgress = p;
+    this.bump();
   }
 
   /** Prepends trades older than the first loaded trade and rebuilds every bar series. */
@@ -331,11 +339,12 @@ export class MarketHub {
     const u2 = feed.onStatus((s) => store.setStatus(s));
     if (feed.historyBefore)
       store.olderLoader = (before, span, anchor) => feed.historyBefore!(before, span, anchor);
+    const u3 = feed.onHistoryProgress?.((p) => store.setHistoryProgress(p)) ?? (() => {});
     this.entries.set(instrumentId, {
       store,
       feed,
       refs: 0,
-      unsub: () => (u1(), u2()),
+      unsub: () => (u1(), u2(), u3()),
       dispose: null,
     });
     for (const fn of this.created) fn(store);

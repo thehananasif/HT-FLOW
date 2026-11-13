@@ -33,6 +33,16 @@ export interface RecorderSettings {
   maxDiskGb: number;
 }
 
+/** Downloaded-history cache (src-tauri/history_cache.rs). */
+export interface CacheStats {
+  bytes: number;
+  files: number;
+  maxBytes: number;
+  hits: number;
+  misses: number;
+  evicted: number;
+}
+
 export interface RecorderStatus {
   settings: RecorderSettings;
   recording: string[];
@@ -72,6 +82,10 @@ export const dataApi = {
     call<{ filesDeleted: number; bytesFreed: number }>('data_delete', { instrument, from, to }),
   exportCsv: (instrument: string, kind: 'trades' | 'depth', from?: string, to?: string) =>
     call<{ path: string; rows: number }>('data_export_csv', { instrument, kind, from, to }),
+  /** Settings → Data → Cache size: caps the native history cache (LRU eviction). */
+  setCacheSize: (maxMb: number) => call<CacheStats>('history_cache_set', { maxMb }),
+  cacheStatus: () => call<CacheStats>('history_cache_status'),
+  clearCache: () => call<CacheStats>('history_cache_clear'),
   replay: (instrument: string, fromMs: number, toMs: number, depth: boolean) =>
     call<WireReplay>('data_replay', { instrument, fromMs, toMs, depth }),
   status: () => call<RecorderStatus>('recorder_status'),

@@ -146,7 +146,7 @@ describe('string settings', () => {
 describe('list settings', () => {
   it('provider priority keeps every known provider and de-duplicates', () => {
     const r = validateSetting('data.providerPriority', ['replay', 'replay', 'mock']);
-    expect(r.ok && r.value).toEqual(['replay', 'mock', 'binance-futures', 'bybit-linear']);
+    expect(r.ok && r.value).toEqual(['replay', 'mock', 'binance-futures', 'binance-spot', 'binance-coinm', 'bybit-linear', 'okx-swap', 'bitget', 'deribit', 'kraken-futures', 'bitfinex', 'phemex', 'whitebit']);
     expect(validateSetting('data.providerPriority', 'replay').ok).toBe(false);
     expect(validateSetting('data.providerPriority', ['bad id!']).ok).toBe(false);
   });

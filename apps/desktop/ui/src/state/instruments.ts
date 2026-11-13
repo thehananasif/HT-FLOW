@@ -12,6 +12,8 @@ import {
 } from '@htflow/market-catalog';
 import { feedProviders } from '../feeds/registry';
 import { backend, isTauri } from '../backend';
+import { getSetting } from './settings';
+import { isVenueEnabled } from './liveFeed';
 
 /** Free, built-in crypto venues streamed by the Rust connectors (desktop app only). */
 const BINANCE_FUTURES: [string, number, number, number][] = [
@@ -73,6 +75,45 @@ function feedRefs(includeLive: boolean): FeedRef[] {
 }
 
 const KIND_RANK: Record<FeedKind, number> = { live: 0, delayed: 1, sim: 2, replay: 3, none: 4 };
+
+/** Provider id of a feed instrument id (`okx-swap:BTC-USDT-SWAP` → `okx-swap`). */
+export function providerOf(feedId: string): string {
+  const i = feedId.indexOf(':');
+  return i > 0 ? feedId.slice(0, i) : feedId;
+}
+
+/**
+ * Settings → Data → Provider priority (P27). When one instrument is offered by several feeds,
+ * they are ordered: connected providers first (Connections → Disconnect demotes a venue), then
+ * the user's list order, then live > delayed > sim > replay. A provider missing from the list
+ * (a venue added after the list was saved) ranks just before the first replay / simulator entry,
+ * so it never loses to the simulator by accident. The first feed is the one a chart streams.
+ */
+export function rankFeeds(
+  feeds: readonly FeedRef[],
+  priority: readonly string[],
+  connected: (provider: string) => boolean = () => true,
+): FeedRef[] {
+  const firstOffline = priority.findIndex((p) => p === 'replay' || p === 'mock');
+  const unlisted = (firstOffline < 0 ? priority.length : firstOffline) - 0.5;
+  const pos = (f: FeedRef) => {
+    const i = priority.indexOf(providerOf(f.id));
+    return i < 0 ? unlisted : i;
+  };
+  const off = (f: FeedRef) => (connected(providerOf(f.id)) ? 0 : 1);
+  return [...feeds].sort(
+    (a, b) => off(a) - off(b) || pos(a) - pos(b) || KIND_RANK[a.kind] - KIND_RANK[b.kind],
+  );
+}
+
+function providerPriority(): string[] {
+  try {
+    const v = getSetting('data.providerPriority') as unknown;
+    return Array.isArray(v) ? (v as string[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 /** Catalog entry a feed instrument belongs to (cached per id). */
 const matchCache = new Map<string, CatalogInstrument | null>();
@@ -173,7 +214,7 @@ export function pickerEntries(includeLive = isTauri): PickerEntry[] {
     }
   }
   const entries = catalog().instruments.map((c): PickerEntry => {
-    const feeds = (byCat.get(c.id) ?? []).sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
+    const feeds = rankFeeds(byCat.get(c.id) ?? [], providerPriority(), isVenueEnabled);
     return {
       key: c.id,
       symbol: c.symbol,

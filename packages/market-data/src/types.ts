@@ -119,6 +119,19 @@ export interface FeedStatus {
   message?: string;
 }
 
+/** Progress of an older-history download (desktop backfill). */
+export interface HistoryProgress {
+  /** Milliseconds of the requested span covered so far (newest first). */
+  doneMs: number;
+  totalMs: number;
+  /** Ticks gathered so far. */
+  trades: number;
+  /** 'trades' = tick-by-tick download, 'klines' = bar history, 'done'. */
+  phase: 'trades' | 'klines' | 'done';
+  /** The venue is rate limiting the download (it slows down, it does not fail). */
+  throttled: boolean;
+}
+
 export interface FeedSource {
   readonly instrument: Instrument;
   readonly kind: 'mock' | 'live' | 'replay';
@@ -135,6 +148,8 @@ export interface FeedSource {
    * is the first loaded trade price so simulated feeds can stitch seamlessly.
    */
   historyBefore?(before: number, spanMs: number, anchorPx?: number): Promise<Trade[]>;
+  /** Optional: progress of a running historyBefore() download (null when it ends). */
+  onHistoryProgress?(listener: (p: HistoryProgress | null) => void): () => void;
   subscribe(listener: (batch: EventBatch) => void): () => void;
   onStatus(listener: (status: FeedStatus) => void): () => void;
   start(): void;

@@ -135,6 +135,9 @@ export function installSettingsEffects(): void {
         .then((st) => dataApi.setRecorder(on, st.settings.instruments))
         .catch(() => {});
     }
+    // Settings → Data → cache size: caps the native history cache (also at start-up).
+    if (changed('data.cacheSizeMb') && isTauri)
+      void dataApi.setCacheSize(v['data.cacheSizeMb']).catch(() => {});
     if (changed('logs.level') || changed('logs.bufferSize'))
       logBuffer.configure({
         minLevel: v['logs.level'] as LogLevel,
