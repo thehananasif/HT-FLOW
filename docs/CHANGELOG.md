@@ -12,11 +12,19 @@
 - Paper options (P18): the Options Board trades options in the paper engine. "Send as paper order" books every leg, and a new "Click a quote: Add leg / Trade now" setting buys at the ask or sells at the bid at once. Premium debit / credit is recorded per fill (`premiumFlow`), positions are marked to model with `@htflow/options` pricing (`paperOptionMark`: Black-Scholes, or Black-76 on spot × the expiry's forward basis, the position's IV and rate) and settle at intrinsic value when they expire (`settleExpiredOptions`, logged in Trading Activity). Options appear in the Positions table (OPT pill, model mark, open P&L, Close; Flatten all closes them), in account equity and the risk engine, and in the Options Strategy Analyser's positions tab (debit / credit, mark, P&L, days left, Analyse loads them into the builder, Close). Strategies saved by the old local model stay listed as "Saved strategies".
 - Custom WebSocket works in the desktop app: new native commands `custom_ws_open(url, subscribe?)`, `custom_ws_send(id, text)` and `custom_ws_close(id)` (`src-tauri/src/custom_ws.rs`, tokio-tungstenite already used by the connectors) open the socket in the core and stream raw text frames plus open / closed / error status over a Tauri Channel. ws:// and wss:// only, 1 MB frame cap, automatic pong, 20 s keep-alive ping, 60 s stale detection, clean close handshake, at most 64 open sockets. In the desktop build `CustomWsFeed` and the wizard test use this transport (`modules/connections/nativeWs.ts`); the web build keeps the browser WebSocket. The webview CSP is not widened. Connection errors from the core (bad URL, refused, oversized frame) are shown in the status line.
 
+- P29 `pnpm bench`: measures the spec performance targets (1M-tick chart pan / zoom, 8 charts, 2,000+ visible footprint cells, footprint mode switch, heatmap 2,000 × 400 at 30 fps, Smart Tape at 5,000 / 20,000 prints/s, DOM 20 updates / ms, 10k-symbol search, 1M-tick aggregation) on the app's own `buildChart` / `drawTape` / `DomLadder` code with a headless canvas, and writes `docs/PERFORMANCE.md` with the results and the machine used. Strict budgets are in the report; the bench's own assertions use 6× budgets so CI never flakes.
+- P29 accessibility: `@axe-core/playwright` e2e (`e2e/a11y.spec.ts`) runs axe (WCAG 2.1 A / AA) on the login screen, dashboard, Settings, Indicators dialog, Alerts window and Command Palette and fails on serious / critical violations; a keyboard-only test covers the ribbon, Command Palette, Settings, Indicators dialog and layout tabs.
+- Ribbon: ← / → / Home / End move between ribbon buttons. Layout tabs: roving focus with ← / → / Home / End, Enter / Space opens, F2 renames, Delete closes.
+- Chart canvases carry `data-frame` (bumped after each drawn frame) and the replay fill-tag layer `data-replay-tags`, deterministic signals for tests.
+
 ### Changed
 
 - Drawing tool names and descriptions are translated through i18n (`drawings.tool.<id>`, `drawings.toolDesc.<id>`, group keys `drawings.menuGroup.*` and `drawings.toolbarGroup.*`). `@htflow/drawings` keeps its English labels as data; the UI layer (`modules/drawings/toolText.ts`) resolves them in the toolbar, Objects List, command palette, alerts and heatmap toolbar. English text is unchanged.
 - Chart right-click menu strings (`charts/menu.ts`) go through i18n under `chartMenu.*`, with interpolated labels for pane, limit/stop order and overlay items. English text is unchanged.
 - `drawingName` in `@htflow/drawings` takes an optional label resolver, used by the Objects List.
+
+- Accessibility (P29): tertiary text colour raised to ≥ 4.5:1 contrast in every theme (dark `#838383`, light `#6A6A67`, gray, dark-blue); SELL buttons use a darkened fill so white text passes AA; the Command Palette is an ARIA combobox (named input, `aria-activedescendant`, named listbox, active option scrolled into view); Settings help icons are buttons; workspace tabs are a proper tablist (Add layout button outside it); the Timeframe chip's name includes its visible "TF"; opening Settings moves focus into it; ui-kit dialogs opened from code return focus to what had it.
+- Footprint renderer (P29 perf): colour parse cached per colour, colour strings built only when used, cell fonts built once per frame, merged rows memoised per bar (`RowCache`, rebuilt when the bar changes). 2,461-cell frame: ~7.0 → ~4.6 ms CPU.
 
 ### Tests
 
@@ -25,6 +33,8 @@
 
 ### Fixed
 
+- Flaky tests under load (P29): `heatmap/pixelBuffer.test.ts` (determinism + median-of-7 with a loose guard), `market-data/barTypes.test.ts` (60 s timeout on the hour-of-prints equivalence tests), `tape.test.ts` (median of 3), `market-catalog/searchBench.test.ts` (250 ms guard; strict 50 ms in `pnpm bench`).
+- Flaky e2e on Windows CI: `drawings.spec.ts` multi-select froze auto-scale (live data moved the lines away from the clicked y) and waits for a drawn frame before hit-testing; `replay.spec.ts` B / S tags waits on `data-replay-tags` / `data-frame` instead of sleeping before screenshots.
 - Charts no longer freeze on 4 h (or 1 h, 1 D, 1 W): with few bars the view always counts as "scrolled past the first bar", and every redraw asked the feed for 240 bars of older history (40 days ≈ 28M simulated ticks for 4 h), then looped. Lazy left-scroll loading now starts only after a user scroll, asks for a capped chunk (2 h on simulated feeds, 1 day on live / replay), shows progress, and is cancelled when the timeframe changes; Go to date loads at most a day per step. Regression e2e `timeframe-coarse.spec.ts` (first paint under 1 s, no long tasks) and unit tests.
 
 ## Unreleased — round 4

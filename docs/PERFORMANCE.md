@@ -49,9 +49,10 @@ Timing assertions in `pnpm test` are smoke checks only, because every suite shar
 
 - CPU: Intel(R) Xeon(R) Processor @ 2.10GHz (4 logical cores)
 - RAM: 16 GB
+- Load average at the end of the run: 4.83 / 5.49 / 2.83 (other work on the machine inflates p95)
 - OS: linux 6.18.44-fc-v445
 - Node.js v22.23.4, Vitest (jsdom for the canvas modules), headless 2D context
-- Run: 2026-11-13 18:21 UTC
+- Run: 2026-11-13 23:21 UTC
 
 ## Results
 
@@ -59,49 +60,49 @@ Timing assertions in `pnpm test` are smoke checks only, because every suite shar
 
 | Measurement                                                        | Spec target                   | Budget    | Median  | p95     | Result |
 | ------------------------------------------------------------------ | ----------------------------- | --------- | ------- | ------- | ------ |
-| Instrument search over 10,000 symbols (8 query shapes incl. typos) | 10,000+ symbol search < 50 ms | ≤ 50.0 ms | 2.25 ms | 9.95 ms | Pass   |
+| Instrument search over 10,000 symbols (8 query shapes incl. typos) | 10,000+ symbol search < 50 ms | ≤ 50.0 ms | 2.33 ms | 3.95 ms | Pass   |
 
 ### Smart DOM
 
 | Measurement                                                                       | Spec target                                | Budget    | Median  | p95     | Result |
 | --------------------------------------------------------------------------------- | ------------------------------------------ | --------- | ------- | ------- | ------ |
-| Burst of 320 updates (20 / ms) → model update → full ladder draw, every column on | DOM update latency < 16 ms socket to pixel | ≤ 16.0 ms | 0.44 ms | 3.01 ms | Pass   |
+| Burst of 320 updates (20 / ms) → model update → full ladder draw, every column on | DOM update latency < 16 ms socket to pixel | ≤ 16.0 ms | 0.39 ms | 0.94 ms | Pass   |
 
 ### Aggregation
 
-| Measurement                                                                 | Spec target                                       | Budget   | Median | p95    | Result   |
-| --------------------------------------------------------------------------- | ------------------------------------------------- | -------- | ------ | ------ | -------- |
-| 1M ticks → M1 cluster bars (columnar path, used when a chart loads history) | charts open with 1M+ ticks (P07: 10M ticks < 1 s) | ≤ 100 ms | 141 ms | 219 ms | **Miss** |
-
-### Time & Sales
-
-| Measurement                                                            | Spec target                          | Budget          | Median            | p95              | Result |
-| ---------------------------------------------------------------------- | ------------------------------------ | --------------- | ----------------- | ---------------- | ------ |
-| Smart Tape at 5,000 prints/s (84 prints + 45 visible rows per frame)   | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 4.01 ms           | 14.1 ms          | Pass   |
-| Smart Tape at 20,000 prints/s (334 prints + 45 visible rows per frame) | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.70 ms           | 19.6 ms          | Pass   |
-| Tape buffer ingest (aggregation by timestamp, 600k prints)             | 5,000 prints/s                       | ≥ 5000 prints/s | 13557964 prints/s | 4559326 prints/s | Pass   |
+| Measurement                                                                 | Spec target                                       | Budget   | Median  | p95     | Result |
+| --------------------------------------------------------------------------- | ------------------------------------------------- | -------- | ------- | ------- | ------ |
+| 1M ticks → M1 cluster bars (columnar path, used when a chart loads history) | charts open with 1M+ ticks (P07: 10M ticks < 1 s) | ≤ 100 ms | 62.8 ms | 66.8 ms | Pass   |
 
 ### Charts
 
 | Measurement                                                     | Spec target                      | Budget    | Median  | p95     | Result |
 | --------------------------------------------------------------- | -------------------------------- | --------- | ------- | ------- | ------ |
-| Candles + profiles, 1,000,000 ticks (5760 M1 bars), pan / zoom  | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 0.92 ms | 19.0 ms | Pass   |
-| Candles zoomed out, ~1500 bars visible                          | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 3.44 ms | 21.5 ms | Pass   |
-| Footprint bid x ask, 1,000,000 ticks (1152 M5 bars), pan / zoom | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 0.67 ms | 4.41 ms | Pass   |
-| 8 charts, every chart redrawn in the same frame                 | open 8 charts at once at 60 fps  | ≤ 16.7 ms | 4.06 ms | 36.6 ms | Pass   |
+| Candles + profiles, 1,000,000 ticks (5760 M1 bars), pan / zoom  | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 0.78 ms | 3.21 ms | Pass   |
+| Candles zoomed out, ~1500 bars visible                          | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 2.62 ms | 6.18 ms | Pass   |
+| Footprint bid x ask, 1,000,000 ticks (1152 M5 bars), pan / zoom | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 0.69 ms | 1.12 ms | Pass   |
+| 8 charts, every chart redrawn in the same frame                 | open 8 charts at once at 60 fps  | ≤ 16.7 ms | 2.73 ms | 3.73 ms | Pass   |
 
 ### Footprint
 
 | Measurement                                                    | Spec target                      | Budget    | Median  | p95     | Result |
 | -------------------------------------------------------------- | -------------------------------- | --------- | ------- | ------- | ------ |
-| 2,461 visible cells (63 M15 bars, 1 tick per row) at 2560×1600 | 2,000 visible clusters at 60 fps | ≤ 16.7 ms | 5.40 ms | 48.0 ms | Pass   |
-| Switch footprint mode (update + first frame)                   | switching footprint mode < 50 ms | ≤ 50.0 ms | 0.63 ms | 11.4 ms | Pass   |
+| 2,461 visible cells (63 M15 bars, 1 tick per row) at 2560×1600 | 2,000 visible clusters at 60 fps | ≤ 16.7 ms | 3.63 ms | 5.47 ms | Pass   |
+| Switch footprint mode (update + first frame)                   | switching footprint mode < 50 ms | ≤ 50.0 ms | 0.59 ms | 0.82 ms | Pass   |
+
+### Time & Sales
+
+| Measurement                                                            | Spec target                          | Budget          | Median              | p95                 | Result |
+| ---------------------------------------------------------------------- | ------------------------------------ | --------------- | ------------------- | ------------------- | ------ |
+| Smart Tape at 5,000 prints/s (84 prints + 45 visible rows per frame)   | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.41 ms             | 3.23 ms             | Pass   |
+| Smart Tape at 20,000 prints/s (334 prints + 45 visible rows per frame) | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.28 ms             | 2.82 ms             | Pass   |
+| Tape buffer ingest (aggregation by timestamp, 600k prints)             | 5,000 prints/s                       | ≥ 5000 prints/s | 21,667,650 prints/s | 19,011,910 prints/s | Pass   |
 
 ### Heatmap
 
 | Measurement                                                                             | Spec target                            | Budget    | Median  | p95     | Result |
 | --------------------------------------------------------------------------------------- | -------------------------------------- | --------- | ------- | ------- | ------ |
-| Pixel buffer only, 2000 × 400 (588,787 cells)                                           | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 13.2 ms | 37.8 ms | Pass   |
-| Liquidity map, 2005 × 491 visible (bubbles, best bid / ask, DOM column on), live append | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 23.7 ms | 59.4 ms | Pass   |
+| Pixel buffer only, 2000 × 400 (588,787 cells)                                           | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 9.51 ms | 13.6 ms | Pass   |
+| Liquidity map, 2005 × 491 visible (bubbles, best bid / ask, DOM column on), live append | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 14.3 ms | 18.1 ms | Pass   |
 
 <!-- bench:end -->
