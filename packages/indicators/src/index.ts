@@ -2,6 +2,7 @@ import { asAny, type AnyIndicator } from '@htflow/indicator-sdk';
 import * as bands from './bands';
 import * as bands2 from './bands2';
 import * as crypto from './crypto';
+import * as custom from './custom';
 import * as ma2 from './ma2';
 import * as mtf from './mtf';
 import * as orderbook from './orderbook';
@@ -39,6 +40,7 @@ export {
   orderbook,
   samples,
   mtf,
+  custom,
 };
 
 function collect(...mods: Record<string, unknown>[]): AnyIndicator[] {
@@ -69,12 +71,38 @@ export const INDICATORS: AnyIndicator[] = collect(
   orderbook,
   samples,
   mtf,
+  custom,
 );
 
 const byId = new Map(INDICATORS.map((d) => [d.id, d]));
 
+/** Indicators added at run time (user `.htind` scripts, id `script:<slug>`). */
+const dynamic = new Map<string, AnyIndicator>();
+
+export function registerIndicator(def: AnyIndicator): void {
+  if (byId.has(def.id)) throw new Error(`Indicator id ${def.id} is built in`);
+  dynamic.set(def.id, def);
+}
+
+export function unregisterIndicator(id: string): void {
+  dynamic.delete(id);
+}
+
+export function dynamicIndicators(): AnyIndicator[] {
+  return [...dynamic.values()];
+}
+
 export function indicatorById(id: string): AnyIndicator | undefined {
-  return byId.get(id);
+  return byId.get(id) ?? dynamic.get(id);
+}
+
+/**
+ * Indicators that read the tape or the derivatives / depth feeds run on the main thread; the
+ * rest can be computed by the worker pool (Stage 8).
+ */
+const FEED_IDS = new Set(collect(crypto, orderbook).map((d) => d.id));
+export function poolable(def: AnyIndicator): boolean {
+  return !def.needsTrades && !FEED_IDS.has(def.id) && !FEED_IDS.has(def.id.replace(/^mtf-/, ''));
 }
 
 export function isImplemented(e: CatalogEntry): boolean {

@@ -1,6 +1,13 @@
 import type { ChartLayer, ChartView, Rect } from '@htflow/chart-engine';
 import { ListOut, SeriesOut } from './buffers';
-import { paneGroups, resolveStyles, titleOf, type IndicatorConfig } from './config';
+import {
+  paneGroups,
+  resolveStyles,
+  titleOf,
+  type IndicatorConfig,
+  type PaneTarget,
+} from './config';
+import type { RuntimeLike } from './engine';
 import { formatValue, niceStep, rgba } from './format';
 import type { TfClass } from './periods';
 import { IndicatorRuntime } from './runtime';
@@ -22,7 +29,7 @@ import type {
 export interface RenderItem {
   cfg: IndicatorConfig;
   def: AnyIndicator;
-  rt: IndicatorRuntime;
+  rt: RuntimeLike;
   styles: Record<string, OutputStyle>;
   title: string;
   key: string;
@@ -356,11 +363,25 @@ export function valueRange(it: RenderItem, i0: number, i1: number): [number, num
 
 /** Output unit; 'price' outputs computed from a non-price source (volume, delta, CVD…) format as volume. */
 function unitFor(it: RenderItem, od: OutputDef): ValueUnit {
+  const inputs = it.rt.inputs as Record<string, unknown>;
+  // An input named `unit` (Custom Formula) overrides the output unit.
+  if (typeof inputs.unit === 'string' && UNITS.includes(inputs.unit as ValueUnit))
+    return inputs.unit as ValueUnit;
   const u = od.unit ?? 'value';
-  const s = (it.rt.inputs as Record<string, unknown>).source;
+  const s = inputs.source;
   if (u === 'price' && typeof s === 'string' && !isPriceSource(s as SourceId))
     return s === 'trades' ? 'count' : 'volume';
   return u;
+}
+
+const UNITS: ValueUnit[] = ['price', 'volume', 'value', 'percent', 'count'];
+
+/** Builds the runtime of one configured indicator (pool, other symbol, or main thread). */
+export type RuntimeFactory = (cfg: IndicatorConfig, def: AnyIndicator) => RuntimeLike;
+
+/** Key of everything that requires a new runtime when it changes. */
+export function runtimeKey(cfg: IndicatorConfig): string {
+  return `${cfg.type}|${JSON.stringify(cfg.inputs)}|${cfg.tf}|${cfg.tfMode}|${cfg.symbol}`;
 }
 
 function drawEye(
@@ -398,10 +419,37 @@ export class IndicatorScene {
   private viewHeight = 600;
   private byUid = new Map<string, RenderItem>();
 
+  /** Sub-pane rectangles of the last frame (drag & drop targets). */
+  paneRects: { leader: string; y: number; h: number }[] = [];
+  private plotRect = { y: 0, h: 0 };
+  /** Indicator being dragged to another pane and the pointer y (drawn as a drop hint). */
+  drag: { uid: string; y: number } | null = null;
+
   constructor(
     private getData: () => BarData | null,
     private lookup: (id: string) => AnyIndicator | undefined,
+    private factory: RuntimeFactory = (cfg, def) => new IndicatorRuntime(def, cfg.inputs),
   ) {}
+
+  /** Disposes every runtime (chart closed). */
+  dispose(): void {
+    for (const it of this.items) it.rt.dispose?.();
+    this.items = [];
+    this.byUid.clear();
+  }
+
+  /** Drop target for a pointer y: price pane, a sub-pane (join), or below the panes (new). */
+  dropTarget(y: number): { target: PaneTarget; y: number; h: number } | null {
+    for (const r of this.paneRects)
+      if (y >= r.y && y < r.y + r.h) return { target: { join: r.leader }, y: r.y, h: r.h };
+    const p = this.plotRect;
+    if (p.h <= 0) return null;
+    // The bottom 15 % of the price pane means "new pane"; the rest is the price pane.
+    if (y >= p.y && y < p.y + p.h * 0.85) return { target: 'overlay', y: p.y, h: p.h * 0.85 };
+    if (y >= p.y + p.h * 0.85 && y < p.y + p.h)
+      return { target: 'new', y: p.y + p.h * 0.85, h: p.h * 0.15 };
+    return null;
+  }
 
   /** Applies a new configuration; runtimes are kept when type + inputs are unchanged. */
   sync(configs: IndicatorConfig[], tf: TfClass | null): void {
@@ -411,9 +459,9 @@ export class IndicatorScene {
       const def = this.lookup(cfg.type);
       if (!def) continue;
       if (tf && !cfg.visibility.includes(tf)) continue;
-      const key = `${cfg.type}|${JSON.stringify(cfg.inputs)}`;
+      const key = runtimeKey(cfg);
       const old = this.byUid.get(cfg.uid);
-      const rt = old && old.key === key ? old.rt : new IndicatorRuntime(def, cfg.inputs);
+      const rt = old && old.key === key ? old.rt : this.factory(cfg, def);
       const it: RenderItem = {
         cfg,
         def,
@@ -425,6 +473,7 @@ export class IndicatorScene {
       next.push(it);
       map.set(cfg.uid, it);
     }
+    for (const [uid, it] of this.byUid) if (map.get(uid)?.rt !== it.rt) it.rt.dispose?.();
     this.items = next;
     this.byUid = map;
   }
@@ -433,6 +482,8 @@ export class IndicatorScene {
     if (this.frame !== v.tags) {
       this.frame = v.tags;
       this.hotspots = [];
+      this.paneRects = [];
+      this.plotRect = { y: v.plot.y, h: v.plot.h };
       this.viewHeight = v.height;
     }
   }
@@ -613,6 +664,7 @@ class PaneLayer implements ChartLayer {
     this.scene._begin(v);
     const { ctx, palette: p } = v;
     const r = v.bottom;
+    if (this.its[0]) this.scene.paneRects.push({ leader: this.its[0].cfg.uid, y: r.y, h: r.h });
     ctx.strokeStyle = p.border;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -727,6 +779,29 @@ class LegendLayer implements ChartLayer {
       if (it.cfg.pane !== 'overlay') continue;
       this.scene.legendRow(v, it, v.plot.x + 8, y);
       y += 16;
+    }
+    const d = this.scene.drag;
+    const t = d && this.scene.dropTarget(d.y);
+    if (t) {
+      const { ctx, palette: p } = v;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(v.plot.x, t.y, v.plot.w, t.h);
+      ctx.strokeStyle = p.textSecondary;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(v.plot.x + 0.5, Math.round(t.y) + 0.5, v.plot.w - 1, Math.round(t.h) - 1);
+      ctx.setLineDash([]);
+      ctx.font = v.font(11, 600);
+      ctx.fillStyle = p.textSoft;
+      ctx.textAlign = 'center';
+      const label =
+        t.target === 'overlay'
+          ? 'Move to price pane'
+          : t.target === 'new'
+            ? 'Move to a new pane'
+            : 'Move to this pane';
+      ctx.fillText(label, v.plot.x + v.plot.w / 2, t.y + Math.min(t.h / 2, 24));
+      ctx.restore();
     }
   }
 }

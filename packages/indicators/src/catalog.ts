@@ -120,14 +120,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Bar Timer', 'bar-timer'],
     ['Bar Numbering', 'bar-numbering'],
   ]),
-  ...rows('custom', undefined, [
-    [
-      'Custom script (TypeScript .htind)',
-      undefined,
-      undefined,
-      'Code editor + hot reload (P13 custom indicators)',
-    ],
-  ]),
+  ...rows('custom', undefined, [['Custom script (.htind)', 'custom-script']]),
   // ---------------------------------------------------------------- Technical
   ...rows('technical', 'Moving averages', [
     ['SMA', 'sma'],
@@ -288,12 +281,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Beta', undefined, undefined, 'Second-instrument input'],
     ['Z-Score', 'zscore'],
     ['Seasonality', 'seasonality'],
-    [
-      'Custom Formula (expression editor)',
-      undefined,
-      undefined,
-      'Needs an expression parser and editor UI (not built)',
-    ],
+    ['Custom Formula (expression editor)', 'custom-formula'],
   ]),
   // Variants (Appendix B: "parameter variants listed in the Indicators dialog").
   ...rows(
