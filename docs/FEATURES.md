@@ -158,13 +158,17 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Indicator SDK (`@htflow/indicator-sdk`): metadata, typed inputs with validation, line / step / area / histogram / band / dots / bars / markers / levels / zones outputs, sources incl. delta / CVD / clusters, incremental calc (full on replace, last bar on append)
 - [x] Indicators dialog: categories with counts, search, favourites, pending badges, on-chart list (eye, reorder, duplicate, remove), settings tabs Inputs / Style / Visibility / Advanced, presets, reset, apply to all charts, live preview with Cancel; Ctrl+I, header chip, chart menu
 - [x] On-chart canvas legend (value at cursor, eye / settings / remove), stacked sub-panes with own scales (max 60% height), overlay / new / shared pane
-- [ ] Alerts tab (placeholder), timeframe override (MTF), drag to pane by mouse, overlay other symbol, custom-script editor and `.htind`, worker pool / Rust WASM path
+- [x] Alerts tab: alert when an output crosses / is above / below a level or another output, intrabar or on bar close, once, toast / sound / Activity log through the Alerts module (`notify`)
+- [x] Timeframe override (MTF) for any indicator (Advanced tab, closed or forming higher-timeframe bar); overlay another symbol as data source (computed on that instrument's bars, mapped by time, price outputs rescaled to the chart's ticks)
+- [x] Drag an indicator's legend title onto the price pane, another sub-pane or the bottom strip of the price pane (new pane), with a drop hint
+- [x] Script Editor window and HT Script (sandboxed interpreter: no eval, no globals, no member access, no loops; only bar values, math / series functions and `indicator` / `input.*` / `plot.*` / `hline` declarations); per-user library, `.htind` export / import and double-click file association, Add to chart; scripts listed under Custom (scripts)
+- [ ] Rust WASM compute path; Alerts tab fires through `notify()` and not yet through the engine `addAlert({ kind: 'indicator' })` API (not on this branch); scripts have no loops / arrays / user functions (by design for the sandbox); other-symbol sources are computed on the main thread
 
 ## P14 — Indicator catalog (280+)
 
-- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 262 implemented (181 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
+- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 264 implemented (183 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
 - [x] SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper (last closed bar or forming bar)
-- [ ] 19 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Custom Formula needs an expression editor; Custom script (`.htind`) needs a code editor; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
+- [ ] 17 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
 
 ## P15 — Smart DOM
 
@@ -293,7 +297,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Stage 5 Recorder (tick store)
 - [~] Stage 6 History merge — history then live on one chart; gap detection, dedupe at the seam and lazy left-scroll loading pending
 - [x] Stage 7 Aggregator (shared series per instrument + bar type) — in TypeScript on the UI side today
-- [ ] Stage 8 Indicator engine (worker pool)
+- [x] Stage 8 Indicator engine (worker pool): `IndicatorPool` / `EngineHost` / `RemoteRuntime` in the SDK, `performance.workerCount` workers, incremental tail updates with changed-range replies, tape / feed indicators and tests on the main thread; pooled == main-thread results test over every poolable indicator
 - [~] Stage 9 UI streamer — 16 ms coalescing per subscription; hidden-window suppression and binary payloads pending
 - [~] Stage 10 Render — Canvas2D, redraw only when dirty (WebGL2 + SDF text pending)
 - [~] Stage 11 Actions — paper engine fills from the live book + tape; alerts / risk pending

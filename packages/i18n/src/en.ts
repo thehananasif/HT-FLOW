@@ -64,6 +64,13 @@ export const en = {
   'options.noLegs': 'Click a bid to sell or an ask to buy, or pick a template.',
   'options.paperNote':
     'Options are not modelled by the paper engine: strategies are stored as local options positions and marked to model.',
+  'indicators.newScript': 'New script…',
+  'scriptEditor.library': 'My scripts',
+  'scriptEditor.new': 'New script',
+  'scriptEditor.reference': 'HT Script reference',
+  'scriptEditor.save': 'Save',
+  'scriptEditor.addToChart': 'Add to chart',
+  'scriptEditor.import': 'Import',
 } as const;
 
 export type Strings = { [K in keyof typeof en]: string };

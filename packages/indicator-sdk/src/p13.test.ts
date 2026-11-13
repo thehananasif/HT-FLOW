@@ -6,7 +6,7 @@ import {
   newIndicatorAlert,
   normalizeAlerts,
 } from './alerts';
-import { SeriesOut } from './buffers';
+import type { SeriesOut } from './buffers';
 import { createConfig, movePane, normalizeExt, paneGroups, type IndicatorConfig } from './config';
 import { ForeignRuntime } from './foreign';
 import { HT, input, output } from './inputs';

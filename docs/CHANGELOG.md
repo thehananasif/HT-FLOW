@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — round 4
+
+### Added
+
+- Indicators (P13): Alerts tab (output vs level or another output, intrabar / bar close, once, toast / sound / log via the Alerts module), timeframe override for any indicator, another symbol as data source, drag an indicator to another pane by its legend title.
+- Indicators (P13 / P14): HT Script — sandboxed indicator language (interpreter, no eval / globals / DOM / network), Script Editor window with live error line, per-user library, `.htind` export / import and file association; Custom Formula and Custom script catalog entries implemented (264 of 281).
+- Stage 8: indicator engine worker pool (`IndicatorPool`, `EngineHost`, `RemoteRuntime`); setting "Compute indicators in background workers"; `performance.workerCount` is now wired.
+
 ## Unreleased — round 3
 
 ### Changed

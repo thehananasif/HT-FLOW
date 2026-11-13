@@ -11,7 +11,8 @@
  * contract), and `x[1]` reads the previous bar. Prices are real prices in scripts (ticks ×
  * tickSize); outputs with unit "price" are stored back in ticks for the chart's price scale.
  */
-import { ListOut, SeriesOut } from '../buffers';
+import type { ListOut } from '../buffers';
+import { SeriesOut } from '../buffers';
 import * as m from '../math';
 import type {
   AnyIndicator,

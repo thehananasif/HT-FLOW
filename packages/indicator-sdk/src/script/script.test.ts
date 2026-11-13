@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Bar } from '@htflow/market-data';
-import { ListOut, SeriesOut } from '../buffers';
+import type { ListOut, SeriesOut } from '../buffers';
 import { ema, sma } from '../math';
 import { IndicatorRuntime, computeIndicator } from '../runtime';
 import { checkScript, compileFormula, scriptIndicator } from './compile';

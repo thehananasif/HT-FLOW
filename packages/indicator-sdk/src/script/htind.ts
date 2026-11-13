@@ -33,7 +33,7 @@ export function serializeHtind(f: HtindFile): string {
 
 /** Parses a `.htind` file (JSON or plain script text). Throws with a readable message. */
 export function parseHtind(text: string, fallbackName = 'Script'): HtindFile {
-  const t = text.replace(/^﻿/, '').trim();
+  const t = text.replace(/^\uFEFF/, '').trim();
   let source: string;
   let name: string | null = null;
   let id: string | null = null;
