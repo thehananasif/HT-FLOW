@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — round 4
+
+- Footprint quick settings (P10): colours of every element, filters (min volume, min |delta|), presets (built-in + save / load / delete per user), value area per bar, horizontal imbalance, absorption markers, cell colouring / opacity, min row height and a cumulative-delta statistics row; palette commands for the dialog and built-in presets.
+- Settings wired (P27): Chart, Footprint, Trading, Data, Risk and Privacy keys now change behaviour live (new-chart timeframe / footprint mode, auto-scroll, wick / border colours, crosshair labels, magnet, status line; default qty / sizes / order type / TIF, one-click, order hot keys, slippage guard, auto bracket, order / position lines, confirm orders; feed conflation, local timestamps, re-subscribe back-off, recorder switch; app-wide risk limits with warn / block / flatten and lock duration; masked accounts, hidden balances, number format). Provider priority, cache size and default load days stay pending on native work (BLOCKERS).
+
 ## Unreleased — round 3
 
 ### Changed
