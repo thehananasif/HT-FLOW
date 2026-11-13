@@ -76,8 +76,14 @@ function mount(): void {
  * Asks the user to confirm an action when the per-order-type confirmation is on (Settings →
  * Order confirmations). Resolves true immediately when confirmations are off for `kind`.
  */
-export function confirmAction(kind: ConfirmKind, title: string, lines: string[]): Promise<boolean> {
-  if (!tradingPrefs.get().confirm[kind]) return Promise.resolve(true);
+export function confirmAction(
+  kind: ConfirmKind,
+  title: string,
+  lines: string[],
+  /** Ask even when this order type's confirmation is off (Settings → confirm orders / one-click off). */
+  force = false,
+): Promise<boolean> {
+  if (!force && !tradingPrefs.get().confirm[kind]) return Promise.resolve(true);
   mount();
   return new Promise((resolve) => {
     const p: Pending = { kind, title, lines, resolve };

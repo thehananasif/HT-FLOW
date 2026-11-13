@@ -33,7 +33,7 @@ export const domActions = {
       qty: req.qty,
       px: req.type === 'limit' ? req.px : undefined,
       stopPx: req.type === 'stop' ? req.px : undefined,
-    });
+    }, { click: true });
   },
 
   cancel: (o: Order): void => void cancelOrder(o),

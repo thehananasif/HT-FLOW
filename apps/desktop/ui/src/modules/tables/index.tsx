@@ -6,7 +6,7 @@ import { instrumentById } from '../../state/instruments';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { risk } from '../risk/engine';
-import { fmtClock, useTimeFormat } from '../../state/format';
+import { fmtClock, fmtMoney, maskAccount, privacyOptions, usePrivacy, useTimeFormat } from '../../state/format';
 import { confirmAction } from '../../state/confirm';
 
 /** Re-renders on every paper-engine event (fills land in all tables in the same frame). */
@@ -28,15 +28,19 @@ const px = (instrumentId: string, v: number | undefined) => {
   return v === undefined || !i ? '—' : formatPrice(v, i);
 };
 const sym = (id: string) => instrumentById(id)?.symbol ?? id;
-const accName = (id: string) => paper.accounts.get(id)?.name ?? id;
-/** Account ids are never shown in full. */
-const masked = (a: Account) =>
-  a.name.includes('••••') ? a.name : `${a.name} ••••${a.id.replace(/\W/g, '').slice(-4)}`;
+/** Account label: masked to the last four characters unless Settings → Privacy says otherwise. */
+const accLabel = (id: string, name: string) => {
+  const mask = privacyOptions().mask;
+  const base = name.replace(/\s*·?\s*••••\w+$/, '');
+  return `${base} ${mask ? maskAccount(id, true) : id}`.trim();
+};
+const accName = (id: string) => {
+  const a = paper.accounts.get(id);
+  return a ? accLabel(a.id, a.name) : maskAccount(id, privacyOptions().mask);
+};
+const masked = (a: Account) => accLabel(a.id, a.name);
 const time = (t: number, ms = false) => fmtClock(t, { ms });
-const money = (v: number) =>
-  (v < 0 ? '−' : '') +
-  '$' +
-  Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (v: number) => fmtMoney(v);
 const pnl = (v: number) => (
   <span className={v > 0 ? 'up' : v < 0 ? 'down' : 'muted'}>
     {v > 0 ? '+' : ''}
@@ -138,6 +142,7 @@ const accountCols: DataColumn<Account>[] = [
 
 function Accounts({ state, setParams }: ModuleViewProps) {
   useTicker();
+  usePrivacy();
   const rows = [...paper.accounts.values()];
   const total = rows.reduce((s, a) => s + a.balance + openPnl(a.id), 0);
   return (
@@ -256,6 +261,7 @@ const positionCols: DataColumn<PosRow>[] = [
 
 function Positions({ state, setParams }: ModuleViewProps) {
   useTicker();
+  usePrivacy();
   const rows = paper.allPositions();
   const net = rows.reduce((s, p) => s + upnl(p), 0);
   return (
@@ -446,6 +452,7 @@ const orderCols: DataColumn<Order>[] = [
 
 function Orders({ state, setParams }: ModuleViewProps) {
   useTicker();
+  usePrivacy();
   const rows = [...paper.orders.values()].sort(
     (a, b) => Number(isWorking(b)) - Number(isWorking(a)) || b.createdAt - a.createdAt,
   );
@@ -549,6 +556,7 @@ const tradeCols: DataColumn<Fill>[] = [
 
 function Trades({ state, setParams }: ModuleViewProps) {
   useTicker();
+  usePrivacy();
   const rows = [...paper.fills].reverse();
   return (
     <DataTable
