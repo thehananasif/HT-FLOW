@@ -57,6 +57,7 @@ export type ChartAction =
   | 'refresh'
   | 'reload-history'
   | 'load-older'
+  | 'load-day'
   | 'export-png'
   | 'export-csv'
   | 'export-clusters'

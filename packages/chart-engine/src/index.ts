@@ -8,3 +8,4 @@ export * from './layers/candles';
 export * from './layers/orderFlowTape';
 export * from './layers/extras';
 export * from './sources';
+export * from './layers/prevSession';

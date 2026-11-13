@@ -17,7 +17,8 @@ import { InstrumentPickerButton } from '../components/InstrumentPicker';
 import { hub } from '../state/market';
 import { moduleDef } from '../shell/modules';
 import { chartHeaderItems } from '../charts/extensions';
-import { openChartSettings, templateMenuItems } from '../charts/headerMenu';
+import { openChartSettings, snapshotMenuItems, templateMenuItems } from '../charts/headerMenu';
+import { useChartSnapshots } from '../charts/snapshotStore';
 import { TimeframeHeader } from '../charts/timeframes/TimeframeDialog';
 import { confirmAction } from '../state/confirm';
 import { WindowMenuButton } from '../modules/workspaces/WindowMenu';
@@ -82,6 +83,8 @@ function FeedBadge({ instrumentId }: { instrumentId: string }) {
 }
 
 function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
+  // Re-render the template menu when snapshots change.
+  useChartSnapshots((st) => st.list);
   const patch = useWindows((st) => st.patch);
   const set = (p: Partial<ChartWindowState>) => patch(id, p as Partial<WindowState>);
   const tpl = CHART_TEMPLATES.find((t) => t.id === s.template)!;
@@ -108,6 +111,8 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
       </span>
       <DropdownMenu
         items={[
+          ...snapshotMenuItems(id),
+          { kind: 'separator', id: 'snap-sep' },
           { kind: 'label', id: 'b', label: 'Built-in templates' },
           ...CHART_TEMPLATES.map((t) => ({
             id: t.id,

@@ -457,6 +457,12 @@ export const TABS: TabDef[] = [
             { indent: true },
           ),
           bool('grid.sessionLines', 'New session lines', true),
+          bool(
+            'grid.prevSessionProfile',
+            'Previous-session volume profile (left)',
+            true,
+            'POC highlighted, value area tinted, POC price label (candles and footprint charts).',
+          ),
           line(
             'grid.sessionLine',
             'New session lines style',
@@ -734,6 +740,20 @@ export const TABS: TabDef[] = [
             ),
           ),
           bool('fp.borders', 'Draw borders', false),
+          num(
+            'fp.minCellHeight',
+            'Minimum row height (px)',
+            9,
+            4,
+            40,
+            'Bars switch to candles when a price row would be thinner than this.',
+          ),
+          bool(
+            'fp.absorption',
+            'Absorption markers',
+            false,
+            'Dot on heavy-volume rows at the bar high / low.',
+          ),
         ],
       },
       {
@@ -755,6 +775,13 @@ export const TABS: TabDef[] = [
           color('fp.mainColor', 'Main color', ''),
           color('fp.bidColor', 'Bid color', ''),
           color('fp.askColor', 'Ask color', ''),
+          enm(
+            'fp.colorMode',
+            'Cell background follows',
+            'volume',
+            opts(['volume', 'Volume'], ['delta', 'Delta'], ['none', 'None']),
+          ),
+          slider('fp.cellOpacity', 'Cell background opacity, %', 100, 0, 100),
           grad('fp.heatmap', 'Heatmap', '#0B0B0B,#4A1A6B,#B3263A'),
           slider('fp.cutoff', 'Upper cut-off, %', 62, 1, 100),
           slider('fp.contrast', 'Contrast', 14, 0, 100),
@@ -840,6 +867,12 @@ export const TABS: TabDef[] = [
         id: 'fpva',
         label: 'Value area',
         rows: [
+          bool(
+            'fp.vaShow',
+            'Value area per bar',
+            false,
+            'Shade the rows holding the value-area % of each bar.',
+          ),
           color('fp.vaColor', 'Color', '#64C8D8'),
           num('fp.vaPct', 'Value area %', 70, 1, 100),
         ],
@@ -863,6 +896,15 @@ export const TABS: TabDef[] = [
         label: 'Bid/Ask imbalance settings',
         rows: [
           bool('fp.imbalance', 'Enabled', true),
+          enm(
+            'fp.imbDirection',
+            'Comparison',
+            'diagonal',
+            opts(
+              ['diagonal', 'Diagonal (ask vs bid one row lower)'],
+              ['horizontal', 'Horizontal (same row)'],
+            ),
+          ),
           color('fp.imbBid', 'Bid color', ''),
           color('fp.imbAsk', 'Ask color', ''),
           num(
@@ -885,6 +927,15 @@ export const TABS: TabDef[] = [
         label: 'Filters',
         rows: [
           num('fp.hideBelow', 'Hide values below', 0, 0, 1e9),
+          num('fp.minVolume', 'Minimum volume', 0, 0, 1e9, 'Cells with less volume are not drawn.'),
+          num(
+            'fp.minDelta',
+            'Minimum |delta|',
+            0,
+            0,
+            1e9,
+            'Cells with a smaller absolute delta are not drawn.',
+          ),
           {
             key: 'fp.filters',
             label: 'Filters',

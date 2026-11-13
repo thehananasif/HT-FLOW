@@ -16,6 +16,7 @@ import {
 import { formatCompact, type Instrument, type MarketStore } from '@htflow/market-data';
 import { getSetting } from '../../state/settings';
 import type { ChartHandle } from '../buildChart';
+import { globalCandleColors, globalChartOptions } from './globals';
 import { sBool, sLine, sNum, sStr, type ChartSettings, type LineValue } from './schema';
 
 const stroke = (l: LineValue): StrokeStyle => ({
@@ -104,6 +105,7 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
   const inst = c.store.instrument;
   const pal = chartPalette(c.palette, s);
   const L = h.layers;
+  const gopts = globalChartOptions();
   const changed = (k: string) => !c.prev || JSON.stringify(c.prev[k]) !== JSON.stringify(s[k]);
 
   const style: ChartStyle = {
@@ -119,6 +121,7 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
       labelBg: sStr(s, 'crosshair.labelBg'),
       labelText: sStr(s, 'crosshair.labelText'),
       snap: sBool(s, 'crosshair.snap'),
+      labels: gopts.crosshairLabels,
     },
     axis: {
       bg: sStr(s, 'axis.bg'),
@@ -155,6 +158,7 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
       core.options.rightMargin = Math.max(0, off / core.slotWidth);
       core.rightOffset = core.options.rightMargin;
     }
+    core.autoScroll = gopts.autoScroll;
     core.showDebug = sBool(s, 'other.debug');
     core.mouseMode = sStr(s, 'crosshair.mouseMode') as MouseMode;
     core.ctx.imageSmoothingEnabled = sBool(s, 'other.smoothing');
@@ -178,6 +182,7 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
       dojiColor: sStr(s, 'bars.doji'),
       showOpen: sBool(s, 'bars.showOpen'),
       showClose: sBool(s, 'bars.showClose'),
+      ...globalCandleColors(),
       line: stroke(sLine(s, 'linearea.line')),
       areaLine: stroke(sLine(s, 'linearea.areaLine')),
       areaTop: sStr(s, 'linearea.areaFill').split(',')[0] ?? '',
@@ -226,6 +231,10 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
     L.sessions.line = stroke(sLine(s, 'grid.sessionLine'));
     L.sessions.offsetMs = win ? win[0] : 0;
   }
+  if (L.prevProfile) {
+    L.prevProfile.visible = sBool(s, 'grid.prevSessionProfile');
+    L.prevProfile.offsetMs = win ? win[0] : 0;
+  }
   if (L.shade) {
     L.shade.visible = !!win || sBool(s, 'grid.sessionShade');
     L.shade.beginMs = win ? win[0] : 0;
@@ -260,9 +269,29 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
       ratio: sNum(s, 'fp.imbRate') / 100,
       minVolume: sNum(s, 'fp.imbVolume'),
       stacked: sNum(s, 'fp.imbStacked'),
+      direction: sStr(s, 'fp.imbDirection') === 'horizontal' ? 'horizontal' : 'diagonal',
     };
     fs.hideBelow = sNum(s, 'fp.hideBelow');
+    fs.filters = { minVolume: sNum(s, 'fp.minVolume'), minDelta: sNum(s, 'fp.minDelta') };
+    fs.valueArea = {
+      show: sBool(s, 'fp.vaShow'),
+      pct: sNum(s, 'fp.vaPct') / 100,
+      color: sStr(s, 'fp.vaColor'),
+    };
+    fs.colors = {
+      poc: sStr(s, 'fp.pocBorder'),
+      imbBuy: sStr(s, 'fp.imbAsk'),
+      imbSell: sStr(s, 'fp.imbBid'),
+    };
+    const cm = sStr(s, 'fp.colorMode');
+    fs.colorMode = cm === 'delta' || cm === 'none' ? cm : 'volume';
+    fs.cellOpacity = sNum(s, 'fp.cellOpacity') / 100;
+    fs.fontSize = sNum(s, 'fp.fontSize');
+    fs.autoFont = sBool(s, 'fp.autoSize');
+    fs.minCellHeight = sNum(s, 'fp.minCellHeight');
+    fs.absorption = sBool(s, 'fp.absorption');
   }
+  if (L.stats) L.stats.rows = gopts.statRows;
   if (L.footprintPalette) {
     const o: Partial<ChartPalette> = {};
     const set = (k: keyof ChartPalette, v: string) => {

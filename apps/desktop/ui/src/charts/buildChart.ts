@@ -11,6 +11,7 @@ import {
   PeriodProfilesLayer,
   PrintBuffer,
   SessionSeparatorLayer,
+  PrevSessionProfileLayer,
   SessionShadeLayer,
   StatsRowsLayer,
   TapeBubblesLayer,
@@ -36,11 +37,14 @@ export interface ChartLayers {
   lastPrice?: LastPriceLayer;
   volume?: VolumePaneLayer;
   sessions?: SessionSeparatorLayer;
+  prevProfile?: PrevSessionProfileLayer;
   shade?: SessionShadeLayer;
   watermark?: WatermarkLayer;
   highLow?: HighLowMarksLayer;
   compare?: CompareLayer;
   footprint?: FootprintLayer;
+  /** Cluster statistics rows under the footprint (Settings → Footprint row toggles). */
+  stats?: StatsRowsLayer;
   /** Palette overrides used only by the footprint layer (bid / ask / main / text colours). */
   footprintPalette?: PaletteOverride;
 }
@@ -171,8 +175,10 @@ export function buildChart(
           `${specLabel(spec)} · session profiles: ${profiles.periodMs >= 86_400_000 ? '1 day' : '1 h'}`,
         ),
       );
+      L.prevProfile = new PrevSessionProfileLayer(series);
       c.setLayers([
         ...backLayers(),
+        L.prevProfile,
         profiles,
         L.sessions,
         L.candles,
@@ -209,9 +215,11 @@ export function buildChart(
         bid: store.book.bestBid,
         ask: store.book.bestAsk,
       }));
+      L.prevProfile = new PrevSessionProfileLayer(series);
       c.setLayers([
         new VisibleProfileGutter(series, () => fp.rowTicks),
         ...backLayers(),
+        L.prevProfile,
         L.sessions,
         { id: 'sync', draw: syncCandle },
         candles,
@@ -220,7 +228,7 @@ export function buildChart(
           () => store.book,
           () => fp.rowTicks,
         ),
-        new StatsRowsLayer(series),
+        (L.stats = new StatsRowsLayer(series)),
         ...frontLayers(),
         L.lastPrice,
         L.legend,

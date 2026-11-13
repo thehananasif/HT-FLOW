@@ -119,6 +119,69 @@ pub async fn net_fetch_text(url: String) -> CmdResult<String> {
     fetch(url, client(true)?).await
 }
 
+/// Hosts a webhook POST may go to (P23 Discord alerts). Anything else is refused.
+const POST_HOSTS: &[&str] = &[
+    "discord.com",
+    "discordapp.com",
+    "ptb.discord.com",
+    "canary.discord.com",
+];
+const MAX_POST_BODY: usize = 64 * 1024;
+
+/// https only, and the host must be on [`POST_HOSTS`].
+fn validate_post_url(raw: &str) -> CmdResult<reqwest::Url> {
+    let url = validate_url(raw)?;
+    let host = url.host_str().unwrap_or("").to_ascii_lowercase();
+    if url.scheme() != "https" || !POST_HOSTS.contains(&host.as_str()) {
+        return Err(CmdError::new(
+            "net.host_not_allowed",
+            "Only https Discord webhook URLs are allowed",
+        ));
+    }
+    Ok(url)
+}
+
+async fn post_json(url: reqwest::Url, body: String, client: reqwest::Client) -> CmdResult<String> {
+    if body.len() > MAX_POST_BODY {
+        return Err(CmdError::new(
+            "net.too_large",
+            "Message is larger than 64 KB",
+        ));
+    }
+    let resp = client
+        .post(url)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| {
+            CmdError::new(
+                "net.fetch",
+                if e.is_timeout() {
+                    "Timed out after 15 s"
+                } else {
+                    "Network error"
+                },
+            )
+        })?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(CmdError::new(
+            "net.http",
+            format!("HTTP {}", status.as_u16()),
+        ));
+    }
+    let text = resp.text().await.unwrap_or_default();
+    Ok(text.chars().take(4096).collect())
+}
+
+/// POST a JSON body to an allow-listed webhook host (Discord alerts). Never sends cookies.
+#[tauri::command]
+pub async fn net_post_json(url: String, body: String) -> CmdResult<String> {
+    let url = validate_post_url(&url)?;
+    post_json(url, body, client(true)?).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,6 +199,20 @@ mod tests {
             "",
         ] {
             assert_eq!(validate_url(bad).unwrap_err().code, "net.bad_url", "{bad}");
+        }
+    }
+
+    #[test]
+    fn post_host_allow_list() {
+        assert!(validate_post_url("https://discord.com/api/webhooks/1/abc").is_ok());
+        assert!(validate_post_url("https://canary.discord.com/api/webhooks/1/abc").is_ok());
+        for bad in [
+            "http://discord.com/api/webhooks/1/abc",
+            "https://evil.com/api/webhooks",
+            "https://discord.com.evil.com/x",
+            "file:///etc/passwd",
+        ] {
+            assert!(validate_post_url(bad).is_err(), "{bad}");
         }
     }
 

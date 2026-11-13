@@ -30,6 +30,7 @@ import { patchChartExt, setChartSetting, type ChartExtState } from './settings/s
 import { useChartSettingsUi } from './settingsUi';
 import { applyTemplateTo } from './templateStore';
 import { allTemplates, type TemplateLibrary } from './templates';
+import { slotExtensionItems } from './menuSlots';
 
 export interface MenuContext {
   windowId: string;
@@ -44,6 +45,9 @@ export interface MenuContext {
   handle: ChartHandle | null;
   toggleDomTrader(): void;
   order(side: 'buy' | 'sell', type: 'limit' | 'stop'): void;
+  /** Trading lock of the routed paper account for this instrument. */
+  locked: boolean;
+  toggleLock(): void;
   extensionItems: MenuEntry[];
 }
 
@@ -159,7 +163,7 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
       ...(layerId === 'volume-pane'
         ? [{ id: 'hide-vol', label: 'Hide volume pane', onSelect: set('volume.pane', false) }]
         : []),
-      ...c.extensionItems,
+      ...slotExtensionItems(c.extensionItems).context,
       sep('p1'),
       {
         id: 'settings',
@@ -287,9 +291,14 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     ...choice('crosshair.mouseMode', 'mm', MOUSE_MODES.slice(2)),
   ];
 
+  const ex = slotExtensionItems(c.extensionItems);
+  const group = (id: string, items: MenuEntry[]): MenuEntry[] =>
+    items.length ? [...items, sep(id)] : [];
+
   return [
+    ...group('s0', ex.context),
     ...tradeItems,
-    ...c.extensionItems.filter((e) => e.id.startsWith('alert') || e.id.includes('alert')),
+    ...ex.trade,
     sep('s1'),
     {
       id: 'tp',
@@ -298,6 +307,8 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
       onSelect: () => useWindows.getState().setTradingPanel(!useWindows.getState().tradingPanel),
     },
     { id: 'domt', label: 'DOM Trader', checked: c.domTrader, onSelect: c.toggleDomTrader },
+    { id: 'lock', label: 'Lock trading', checked: c.locked, onSelect: c.toggleLock },
+    ...ex.trading,
     sep('s2'),
     { id: 'goto', label: 'Go to date…', shortcut: 'Ctrl+G', onSelect: act('goto-date') },
     { id: 'chg-inst', label: 'Change Instrument…', onSelect: act('change-instrument') },
@@ -344,8 +355,10 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     { kind: 'submenu', id: 'scale', label: 'Price scale', items: scaleItems },
     sep('s3'),
     { kind: 'submenu', id: 'templates', label: 'Templates', items: templates },
+    ...ex.indicators,
     { kind: 'submenu', id: 'overlay', label: 'Overlay', items: overlay },
-    ...c.extensionItems.filter((e) => !(e.id.startsWith('alert') || e.id.includes('alert'))),
+    ...ex.drawing,
+    ...ex.strategies,
     sep('s4'),
     {
       kind: 'submenu',
@@ -387,6 +400,8 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     { kind: 'submenu', id: 'session', label: 'Trading session', items: sessionItems },
     { id: 'refresh', label: 'Refresh', onSelect: act('refresh') },
     { id: 'reload', label: 'Reload all historical data', onSelect: act('reload-history') },
+    { id: 'load-day', label: '◂ Load 1 more day of history', onSelect: act('load-day') },
+    ...ex.replay,
     { id: 'reset', label: 'Reset', shortcut: 'Ctrl+R', onSelect: act('reset') },
     {
       kind: 'submenu',
@@ -401,6 +416,7 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
       ],
     },
     sep('s6'),
+    ...ex.more,
     {
       id: 'datawin',
       label: 'Data window',

@@ -119,3 +119,78 @@ export function useTimeFormat(): TimeFormatOptions {
   const clock24h = useSetting('general.clock24h');
   return { zone, dateFormat, clock24h };
 }
+
+// ------------------------------------------------------------------ numbers & privacy (P27)
+
+export type NumberLocale = SettingsValues['general.numberFormat'];
+
+const nf = new Map<string, Intl.NumberFormat>();
+
+/** Number with the decimal / thousands separators of Settings → General → number format. */
+export function formatNumber(v: number, locale: string, decimals = 2): string {
+  const key = `${locale}|${decimals}`;
+  let f = nf.get(key);
+  if (!f) {
+    try {
+      f = new Intl.NumberFormat(locale, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+    } catch {
+      f = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+    }
+    nf.set(key, f);
+  }
+  return f.format(v);
+}
+
+export const HIDDEN_MONEY = '•••••';
+
+/** Money for balances / P&L totals: dots when Settings → Privacy → hide balances is on. */
+export function formatMoney(
+  v: number,
+  o: { locale: string; hide: boolean; symbol?: string },
+): string {
+  if (o.hide) return HIDDEN_MONEY;
+  return `${v < 0 ? '−' : ''}${o.symbol ?? '$'}${formatNumber(Math.abs(v), o.locale)}`;
+}
+
+/** Account id: only the last four characters when Settings → Privacy → mask accounts is on. */
+export function maskAccount(id: string, mask: boolean): string {
+  if (!mask) return id;
+  return `••••${id.replace(/[^a-z0-9]/gi, '').slice(-4)}`;
+}
+
+export interface PrivacyOptions {
+  mask: boolean;
+  hide: boolean;
+  locale: string;
+}
+
+export function privacyOptions(): PrivacyOptions {
+  try {
+    return {
+      mask: getSetting('privacy.maskAccounts'),
+      hide: getSetting('privacy.hideBalances'),
+      locale: getSetting('general.numberFormat'),
+    };
+  } catch {
+    return { mask: true, hide: false, locale: 'en-US' };
+  }
+}
+
+export const fmtMoney = (v: number, symbol = '$'): string =>
+  formatMoney(v, { ...privacyOptions(), symbol });
+export const fmtNumber = (v: number, decimals = 2): string =>
+  formatNumber(v, privacyOptions().locale, decimals);
+
+/** Subscribes a component to the privacy / number-format settings. */
+export function usePrivacy(): PrivacyOptions {
+  const mask = useSetting('privacy.maskAccounts');
+  const hide = useSetting('privacy.hideBalances');
+  const locale = useSetting('general.numberFormat');
+  return { mask, hide, locale };
+}

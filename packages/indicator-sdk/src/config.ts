@@ -1,3 +1,5 @@
+import { normalizeAlerts, type IndicatorAlert } from './alerts';
+import { isSeriesKind } from './buffers';
 import { isColor, resolveInputs } from './inputs';
 import { TF_CLASSES, type TfClass } from './periods';
 import type {
@@ -8,6 +10,7 @@ import type {
   OutputDef,
   OutputStyle,
   RawInputs,
+  TimeframeId,
 } from './types';
 
 /** One indicator on one chart, as saved in ChartWindowState.ext.indicators. */
@@ -29,6 +32,14 @@ export interface IndicatorConfig {
   z: 'top' | 'bottom';
   /** Sub-pane height in px. */
   height: number;
+  /** Timeframe override (MTF): 'chart' = the chart's own bars. */
+  tf: TimeframeId;
+  /** With a timeframe override: last closed higher-timeframe bar or the forming one. */
+  tfMode: 'closed' | 'live';
+  /** Data source: '' = the chart's instrument, else another instrument id (overlay symbol). */
+  symbol: string;
+  /** Alerts on this indicator's outputs (Alerts tab). */
+  alerts: IndicatorAlert[];
 }
 
 export interface IndicatorsExt {
@@ -104,7 +115,18 @@ export function createConfig(def: AnyIndicator, uid = newUid()): IndicatorConfig
     scale: def.pane === 'overlay' ? (def.overlayScale ?? 'merged') : 'own',
     z: 'top',
     height: PANE_HEIGHT.default,
+    tf: 'chart',
+    tfMode: 'closed',
+    symbol: '',
+    alerts: [],
   };
+}
+
+/** Series output ids of a definition (alert / MTF targets). */
+export function seriesOutputIds(def: AnyIndicator): string[] {
+  return Object.entries(def.outputs)
+    .filter(([, o]) => isSeriesKind(o.kind))
+    .map(([k]) => k);
 }
 
 /**
@@ -142,6 +164,12 @@ export function normalizeExt(
         typeof it.height === 'number' && Number.isFinite(it.height)
           ? Math.round(Math.min(PANE_HEIGHT.max, Math.max(PANE_HEIGHT.min, it.height)))
           : base.height,
+      tf: ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D', 'W', 'MN'].includes(it.tf as string)
+        ? (it.tf as TimeframeId)
+        : 'chart',
+      tfMode: it.tfMode === 'live' ? 'live' : 'closed',
+      symbol: typeof it.symbol === 'string' ? it.symbol.slice(0, 80) : '',
+      alerts: normalizeAlerts(it.alerts, seriesOutputIds(def)),
     });
   }
   // Pane references must point at an earlier indicator that is in a sub-pane.
@@ -180,4 +208,47 @@ export function paneGroups(items: IndicatorConfig[]): IndicatorConfig[][] {
     byLeader.set(c.uid, g);
   }
   return groups;
+}
+
+/** Where an indicator is dropped: the price pane, a new sub-pane, or the pane led by a uid. */
+export type PaneTarget = 'overlay' | 'new' | { join: string };
+
+/**
+ * Moves one indicator to another pane (drag & drop, P13). Joining a pane places the item right
+ * after the last member of that pane so the "pane refers to an earlier indicator" rule holds;
+ * when the moved item led a pane, its followers keep their pane under the next member.
+ */
+export function movePane(
+  items: IndicatorConfig[],
+  uid: string,
+  target: PaneTarget,
+): IndicatorConfig[] {
+  const me = items.find((c) => c.uid === uid);
+  if (!me) return items;
+  if (typeof target === 'object' && target.join === uid) return items;
+  // Re-home followers that referenced the moved item.
+  const followers = items.filter((c) => c.pane === uid);
+  let rest = items.filter((c) => c.uid !== uid);
+  if (followers.length) {
+    const lead = followers[0]!.uid;
+    rest = rest.map((c) =>
+      c.uid === lead ? { ...c, pane: 'new' } : c.pane === uid ? { ...c, pane: lead } : c,
+    );
+  }
+  if (target === 'overlay' || target === 'new') {
+    const scale = target === 'overlay' ? me.scale : me.pane === 'overlay' ? 'own' : me.scale;
+    return [...rest, { ...me, pane: target, scale }];
+  }
+  const groups = paneGroups(rest);
+  const g = groups.find((grp) => grp.some((c) => c.uid === target.join));
+  if (!g) return items;
+  const leader = g[0]!.uid;
+  const last = g[g.length - 1]!.uid;
+  const at = rest.findIndex((c) => c.uid === last);
+  const moved: IndicatorConfig = {
+    ...me,
+    pane: leader,
+    scale: me.pane === 'overlay' ? 'own' : me.scale,
+  };
+  return [...rest.slice(0, at + 1), moved, ...rest.slice(at + 1)];
 }

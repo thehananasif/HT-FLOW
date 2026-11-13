@@ -1,43 +1,14 @@
 import type { Account } from '@htflow/trading';
 import { paper, PAPER_ACCOUNT } from '../state/market';
 import { Persisted } from './persist';
+import { normalizeSavedAccounts, type SavedAccount } from './accountsModel';
 import { setPrefs, tradingPrefs } from './prefs';
 
-/** What is saved per paper account (balances restart from the starting balance each session). */
-export interface SavedAccount {
-  id: string;
-  name: string;
-  currency: string;
-  startingBalance: number;
-  slippageTicks: number;
-}
+export type { SavedAccount };
 
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'USDT', 'USDC', 'BTC'];
 
-const normalize = (raw: unknown): SavedAccount[] =>
-  Array.isArray(raw)
-    ? raw
-        .filter(
-          (a): a is SavedAccount =>
-            !!a &&
-            typeof a === 'object' &&
-            typeof (a as SavedAccount).id === 'string' &&
-            typeof (a as SavedAccount).name === 'string',
-        )
-        .map((a) => ({
-          id: a.id,
-          name: a.name.trim() || 'Paper',
-          currency: typeof a.currency === 'string' && a.currency ? a.currency : 'USD',
-          startingBalance:
-            typeof a.startingBalance === 'number' && a.startingBalance >= 0
-              ? a.startingBalance
-              : 50_000,
-          slippageTicks:
-            typeof a.slippageTicks === 'number' && a.slippageTicks >= 0 ? a.slippageTicks : 0,
-        }))
-    : [];
-
-const store = new Persisted<SavedAccount[]>('trading.accounts', () => [], normalize);
+const store = new Persisted<SavedAccount[]>('trading.accounts', () => [], normalizeSavedAccounts);
 
 /** Paper accounts the user can pick (replay accounts are routed to, never picked). */
 export function pickableAccounts(): Account[] {
@@ -51,6 +22,7 @@ const snapshot = (): SavedAccount[] =>
     currency: a.currency,
     startingBalance: a.startingBalance,
     slippageTicks: a.slippageTicks ?? 0,
+    balance: a.balance,
   }));
 
 let applying = false;
@@ -65,15 +37,16 @@ store.onLoaded(() => {
       if (a.id !== PAPER_ACCOUNT && !ids.has(a.id)) paper.deleteAccount(a.id);
     for (const s of saved) {
       const cur = paper.accounts.get(s.id);
-      if (!cur)
-        paper.createAccount({
+      if (!cur) {
+        const a = paper.createAccount({
           id: s.id,
           name: s.name,
           currency: s.currency,
           startingBalance: s.startingBalance,
           slippageTicks: s.slippageTicks,
         });
-      else {
+        a.balance = s.balance;
+      } else {
         const fresh =
           !paper.fills.some((f) => f.accountId === s.id) && cur.balance === cur.startingBalance;
         paper.updateAccount(s.id, {
@@ -82,7 +55,8 @@ store.onLoaded(() => {
           startingBalance: s.startingBalance,
           slippageTicks: s.slippageTicks,
         });
-        if (fresh) cur.balance = s.startingBalance;
+        // An account untouched this session resumes at its saved balance.
+        if (fresh) cur.balance = s.balance;
       }
     }
   } finally {

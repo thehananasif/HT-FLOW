@@ -81,3 +81,74 @@ export function stackedZones(
   }
   return out;
 }
+
+/**
+ * Horizontal imbalance: ask vs bid on the same row (buy when ask ≥ ratio × bid, sell when
+ * bid ≥ ratio × ask). The dominant side must reach `minVol`.
+ */
+export function horizontalImbalances(rows: Row[], ratio: number, minVol: number): Imbalance[] {
+  return rows.map((r) => ({
+    buy: r.ask > 0 && r.ask >= minVol && r.ask >= ratio * Math.max(r.bid, 1e-9),
+    sell: r.bid > 0 && r.bid >= minVol && r.bid >= ratio * Math.max(r.ask, 1e-9),
+  }));
+}
+
+export type ImbalanceDirection = 'diagonal' | 'horizontal';
+
+/** Imbalances in the chosen direction (diagonal = classic footprint, horizontal = same row). */
+export function imbalances(
+  rows: Row[],
+  dir: ImbalanceDirection,
+  ratio: number,
+  minVol: number,
+): Imbalance[] {
+  return dir === 'horizontal'
+    ? horizontalImbalances(rows, ratio, minVol)
+    : diagonalImbalances(rows, ratio, minVol);
+}
+
+/**
+ * Value area of one bar: row indices [hi, lo] (rows sorted high → low) of the smallest block
+ * around the POC holding `pct` (0..1) of the bar volume, grown one row at a time towards the
+ * larger neighbour. Null for an empty bar.
+ */
+export function valueAreaRows(
+  rows: Row[],
+  pct: number,
+): { hi: number; lo: number; poc: number } | null {
+  if (!rows.length) return null;
+  let poc = 0;
+  let total = 0;
+  for (let k = 0; k < rows.length; k++) {
+    total += rows[k]!.vol;
+    if (rows[k]!.vol > rows[poc]!.vol) poc = k;
+  }
+  const target = total * Math.max(0, Math.min(1, pct));
+  let hi = poc;
+  let lo = poc;
+  let acc = rows[poc]!.vol;
+  while (acc < target && (hi > 0 || lo < rows.length - 1)) {
+    const up = hi > 0 ? rows[hi - 1]!.vol : -1;
+    const down = lo < rows.length - 1 ? rows[lo + 1]!.vol : -1;
+    if (up >= down) acc += rows[--hi]!.vol;
+    else acc += rows[++lo]!.vol;
+  }
+  return { hi, lo, poc };
+}
+
+/** Cell filter (quick settings): a row is drawn only with volume ≥ minVolume and |delta| ≥ minDelta. */
+export function passesFilter(r: Row, minVolume: number, minDelta: number): boolean {
+  return r.vol >= minVolume && Math.abs(r.delta) >= minDelta;
+}
+
+/**
+ * Absorption: a row at the bar's high or low whose volume is at least `factor` × the bar's
+ * average row volume (heavy trading with no price progress beyond it). Returns row indices.
+ */
+export function absorptionRows(rows: Row[], factor = 2.5): number[] {
+  if (rows.length < 3) return [];
+  const avg = rows.reduce((s, r) => s + r.vol, 0) / rows.length;
+  const out: number[] = [];
+  for (const k of [0, rows.length - 1]) if (rows[k]!.vol >= factor * avg) out.push(k);
+  return out;
+}

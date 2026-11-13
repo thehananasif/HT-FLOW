@@ -26,14 +26,17 @@ export const domActions = {
     qty: number;
     px?: number;
   }): void {
-    void submitOrder({
-      instrumentId: req.instrumentId,
-      side: req.side,
-      type: req.type,
-      qty: req.qty,
-      px: req.type === 'limit' ? req.px : undefined,
-      stopPx: req.type === 'stop' ? req.px : undefined,
-    });
+    void submitOrder(
+      {
+        instrumentId: req.instrumentId,
+        side: req.side,
+        type: req.type,
+        qty: req.qty,
+        px: req.type === 'limit' ? req.px : undefined,
+        stopPx: req.type === 'stop' ? req.px : undefined,
+      },
+      { click: true },
+    );
   },
 
   cancel: (o: Order): void => void cancelOrder(o),

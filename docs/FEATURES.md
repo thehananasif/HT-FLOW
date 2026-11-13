@@ -132,7 +132,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Diagonal imbalance (default 300 %, min volume), stacked imbalance zones (N levels) extended right
 - [x] Price merging: ticks-per-row auto / 1 / 2 / 4 / 5 / 10, font auto-fit
 - [x] Cluster statistics rows (Delta, Session Delta, Volume, plus Trades / Delta % / Max / Min delta available) — colour-graded
-- [~] Footprint quick-settings dialog (mode, ticks per row, imbalance ratio, stacked levels, auto-collapse width, POC) — colours, filters, presets, value area per bar, horizontal imbalance pending
+- [x] Footprint quick-settings dialog (side-tools slider button, palette "Footprint: Quick settings…"): mode, ticks per row, auto-collapse width, POC, value area per bar (%, colour), imbalance diagonal / horizontal (ratio, min volume, stacked levels, buy / sell colours), filters (min volume, min |delta|), bid / ask / text / POC colours, presets (3 built-in + save / load / delete per user, palette commands for built-ins), "Open full settings"; also absorption markers, cell colouring by volume / delta / none with opacity, min row height, cumulative-delta statistics row
 - [x] Tests: hand-computed rows, imbalances and stacked zones
 - [ ] Acceptance: 2,000 visible clusters at 60 fps (not benchmarked)
 
@@ -156,21 +156,25 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Alert on cross for lines, rays, channels and rectangles (cross / enter / exit), bell toggle + dialog, fires through the alerts runtime; emoji picker; regression inner / outer σ and anchored-VWAP band fields; magnet slider (px) in Drawing preferences; multi-select (Shift+click, Ctrl+drag box, Ctrl+A) with group move / delete / style
 - [x] ZigZag volume profile, CVD correlation, Magnifier (M), Remove indicators; Ctrl+Z / Ctrl+Y / Del / Ctrl+A registry commands; drawings on both Order Flow (Dark) panes; Objects List ribbon button
 - [x] i18n of drawing strings (toolbar, menus, dialogs, Objects List, toasts)
+- [x] Ctrl+Z / Ctrl+Y / Del act on the active chart even when the last click was outside any window
 - [ ] i18n of drawing tool names and descriptions (`@htflow/drawings` labels still English)
-- [ ] registry Ctrl+Z needs the last pointer-down inside a chart
 
 ## P13 — Indicator framework
 
 - [x] Indicator SDK (`@htflow/indicator-sdk`): metadata, typed inputs with validation, line / step / area / histogram / band / dots / bars / markers / levels / zones outputs, sources incl. delta / CVD / clusters, incremental calc (full on replace, last bar on append)
 - [x] Indicators dialog: categories with counts, search, favourites, pending badges, on-chart list (eye, reorder, duplicate, remove), settings tabs Inputs / Style / Visibility / Advanced, presets, reset, apply to all charts, live preview with Cancel; Ctrl+I, header chip, chart menu
 - [x] On-chart canvas legend (value at cursor, eye / settings / remove), stacked sub-panes with own scales (max 60% height), overlay / new / shared pane
-- [ ] Alerts tab (placeholder), timeframe override (MTF), drag to pane by mouse, overlay other symbol, custom-script editor and `.htind`, worker pool / Rust WASM path
+- [x] Alerts tab: alert when an output crosses / is above / below a level or another output, intrabar or on bar close, once, toast / sound / Activity log through the Alerts module (`notify`)
+- [x] Timeframe override (MTF) for any indicator (Advanced tab, closed or forming higher-timeframe bar); overlay another symbol as data source (computed on that instrument's bars, mapped by time, price outputs rescaled to the chart's ticks)
+- [x] Drag an indicator's legend title onto the price pane, another sub-pane or the bottom strip of the price pane (new pane), with a drop hint
+- [x] Script Editor window and HT Script (sandboxed interpreter: no eval, no globals, no member access, no loops; only bar values, math / series functions and `indicator` / `input.*` / `plot.*` / `hline` declarations); per-user library, `.htind` export / import and double-click file association, Add to chart; scripts listed under Custom (scripts)
+- [ ] Rust WASM compute path; Alerts tab fires through `notify()` and not yet through the engine `addAlert({ kind: 'indicator' })` API (not on this branch); scripts have no loops / arrays / user functions (by design for the sandbox); other-symbol sources are computed on the main thread
 
 ## P14 — Indicator catalog (280+)
 
-- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 262 implemented (181 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
+- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 264 implemented (183 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
 - [x] SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper (last closed bar or forming bar)
-- [ ] 19 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Custom Formula needs an expression editor; Custom script (`.htind`) needs a code editor; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
+- [ ] 17 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
 
 ## P15 — Smart DOM
 
@@ -199,7 +203,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] ATM templates (`packages/trading/src/atm.ts`): SL ticks / $ / % / ATR / trailing, up to 8 weighted targets in $ / % / points / ticks, auto-breakeven, trailing steps, 5 presets; ATM & Trading Setup window (editor, JSON import / export); picker in Trading Panel, DOM and DOM Trader
 - [x] Chart trading (chart extension): position line with live P&L and ✕ close, draggable working-order and SL / TP lines with ✕ cancel, B / S fill markers, right-click order menu; all styles configurable
 - [x] Multiple paper accounts (create, rename, starting balance and currency, reset, delete); order confirmations per order type; account picker shows the routed account (replay); minimal options positions model in the engine
-- [ ] Chart right-click Buy / Sell and Dashboard Flatten / Breakeven still use the default paper account without ATM; risk engine covers the default account only; options model not connected to the Options Board; saved accounts keep settings, not balances / positions; OCO checkbox inert
+- [x] Chart right-click Buy / Sell (with the Trading Panel's ATM bracket and confirmations), Dashboard Flatten / Breakeven and the risk meter use the selected paper account; the risk engine covers every paper account; saved accounts keep settings and cash balance
+- [ ] Options model not connected to the Options Board; open positions are not saved across restarts; OCO checkbox inert
 - [x] Tests: bracket with 3 targets fills correctly; PnL matches hand calculation
 
 ## P18 — Options Board & analytics
@@ -237,7 +242,10 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Risk engine (P41): daily loss (flatten + lock to next day), trailing drawdown, max position per instrument, orders per minute, trades per day, trading hours with time zone, profit target; 80% warnings; prop-firm / conservative presets; hashed override password; locks survive restart; title-bar meter shows Locked
 - [x] Alerts (`@htflow/alerts`): price cross, big trade, bar delta, DOM level within N ticks, connection lost; count / expiry / cooldown; popup, beep, desktop notification, activity log; Alerts window; chart right-click "Set alert" and alert lines
-- [ ] Indicator / drawing / liquidation / funding alert conditions, Telegram / Discord, flash window, custom sound; news-flatten has a hook but no calendar feed; risk covers paper accounts only
+- [x] Drawing alerts unified with the engine (listed in Alerts, all actions, work with the chart hidden); funding-rate and liquidation conditions; generic indicator value condition + `addAlert()` / `pushValue()` API (`modules/alerts/api.ts`)
+- [x] Flash window / taskbar, per-alert sound (built-in or a local file saved in the profile), Telegram and Discord delivery (own bot token / webhook in the vault, test send, throttle), Settings → Alerts keys wired
+- [x] News-flatten fed by the Economic Calendar (high-impact events; SAMPLE optional); risk rules can be applied to every paper account and are used for new ones; locks / rules of all paper accounts survive restart
+- [ ] indicator values are only checked once the Indicators dialog pushes them; "Once per bar" repeat behaves like "Every time"; risk for broker accounts (no broker connectors)
 
 ## P24 — Replay
 
@@ -259,7 +267,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P26 — Chart right-click menu
 
-- [~] Buy Limit / Sell Stop (or Sell Limit / Buy Stop) at cursor price, Trading Panel, DOM Trader, Mode ▸ (Footprint modes, Bars, Candles, Transparent, Line, Area, Hidden), Mouse ▸, Reset, Export PNG — Go to date, Change instrument, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window, Clone, Hide panels, Trading session ▸, Refresh, Reload history, Add replay template, Export CSV / JSON, Full screen, Settings pending; context-aware menus pending
+- [x] Full menu in spec order: Buy Limit / Sell Stop (or Sell Limit / Buy Stop) at cursor price with the Trading Panel account + ATM bracket, Set alert, Trading Panel, DOM Trader, Lock trading, Go to date, Change instrument, Mode ▸, Mouse ▸, Price scale ▸, Templates ▸, Indicators, Overlay, Drawing objects ▸, Chart strategies, Layouts ▸, Create linked window ▸, Clone, Hide panels, Trading session ▸, Refresh, Reload history, ◂ Load 1 more day, Add replay template, Reset, Export ▸ (PNG, CSV bars, CSV clusters, JSON, template JSON), Full screen, Settings
+- [x] Context-aware menus: drawing (edit / clone / lock / hide / delete), indicator legend or pane (settings / hide / remove / move pane), order line (cancel / move), position (close / breakeven), price scale, time scale, sub-panes; every item has a Command Palette entry; Playwright clicks through the menu (`e2e/chart-menu.spec.ts`)
+- [ ] i18n of menu strings
 
 ## P27 — Settings & customization centre
 
@@ -267,7 +277,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Settings window (Ctrl+,, palette, "Settings: <section>"): search, draft with Cancel / Apply / OK; General, Appearance (5 themes, 29-token editor, UI scale, font size, icons-only ribbon, theme JSON), Hot keys (record, conflicts, scopes, presets, export / import), Sounds (7 events, volume, preview, own .wav / .mp3), Time zones (exchange clocks and trading hours), Commission (rules by account / instrument, applied to paper trading), Data delays (status-bar pills), Performance (FPS overlay), Common settings groups
 - [x] Settings wired: date format / 24h / app time zone in tables, journal, tape and divergence; first day of week; start-up workspace; autosave; confirmations (flatten, close window, exit, table actions); notifications show / duration / max; DOM levels, row height, auto-centre, big lot; tape ms; RTL flag; clear caches on logout; log level and buffer size
 - [x] Sections Chart, Footprint, Heatmap, DOM, Tape, Trading, Data, Alerts, Risk, Privacy & security (telemetry off, clear caches / logs, reset all), Logs (viewer), Custom modules (P43: enable / disable modules, module folders placeholder), About & updates (licences, links); about 150 new keys; RTL preview flag
-- [ ] Chart / footprint / heatmap / trading / data / alerts / risk keys are defined but not yet read by those modules (`wired: false`); max candles and default load days not wired; mask accounts / hide balances / number format stored only; native log files, settings folder, module-folder loading and updater need the native core; per-chart Settings (Ctrl+S) in progress; languages other than English
+- [x] Settings wired (round 4): Chart (default timeframe of new charts, auto-scroll, wick / border colours up / down, crosshair axis labels, magnet → crosshair snap, status line → indicator values), Footprint (cell content of new charts, colouring, opacity, font size, min row height, value area, absorption, delta / volume / cumulative-delta rows), Trading (default qty, quick sizes, order type, TIF, one-click, order hot keys, slippage guard, auto SL / TP, order / position lines, confirm orders), Data (conflation, local timestamps, re-subscribe back-off, recorder on / off), Risk (app-wide order / position / collar / trades / daily-loss limits, warn %, warn / block / flatten, lock duration), Privacy (mask accounts, hide balances) and number format
+- [ ] Data provider priority and cache size need native work (see BLOCKERS); DOM / tape leftovers (font size, grouping, invert clicks, tape rows / filters / beep), time-zone, performance, MBO / backup and log-file keys still `wired: false`; alerts keys handled by the alerts work; native log files, settings folder, module-folder loading and updater need the native core; per-chart Settings (Ctrl+S) in progress; languages other than English
 
 ## P28 — Remaining modules
 
@@ -301,7 +312,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Stage 5 Recorder (tick store)
 - [~] Stage 6 History merge — history then live on one chart; gap detection, dedupe at the seam and lazy left-scroll loading pending
 - [x] Stage 7 Aggregator (shared series per instrument + bar type) — in TypeScript on the UI side today
-- [ ] Stage 8 Indicator engine (worker pool)
+- [x] Stage 8 Indicator engine (worker pool): `IndicatorPool` / `EngineHost` / `RemoteRuntime` in the SDK, `performance.workerCount` workers, incremental tail updates with changed-range replies, tape / feed indicators and tests on the main thread; pooled == main-thread results test over every poolable indicator
 - [~] Stage 9 UI streamer — 16 ms coalescing per subscription; hidden-window suppression and binary payloads pending
 - [~] Stage 10 Render — Canvas2D, redraw only when dirty (WebGL2 + SDF text pending)
 - [~] Stage 11 Actions — paper engine fills from the live book + tape; alerts / risk pending
@@ -309,7 +320,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P31–P43 — Detailed window specs
 
-- [~] P31 Trading workspace v2 — template switch keeps zoom; legend lines; session separators; stats rows; DOM Trader; status pills per connection. Pending: Snapshots in template menu, "Load days", "◂ Load 1 more day", previous-session profile on the left
+- [x] P31 Trading workspace v2 — template switch keeps zoom; legend lines; session separators; stats rows; DOM Trader; status pills per connection; Snapshots in the template menu; per-chart "Load days" (auto-load for real / replay feeds; the simulator generates older days on demand only); "◂ Load 1 more day"; previous-session profile on the left
 - [x] P32 Connections window — see P05
 - [x] P33 Chart types — all template renderers plus Renko, P&F (X / O), Kagi, Line Break, Heikin-Ashi, range variants
 - [x] P34 Chart settings window (Ctrl+S): Visual / Footprint / Trading / Templates tabs, ~150 rows, live apply, Cancel reverts, JSON export / import; global Settings act as defaults
@@ -328,4 +339,4 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## Appendix C — Default shortcuts
 
 - [x] Ctrl+K command palette · T Trading Panel · Ctrl+L lock · H breakeven · Alt+V / T / B / D footprint modes
-- [ ] Ctrl+G, Ctrl+R (menu item only), Ctrl+S, Ctrl + double-click, Shift+B / C / T / L / M / H (menu only), F-keys drawings, M magnifier, Del / Ctrl+Z / Ctrl+Y, rebinding in Settings → Hotkeys
+- [x] Ctrl+G, Ctrl+R, Ctrl+S, Ctrl + double-click, Shift+B / C / T / L / M / H, F-keys for drawings (F2 / F3 / Ctrl+F3 / F4 / F6 / F7 / F11 / F12), M magnifier, Del / Ctrl+Z / Ctrl+Y (also after clicking outside the chart: the active chart), all rebindable in Settings → Hot keys (e2e rebinds Go to date)

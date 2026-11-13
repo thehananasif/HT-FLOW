@@ -539,7 +539,7 @@ export const SCHEMA = {
       { value: 'en-IN', label: '1,23,456.78' },
     ],
     keywords: 'decimal separator thousands locale',
-    wired: false,
+    wired: true,
   }),
   'general.dateFormat': oneOf({
     section: 'general',
@@ -603,7 +603,7 @@ export const SCHEMA = {
     label: 'Confirm before sending orders',
     help: 'Ask before every order from the Trading panel, DOM or chart.',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'general.confirmFlatten': bool({
     section: 'general',
@@ -983,12 +983,20 @@ export const SCHEMA = {
     alsoIn: ['common'],
     group: 'Rendering',
     label: 'Render / worker threads',
-    help: 'Web workers used for indicators, bar building and rendering (applied on next start).',
+    help: 'Web workers that compute chart indicators (max 8 used; applied on next start).',
     default: 2,
     min: 1,
     max: 16,
     step: 1,
-    wired: false,
+  }),
+  'performance.indicatorWorkers': bool({
+    section: 'performance',
+    alsoIn: ['common'],
+    group: 'Rendering',
+    label: 'Compute indicators in background workers',
+    help: 'Indicators without tape / feed inputs (and all user scripts) run off the main thread. Applied on next start.',
+    default: true,
+    keywords: 'worker thread pool indicator performance stage 8',
   }),
 
   // ---------------------------------------------------------------- Common settings (board 19)
@@ -1072,7 +1080,7 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'common.mboStoreRaw': bool({
     section: 'common',
@@ -1395,7 +1403,7 @@ export const SCHEMA = {
       value: v,
       label: v,
     })),
-    wired: false,
+    wired: true,
   }),
   'chart.autoScroll': bool({
     section: 'chart',
@@ -1403,7 +1411,7 @@ export const SCHEMA = {
     label: 'Auto-scroll to the latest bar',
     help: 'Keep the newest bar in view while the chart is not panned away.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.barSpacing': num({
     section: 'chart',
@@ -1450,28 +1458,28 @@ export const SCHEMA = {
     group: 'Candle colours',
     label: 'Up wick',
     help: 'Wick colour of rising candles. Empty follows the body colour.',
-    wired: false,
+    wired: true,
   }),
   'chart.wickDown': color({
     section: 'chart',
     group: 'Candle colours',
     label: 'Down wick',
     help: 'Wick colour of falling candles. Empty follows the body colour.',
-    wired: false,
+    wired: true,
   }),
   'chart.borderUp': color({
     section: 'chart',
     group: 'Candle colours',
     label: 'Up border',
     help: 'Border colour of rising candles. Empty follows the body colour.',
-    wired: false,
+    wired: true,
   }),
   'chart.borderDown': color({
     section: 'chart',
     group: 'Candle colours',
     label: 'Down border',
     help: 'Border colour of falling candles. Empty follows the body colour.',
-    wired: false,
+    wired: true,
   }),
   'chart.bgMode': oneOf({
     section: 'chart',
@@ -1634,7 +1642,7 @@ export const SCHEMA = {
     label: 'Axis labels at the crosshair',
     help: 'Show the price and time under the pointer on the axes.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.magnet': oneOf({
     section: 'chart',
@@ -1647,7 +1655,7 @@ export const SCHEMA = {
       { value: 'weak', label: 'Weak' },
       { value: 'strong', label: 'Strong' },
     ],
-    wired: false,
+    wired: true,
   }),
   'chart.legend': bool({
     section: 'chart',
@@ -1663,7 +1671,7 @@ export const SCHEMA = {
     label: 'Show status line',
     help: 'Indicator values and data status under the legend.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'chart.watermark': bool({
     section: 'chart',
@@ -1687,7 +1695,7 @@ export const SCHEMA = {
       { value: 'volume', label: 'Volume' },
       { value: 'volumeDelta', label: 'Volume + delta' },
     ],
-    wired: false,
+    wired: true,
   }),
   'footprint.colorMode': oneOf({
     section: 'footprint',
@@ -1700,19 +1708,19 @@ export const SCHEMA = {
       { value: 'delta', label: 'Delta' },
       { value: 'none', label: 'None' },
     ],
-    wired: false,
+    wired: true,
   }),
   'footprint.cellOpacity': num({
     section: 'footprint',
     group: 'Cells',
     label: 'Cell background opacity',
     help: 'Strength of the cell background colouring.',
-    default: 60,
+    default: 100,
     min: 0,
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'footprint.fontSize': num({
     section: 'footprint',
@@ -1724,19 +1732,19 @@ export const SCHEMA = {
     max: 18,
     step: 1,
     unit: 'px',
-    wired: false,
+    wired: true,
   }),
   'footprint.minCellHeight': num({
     section: 'footprint',
     group: 'Cells',
     label: 'Minimum cell height',
     help: 'Cells are hidden (bars switch to candles) when a price row would be thinner than this.',
-    default: 12,
+    default: 9,
     min: 6,
     max: 40,
     step: 1,
     unit: 'px',
-    wired: false,
+    wired: true,
   }),
   'footprint.imbalanceRatio': num({
     section: 'footprint',
@@ -1808,7 +1816,7 @@ export const SCHEMA = {
     label: 'Mark the value area',
     help: 'Outline the value area of every bar (percentage under Common settings).',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'footprint.absorptionMarkers': bool({
     section: 'footprint',
@@ -1816,7 +1824,7 @@ export const SCHEMA = {
     label: 'Absorption markers',
     help: 'Mark levels with large volume and no price progress.',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'footprint.showDeltaRow': bool({
     section: 'footprint',
@@ -1824,7 +1832,7 @@ export const SCHEMA = {
     label: 'Delta row',
     help: 'Show the bar delta under every footprint bar.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'footprint.showVolumeRow': bool({
     section: 'footprint',
@@ -1832,7 +1840,7 @@ export const SCHEMA = {
     label: 'Volume row',
     help: 'Show the bar volume under every footprint bar.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'footprint.showCumDelta': bool({
     section: 'footprint',
@@ -1840,7 +1848,7 @@ export const SCHEMA = {
     label: 'Cumulative delta row',
     help: 'Show the session cumulative delta under every footprint bar.',
     default: false,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Heatmap (P27)
@@ -2121,7 +2129,7 @@ export const SCHEMA = {
     min: 0.0001,
     max: 1_000_000,
     step: 0.0001,
-    wired: false,
+    wired: true,
   }),
   'trading.qtyPresets': str({
     section: 'trading',
@@ -2132,7 +2140,7 @@ export const SCHEMA = {
     maxLength: 80,
     pattern: /^\d+(\.\d+)?(,\d+(\.\d+)?){0,11}$/,
     patternHint: 'Up to 12 positive numbers separated by commas, e.g. 1,2,5,10',
-    wired: false,
+    wired: true,
   }),
   'trading.defaultOrderType': oneOf({
     section: 'trading',
@@ -2145,7 +2153,7 @@ export const SCHEMA = {
       { value: 'limit', label: 'Limit' },
       { value: 'stop', label: 'Stop' },
     ],
-    wired: false,
+    wired: true,
   }),
   'trading.defaultTif': oneOf({
     section: 'trading',
@@ -2159,7 +2167,7 @@ export const SCHEMA = {
       { value: 'ioc', label: 'Immediate or cancel' },
       { value: 'fok', label: 'Fill or kill' },
     ],
-    wired: false,
+    wired: true,
   }),
   'trading.oneClick': bool({
     section: 'trading',
@@ -2168,7 +2176,7 @@ export const SCHEMA = {
     help: 'Clicking the DOM or chart sends the order immediately.',
     default: true,
     keywords: 'dom click',
-    wired: false,
+    wired: true,
   }),
   'trading.orderHotkeys': bool({
     section: 'trading',
@@ -2176,7 +2184,7 @@ export const SCHEMA = {
     label: 'Order hot keys enabled',
     help: 'Allow the buy / sell / flatten hot keys. Bindings are on the Hot keys page.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'trading.slippageTicks': num({
     section: 'trading',
@@ -2188,7 +2196,7 @@ export const SCHEMA = {
     max: 1000,
     step: 1,
     unit: 'ticks',
-    wired: false,
+    wired: true,
   }),
   'trading.autoBracket': bool({
     section: 'trading',
@@ -2196,7 +2204,7 @@ export const SCHEMA = {
     label: 'Attach stop and target automatically',
     help: 'Every entry gets an OCO stop-loss and take-profit with the distances below.',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'trading.stopTicks': num({
     section: 'trading',
@@ -2208,7 +2216,7 @@ export const SCHEMA = {
     max: 10_000,
     step: 1,
     unit: 'ticks',
-    wired: false,
+    wired: true,
   }),
   'trading.targetTicks': num({
     section: 'trading',
@@ -2220,7 +2228,7 @@ export const SCHEMA = {
     max: 10_000,
     step: 1,
     unit: 'ticks',
-    wired: false,
+    wired: true,
   }),
   'trading.showOrderLines': bool({
     section: 'trading',
@@ -2228,7 +2236,7 @@ export const SCHEMA = {
     label: 'Order lines on charts',
     help: 'Draw working orders as horizontal lines you can drag.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'trading.showPositionLine': bool({
     section: 'trading',
@@ -2236,7 +2244,7 @@ export const SCHEMA = {
     label: 'Position line on charts',
     help: 'Draw the average entry price and open P&L of the position.',
     default: true,
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Data (P27)
@@ -2257,7 +2265,7 @@ export const SCHEMA = {
     label: 'Reconnect automatically',
     help: 'Reconnect a dropped live feed with back-off.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'data.reconnectMaxSec': num({
     section: 'data',
@@ -2269,7 +2277,7 @@ export const SCHEMA = {
     max: 600,
     step: 1,
     unit: 's',
-    wired: false,
+    wired: true,
   }),
   'data.timestampSource': oneOf({
     section: 'data',
@@ -2281,7 +2289,7 @@ export const SCHEMA = {
       { value: 'exchange', label: 'Exchange time' },
       { value: 'local', label: 'Local receive time' },
     ],
-    wired: false,
+    wired: true,
   }),
   'data.conflateMs': num({
     section: 'data',
@@ -2293,7 +2301,7 @@ export const SCHEMA = {
     max: 1000,
     step: 10,
     unit: 'ms',
-    wired: false,
+    wired: true,
   }),
   'data.recorderEnabled': bool({
     section: 'data',
@@ -2301,7 +2309,7 @@ export const SCHEMA = {
     label: 'Record live ticks and depth',
     help: 'Write live data to the local tick store so it can be replayed. Disk budget and retention are under Common settings.',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'data.cacheSizeMb': num({
     section: 'data',
@@ -2323,7 +2331,6 @@ export const SCHEMA = {
     label: 'Alerts enabled',
     help: 'Master switch. Off keeps your alerts but stops them from triggering.',
     default: true,
-    wired: false,
   }),
   'alerts.toast': bool({
     section: 'alerts',
@@ -2331,7 +2338,6 @@ export const SCHEMA = {
     label: 'Pop-up notification',
     help: 'Show a notification when an alert triggers.',
     default: true,
-    wired: false,
   }),
   'alerts.flashTitle': bool({
     section: 'alerts',
@@ -2339,7 +2345,6 @@ export const SCHEMA = {
     label: 'Flash the window title',
     help: 'Flash the title bar when an alert triggers while HT Flow is in the background.',
     default: false,
-    wired: false,
   }),
   'alerts.defaultRepeat': oneOf({
     section: 'alerts',
@@ -2352,7 +2357,6 @@ export const SCHEMA = {
       { value: 'every', label: 'Every time' },
       { value: 'bar', label: 'Once per bar' },
     ],
-    wired: false,
   }),
   'alerts.defaultExpiryDays': num({
     section: 'alerts',
@@ -2364,7 +2368,6 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
   }),
   'alerts.cooldownSec': num({
     section: 'alerts',
@@ -2376,7 +2379,6 @@ export const SCHEMA = {
     max: 86_400,
     step: 1,
     unit: 's',
-    wired: false,
   }),
   'alerts.maxActive': num({
     section: 'alerts',
@@ -2387,7 +2389,6 @@ export const SCHEMA = {
     min: 1,
     max: 5000,
     step: 1,
-    wired: false,
   }),
 
   // ---------------------------------------------------------------- Risk (P27)
@@ -2402,7 +2403,7 @@ export const SCHEMA = {
     max: 100_000_000,
     step: 10,
     unit: 'USD',
-    wired: false,
+    wired: true,
   }),
   'risk.maxPositionSize': num({
     section: 'risk',
@@ -2413,7 +2414,7 @@ export const SCHEMA = {
     min: 0,
     max: 10_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'risk.maxOrderSize': num({
     section: 'risk',
@@ -2424,7 +2425,7 @@ export const SCHEMA = {
     min: 0,
     max: 10_000_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'risk.maxTradesPerDay': num({
     section: 'risk',
@@ -2435,7 +2436,7 @@ export const SCHEMA = {
     min: 0,
     max: 10_000,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'risk.priceCollarTicks': num({
     section: 'risk',
@@ -2447,7 +2448,7 @@ export const SCHEMA = {
     max: 100_000,
     step: 1,
     unit: 'ticks',
-    wired: false,
+    wired: true,
   }),
   'risk.warnAtPct': num({
     section: 'risk',
@@ -2459,7 +2460,7 @@ export const SCHEMA = {
     max: 100,
     step: 5,
     unit: '%',
-    wired: false,
+    wired: true,
   }),
   'risk.onBreach': oneOf({
     section: 'risk',
@@ -2472,7 +2473,7 @@ export const SCHEMA = {
       { value: 'block', label: 'Block new orders' },
       { value: 'flatten', label: 'Flatten and block' },
     ],
-    wired: false,
+    wired: true,
   }),
   'risk.lockUntil': oneOf({
     section: 'risk',
@@ -2485,7 +2486,7 @@ export const SCHEMA = {
       { value: 'tomorrow', label: 'Until tomorrow' },
       { value: 'manual', label: 'Until I unlock' },
     ],
-    wired: false,
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Privacy & security
@@ -2518,7 +2519,7 @@ export const SCHEMA = {
     label: 'Mask account numbers',
     help: 'Show only the last four characters of account ids in tables and the journal.',
     default: true,
-    wired: false,
+    wired: true,
   }),
   'privacy.hideBalances': bool({
     section: 'privacy',
@@ -2526,7 +2527,7 @@ export const SCHEMA = {
     label: 'Hide balances',
     help: 'Replace account balances and P&L totals with dots (streaming / screen sharing).',
     default: false,
-    wired: false,
+    wired: true,
   }),
   'privacy.clearOnLogout': bool({
     section: 'privacy',

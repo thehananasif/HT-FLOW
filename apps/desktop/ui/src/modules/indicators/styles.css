@@ -252,3 +252,22 @@
   margin: 0;
   padding: 0;
 }
+.ind-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.ind-alert-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ht-border);
+  width: 100%;
+}
+.ind-alert-row .ht-input {
+  height: 28px;
+  width: 110px;
+}
