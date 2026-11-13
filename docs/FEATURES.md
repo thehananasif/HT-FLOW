@@ -30,7 +30,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Combobox (searchable, async, free text), FontPicker (bundled + common system fonts), LineStylePicker (`dashPattern()` for canvas)
 - [x] Tooltip, ContextMenu (nested submenus, icons, shortcuts, checkmarks), DropdownMenu, Dialog, Toast, Badge, Kbd, EmptyState, Skeleton, StatusPill
 - [x] MenuSlider (and slider menu entries), Sheet, virtualized Table (sort, fixed header, single / multi selection, keyboard), TreeView (tri-state checkboxes), SplitPane (keyboard, min sizes, ratio callback); all in the UI Gallery
-- [ ] Popovers are plain positioned panels (no Radix Popover; can clip in `overflow: hidden`); Table has fixed row heights, no column resize / reorder; local fonts not enumerated
+- [x] `Popover` renders through a portal on `document.body` (never clipped by `overflow: hidden`), own flip / shift positioning (`computePopover`), Esc / outside click close; Table: column resize (drag header edge, double-click resets), reorder (drag a header or Alt+←/→), widths / order saved per `tableId` in settings (`common.tableLayouts`), still virtualised
+- [ ] Table has fixed row heights; local fonts not enumerated; existing ad-hoc popovers (heatmap quick settings, instrument picker) not yet migrated to `Popover`
 - [x] Custom title bar (draggable, logo, workspace name, account menu, min / max / close)
 - [x] Ribbon with all groups from APP LAYOUT, horizontal scroll, collapse to icons (command "Ribbon: icons only")
 - [x] Ribbon: right-click Hide button / Customize ribbon… (show / hide, drag or keyboard reorder, reset), saved per user
@@ -209,7 +210,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## P20 — Tables group
 
 - [x] Accounts (masked ids, risk pill, total equity), Positions (Close / Reverse / Flatten all), Orders (OCO marker and group, Modify, cancel / cancel all), Trades (ms time, commission, realized) on a shared virtualised DataTable: column chooser, sort, per-column filters (text and `>` / `<=` / `=`), grouping, saved views, CSV export
-- [ ] XLSX export; inline order modify (price prompt today); Connect account button (no broker connector yet)
+- [x] XLSX export (☰ → Export XLSX, own minimal writer: store-only ZIP + CRC-32, no dependency, honours filters and visible columns); inline order modify in Orders (double-click Price / Qty or Modify, Enter applies via paper `modify`, Esc cancels)
+- [ ] Connect account button (no broker connector yet); DataTable (the P20 tables) does not yet have column resize / reorder (only the ui-kit `Table` does)
 - [x] Trading Activity: fills, brackets, cancels, rejections, locks / unlocks, risk warnings, alert firings, connection errors; 90-day / 5,000-event rolling log per user; `activityLog.add()` API
 - [x] Trading Journal (P36): R multiple, expectancy ($ and R), long / short win rate, break-evens, commission, max DD ($, %, date), best setup, equity curve with drawdown, calendar heatmap, MAE / MFE from the tape, tags / notes / rating / image attachments, manual entries, CSV export; validated against 500 paper trades
 - [x] Automatic chart snapshots at entry / exit attached to journal trades (per chart: strategy trades / all / off); backtest trades import into the journal tagged `backtest`

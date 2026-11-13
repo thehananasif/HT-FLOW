@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { toast } from '@htflow/ui-kit';
 import { formatPrice } from '@htflow/market-data';
 import type { Account, Fill, Order, Position } from '@htflow/trading';
 import { hub, paper } from '../../state/market';
@@ -8,6 +9,7 @@ import { registerModule, type ModuleViewProps } from '../registry';
 import { risk } from '../risk/engine';
 import { fmtClock, useTimeFormat } from '../../state/format';
 import { confirmAction } from '../../state/confirm';
+import { editsStop, parseModify, type ModifyField } from './inlineModify';
 
 /** Re-renders on every paper-engine event (fills land in all tables in the same frame). */
 function useTicker(ms = 500) {
@@ -312,20 +314,88 @@ const statusTone = (o: Order) =>
         ? 'muted'
         : 'info';
 
-function modify(o: Order) {
-  const i = instrumentById(o.instrumentId);
-  if (!i) return;
-  const isStop = o.type === 'stop' || (o.type === 'stop-limit' && o.px === undefined);
-  const cur = isStop ? o.stopPx : o.px;
-  const v = window.prompt(
-    `New ${isStop ? 'stop' : 'limit'} price for ${i.symbol}`,
-    cur === undefined ? '' : formatPrice(cur, i),
+const EDIT_EVENT = 'ht-order-edit';
+/** Starts inline editing of an order cell (Modify button, command palette). */
+const requestEdit = (id: string, field: ModifyField) =>
+  window.dispatchEvent(new CustomEvent(EDIT_EVENT, { detail: { id, field } }));
+
+/**
+ * Price / Qty cell of a working order: double-click (or Modify) to edit in place, Enter applies
+ * through the paper engine's modify, Esc or leaving the cell cancels.
+ */
+function InlineEdit({ o, field, display }: { o: Order; field: ModifyField; display: ReactNode }) {
+  const [text, setText] = useState<string | null>(null);
+  const [bad, setBad] = useState(false);
+  const inst = instrumentById(o.instrumentId);
+  const working = isWorking(o);
+  const initial = () => {
+    if (field === 'qty') return String(o.qty);
+    const cur = editsStop(o) ? o.stopPx : o.px;
+    return cur === undefined || !inst ? '' : formatPrice(cur, inst);
+  };
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ id: string; field: ModifyField }>).detail;
+      if (d.id === o.id && d.field === field && working) {
+        setBad(false);
+        setText(initial());
+      }
+    };
+    window.addEventListener(EDIT_EVENT, on);
+    return () => window.removeEventListener(EDIT_EVENT, on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [o.id, field, working]);
+
+  if (text === null || !working)
+    return (
+      <span
+        className={working ? 'dt-editable' : undefined}
+        title={working ? 'Double-click to edit, Enter applies' : undefined}
+        data-testid={`order-${field}-${o.id}`}
+        onDoubleClick={
+          working
+            ? (e) => {
+                e.stopPropagation();
+                setBad(false);
+                setText(initial());
+              }
+            : undefined
+        }
+      >
+        {display}
+      </span>
+    );
+  const apply = () => {
+    const ch = inst ? parseModify(o, inst.tickSize, field, text) : null;
+    if (!ch) return setBad(true);
+    if (!paper.modify(o.id, ch))
+      toast('warning', 'Order not modified', 'The engine rejected the new value.');
+    setText(null);
+  };
+  return (
+    <input
+      className="dt-inline-input tnum"
+      aria-label={field === 'qty' ? 'Order quantity' : 'Order price'}
+      aria-invalid={bad || undefined}
+      data-testid={`order-${field}-input`}
+      value={text}
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => {
+        setBad(false);
+        setText(e.target.value);
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onBlur={() => setText(null)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          apply();
+        } else if (e.key === 'Escape') setText(null);
+      }}
+    />
   );
-  if (v === null) return;
-  const p = parseFloat(v);
-  if (!Number.isFinite(p) || p <= 0) return;
-  const ticks = Math.round(p / i.tickSize);
-  paper.modify(o.id, isStop ? { stopPx: ticks } : { px: ticks });
 }
 
 const orderCols: DataColumn<Order>[] = [
@@ -362,7 +432,13 @@ const orderCols: DataColumn<Order>[] = [
     width: 0.7,
     align: 'right',
     value: (o) => o.qty,
-    render: (o) => (o.filled && o.filled < o.qty ? `${o.filled}/${o.qty}` : o.qty),
+    render: (o) => (
+      <InlineEdit
+        o={o}
+        field="qty"
+        display={o.filled && o.filled < o.qty ? `${o.filled}/${o.qty}` : o.qty}
+      />
+    ),
   },
   {
     id: 'price',
@@ -370,8 +446,16 @@ const orderCols: DataColumn<Order>[] = [
     width: 0.9,
     align: 'right',
     value: (o) => o.px ?? o.stopPx ?? o.avgFillPx,
-    render: (o) =>
-      px(o.instrumentId, o.px ?? o.stopPx ?? (o.status === 'filled' ? o.avgFillPx : undefined)),
+    render: (o) => (
+      <InlineEdit
+        o={o}
+        field="price"
+        display={px(
+          o.instrumentId,
+          o.px ?? o.stopPx ?? (o.status === 'filled' ? o.avgFillPx : undefined),
+        )}
+      />
+    ),
   },
   {
     id: 'tif',
@@ -419,7 +503,7 @@ const orderCols: DataColumn<Order>[] = [
     render: (o) =>
       isWorking(o) ? (
         <>
-          <button className="dt-cell-btn" onClick={() => modify(o)}>
+          <button className="dt-cell-btn" onClick={() => requestEdit(o.id, 'price')}>
             Modify
           </button>
           <button

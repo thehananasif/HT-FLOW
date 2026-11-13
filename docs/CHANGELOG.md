@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 4
+
+### Added
+
+- ui-kit `Table`: column resize and reorder with per-table persistence (`tableId`, setting `common.tableLayouts`, reset command and Settings editor); ui-kit `Popover` with portal rendering and flip / shift positioning.
+- Tables (P20): XLSX export from every table's menu (own minimal OOXML writer, no new dependency) and inline order modify (edit price / qty in the Orders table, Enter applies).
+
 ## Unreleased — round 3
 
 ### Changed

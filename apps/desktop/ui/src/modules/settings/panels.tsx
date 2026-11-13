@@ -1,7 +1,7 @@
 /** Editors and panels of the later Settings pages: data providers, custom modules, About, Logs. */
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Copy, Download, Plus, Trash2 } from 'lucide-react';
-import { Badge, Button, toast } from '@htflow/ui-kit';
+import { Badge, Button, toast, type ColumnLayout } from '@htflow/ui-kit';
 import { backend } from '../../backend';
 import { feedProviders } from '../../feeds/registry';
 import { moduleDef } from '../../shell/modules';
@@ -368,6 +368,49 @@ export function LogPanel({ level }: { level: LogLevel }) {
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ table column layouts
+
+export function TableLayoutsEditor({ value, onChange }: EditorProps<Record<string, ColumnLayout>>) {
+  const ids = Object.keys(value).sort();
+  return (
+    <div className="st-folders" data-testid="table-layouts">
+      {ids.length === 0 ? (
+        <p className="muted st-note">
+          No saved layouts. Drag a table header edge to resize a column, or drag a header to
+          reorder.
+        </p>
+      ) : (
+        <ul className="st-folder-list">
+          {ids.map((id) => (
+            <li key={id}>
+              <span className="grow">
+                {id} · {value[id]!.order.length} ordered · {Object.keys(value[id]!.widths).length}{' '}
+                resized
+              </span>
+              <button
+                className="ht-icon-btn"
+                aria-label={`Reset layout of ${id}`}
+                onClick={() => {
+                  const next = { ...value };
+                  delete next[id];
+                  onChange(next);
+                }}
+              >
+                <Trash2 size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ids.length > 0 && (
+        <Button size="sm" variant="outline" onClick={() => onChange({})}>
+          Reset all table layouts
+        </Button>
+      )}
     </div>
   );
 }

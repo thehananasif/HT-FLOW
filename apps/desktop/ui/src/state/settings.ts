@@ -10,7 +10,13 @@
  * `onSettingChange(key, fn)` (anywhere).
  */
 import { create } from 'zustand';
-import { THEMES, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
+import {
+  THEMES,
+  sanitizeLayout,
+  type ColumnLayout,
+  type ThemeName,
+  type ThemeTokens,
+} from '@htflow/ui-kit';
 import { backend, type SessionInfo } from '../backend';
 import { useSession } from './session';
 import { normalizeShortcut, type HotkeyOverrides, type HotkeyScope } from '../shell/commands';
@@ -239,7 +245,8 @@ export interface CustomDef<T> extends BaseDef<T> {
     | 'clocks'
     | 'providers'
     | 'moduleToggles'
-    | 'moduleFolders';
+    | 'moduleFolders'
+    | 'tableLayouts';
   /** Returns the cleaned value, or undefined when invalid. */
   validate(v: unknown): T | undefined;
 }
@@ -423,6 +430,20 @@ function validateClocks(v: unknown): string[] | undefined {
   if (!Array.isArray(v) || v.length > 20) return undefined;
   if (!v.every((x) => typeof x === 'string' && /^[a-z0-9-]{1,32}$/.test(x))) return undefined;
   return [...new Set(v as string[])];
+}
+
+/** Column order / widths of every table that has a table id (ui-kit Table). */
+function validateTableLayouts(v: unknown): Record<string, ColumnLayout> | undefined {
+  if (!isObj(v)) return undefined;
+  const entries = Object.entries(v);
+  if (entries.length > 100) return undefined;
+  const out: Record<string, ColumnLayout> = {};
+  for (const [id, raw] of entries) {
+    if (!/^[a-z0-9._-]{1,64}$/i.test(id) || !isObj(raw)) return undefined;
+    const l = sanitizeLayout(raw);
+    if (l.order.length || Object.keys(l.widths).length) out[id] = l;
+  }
+  return out;
 }
 
 const KNOWN_PROVIDERS = ['binance-futures', 'bybit-linear', 'replay', 'mock'];
@@ -1301,6 +1322,16 @@ export const SCHEMA = {
     label: 'Skip confirmations in tables',
     help: 'Cancel / close from the Orders and Positions tables without asking.',
     default: false,
+  }),
+  'common.tableLayouts': custom<Record<string, ColumnLayout>>({
+    section: 'common',
+    group: 'Tables',
+    label: 'Table column layouts',
+    help: 'Column widths and order of each table, saved when you drag a header edge or a header. Reset one table or all of them.',
+    default: {},
+    editor: 'tableLayouts',
+    validate: validateTableLayouts,
+    keywords: 'table column resize reorder width order',
   }),
   'common.crossTrading': bool({
     section: 'common',
