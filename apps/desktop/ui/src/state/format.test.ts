@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatDate, formatDateTime, type TimeFormatOptions } from './format';
+import {
+  formatClock,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatNumber,
+  HIDDEN_MONEY,
+  maskAccount,
+  type TimeFormatOptions,
+} from './format';
 
 // 2026-03-31 14:05:09.042 UTC
 const TS = Date.UTC(2026, 2, 31, 14, 5, 9, 42);
@@ -40,5 +49,21 @@ describe('time zone', () => {
   });
   it('falls back to UTC for an invalid zone', () => {
     expect(formatClock(TS, { ...base, zone: 'Not/AZone' })).toBe('14:05:09');
+  });
+});
+
+describe('number format and privacy (Settings → General / Privacy)', () => {
+  it('formats numbers with the chosen separators', () => {
+    expect(formatNumber(1234.5, 'en-US')).toBe('1,234.50');
+    expect(formatNumber(1234.5, 'de-DE')).toBe('1.234,50');
+    expect(formatNumber(123456.78, 'en-IN')).toBe('1,23,456.78');
+    expect(formatNumber(1234.5, 'fr-FR').replace(/\s/g, ' ')).toBe('1 234,50');
+  });
+
+  it('hides balances and masks account ids', () => {
+    expect(formatMoney(-1234.5, { locale: 'en-US', hide: false })).toBe('−$1,234.50');
+    expect(formatMoney(-1234.5, { locale: 'en-US', hide: true })).toBe(HIDDEN_MONEY);
+    expect(maskAccount('paper-3505', true)).toBe('••••3505');
+    expect(maskAccount('paper-3505', false)).toBe('paper-3505');
   });
 });

@@ -20,6 +20,19 @@ function setup(condition: AlertCondition, patch = {}) {
 }
 const t = (px: number, qty = 1, side = 'buy', ts = 0): TradeLike => ({ ts, px, qty, side });
 
+describe('alerts master switch', () => {
+  it('a paused engine keeps alerts but never fires them', () => {
+    const a = setup({ kind: 'price-cross', instrumentId: 'X', px: 100, direction: 'any' });
+    a.eng.paused = true;
+    a.eng.onTrades('X', [t(99), t(101)]);
+    expect(a.fires).toHaveLength(0);
+    expect(a.eng.list()).toHaveLength(1);
+    a.eng.paused = false;
+    a.eng.onTrades('X', [t(99)]);
+    expect(a.fires).toHaveLength(1);
+  });
+});
+
 describe('alert conditions — every type fires', () => {
   it('price cross (up / down / any) is edge-triggered', () => {
     const a = setup({ kind: 'price-cross', instrumentId: 'X', px: 100, direction: 'up' });

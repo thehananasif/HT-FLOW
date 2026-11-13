@@ -16,7 +16,15 @@ import { allInstruments, DEFAULT_INSTRUMENT, instrumentById } from '../../state/
 import { activeInstrument } from '../../state/windows';
 import { isTauri } from '../../backend';
 import { registerModule } from '../registry';
-import { alerts, describe, ensureNotificationPermission } from './runtime';
+import {
+  addAlert,
+  alertDefaults,
+  alertSettings,
+  alerts,
+  describe,
+  ensureNotificationPermission,
+} from './runtime';
+import { useSetting } from '../../state/settings';
 import './styles.css';
 
 const KINDS: { id: AlertKind; label: string }[] = [
@@ -79,9 +87,21 @@ function NewAlertForm() {
     desktop: false,
     log: true,
   });
-  const [cooldown, setCooldown] = useState(30_000);
-  const [expiry, setExpiry] = useState(0);
-  const [maxTriggers, setMaxTriggers] = useState('0');
+  // Settings → Alerts: repeat, cooldown and expiry defaults (live).
+  const repeat = useSetting('alerts.defaultRepeat');
+  const cdSec = useSetting('alerts.cooldownSec');
+  const expDays = useSetting('alerts.defaultExpiryDays');
+  const defs = alertDefaults({ repeat, cooldownSec: cdSec, expiryDays: expDays }, 0);
+  const expiryOpts = expDays > 0 ? [...EXPIRY, { label: `${expDays} days`, ms: expDays * 86_400_000 }] : EXPIRY;
+  const cooldownOpts = [...new Set([...COOLDOWNS, defs.cooldownMs])].sort((a, b) => a - b);
+  const [cooldown, setCooldown] = useState(defs.cooldownMs);
+  const [expiry, setExpiry] = useState(expDays > 0 ? EXPIRY.length : 0);
+  const [maxTriggers, setMaxTriggers] = useState(String(defs.maxTriggers));
+  useEffect(() => {
+    setCooldown(defs.cooldownMs);
+    setMaxTriggers(String(defs.maxTriggers));
+    setExpiry(expDays > 0 ? EXPIRY.length : 0);
+  }, [defs.cooldownMs, defs.maxTriggers, expDays]);
   const i = instrumentById(inst);
   const v = parseFloat(value);
   let cond: AlertCondition;
@@ -118,10 +138,10 @@ function NewAlertForm() {
     if (actions.desktop && !(await ensureNotificationPermission()))
       toast('warning', 'Desktop notifications are blocked', 'The other actions still run.');
     const now = Date.now();
-    const e = EXPIRY[expiry]!.ms;
+    const e = (expiryOpts[expiry] ?? EXPIRY[0]!).ms;
     const end = new Date();
     end.setHours(23, 59, 59, 999);
-    alerts.add(
+    const added = addAlert(
       newAlert(cond, {
         actions,
         cooldownMs: cooldown,
@@ -129,6 +149,7 @@ function NewAlertForm() {
         expiresAt: e === null ? null : e < 0 ? end.getTime() : now + e,
       }),
     );
+    if (!added) return;
     setValue('');
     toast('success', 'Alert created', describe(cond));
   };
@@ -261,7 +282,7 @@ function NewAlertForm() {
           value={cooldown}
           onChange={(e) => setCooldown(Number(e.target.value))}
         >
-          {COOLDOWNS.map((c) => (
+          {cooldownOpts.map((c) => (
             <option key={c} value={c}>
               Cooldown {c === 0 ? 'none' : c < 60_000 ? `${c / 1000} s` : `${c / 60_000} min`}
             </option>
@@ -273,7 +294,7 @@ function NewAlertForm() {
           value={expiry}
           onChange={(e) => setExpiry(Number(e.target.value))}
         >
-          {EXPIRY.map((x, k) => (
+          {expiryOpts.map((x, k) => (
             <option key={x.label} value={k}>
               Expires: {x.label}
             </option>
@@ -408,10 +429,14 @@ registerChartExtension({
         id: 'alerts-set',
         label: `Set alert at ${label}`,
         onSelect: () => {
-          alerts.add(
-            newAlert({ kind: 'price-cross', instrumentId: inst.id, px, direction: 'any' }),
+          const ok = addAlert(
+            newAlert(
+              { kind: 'price-cross', instrumentId: inst.id, px, direction: 'any' },
+              alertDefaults(alertSettings()),
+            ),
           );
-          toast('success', 'Alert created', `${inst.symbol} price crosses ${label}`);
+          if (ok)
+            toast('success', 'Alert created', `${inst.symbol} price crosses ${label}`);
         },
       },
     ];
