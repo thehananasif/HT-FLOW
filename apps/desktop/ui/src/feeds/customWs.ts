@@ -6,8 +6,9 @@ import { CustomWsFeed } from '../modules/connections/customWsFeed';
 
 /**
  * "Custom WebSocket" connections (P05). Instrument ids are `custom-ws:<connectionId>:<symbol>`;
- * the connection (URL, subscribe message, mapping) comes from the Connections store. Uses the
- * browser WebSocket; in the desktop app the webview CSP must allow ws(s) (see docs/BLOCKERS.md).
+ * the connection (URL, subscribe message, mapping) comes from the Connections store. The desktop
+ * app relays the socket through the Rust core (`custom_ws_*` commands, see nativeWs.ts) because
+ * the webview CSP blocks ws(s); the web build uses the browser WebSocket.
  */
 export const CUSTOM_WS_PREFIX = 'custom-ws:';
 

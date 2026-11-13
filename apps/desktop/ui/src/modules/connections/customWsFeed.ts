@@ -7,6 +7,7 @@ import type {
 } from '@htflow/market-data';
 import { reconnectDelayMs } from '../../state/feedTuning';
 import { instrumentOf, mapFrame, renderSubscribe, type CustomWsConfig } from './customWs';
+import { openWs, pickWsCtor } from './nativeWs';
 
 /** Minimal WebSocket surface used here (the browser class, or a fake in tests). */
 export interface WsLike {
@@ -21,6 +22,7 @@ export interface WsLike {
 export type WsCtor = new (url: string) => WsLike;
 
 export interface WsFeedOptions {
+  /** Transport; default: the native core relay in the desktop app, else the browser WebSocket. */
   ctor?: WsCtor;
   now?: () => number;
   /** Re-connect back-off ceiling in seconds (default 30). */
@@ -29,13 +31,17 @@ export interface WsFeedOptions {
   jitter?: number;
 }
 
-const globalCtor = (): WsCtor | undefined =>
-  typeof WebSocket === 'undefined' ? undefined : (WebSocket as unknown as WsCtor);
+const errorText = (ev: unknown): string | undefined =>
+  ev && typeof ev === 'object' && typeof (ev as { message?: unknown }).message === 'string'
+    ? (ev as { message: string }).message
+    : undefined;
 
 /**
  * A FeedSource for a user-defined JSON WebSocket: connects, sends the subscribe message, maps every
  * frame with the user's mapping, reports status and reconnects with exponential back-off
  * (0.5 s, 1 s, 2 s … up to 30 s plus jitter). It has no history; charts start empty and fill live.
+ * In the desktop app the socket is opened by the Rust core (see nativeWs.ts), because the webview
+ * CSP blocks ws(s) URLs; the web build uses the browser WebSocket.
  */
 export class CustomWsFeed implements FeedSource {
   readonly kind = 'live' as const;
@@ -53,6 +59,7 @@ export class CustomWsFeed implements FeedSource {
   private perSec = 0;
   private lastTs = 0;
   private nextId = 0;
+  private lastError: string | undefined;
   private status_: FeedStatus = { state: 'disconnected', latencyMs: 0, msgsPerSec: 0 };
   private readonly now: () => number;
 
@@ -140,7 +147,7 @@ export class CustomWsFeed implements FeedSource {
   }
 
   private connect(): void {
-    const Ctor = this.opts.ctor ?? globalCtor();
+    const Ctor = this.opts.ctor ?? pickWsCtor();
     if (!Ctor) {
       this.emit({
         state: 'error',
@@ -162,8 +169,10 @@ export class CustomWsFeed implements FeedSource {
       message: this.attempt ? `Reconnecting (attempt ${this.attempt})…` : 'Connecting…',
     });
     let ws: WsLike;
+    let sentSubscribe: boolean;
+    this.lastError = undefined;
     try {
-      ws = new Ctor(this.config.url);
+      ({ ws, sentSubscribe } = openWs(Ctor, this.config.url, sub.text ?? ''));
     } catch (e) {
       this.emit({
         state: 'error',
@@ -177,7 +186,7 @@ export class CustomWsFeed implements FeedSource {
     this.ws = ws;
     ws.onopen = () => {
       if (this.ws !== ws) return;
-      if (sub.text) ws.send(sub.text);
+      if (sub.text && !sentSubscribe) ws.send(sub.text);
       this.emit({ state: 'live', latencyMs: 0, msgsPerSec: this.perSec, message: 'Connected' });
     };
     ws.onmessage = (ev) => {
@@ -192,8 +201,9 @@ export class CustomWsFeed implements FeedSource {
       if (this.lastTs) this.status_ = { ...this.status_, latencyMs: Math.max(0, t - this.lastTs) };
       for (const l of this.batchL) l(b);
     };
-    ws.onerror = () => {
-      // `close` follows and handles the reconnect.
+    ws.onerror = (ev) => {
+      // `close` follows and handles the reconnect; keep the reason (native transport) for it.
+      if (this.ws === ws) this.lastError = errorText(ev);
     };
     ws.onclose = () => {
       if (this.ws !== ws) return;
@@ -211,7 +221,7 @@ export class CustomWsFeed implements FeedSource {
       state: 'error',
       latencyMs: 0,
       msgsPerSec: 0,
-      message: `Disconnected, retrying in ${(delay / 1000).toFixed(1)} s`,
+      message: `${this.lastError ?? 'Disconnected'}, retrying in ${(delay / 1000).toFixed(1)} s`,
     });
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -231,11 +241,13 @@ export function testCustomWs(
   opts: { ctor?: WsCtor; timeoutMs?: number } = {},
 ): Promise<WsTestResult> {
   return new Promise((resolve) => {
-    const Ctor = opts.ctor ?? globalCtor();
+    const Ctor = opts.ctor ?? pickWsCtor();
     if (!Ctor) return resolve({ ok: false, text: 'WebSocket is not available here' });
     const sub = renderSubscribe(cfg.subscribe ?? '', cfg.symbol);
     if (sub.error) return resolve({ ok: false, text: sub.error });
     let ws: WsLike;
+    let sentSubscribe = false;
+    let error: string | undefined;
     let opened = 0;
     let frames = 0;
     const t0 = Date.now();
@@ -264,7 +276,7 @@ export function testCustomWs(
       opts.timeoutMs ?? 8000,
     );
     try {
-      ws = new Ctor(cfg.url);
+      ({ ws, sentSubscribe } = openWs(Ctor, cfg.url, sub.text ?? ''));
     } catch (e) {
       clearTimeout(timer);
       return resolve({
@@ -274,7 +286,7 @@ export function testCustomWs(
     }
     ws.onopen = () => {
       opened = Date.now() - t0;
-      if (sub.text) ws.send(sub.text);
+      if (sub.text && !sentSubscribe) ws.send(sub.text);
     };
     ws.onmessage = (ev) => {
       if (typeof ev.data !== 'string') return;
@@ -286,11 +298,13 @@ export function testCustomWs(
           text: `OK · connected in ${opened} ms · first message mapped: ${b.trades.length} trade${b.trades.length === 1 ? '' : 's'}${b.snapshot || b.deltas.length ? ' + book' : ''}`,
         });
     };
-    ws.onerror = () => undefined;
+    ws.onerror = (ev) => {
+      error = errorText(ev);
+    };
     ws.onclose = () =>
       finish({
         ok: false,
-        text: opened ? 'The server closed the connection' : 'Could not connect',
+        text: opened ? 'The server closed the connection' : (error ?? 'Could not connect'),
       });
   });
 }
