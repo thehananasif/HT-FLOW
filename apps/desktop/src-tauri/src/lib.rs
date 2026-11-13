@@ -3,8 +3,11 @@
 
 mod auth_cmds;
 mod crash;
+mod custom_ws;
 mod data_cmds;
 mod error;
+mod history;
+mod history_cache;
 mod market_cmds;
 mod net_cmds;
 mod openfile;
@@ -47,11 +50,18 @@ pub fn run() {
                 &root,
             )?));
             app.manage(auth_cmds::AuthState {
-                store: Arc::new(ProfileStore::new(root, KdfParams::PRODUCTION)),
+                store: Arc::new(ProfileStore::new(root.clone(), KdfParams::PRODUCTION)),
                 session: Arc::new(Mutex::new(None)),
                 locked: AtomicBool::new(false),
             });
+            app.manage(history_cache::CacheState(Arc::new(
+                history_cache::HistoryCache::open(
+                    root.join("cache").join("history"),
+                    u64::from(history_cache::DEFAULT_MAX_MB) * 1024 * 1024,
+                ),
+            )));
             app.manage(market_cmds::MarketState::default());
+            app.manage(custom_ws::CustomWsState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -72,10 +82,17 @@ pub fn run() {
             auth_cmds::vault_put,
             auth_cmds::vault_get,
             market_cmds::market_history,
+            market_cmds::market_history_range,
+            history_cache::history_cache_set,
+            history_cache::history_cache_status,
+            history_cache::history_cache_clear,
             market_cmds::market_subscribe,
             market_cmds::market_unsubscribe,
             net_cmds::net_fetch_text,
             net_cmds::net_post_json,
+            custom_ws::custom_ws_open,
+            custom_ws::custom_ws_send,
+            custom_ws::custom_ws_close,
             market_cmds::market_test,
             market_cmds::market_options_chain,
             data_cmds::recorder_set,

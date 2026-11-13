@@ -23,6 +23,12 @@ const t = (ts: number, px: number, qty = 1, side: Trade['side'] = 'buy'): Trade 
 /** Prices at 1 ms apart, 1 lot buys. */
 const prices = (...pxs: number[]) => pxs.map((px, i) => t(i, px));
 const ohlc = (bars: Bar[]) => bars.map((b) => [b.o, b.h, b.l, b.c]);
+/**
+ * The equivalence tests below replay an hour of simulated prints through every bar type. They are
+ * functional checks, not timing checks: under a loaded CI runner (all suites in parallel) one of
+ * them can take several seconds, so they get a generous timeout instead of the 5 s default (P29).
+ */
+const HEAVY_MS = 60_000;
 const build = (spec: BarSpec, trades: Trade[]) => BarSeries.build(spec, trades).bars;
 
 describe('range variants', () => {
@@ -259,34 +265,38 @@ describe('incremental equals full recompute', () => {
   });
 
   for (const spec of specs) {
-    it(`${specLabel(spec)} (${specKey(spec)})`, () => {
-      const bulk = BarSeries.build(spec, trades);
-      const inc = new BarSeries(spec);
-      // random-ish chunk sizes, including single trades
-      let i = 0;
-      let k = 1;
-      while (i < trades.length) {
-        inc.addAll(trades.slice(i, i + k));
-        i += k;
-        k = (k * 7 + 3) % 53;
-        if (k === 0) k = 1;
-      }
-      expect(bulk.bars.length).toBeGreaterThan(0);
-      expect(snap(inc.bars)).toEqual(snap(bulk.bars));
-      // the columnar path is identical too
-      const col = new BarSeries(spec);
-      col.addColumns({
-        ts: Float64Array.from(trades, (x) => x.ts),
-        px: Int32Array.from(trades, (x) => x.px),
-        qty: Float64Array.from(trades, (x) => x.qty),
-        side: Int8Array.from(trades, (x) => (x.side === 'buy' ? 1 : x.side === 'sell' ? -1 : 0)),
-      });
-      expect(snap(col.bars)).toEqual(snap(bulk.bars));
-      if (spec.kind !== 'cumtrades') {
-        const vol = trades.reduce((a, x) => a + x.qty, 0);
-        expect(bulk.bars.reduce((a, b) => a + b.vol, 0)).toBeCloseTo(vol, 6);
-      }
-    });
+    it(
+      `${specLabel(spec)} (${specKey(spec)})`,
+      () => {
+        const bulk = BarSeries.build(spec, trades);
+        const inc = new BarSeries(spec);
+        // random-ish chunk sizes, including single trades
+        let i = 0;
+        let k = 1;
+        while (i < trades.length) {
+          inc.addAll(trades.slice(i, i + k));
+          i += k;
+          k = (k * 7 + 3) % 53;
+          if (k === 0) k = 1;
+        }
+        expect(bulk.bars.length).toBeGreaterThan(0);
+        expect(snap(inc.bars)).toEqual(snap(bulk.bars));
+        // the columnar path is identical too
+        const col = new BarSeries(spec);
+        col.addColumns({
+          ts: Float64Array.from(trades, (x) => x.ts),
+          px: Int32Array.from(trades, (x) => x.px),
+          qty: Float64Array.from(trades, (x) => x.qty),
+          side: Int8Array.from(trades, (x) => (x.side === 'buy' ? 1 : x.side === 'sell' ? -1 : 0)),
+        });
+        expect(snap(col.bars)).toEqual(snap(bulk.bars));
+        if (spec.kind !== 'cumtrades') {
+          const vol = trades.reduce((a, x) => a + x.qty, 0);
+          expect(bulk.bars.reduce((a, b) => a + b.vol, 0)).toBeCloseTo(vol, 6);
+        }
+      },
+      HEAVY_MS,
+    );
   }
 });
 
@@ -304,20 +314,24 @@ describe('feed capabilities', () => {
 });
 
 describe('clusters carry the bar totals (renderers never recompute)', () => {
-  it('cluster volume and delta equal bar volume and delta for every type', () => {
-    const feed = new MockFeed('CLZ6', { seed: 5, historyHours: 1, depthMinutes: 1, now: 1.7e12 });
-    const { trades } = feed.historySync();
-    for (const spec of TIMEFRAME_PRESETS.flatMap((r) => r.specs)) {
-      for (const b of BarSeries.build(spec, trades).bars) {
-        let vol = 0;
-        let delta = 0;
-        for (const c of b.clusters.values()) {
-          vol += c.bid + c.ask;
-          delta += c.ask - c.bid;
+  it(
+    'cluster volume and delta equal bar volume and delta for every type',
+    () => {
+      const feed = new MockFeed('CLZ6', { seed: 5, historyHours: 1, depthMinutes: 1, now: 1.7e12 });
+      const { trades } = feed.historySync();
+      for (const spec of TIMEFRAME_PRESETS.flatMap((r) => r.specs)) {
+        for (const b of BarSeries.build(spec, trades).bars) {
+          let vol = 0;
+          let delta = 0;
+          for (const c of b.clusters.values()) {
+            vol += c.bid + c.ask;
+            delta += c.ask - c.bid;
+          }
+          expect(vol).toBeCloseTo(b.vol, 6);
+          expect(delta).toBeCloseTo(b.delta, 6);
         }
-        expect(vol).toBeCloseTo(b.vol, 6);
-        expect(delta).toBeCloseTo(b.delta, 6);
       }
-    }
-  });
+    },
+    HEAVY_MS,
+  );
 });

@@ -34,7 +34,8 @@ import {
   autoLoadsHistory,
   lazySpanMs,
   loadChunks,
-  missingHistoryMs,
+  openLoadChunks,
+  progressLabel,
   normalizeLoadDays,
   spanLabel,
 } from './history';
@@ -283,7 +284,13 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     if (!store.ready || !autoLoadsHistory(store.feedKind, !!store.olderLoader)) return;
     let stop = false;
     void (async () => {
-      const chunks = loadChunks(missingHistoryMs(store.trades[0]?.ts, store.lastTs, loadDays));
+      const chunks = openLoadChunks(
+        store.trades[0]?.ts,
+        store.lastTs,
+        loadDays,
+        // Long timeframes load enough bars on live feeds (klines keep that cheap).
+        store.feedKind === 'live' ? (handle.current?.periodMs ?? undefined) : undefined,
+      );
       for (const span of chunks) {
         if (stop || store.historyExhausted) break;
         setOlderNote(`Loading history (${loadDays} days)…`);
@@ -295,7 +302,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     return () => {
       stop = true;
     };
-  }, [store, store.ready, loadDays]);
+  }, [store, store.ready, loadDays, built]);
 
   const loadOneMoreDay = () => {
     if (!store.olderLoader) return toast('info', 'No older history from this feed');
@@ -668,7 +675,8 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             />
           </label>
           <span className="muted" data-testid="history-range">
-            {olderNote ??
+            {(store.historyProgress && progressLabel(store.historyProgress)) ??
+              olderNote ??
               (s.template === 'liquidity-map'
                 ? `Brightness 100 · Cut-off 98/20 · ${store.depth.length} columns`
                 : `History ${spanLabel(store.trades.length ? store.lastTs - store.trades[0]!.ts : 0)} of ${loadDays} d · ${store.trades.length.toLocaleString()} ticks`)}

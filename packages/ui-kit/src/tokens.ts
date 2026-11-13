@@ -59,7 +59,8 @@ const dark: ThemeTokens = {
   muted: '#3A3A3A',
   textPrimary: '#FFFFFF',
   textSecondary: '#8C8C8C',
-  textTertiary: '#5E5E5E',
+  // P29: ≥ 4.5:1 on every dark surface (WCAG AA for small text; was #5E5E5E, ~3:1).
+  textTertiary: '#838383',
   textDisabled: '#3A3A3A',
   textSoft: '#BDBDBD',
   accent: '#FFFFFF',
@@ -87,6 +88,7 @@ export const THEMES: Record<ThemeName, ThemeTokens> = {
     pressed: '#24344F',
     chartBg: '#08101C',
     grid: '#122036',
+    textTertiary: '#8A8A8A',
   },
   gray: {
     ...dark,
@@ -101,6 +103,7 @@ export const THEMES: Record<ThemeName, ThemeTokens> = {
     pressed: '#404040',
     chartBg: '#1A1A1A',
     grid: '#262626',
+    textTertiary: '#959595',
   },
   light: {
     ...dark,
@@ -116,7 +119,7 @@ export const THEMES: Record<ThemeName, ThemeTokens> = {
     muted: '#C4C4C0',
     textPrimary: '#0A0A0A',
     textSecondary: '#5C5C5A',
-    textTertiary: '#8A8A87',
+    textTertiary: '#6A6A67',
     textDisabled: '#B8B8B4',
     textSoft: '#2E2E2C',
     accent: '#0A0A0A',

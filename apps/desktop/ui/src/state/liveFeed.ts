@@ -6,6 +6,7 @@ import {
   type FeedSource,
   type FeedStatus,
   type HistoryData,
+  type HistoryProgress,
   type Instrument,
   type MarketStat,
   type Trade,
@@ -78,6 +79,37 @@ interface WireHistory {
   end: number;
   local?: number;
   backfilled?: number;
+}
+
+/** `market_history_range` answer (older history). */
+interface WireRange {
+  trades: [number, number, number, number, number][];
+  local: number;
+  cached: number;
+  downloaded: number;
+  synthetic: number;
+  pages: number;
+  kline_ms: number | null;
+}
+
+/** Rust `history::Progress`. */
+export interface WireProgress {
+  done_ms: number;
+  total_ms: number;
+  trades: number;
+  pages: number;
+  phase: 'trades' | 'klines' | 'done';
+  throttled: boolean;
+}
+
+export function fromWireProgress(p: WireProgress): HistoryProgress {
+  return {
+    doneMs: p.done_ms,
+    totalMs: p.total_ms,
+    trades: p.trades,
+    phase: p.phase,
+    throttled: p.throttled,
+  };
 }
 
 const side = (s: number): Trade['side'] => (s > 0 ? 'buy' : s < 0 ? 'sell' : 'unknown');
@@ -252,6 +284,44 @@ export class TauriLiveFeed implements FeedSource {
       book: { ts: h.end, bids: h.book.bids, asks: h.book.asks },
       end: h.end,
     };
+  }
+
+  /**
+   * Older history (P06 "Load days", "◂ Load 1 more day", left-scroll): the native newest-first
+   * backfill — tick store, size-capped history cache, REST trades for the last day, klines for
+   * anything older (bar-level ticks). Progress arrives on a channel while it runs.
+   */
+  async historyBefore(before: number, spanMs: number): Promise<Trade[]> {
+    const ch = new Channel<WireProgress>();
+    ch.onmessage = (p) => this.setProgress(fromWireProgress(p));
+    this.setProgress({ doneMs: 0, totalMs: spanMs, trades: 0, phase: 'trades', throttled: false });
+    try {
+      const r = await invoke<WireRange>('market_history_range', {
+        venue: this.venue,
+        symbol: this.instrument.symbol,
+        fromMs: Math.floor(before - spanMs),
+        toMs: Math.floor(before),
+        progress: ch,
+      });
+      this.historyInfo = {
+        local: this.historyInfo.local + r.local + r.cached,
+        backfilled: this.historyInfo.backfilled + r.downloaded + r.synthetic,
+      };
+      return toTrades(r.trades);
+    } finally {
+      this.setProgress(null);
+    }
+  }
+
+  private progressListeners = new Set<(p: HistoryProgress | null) => void>();
+
+  private setProgress(p: HistoryProgress | null): void {
+    for (const l of this.progressListeners) l(p);
+  }
+
+  onHistoryProgress(l: (p: HistoryProgress | null) => void): () => void {
+    this.progressListeners.add(l);
+    return () => this.progressListeners.delete(l);
   }
 
   subscribe(l: (b: EventBatch) => void): () => void {

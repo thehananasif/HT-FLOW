@@ -115,7 +115,7 @@ function EquityChart({ points }: { points: EquityPoint[] }) {
       const up = css.getPropertyValue('--ht-up').trim() || '#20C77A';
       const down = css.getPropertyValue('--ht-down').trim() || '#F04A5D';
       const grid = css.getPropertyValue('--ht-divider').trim() || '#161616';
-      const text = css.getPropertyValue('--ht-text-tertiary').trim() || '#5E5E5E';
+      const text = css.getPropertyValue('--ht-text-tertiary').trim() || '#838383';
       const pad = { l: 8, r: 56, t: 8, b: 8 };
       const pts = [{ ts: 0, equity: 0, drawdown: 0 }, ...points];
       const lo = Math.min(0, ...pts.map((p) => Math.min(p.equity, p.drawdown)));

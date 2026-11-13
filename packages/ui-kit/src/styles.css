@@ -25,7 +25,7 @@
   --ht-muted: #3a3a3a;
   --ht-text-primary: #fff;
   --ht-text-secondary: #8c8c8c;
-  --ht-text-tertiary: #5e5e5e;
+  --ht-text-tertiary: #838383;
   --ht-text-disabled: #3a3a3a;
   --ht-text-soft: #bdbdbd;
   --ht-accent: #fff;
@@ -172,13 +172,14 @@ button {
   background: var(--ht-up);
 }
 .ht-btn--sell {
-  background: var(--ht-down);
+  /* P29: white text needs ≥ 4.5:1; the raw sell colour gives ~3.6:1, so the fill is darkened. */
+  background: color-mix(in srgb, var(--ht-down) 80%, #000);
   color: #fff;
   font-weight: 600;
 }
 .ht-btn--sell:hover {
   filter: brightness(1.1);
-  background: var(--ht-down);
+  background: color-mix(in srgb, var(--ht-down) 80%, #000);
 }
 .ht-btn--buy-outline {
   background: color-mix(in srgb, var(--ht-up) 12%, transparent);

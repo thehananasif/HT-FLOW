@@ -163,6 +163,8 @@ export class ChartCore {
   private ro: ResizeObserver | null = null;
   private lastView: ChartView | null = null;
   private frameTimes: number[] = [];
+  /** Frames rendered so far; mirrored on the canvas as `data-frame` (deterministic test signal). */
+  frameCount = 0;
   private priceListeners = new Set<PriceRangeListener>();
   private crosshairListeners = new Set<(c: CrosshairPoint | null) => void>();
   private paneListeners = new Set<(layerId: string, h: number) => void>();
@@ -638,6 +640,8 @@ export class ChartCore {
       ctx.setLineDash([]);
     }
     if (this.showDebug) this.drawDebug(v);
+    // Tests (and tools) wait on this instead of sleeping: it changes only after a frame is drawn.
+    this.canvas.dataset.frame = String(++this.frameCount);
     for (const fn of this.priceListeners) fn(this.priceMin, this.priceMax);
     // Lazy history: tell listeners when the left edge is past the first slot.
     if (v.slotCount > 0 && this.pastStartListeners.size) {

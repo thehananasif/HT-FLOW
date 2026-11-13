@@ -122,20 +122,29 @@ test('replay orders fill in replay time and show B / S tags on the chart', async
   await bar.getByTestId('replay-step-bar').click();
   const canvas = page.getByTestId('chart-footprint').locator('canvas').first();
   const tags = page.getByRole('checkbox', { name: 'B / S fill tags on bars' });
+  // Deterministic signals instead of sleeps: the chart canvas carries `data-frame` (bumped after
+  // every drawn frame) and `data-replay-tags` (tags drawn in the last frame).
+  const frame = async () => Number(await canvas.getAttribute('data-frame'));
+  /** Screenshot taken only after a frame newer than `since` has been drawn. */
+  const shotAfter = async (since: number) => {
+    await expect.poll(frame).toBeGreaterThan(since);
+    return canvas.screenshot();
+  };
   await tags.uncheck();
-  await page.waitForTimeout(300);
+  await expect(canvas).toHaveAttribute('data-replay-tags', '0');
   const before = await canvas.screenshot();
   await tags.check();
   // The Trading panel follows the active window: activate the replay chart first.
   await page.getByTestId('chart-footprint').click({ position: { x: 120, y: 120 } });
   await page.getByRole('button', { name: 'BUY MARKET' }).click();
   await expect(page.getByLabel('Replay account').getByText('LONG 1')).toBeVisible();
-  await page.waitForTimeout(400);
+  await expect(canvas).toHaveAttribute('data-replay-tags', '1');
   const after = await canvas.screenshot();
   expect(Buffer.compare(before, after)).not.toBe(0);
+  const f0 = await frame();
   await tags.uncheck();
-  await page.waitForTimeout(400);
-  const off = await canvas.screenshot();
+  await expect(canvas).toHaveAttribute('data-replay-tags', '0');
+  const off = await shotAfter(f0);
   // Tags off again: the chart goes back to what it looked like without them.
   expect(Buffer.compare(after, off)).not.toBe(0);
   expect(errors).toEqual([]);

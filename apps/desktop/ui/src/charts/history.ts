@@ -59,6 +59,51 @@ export function spanLabel(ms: number): string {
   return `${Math.max(0, Math.round(ms / 60_000))} min`;
 }
 
+/** Bars a time-based chart shows at least once it has opened (long timeframes load more days). */
+export const MIN_OPEN_BARS = 120;
+
+/**
+ * Spans (ms, newest first) a chart loads when it opens: the missing part of `days` in whole
+ * days, then one more span so a time-based chart of `periodMs` bars shows at least
+ * {@link MIN_OPEN_BARS} bars (a 4h / 1D chart). One span for the extra part keeps it to one
+ * request: the desktop backfill picks a kline interval to match, so it stays cheap.
+ */
+export function openLoadChunks(
+  firstTs: number | undefined,
+  lastTs: number,
+  days: number,
+  periodMs?: number,
+): number[] {
+  const chunks = loadChunks(missingHistoryMs(firstTs, lastTs, days));
+  if (!periodMs || periodMs <= 0 || firstTs === undefined || lastTs <= 0) return chunks;
+  const planned = Math.max(0, lastTs - firstTs) + chunks.reduce((a, b) => a + b, 0);
+  const want = Math.min(periodMs * MIN_OPEN_BARS, MAX_LOAD_DAYS * DAY_MS);
+  if (want > planned) chunks.push(want - planned);
+  return chunks;
+}
+
+export interface HistoryProgressLike {
+  doneMs: number;
+  totalMs: number;
+  trades: number;
+  phase: 'trades' | 'klines' | 'done';
+  throttled: boolean;
+}
+
+/** "Downloading ticks 45 % · 120,000 ticks · rate limited, slowing down" for the chart footer. */
+export function progressLabel(p: HistoryProgressLike): string {
+  const pct = p.totalMs > 0 ? Math.round((100 * Math.min(p.doneMs, p.totalMs)) / p.totalMs) : 0;
+  const what =
+    p.phase === 'klines'
+      ? 'Loading bar history'
+      : p.phase === 'done'
+        ? 'History loaded'
+        : 'Downloading ticks';
+  const parts = [`${what} ${pct} %`, `${p.trades.toLocaleString('en-US')} ticks`];
+  if (p.throttled) parts.push('rate limited, slowing down');
+  return parts.join(' · ');
+}
+
 /** Largest older-history chunk one lazy left-scroll request may ask for, per feed kind. */
 export const LAZY_SPAN_CAP_MS: Record<'mock' | 'live' | 'replay', number> = {
   // A simulated hour is ~30k ticks generated on the main thread: keep each step small.

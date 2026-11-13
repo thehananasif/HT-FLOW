@@ -408,14 +408,23 @@ class FillTagsLayer implements ChartLayer {
   constructor(private ctx: ChartExtensionContext) {}
 
   draw(v: ChartView): void {
+    const n = this.drawTags(v);
+    // Number of tags in the last frame on the canvas (`data-replay-tags`): a deterministic signal
+    // for tests that compare screenshots with tags on / off.
+    const el = (v.ctx as { canvas?: HTMLCanvasElement }).canvas;
+    if (el?.dataset && el.dataset.replayTags !== String(n)) el.dataset.replayTags = String(n);
+  }
+
+  private drawTags(v: ChartView): number {
     const st = this.ctx.state();
     const d = replayDisplay();
-    if (!d.fillTags || !isReplayId(st.instrumentId)) return;
+    if (!d.fillTags || !isReplayId(st.instrumentId)) return 0;
     const e = replayEngine(st.instrumentId);
     const series = this.ctx.series();
-    if (!e || !series || !series.bars.length) return;
+    if (!e || !series || !series.bars.length) return 0;
     const tags = fillTags(paper.fills, st.instrumentId, e.time, d.tagQty);
-    if (!tags.length) return;
+    if (!tags.length) return 0;
+    let drawn = 0;
     const barMs = st.timeframe.kind === 'time' ? st.timeframe.ms : null;
     const { ctx, palette: p } = v;
     ctx.save();
@@ -443,8 +452,10 @@ class FillTagsLayer implements ChartLayer {
       ctx.fillRect(x - w / 2, ty - h / 2, w, h);
       ctx.fillStyle = '#000000';
       ctx.fillText(t.text, x, ty);
+      drawn++;
     }
     ctx.restore();
+    return drawn;
   }
 }
 
