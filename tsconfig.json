@@ -9,6 +9,8 @@
     "apps/desktop/ui",
     "apps/desktop/e2e",
     "apps/desktop/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "vitest.bench.config.ts",
+    "apps/desktop/bench"
   ]
 }

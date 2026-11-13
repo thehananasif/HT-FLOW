@@ -303,7 +303,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] Local crash reporter: panic hook and UI error boundary write redacted reports to `<data>\crashes\`; nothing is sent anywhere; unit tests
 - [x] `docs/SECURITY.md` (threat model, network surface, checks)
-- [ ] Full audit, benchmarks vs targets, 8-hour soak, accessibility pass
+- [x] Benchmarks vs targets: `pnpm bench` → `docs/PERFORMANCE.md` (charts 1M ticks, 8 charts, 2,000+ footprint cells, mode switch, heatmap 2,000 × 400, tape 5,000 prints/s, DOM burst, 10k search); footprint hot path optimised; flaky timing tests made robust
+- [x] Accessibility pass: axe e2e (login, dashboard, Settings, Indicators, Alerts, Command Palette) with no serious / critical violations; contrast tokens; keyboard-only ribbon, palette, dialogs, layout tabs; focus return from dialogs; high-contrast theme
+- [ ] Full FEATURES.md audit in the running app; 8-hour soak on 6 live crypto streams (needs exchange access, see BLOCKERS); cold start / idle RAM measured on Windows (not measurable headless); GPU raster time profiling in WebView2
 - [x] CSP set for the WebView; IPC allow-list via Tauri capabilities; secrets never logged (Debug impls redact)
 
 ## P30 — Windows installer & release

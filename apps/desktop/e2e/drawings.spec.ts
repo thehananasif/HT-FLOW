@@ -91,6 +91,20 @@ test('multi-select: Shift+click, Ctrl+drag box, group delete + undo via registry
     x: box.x + box.width * fx,
     y: box.y + box.height * fy,
   });
+  // Root cause of the CI flake: the lines are placed at prices, and with auto-scale on the live
+  // feed keeps moving the price range, so a later click at the same screen y missed the line.
+  // A Ctrl+wheel price zoom (a user action) turns auto-scale off; then we wait for a drawn frame
+  // (`data-frame`) so hit-testing uses the frozen geometry.
+  const frame = async () => Number(await canvas.getAttribute('data-frame'));
+  const nextFrame = async () => {
+    const f = await frame();
+    await expect.poll(frame).toBeGreaterThan(f);
+  };
+  await page.mouse.move(at(0.4, 0.5).x, at(0.4, 0.5).y);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -60);
+  await page.keyboard.up('Control');
+  await nextFrame();
 
   for (const fy of [0.25, 0.4, 0.55]) {
     await page.keyboard.press('F6');

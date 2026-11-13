@@ -52,7 +52,7 @@ export function EquityCanvas({ result, style }: { result: BacktestResult; style:
     (g, w, h) => {
       const pts = result.equity;
       const grid = cssVar('--ht-divider', '#1c1c1c');
-      const text = cssVar('--ht-text-tertiary', '#5E5E5E');
+      const text = cssVar('--ht-text-tertiary', '#838383');
       const pad = { l: 8, r: 70, t: 10, b: 18 };
       const ddH = Math.round((h - pad.t - pad.b) * 0.28);
       const eqH = h - pad.t - pad.b - ddH - 8;

@@ -27,7 +27,30 @@ export function Ribbon({ compact }: { compact?: boolean }) {
       .map((id) => byId.get(id)!),
   })).filter((g) => g.items.length > 0);
   return (
-    <nav className="ribbon" aria-label="Ribbon">
+    <nav
+      className="ribbon"
+      aria-label="Ribbon"
+      aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+      onKeyDown={(e) => {
+        // P29 keyboard navigation: arrows move between ribbon buttons (Tab still visits each one).
+        const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
+        if (!keys.includes(e.key)) return;
+        const btns = [
+          ...e.currentTarget.querySelectorAll<HTMLElement>('button[data-testid^="ribbon-"]'),
+        ];
+        const i = btns.indexOf(document.activeElement as HTMLElement);
+        if (i < 0) return;
+        const n = btns.length;
+        const next =
+          e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? n - 1
+              : (i + (e.key === 'ArrowRight' ? 1 : -1) + n) % n;
+        btns[next]?.focus();
+        e.preventDefault();
+      }}
+    >
       {groups.map(({ group, items }, gi) => (
         <Fragment key={group}>
           {gi > 0 && <div className="ribbon-sep" />}

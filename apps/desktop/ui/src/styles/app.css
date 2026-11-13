@@ -217,6 +217,11 @@
   border-top: 1px solid var(--ht-divider);
   background: var(--ht-bg);
 }
+.ws-tablist {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
 .ws-tab {
   display: flex;
   align-items: center;
@@ -243,7 +248,8 @@
   padding: 0;
   display: none;
 }
-.ws-tab:hover .ws-tab-x {
+.ws-tab:hover .ws-tab-x,
+.ws-tab:focus-visible .ws-tab-x {
   display: inline-flex;
 }
 .statusbar {
@@ -931,7 +937,7 @@
   top: 150px;
   display: flex;
   gap: 4px;
-  opacity: 0.85;
+  opacity: 1;
   pointer-events: none;
 }
 .hero-fp-col {

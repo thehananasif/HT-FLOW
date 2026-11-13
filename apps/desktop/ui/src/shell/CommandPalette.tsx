@@ -24,6 +24,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [q, open],
   );
+  // Keyboard navigation keeps the active option visible.
+  useEffect(() => {
+    if (open) document.getElementById(`palette-opt-${sel}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [open, sel]);
   if (!open) return null;
   const run = (row: PaletteRow | undefined) => {
     if (!row) return;
@@ -36,6 +40,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       <div
         className="palette"
         role="dialog"
+        aria-modal="true"
         aria-label="Command palette"
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -43,6 +48,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           ref={inputRef}
           className="palette-input"
           placeholder="Search commands, symbols, layouts…"
+          role="combobox"
+          aria-label="Search commands, symbols, layouts"
+          aria-expanded={list.length > 0}
+          aria-controls="palette-list"
+          aria-autocomplete="list"
+          aria-activedescendant={list.length ? `palette-opt-${sel}` : undefined}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -61,7 +72,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             if (e.key === 'Enter') run(list[sel]);
           }}
         />
-        <div className="palette-list" role="listbox">
+        <div
+          className="palette-list"
+          id="palette-list"
+          role="listbox"
+          aria-label="Results"
+          tabIndex={-1}
+        >
           {list.map((row, i) => {
             // Headers separate the item groups; they are not selectable, so `sel` indexes `list`.
             const prev = list[i - 1];
@@ -78,6 +95,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                   </div>
                 )}
                 <div
+                  id={`palette-opt-${i}`}
                   role="option"
                   aria-selected={i === sel}
                   className="palette-item"

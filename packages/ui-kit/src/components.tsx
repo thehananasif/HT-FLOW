@@ -7,6 +7,8 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  useRef,
   useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
@@ -719,11 +721,27 @@ export function Dialog({
   children: ReactNode;
   width?: number;
 }) {
+  // P29: these dialogs are opened from code (no Radix trigger), so Radix has nothing to return
+  // focus to on close. Remember what had focus when the dialog opened and restore it.
+  const returnTo = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (open) returnTo.current = document.activeElement as HTMLElement | null;
+  }, [open]);
   return (
     <RxDialog.Root open={open} onOpenChange={onOpenChange}>
       <RxDialog.Portal>
         <RxDialog.Overlay className="ht-scrim" />
-        <RxDialog.Content className="ht-dialog" style={width ? { width } : undefined}>
+        <RxDialog.Content
+          className="ht-dialog"
+          style={width ? { width } : undefined}
+          onCloseAutoFocus={(e) => {
+            const el = returnTo.current;
+            if (el && el.isConnected && el !== document.body) {
+              e.preventDefault();
+              el.focus({ preventScroll: true });
+            }
+          }}
+        >
           <RxDialog.Title className="ht-dialog-title">{title}</RxDialog.Title>
           {description ? (
             <RxDialog.Description className="ht-dialog-desc">{description}</RxDialog.Description>

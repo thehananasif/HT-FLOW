@@ -147,12 +147,15 @@ describe('3D surface', () => {
   });
 });
 
-describe('heat buffer performance (CL-like replay, 30 fps budget = 33 ms)', () => {
-  it('fills a 600 × 300 frame of 250 ms columns inside the frame budget', () => {
+const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+
+describe('heat buffer performance smoke (CL-like replay)', () => {
+  // Functional checks plus a catastrophic-regression ceiling only. Single timings are noisy when
+  // every suite shares the CPU, so each figure is the median of several frames and the ceiling is
+  // far above the 33 ms budget; the strict 30 fps numbers (2,000 × 400) come from `pnpm bench`.
+  it('fills a 600 × 300 frame of 250 ms columns, deterministically, without blowing up', () => {
     const h = syntheticHistory(700, { seed: 11 });
     const b = new HeatBuffer();
-    // Small smoke run: the full 1200 × 600 numbers come from heatBuffer.bench.ts, which does not
-    // compete for CPU with the other suites.
     const cols = 600;
     const rows = 300;
     b.resize(cols, rows);
@@ -171,27 +174,30 @@ describe('heat buffer performance (CL-like replay, 30 fps budget = 33 ms)', () =
       upperPct: 98,
       scale: 'sqrt',
     };
-    for (let k = 0; k < 3; k++) b.render(f); // warm-up
-    const n = 10;
-    const t0 = performance.now();
-    for (let k = 0; k < n; k++) b.render(f);
-    const ms = (performance.now() - t0) / n;
+    b.render(f);
+    const first = b.pixels.slice();
+    expect(b.cells).toBeGreaterThan(cols * 50);
+    const full: number[] = [];
+    for (let k = 0; k < 7; k++) {
+      const t0 = performance.now();
+      b.render(f);
+      full.push(performance.now() - t0);
+    }
+    // Same input → same pixels.
+    expect(b.pixels).toEqual(first);
     const perCol = new SyntheticBook({ seed: 5 });
     // Live append: one new column per frame, cut-offs per column.
     const live = h.depth.slice(base);
-    const tl = performance.now();
-    for (let k = 0; k < n; k++) {
+    const liveT: number[] = [];
+    for (let k = 0; k < 7; k++) {
       live.shift();
       live.push(perCol.step().col);
+      const t0 = performance.now();
       b.render({ ...f, colAt: (i) => live[i], mode: 'column' });
+      liveT.push(performance.now() - t0);
     }
-    const liveMs = (performance.now() - tl) / n;
-    console.log(
-      `[heatmap bench] full frame ${cols}×${rows}: ${ms.toFixed(2)} ms (${b.cells} cells); live append + per-column: ${liveMs.toFixed(2)} ms`,
-    );
-    // Sanity ceilings only (the full test run shares the CPU across workers); the real numbers are
-    // logged above and measured in heatBuffer.bench.ts (≈ 3–4 ms per frame on one core).
-    expect(ms).toBeLessThan(100);
-    expect(liveMs).toBeLessThan(100);
-  });
+    expect(b.cells).toBeGreaterThan(cols * 50);
+    expect(median(full)).toBeLessThan(250);
+    expect(median(liveT)).toBeLessThan(250);
+  }, 30_000);
 });

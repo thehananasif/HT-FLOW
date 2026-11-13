@@ -445,15 +445,7 @@ function Probe({ windowId }: { windowId: string; state: ChartWindowState }) {
       if (cur && cur.probe === el) cur.probe = null;
     };
   }, [windowId]);
-  return (
-    <div
-      ref={ref}
-      className="ctr-probe"
-      data-testid="chart-trading"
-      aria-live="off"
-      aria-label="Orders and position on chart"
-    />
-  );
+  return <div ref={ref} className="ctr-probe" data-testid="chart-trading" aria-hidden="true" />;
 }
 
 registerChartExtension({
