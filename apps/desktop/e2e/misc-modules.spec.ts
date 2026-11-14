@@ -137,19 +137,6 @@ test('User Guide: search, articles, and Open this window links', async ({ page }
   await expect(page.getByTestId('replay-window')).toBeVisible();
 });
 
-test('Following Manager: local list with the sharing-server banner', async ({ page }) => {
-  await createAccount(page, 'misc4');
-  await page.getByTestId('ribbon-following').click();
-  const win = page.getByTestId('following');
-  await expect(win.getByTestId('following-banner')).toContainText('Requires a sharing server');
-  await win.getByLabel('Trader handle').fill('@flow_hawk');
-  await win.getByLabel('Notes').fill('Reads the tape well');
-  await win.getByLabel('Tags').first().fill('ES, scalper');
-  await win.getByRole('button', { name: 'Add trader' }).click();
-  await expect(win.getByRole('listitem')).toContainText('@flow_hawk');
-  await expect(win.getByText('Sample').first()).toBeVisible();
-});
-
 test('guided tour: start from the palette, step through, skip', async ({ page }) => {
   await createAccount(page, 'misc5');
   // Automation never auto-starts the tour (it would block clicks in other tests).

@@ -8,6 +8,10 @@
 - Estimated delta outside Binance: none of these venues reports the taker-buy share of a bar, so the shared `htflow_connector_common::directional_taker_buy` books the bar's volume by candle direction (close above open = all buys, below = all sells, equal = half and half). OHLC and total volume stay exact; the delta of a rebuilt bar follows the candle colour. Documented in the connector modules and in FEATURES (P06).
 - Tests: per-venue saved JSON fixtures (`crates/connectors/<venue>/tests/fixtures`), parser tests, paging / window / budget / error tests against the local mock HTTP server, and a `market_history_range` backfill test on OKX candles. The endpoints were wired from the venues' public documentation and have not been checked against the live APIs here (no network in tests).
 
+### Removed
+
+- **TradersTalk** and **Following Manager** are gone: both needed a sharing server (HT Flow is local-only, $0). Their windows, ribbon entries, icons, user-guide articles, the `.htidea` idea-file logic in `@htflow/info`, the chart snapshot hook, styles and e2e specs were deleted. Saved workspaces, layouts and the autosaved workspace that still contain either window drop it on load (`REMOVED_MODULES` / `stripRemovedModules` in `@htflow/workspace`) and rebuild the arrangement from the remaining windows. The OS `.htidea` file association is left in the installer config; opening such a file shows the usual "cannot open" toast.
+
 ## Unreleased — round 5
 
 ### Added

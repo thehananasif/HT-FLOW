@@ -37,7 +37,7 @@ describe('guide content', () => {
     }
   });
   it('covers the P28 modules and the shortcut table', () => {
-    for (const id of ['web-pages', 'logs', 'following', 'shortcuts', 'replay', 'tour'])
+    for (const id of ['web-pages', 'logs', 'shortcuts', 'replay', 'tour'])
       expect(ARTICLES.some((a) => a.id === id)).toBe(true);
     expect(SHORTCUTS.some((s) => s.keys === 'Ctrl+K')).toBe(true);
     expect(ARTICLES.find((a) => a.id === 'shortcuts')!.body).toContain('Command palette');

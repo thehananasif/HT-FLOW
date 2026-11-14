@@ -160,13 +160,12 @@ For a quick demo run **Load sample replay session** from the command palette: it
   },
   {
     id: 'info',
-    title: 'RSS, News, Calendar and TradersTalk',
+    title: 'RSS, News and Calendar',
     section: 'Information',
-    keywords: 'feeds news economic calendar chat keywords opml',
-    opens: ['rss', 'news', 'calendar', 'traderstalk'],
+    keywords: 'feeds news economic calendar keywords opml',
+    opens: ['rss', 'news', 'calendar'],
     body: `- **RSS Reader**: subscribe to feeds, import or export OPML, highlight keywords. Links open in **Web Pages**.
-- **News** and **Calendar**: headlines and economic events, tagged to instruments.
-- **TradersTalk**: a local notes and chat window.`,
+- **News** and **Calendar**: headlines and economic events, tagged to instruments.`,
   },
   {
     id: 'web-pages',
@@ -191,16 +190,6 @@ For a quick demo run **Load sample replay session** from the command palette: it
 - Filter by **level** and **source**, or search the text.
 - **Pause** freezes the view while recording continues. **Copy**, **Export .txt** and **Clear** act on what you see.
 - Attach an exported log when reporting a problem.`,
-  },
-  {
-    id: 'following',
-    title: 'Following Manager',
-    section: 'Tools',
-    keywords: 'traders ideas social follow server blocked',
-    opens: ['following'],
-    body: `Keep a list of traders you want to follow, with notes and tags.
-
-**Requires a sharing server.** Receiving other traders' public ideas and account stats needs a service HT Flow does not have yet. Today the list lives only on your PC and the ideas feed shows labelled sample data.`,
   },
   {
     id: 'connections',
