@@ -12,6 +12,10 @@
 
 - **TradersTalk** and **Following Manager** are gone: both needed a sharing server (HT Flow is local-only, $0). Their windows, ribbon entries, icons, user-guide articles, the `.htidea` idea-file logic in `@htflow/info`, the chart snapshot hook, styles and e2e specs were deleted. Saved workspaces, layouts and the autosaved workspace that still contain either window drop it on load (`REMOVED_MODULES` / `stripRemovedModules` in `@htflow/workspace`) and rebuild the arrangement from the remaining windows. The OS `.htidea` file association is left in the installer config; opening such a file shows the usual "cannot open" toast.
 
+### Security
+
+- Dev tooling advisories cleared (`pnpm audit` reports no known vulnerabilities): vitest upgraded from 3.2.x to 4.1.12 (fixes `@vitest/mocker` path traversal and code injection, and pulls a patched `tinypool`), `minimatch` pinned to `>=11.0.1` for the `>=7 <11.0.1` range via a `pnpm.overrides` entry (reached through `typescript-eslint`). Vitest 4 config change: the bench config uses `maxWorkers: 1` in place of the removed `poolOptions.forks.singleFork`.
+
 ## Unreleased — round 5
 
 ### Added
