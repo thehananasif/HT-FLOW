@@ -23,6 +23,8 @@ use serde::Deserialize;
 use tokio::sync::{mpsc, watch};
 use tokio_tungstenite::tungstenite::Message;
 
+pub mod klines;
+
 pub const REST_BASE: &str = "https://api.bybit.com";
 pub const WS_BASE: &str = "wss://stream.bybit.com";
 pub const BOOK_DEPTH: u32 = 200;
@@ -368,6 +370,8 @@ impl BookSync {
 pub struct BybitLinear {
     http: reqwest::Client,
     pub endpoints: Endpoints,
+    /// Klines go through the shared REST client (token bucket + `Retry-After` back-off).
+    kline_rest: htflow_connector_common::Rest,
 }
 
 impl Default for BybitLinear {
@@ -383,7 +387,15 @@ impl BybitLinear {
             .timeout(Duration::from_secs(15))
             .build()
             .expect("reqwest client");
-        Self { http, endpoints }
+        let kline_rest = htflow_connector_common::Rest::new(
+            endpoints.rest.clone(),
+            htflow_connector_common::TokenBucket::new(10, Duration::from_secs(1)),
+        );
+        Self {
+            http,
+            endpoints,
+            kline_rest,
+        }
     }
 
     async fn get<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T, ConnectorError> {

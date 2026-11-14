@@ -110,6 +110,11 @@ pub trait MarketApi: Send + Sync {
     fn kline_intervals(&self) -> &'static [i64] {
         &[]
     }
+    /// Most klines one [`MarketApi::klines`] range may need (the venue's page size × the pages
+    /// it is willing to spend); the history backfill picks an interval whose span fits.
+    fn kline_max_bars(&self) -> i64 {
+        5_000
+    }
     /// Klines of `interval_ms` (one of [`MarketApi::kline_intervals`]) whose open time is in
     /// `[from_ms, to_ms)`, oldest first.
     fn klines<'a>(

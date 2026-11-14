@@ -18,13 +18,15 @@ use std::time::Duration;
 use futures_util::future::BoxFuture;
 use htflow_connector_common::{
     driver, hash_id, levels, num_f64, num_text, raw_levels, Action, BookLevels, ClockSkew,
-    ConnectorError, L2Book, MarketApi, Ping, Protocol, Rest, Result, StreamConfig, SymbolSpec,
-    TokenBucket,
+    ConnectorError, Kline, L2Book, MarketApi, Ping, Protocol, Rest, Result, StreamConfig,
+    SymbolSpec, TokenBucket,
 };
 use htflow_core_types::{Aggressor, BookSnapshot, MarketEvent, MarketStat, TickSize, Trade};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, watch};
+
+pub mod klines;
 
 pub const REST_BASE: &str = "https://api.bitget.com";
 pub const WS_URL: &str = "wss://ws.bitget.com/v2/ws/public";
@@ -430,6 +432,24 @@ impl MarketApi for Bitget {
     /// The REST trades endpoint takes a start / end time, so past windows load directly.
     fn windowed_trades(&self) -> bool {
         true
+    }
+    fn kline_intervals(&self) -> &'static [i64] {
+        klines::KLINE_INTERVALS
+    }
+    fn kline_max_bars(&self) -> i64 {
+        klines::KLINE_PAGE * i64::from(klines::KLINE_PAGES)
+    }
+    fn klines<'a>(
+        &'a self,
+        spec: &'a SymbolSpec,
+        interval_ms: i64,
+        from_ms: i64,
+        to_ms: i64,
+    ) -> BoxFuture<'a, Result<Vec<Kline>>> {
+        Box::pin(self.klines_range(spec, interval_ms, from_ms, to_ms, klines::KLINE_PAGES))
+    }
+    fn throttled(&self) -> u64 {
+        self.rest.throttled_count()
     }
     fn stream(
         &self,

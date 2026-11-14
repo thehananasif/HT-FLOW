@@ -18,7 +18,9 @@ use std::time::{Duration, Instant};
 use futures_util::future::BoxFuture;
 use htflow_connector_binance::{now_ns, Binance, Market};
 use htflow_connector_bybit::BybitLinear;
-use htflow_connector_common::{BookLevels, ClockSkew, ConnectorError, MarketApi, SymbolSpec};
+use htflow_connector_common::{
+    BookLevels, ClockSkew, ConnectorError, Kline, MarketApi, SymbolSpec,
+};
 use htflow_core_types::{FeedState, MarketEvent, MarketStat, Side, Trade};
 use serde::Serialize;
 use tauri::ipc::Channel;
@@ -100,6 +102,30 @@ impl MarketApi for BybitApi {
     }
     fn history_from_start(&self) -> bool {
         false
+    }
+    fn kline_intervals(&self) -> &'static [i64] {
+        htflow_connector_bybit::klines::KLINE_INTERVALS
+    }
+    fn kline_max_bars(&self) -> i64 {
+        use htflow_connector_bybit::klines::{KLINE_PAGE, KLINE_PAGES};
+        KLINE_PAGE * i64::from(KLINE_PAGES)
+    }
+    fn klines<'a>(
+        &'a self,
+        sp: &'a Spec,
+        interval_ms: i64,
+        from_ms: i64,
+        to_ms: i64,
+    ) -> BoxFuture<'a, Result<Vec<Kline>, ConnectorError>> {
+        Box::pin(async move {
+            self.client
+                .klines_range(&bybit_spec(sp), interval_ms, from_ms, to_ms)
+                .await
+                .map_err(bybit_err)
+        })
+    }
+    fn throttled(&self) -> u64 {
+        self.client.throttled()
     }
     fn stream(
         &self,
