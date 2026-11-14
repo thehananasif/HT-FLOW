@@ -8,6 +8,7 @@ mod data_cmds;
 mod error;
 mod history;
 mod history_cache;
+mod instruments_cmds;
 mod market_cmds;
 mod net_cmds;
 mod openfile;
@@ -60,6 +61,7 @@ pub fn run() {
                     u64::from(history_cache::DEFAULT_MAX_MB) * 1024 * 1024,
                 ),
             )));
+            app.manage(instruments_cmds::InstrumentsState::new(&root.join("cache")));
             app.manage(market_cmds::MarketState::default());
             app.manage(custom_ws::CustomWsState::default());
             Ok(())
@@ -95,6 +97,8 @@ pub fn run() {
             custom_ws::custom_ws_close,
             market_cmds::market_test,
             market_cmds::market_options_chain,
+            instruments_cmds::instruments_cached,
+            instruments_cmds::instruments_list,
             data_cmds::recorder_set,
             data_cmds::recorder_status,
             data_cmds::data_list,

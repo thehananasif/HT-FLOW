@@ -9,6 +9,8 @@
 //! * Funding rate and open interest are not streamed: `/api/v4/public/futures` is polled every
 //!   30 s for perpetuals.
 //! * REST: markets, order book, recent trades, server time. 10 requests/s token bucket.
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 

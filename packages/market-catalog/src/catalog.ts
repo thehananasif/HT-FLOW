@@ -3,6 +3,8 @@ import { FUTURES } from './seed/futures';
 import { CRYPTO } from './seed/crypto';
 import { DXFEED_GROUPS, OTHER } from './seed/other';
 import { SearchIndex } from './search';
+import { mergeDiscovered, type DiscoveredInstrument } from './discovered';
+import { normalizeCryptoSymbol } from './normalize';
 import { frontContract, nextRoll, parseContractCode, type ContractVolumes } from './expiry';
 
 /** Appendix A top-level groups, in order. */
@@ -18,18 +20,46 @@ export class Catalog {
   readonly instruments: CatalogInstrument[];
   readonly index: SearchIndex<CatalogInstrument>;
   private byId = new Map<string, CatalogInstrument>();
+  /** Feed id (`${provider}:${symbol}`, or the full sim id) → entry. */
+  private byFeed = new Map<string, CatalogInstrument>();
+  /** Normalised crypto symbol → crypto entries (built on first use). */
+  private byNorm: Map<string, CatalogInstrument[]> | null = null;
 
   constructor(instruments: CatalogInstrument[]) {
     this.instruments = instruments;
     for (const i of instruments) {
       if (this.byId.has(i.id)) throw new Error(`Duplicate catalog id ${i.id}`);
       this.byId.set(i.id, i);
+      for (const p of i.providers) {
+        const fid = p.provider === 'sim' ? p.symbol : `${p.provider}:${p.symbol}`;
+        if (!this.byFeed.has(fid)) this.byFeed.set(fid, i);
+      }
     }
     this.index = new SearchIndex(instruments);
   }
 
   get(id: string): CatalogInstrument | undefined {
     return this.byId.get(id);
+  }
+
+  /** Entry whose provider mapping is exactly this feed id. */
+  byFeedId(feedId: string): CatalogInstrument | undefined {
+    return this.byFeed.get(feedId);
+  }
+
+  /** Crypto entries with this normalised symbol (see normalizeCryptoSymbol). */
+  cryptoBySymbol(norm: string): CatalogInstrument[] {
+    if (!this.byNorm) {
+      this.byNorm = new Map();
+      for (const i of this.instruments) {
+        if (i.assetClass !== 'crypto') continue;
+        const k = normalizeCryptoSymbol(i.symbol);
+        const l = this.byNorm.get(k);
+        if (l) l.push(i);
+        else this.byNorm.set(k, [i]);
+      }
+    }
+    return this.byNorm.get(norm) ?? [];
   }
 
   /** First futures instrument with this root (optionally on this exchange). */
@@ -94,9 +124,32 @@ export class Catalog {
 export const CATALOG_SEED: CatalogInstrument[] = [...FUTURES, ...CRYPTO, ...OTHER];
 
 let shared: Catalog | null = null;
+let version = 0;
+const listeners = new Set<() => void>();
 
-/** The built-in catalog (built lazily once). */
+/** The catalog: the built-in seed, merged with live-discovered instruments once they load. */
 export function catalog(): Catalog {
   if (!shared) shared = new Catalog(CATALOG_SEED);
   return shared;
+}
+
+/**
+ * Rebuilds the shared catalog from the seed plus live-discovered instruments (desktop symbol
+ * discovery). An empty list restores the seed. Listeners run after the swap.
+ */
+export function setDiscoveredInstruments(list: readonly DiscoveredInstrument[]): Catalog {
+  shared = new Catalog(mergeDiscovered(CATALOG_SEED, list));
+  version++;
+  listeners.forEach((l) => l());
+  return shared;
+}
+
+/** Bumped on every catalog rebuild (memo key for pickers). */
+export function catalogVersion(): number {
+  return version;
+}
+
+export function onCatalogChange(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
 }

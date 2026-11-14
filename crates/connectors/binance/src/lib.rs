@@ -9,6 +9,7 @@
 //! weight of the 2,400/min futures budget) and the server clock is measured at connect.
 
 pub mod book_sync;
+pub mod instruments;
 pub mod wire;
 
 use std::sync::Arc;

@@ -15,6 +15,8 @@
 //! * REST: ticker (tick + symbol check), book, trade history (forward pages of up to 10 000).
 //!   The public trades endpoint allows 15 requests/min, so REST is limited to 10/min.
 //!   No time endpoint: the clock offset comes from the HTTP `Date` header.
+pub mod instruments;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

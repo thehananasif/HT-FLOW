@@ -1,6 +1,9 @@
 import type { CatalogInstrument } from './types';
 import type { Catalog } from './catalog';
 import { parseContractCode } from './expiry';
+import { normalizeCryptoSymbol } from './normalize';
+
+export { normalizeCryptoSymbol };
 
 /** The fields of a feed instrument (any connector) needed to find its catalog entry. */
 export interface FeedInstrumentLike {
@@ -9,16 +12,6 @@ export interface FeedInstrumentLike {
   exchange: string;
   assetClass: string;
   displayName?: string;
-}
-
-const compact = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-/** "BTC-USDT-SWAP" / "PF_XBTUSD" / "BTCUSDT" → "BTCUSDT" / "XBTUSD" (venue decorations removed). */
-export function normalizeCryptoSymbol(s: string): string {
-  return compact(s.replace(/^PF_/, '').replace(/[-_](SWAP|PERP|PERPETUAL)$/i, '')).replace(
-    /PERP(ETUAL)?$/,
-    '',
-  );
 }
 
 /**
@@ -34,22 +27,15 @@ export function matchFeedInstrument(
   providerLabel = '',
 ): CatalogInstrument | undefined {
   const bare = inst.id.replace(/^replay:/, '');
-  for (const c of cat.instruments) {
-    for (const p of c.providers) {
-      const fid = p.provider === 'sim' ? p.symbol : `${p.provider}:${p.symbol}`;
-      if (fid === bare) return c;
-    }
-  }
+  const exact = cat.byFeedId(bare);
+  if (exact) return exact;
   if (inst.assetClass === 'crypto') {
     const sym = normalizeCryptoSymbol(inst.symbol);
     const hay = `${inst.exchange} ${providerLabel} ${inst.id.split(':')[0]}`.toLowerCase();
     const spot = /spot/.test(hay);
-    const candidates = cat.instruments.filter(
-      (c) =>
-        c.assetClass === 'crypto' &&
-        normalizeCryptoSymbol(c.symbol) === sym &&
-        hay.includes(c.exchange.split(' ')[0]!.toLowerCase()),
-    );
+    const candidates = cat
+      .cryptoBySymbol(sym)
+      .filter((c) => hay.includes(c.exchange.split(' ')[0]!.toLowerCase()));
     return candidates.find((c) => /spot/i.test(c.subGroup) === spot) ?? candidates[0] ?? undefined;
   }
   if (inst.assetClass === 'future') {

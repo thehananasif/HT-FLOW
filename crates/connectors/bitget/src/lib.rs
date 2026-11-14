@@ -10,6 +10,8 @@
 //! * The trade `snapshot` pushed on subscribe is skipped (history comes from REST).
 //! * REST: contracts, merged depth, fills history (paged backwards with `idLessThan`),
 //!   server time. 10 requests/s token bucket (public limit 20/s per IP).
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 

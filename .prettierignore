@@ -5,3 +5,6 @@ pnpm-lock.yaml
 apps/desktop/src-tauri/gen
 packages/ui-kit/src/fonts
 .claude
+# Saved venue API answers used by Rust tests (kept byte-for-byte)
+crates/connectors/*/fixtures
+crates/connectors/*/tests/fixtures

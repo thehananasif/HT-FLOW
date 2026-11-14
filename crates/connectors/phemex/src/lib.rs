@@ -10,6 +10,8 @@
 //! * Phemex publishes no trade ids: a deterministic id is derived from (ns time, price, size,
 //!   side), identical for REST and WebSocket, so the history/live seam de-duplicates.
 //! * REST: products, order book, recent trades (latest ~1,000), server time. 10 req/s bucket.
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 

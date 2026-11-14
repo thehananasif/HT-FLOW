@@ -1,6 +1,7 @@
 import type { Instrument } from '@htflow/market-data';
 import { registerFeedProvider } from './registry';
 import { createLiveFeed, liveInstruments } from '../state/liveFeed';
+import { discoveredFeed, registerBuiltInFeeds, withDiscovered } from '../state/discovery';
 
 /** One built-in instrument row: [symbol, tick, price decimals, qty decimals, display suffix?]. */
 export type VenueRow = [
@@ -40,24 +41,27 @@ export function venueInstruments(v: LiveVenue): Instrument[] {
 
 /**
  * Registers a feed provider for a Rust connector venue (desktop only). Unknown symbols of the
- * venue are created on demand; the exchange-reported tick size replaces the defaults on load.
+ * venue are created on demand; discovered symbols (state/discovery.ts) carry their real specs.
  */
 export function registerLiveVenue(v: LiveVenue): Instrument[] {
   const prefix = `${v.venue}:`;
   const list = venueInstruments(v);
+  registerBuiltInFeeds(v.venue, list);
   registerFeedProvider({
     prefix,
     label: v.label,
     desktopOnly: true,
-    instruments: () => list,
+    // Built-in rows plus every symbol the live discovery found on the venue.
+    instruments: () => withDiscovered(v.venue, list),
     create(id) {
       const symbol = id.slice(prefix.length);
-      const inst = list.find((i) => i.id === id) ?? {
-        ...list[0]!,
-        id,
-        symbol,
-        displayName: symbol,
-      };
+      const inst = withDiscovered(v.venue, list).find((i) => i.id === id) ??
+        discoveredFeed(id) ?? {
+          ...list[0]!,
+          id,
+          symbol,
+          displayName: symbol,
+        };
       return createLiveFeed(inst, v.venue);
     },
   });

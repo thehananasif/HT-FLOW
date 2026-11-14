@@ -10,6 +10,8 @@
 //!   makes Kraken send a new snapshot. The `trade_snapshot` on subscribe is skipped.
 //! * REST: instruments, order book, trade history (100 per page, paged backwards with
 //!   `lastTime`), server time from `serverTime`. 5 requests/s token bucket.
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 

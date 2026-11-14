@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Clock, Search, Star } from 'lucide-react';
 import { Badge, Button, Checkbox } from '@htflow/ui-kit';
 import { catalog } from '@htflow/market-catalog';
 import { isTauri } from '../backend';
+import { useCatalogVersion } from '../state/discovery';
 import { runCommand } from '../shell/commands';
 import {
   CONNECTED_GROUP,
@@ -57,7 +58,9 @@ export function InstrumentPicker({
   mode = 'open',
 }: InstrumentPickerProps) {
   const prefs = usePickerPrefs();
-  const entries = useMemo(() => pickerEntries(isTauri), []);
+  const catVersion = useCatalogVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when live discovery merges symbols
+  const entries = useMemo(() => pickerEntries(isTauri), [catVersion]);
   const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries]);
   const tree = useMemo(() => {
     const t = catalog().tree();
