@@ -6,9 +6,7 @@ import {
   currencyAffects,
   dueAlerts,
   emptyReaderState,
-  exportIdeas,
   exportOpml,
-  extractTags,
   filterNews,
   formatCountdown,
   groupByDay,
@@ -16,14 +14,12 @@ import {
   instrumentRoot,
   matchKeywords,
   mergeFeedItems,
-  mergeIdeas,
   nextHighImpact,
   normalizeLink,
   normalizeReaderState,
   parseFeed,
   parseFeedDate,
   parseIcs,
-  parseIdeaFile,
   parseOpml,
   parseXml,
   sampleCalendarIcs,
@@ -457,39 +453,5 @@ describe('news', () => {
     // Filled (traded) size is not a pull.
     lp.push(col(500, 500));
     expect(lp.push(col(750, 20), () => 480)).toEqual([]);
-  });
-});
-
-describe('ideas', () => {
-  it('exports, validates and merges .htidea files', () => {
-    const idea = {
-      id: 'i1',
-      instrumentId: 'mock:CLZ6',
-      symbol: 'CLZ6',
-      createdAt: 1,
-      updatedAt: 1,
-      author: 'me',
-      text: 'Long above VAH #breakout #CL',
-      tags: extractTags('Long above VAH #breakout #CL'),
-    };
-    expect(idea.tags).toEqual(['breakout', 'cl']);
-    const file = exportIdeas([idea], 5);
-    const bad = JSON.parse(file) as { ideas: unknown[] };
-    bad.ideas.push({ id: 'x' }, { ...idea, id: 'i2', snapshot: 'data:image/svg+xml;base64,AAAA' });
-    const p = parseIdeaFile(JSON.stringify(bad));
-    expect(p.skipped).toBe(1);
-    expect(p.ideas.map((i) => i.id)).toEqual(['i1', 'i2']);
-    expect(p.ideas[1]!.snapshot).toBeUndefined();
-    const m = mergeIdeas(
-      [idea],
-      [
-        { ...idea, text: 'newer', updatedAt: 9 },
-        { ...idea, id: 'i3' },
-      ],
-    );
-    expect([m.added, m.updated]).toEqual([1, 1]);
-    expect(m.ideas[0]!.text).toBe('newer');
-    expect(() => parseIdeaFile('{"format":"other"}')).toThrow();
-    expect(() => parseIdeaFile('nope')).toThrow();
   });
 });

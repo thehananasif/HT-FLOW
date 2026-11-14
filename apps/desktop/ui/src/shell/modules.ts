@@ -35,13 +35,6 @@ export const MODULES: ModuleDef[] = [
   { id: 'layout-settings', label: 'Layout Settings', group: 'Platform', phase: 'P37' },
   { id: 'alerts', label: 'Alerts', group: 'Platform', phase: 'P23 / P41', hasMenu: true },
   { id: 'risk', label: 'Risk', group: 'Platform', phase: 'P23 / P41', hasMenu: true },
-  {
-    id: 'following',
-    label: 'Following Manager',
-    group: 'Social / Tools',
-    phase: 'P28',
-    hasMenu: true,
-  },
   { id: 'replay', label: 'Replay', group: 'Social / Tools', phase: 'P24 / P35', hasMenu: true },
   { id: 'web-pages', label: 'Web Pages', group: 'Social / Tools', phase: 'P28', hasMenu: true },
   { id: 'logs', label: 'Logs', group: 'Social / Tools', phase: 'P28', hasMenu: true },
@@ -60,7 +53,6 @@ export const MODULES: ModuleDef[] = [
   { id: 'rss', label: 'RSS Reader', group: 'Info', phase: 'P39', hasMenu: true },
   { id: 'news', label: 'News', group: 'Info', phase: 'P39', hasMenu: true },
   { id: 'calendar', label: 'Calendar', group: 'Info', phase: 'P39', hasMenu: true },
-  { id: 'traderstalk', label: 'TradersTalk', group: 'Info', phase: 'P22', hasMenu: true },
 ];
 
 export function moduleDef(id: string): ModuleDef | undefined {

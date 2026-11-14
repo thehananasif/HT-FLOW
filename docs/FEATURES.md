@@ -243,9 +243,10 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P22 — Info group
 
-- [x] `@htflow/info`: XML / RSS 2.0 / RSS 1.0 / Atom / OPML / ICS parsers, keyword highlighting, symbol tagging, calendar logic, reader cache, own-event detectors (big prints, delta spikes, liquidity pulls), `.htidea` format; Rust `net_fetch_text` (GET, 15 s, 5 MB cap, no cookies)
-- [x] RSS Reader (folders, unread, reading pane, open chart, OPML, keywords, refresh interval, offline cache), News (RSS + own events + calendar, filters, keyword alerts), Economic Calendar (impact filters, countdown, ICS URLs, actual vs forecast colours, vertical lines on charts, alert N min before), TradersTalk (local idea log with snapshots, `.htidea` export / import)
-- [ ] Default feed URLs unverified; RRULE recurrence not expanded; "Open in Web Pages" (window not built); funding / OI / liquidation events (no connector data); TradersTalk sharing, chat and sync need a server (BLOCKED); bundled data is labelled sample
+- [x] `@htflow/info`: XML / RSS 2.0 / RSS 1.0 / Atom / OPML / ICS parsers, keyword highlighting, symbol tagging, calendar logic, reader cache, own-event detectors (big prints, delta spikes, liquidity pulls); Rust `net_fetch_text` (GET, 15 s, 5 MB cap, no cookies)
+- [x] RSS Reader (folders, unread, reading pane, open chart, OPML, keywords, refresh interval, offline cache), News (RSS + own events + calendar, filters, keyword alerts), Economic Calendar (impact filters, countdown, ICS URLs, actual vs forecast colours, vertical lines on charts, alert N min before)
+- [ ] ~~TradersTalk~~ Removed (needs a server): sharing, chat and sync need a service HT Flow does not have, so the window, the `.htidea` format and the idea log were deleted; saved workspaces that referenced it drop the window on load
+- [ ] Default feed URLs unverified; RRULE recurrence not expanded; "Open in Web Pages" (window not built); funding / OI / liquidation events (no connector data); bundled data is labelled sample
 
 ## P23 — Alerts & Risk Management
 
@@ -294,7 +295,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## P28 — Remaining modules
 
 - [x] Web Pages (tabbed iframe browser, bookmarks, claims `htflow:open-url` in the web build), Logs (in-app ring buffer capturing console errors and unhandled rejections; level / source filters, search, pause, copy, export, clear), User Guide (18 searchable articles, shortcuts table, F1), guided tour (once per profile, restartable from the palette), "Load sample replay session" (fixed seeded hour on CLZ6)
-- [~] Following Manager: full UI with a local list and sample feed; sharing and sync BLOCKED (needs a server)
+- [ ] ~~Following Manager~~ Removed (needs a server): following other traders needs a sharing service, so the window was deleted; saved workspaces that referenced it drop the window on load
 - [x] Strategies (P42): `@htflow/strategy` SDK (typed inputs, onBar / onTrade / onBook / onFill, indicators, footprint helpers, order API with brackets / trailing / ATM), 5 example strategies, deterministic backtester on replay datasets with slippage / commission, Sharpe / Sortino / Monte-Carlo DD, grid optimiser (Web Worker) with heatmap and walk-forward; Strategies window; chart strategies with markers and live paper trading
 - [~] VPS runner: UI with demo runner and protocol spec in `modules/strategies/README.md`; BLOCKED (needs your own runner binary + SSH transport)
 - [ ] Web Pages in the desktop app needs a native child webview (links open in the system browser); strategy code editor, `.ts` / `.py` / `.htstrat` loading, Python runner, no-code rule builder

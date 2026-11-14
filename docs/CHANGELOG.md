@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — round 6
+
+### Removed
+
+- **TradersTalk** and **Following Manager** are gone: both needed a sharing server (HT Flow is local-only, $0). Their windows, ribbon entries, icons, user-guide articles, the `.htidea` idea-file logic in `@htflow/info`, the chart snapshot hook, styles and e2e specs were deleted. Saved workspaces, layouts and the autosaved workspace that still contain either window drop it on load (`REMOVED_MODULES` / `stripRemovedModules` in `@htflow/workspace`) and rebuild the arrangement from the remaining windows. The OS `.htidea` file association is left in the installer config; opening such a file shows the usual "cannot open" toast.
+
 ## Unreleased — round 5
 
 ### Added

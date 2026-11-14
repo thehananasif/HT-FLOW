@@ -40,6 +40,7 @@ import {
   type WindowState,
   type WorkspaceDoc,
   type WorkspaceTab,
+  stripRemovedModules,
 } from '@htflow/workspace';
 import { backend, BackendError } from '../backend';
 import { useSession } from '../state/session';
@@ -242,7 +243,8 @@ export function Dashboard({ version }: { version: string }) {
 
   /** Replaces the whole workspace (Workspaces manager → Load / import / starter). */
   const loadDoc = useCallback(
-    (d: WorkspaceDoc) => {
+    (loaded: WorkspaceDoc) => {
+      const d = stripRemovedModules(loaded);
       docRef.current = d;
       setDoc(d);
       restoreTab(d.tabs.find((t) => t.id === d.activeTab) ?? d.tabs[0]!);
@@ -292,7 +294,9 @@ export function Dashboard({ version }: { version: string }) {
       });
       // The start-up choice lives in Settings → General, which loads together with the profile.
       void Promise.all([backend.loadSettings<WorkspaceDoc>('workspace'), settingsReady()]).then(
-        ([saved]) => {
+        ([stored]) => {
+          // Windows of removed modules (TradersTalk, Following Manager) are dropped silently.
+          const saved = stored?.tabs?.length ? stripRemovedModules(stored) : stored;
           if (saved && saved.tabs?.length) {
             docRef.current = saved;
             setDoc(saved);

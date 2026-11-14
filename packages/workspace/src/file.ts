@@ -27,6 +27,41 @@ export const WORKSPACE_FILE_FORMAT = 'htworkspace';
 /** Current file format version. v1 = raw app document, v2 = envelope, v3 = envelope + meta + display. */
 export const WORKSPACE_FILE_VERSION = 3;
 
+/**
+ * Module ids that no longer exist (the features needed a server). Saved windows that reference
+ * them are dropped on load instead of rendering an empty placeholder.
+ */
+export const REMOVED_MODULES: readonly string[] = ['traderstalk', 'following'];
+
+const isRemovedModule = (w: unknown): boolean =>
+  isObj(w) &&
+  w.kind === 'module' &&
+  typeof w.module === 'string' &&
+  REMOVED_MODULES.includes(w.module);
+
+/**
+ * Drops windows of removed modules from an already-trusted tab. The dockview layout is discarded
+ * (it would reference the dropped panels) and the tab is rebuilt from the remaining windows.
+ */
+export function dropRemovedModules(tab: WorkspaceTab): WorkspaceTab {
+  const ids = Object.keys(tab.windows).filter((k) => isRemovedModule(tab.windows[k]));
+  if (ids.length === 0) return tab;
+  const windows = { ...tab.windows };
+  for (const k of ids) delete windows[k];
+  return { ...tab, windows, layout: null, specs: specsFromWindows(windows) };
+}
+
+/** Applies {@link dropRemovedModules} to every tab of a workspace document (returns the same doc when nothing changed). */
+export function stripRemovedModules(doc: WorkspaceDoc): WorkspaceDoc {
+  let changed = false;
+  const tabs = doc.tabs.map((t) => {
+    const n = dropRemovedModules(t);
+    if (n !== t) changed = true;
+    return n;
+  });
+  return changed ? { ...doc, tabs } : doc;
+}
+
 export const LIMITS = {
   fileBytes: 5_000_000,
   depth: 48,
@@ -313,12 +348,19 @@ function validateTab(raw: unknown, i: number, warnings: string[]): WorkspaceTab 
   const keys = Object.keys(raw.windows);
   if (keys.length > LIMITS.windowsPerTab) fail(`${where} has too many windows`);
   const windows: Record<string, WindowState> = {};
+  let droppedRemoved = false;
   for (const k of keys) {
     if (!ID.test(k)) fail(`${where}: invalid window id`);
+    if (isRemovedModule(raw.windows[k])) {
+      droppedRemoved = true;
+      continue;
+    }
     windows[k] = validateWindow(raw.windows[k], `${where}, window "${k}"`);
   }
   let layout: unknown = null;
-  if (raw.layout !== null && raw.layout !== undefined) {
+  if (droppedRemoved) {
+    // The arrangement referenced a removed window: rebuild it from the remaining ones.
+  } else if (raw.layout !== null && raw.layout !== undefined) {
     layout = validateLayout(raw.layout, windows);
     if (!layout) warnings.push(`${where}: the window arrangement was invalid and was rebuilt`);
   }
