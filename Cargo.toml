@@ -16,6 +16,7 @@ members = [
     "crates/connectors/bitget",
     "crates/connectors/deribit",
     "crates/tick-store",
+    "crates/vps",
 ]
 
 [workspace.package]
@@ -54,6 +55,7 @@ htflow-connector-bitget = { path = "crates/connectors/bitget" }
 htflow-connector-deribit = { path = "crates/connectors/deribit" }
 
 htflow-tick-store = { path = "crates/tick-store" }
+htflow-vps = { path = "crates/vps" }
 
 [profile.release]
 codegen-units = 1
