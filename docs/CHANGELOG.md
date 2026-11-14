@@ -2,6 +2,17 @@
 
 ## Unreleased — round 6
 
+### Security
+
+- Full security review (`docs/SECURITY-AUDIT.md`). Fixed: `.htprofile` import could write `profile.json` / `settings.bin` / `vault.bin` outside the profiles folder through a crafted profile id (high; the id must now be a canonical UUID and username, display name and key parameters are validated).
+- The 6-digit PIN no longer makes a copied profile brute-forceable offline: the PIN wrap also needs a per-profile pepper in the Windows Credential Manager, exports never carry the PIN, imports drop it, existing PINs are upgraded on the next PIN unlock. Setting a PIN without a credential store is refused (`auth.pin_unavailable`).
+- Argon2 parameters and salts read from files are bounded; tampered values fail as a wrong password instead of panicking or allocating gigabytes.
+- Release workflow: the updater signing key is passed only to the build step (not to `pnpm install` scripts); CI runs with a read-only token.
+- Crash reports also redact tokens inside URLs (Discord webhooks, Telegram bot tokens) and query values.
+- RSS / feed fetches refuse redirects from a public host to local-network addresses; feed links are kept only when they are http(s).
+- Tick store: block record counts are bounded and checked against the index, price rescaling saturates; a fuzz-style test corrupts data and index files.
+- CSV exports neutralise spreadsheet formulas; HT Script built-in lookups ignore `Object.prototype` names; vault values are wiped from memory on lock / log out; custom WebSocket batches flush at 4 MB; opened files are read with a hard 32 MB cap; `vault_put` sizes are capped.
+
 ### Added
 
 - Older chart history now uses klines on every venue, not only Binance (P06): Bybit (`/v5/market/kline`, `linear` / `inverse` / `spot` via `BybitLinear::klines_in`), OKX (`/api/v5/market/history-candles`, `utc` bars from 6 h up), Bitget (`/api/v2/mix/market/history-candles`), Kraken Futures (`/api/charts/v1/trade/{symbol}/{resolution}`), Bitfinex (`/v2/candles/trade:{tf}:{symbol}/hist`), Phemex (`/exchange/public/md/v2/kline/list`), WhiteBIT (`/api/v1/public/kline`) and Deribit (`public/get_tradingview_chart_data`; USD-contract `cost` on inverse instruments, base `volume` on linear ones). Each venue's `MarketApi` now serves `kline_intervals()` / `klines()` and a new `kline_max_bars()` (page size × pages it will spend); `market_history_range` picks the smallest interval whose span fits in `min(5,000, kline_max_bars)` bars, so 4 h / 1 D charts and days beyond the trade endpoints' reach fill from one to a few cheap requests. Requests use the venue's token bucket and the shared `Retry-After` / exponential back-off (Bybit's HTTP-200 `retCode` 10006 / 10018 too); rate-limited answers show in the chart footer for every venue now (`throttled()` was missing on Bitget, Kraken, Bitfinex, Phemex, WhiteBIT and Deribit).

@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
-use htflow_auth::{NewProfile, Prefs, ProfileStore, ProfileSummary, Session};
+use htflow_auth::{NewProfile, PinPepper, Prefs, ProfileStore, ProfileSummary, Session};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use zeroize::Zeroizing;
@@ -12,6 +12,36 @@ use crate::error::{CmdError, CmdResult};
 
 const KEYRING_SERVICE: &str = "HTFlow";
 const LAST_PROFILE: &str = "last_profile";
+
+/// Per-profile PIN pepper in the OS credential store (Windows Credential Manager, DPAPI-protected
+/// for the signed-in Windows user). A copied profile folder alone is therefore not enough to
+/// brute-force the 6-digit PIN offline.
+pub struct KeyringPepper;
+
+impl PinPepper for KeyringPepper {
+    fn pepper(&self, profile_id: &str, create: bool) -> Option<Zeroizing<Vec<u8>>> {
+        let entry =
+            keyring::Entry::new(KEYRING_SERVICE, &format!("pin-pepper:{profile_id}")).ok()?;
+        if let Ok(s) = entry.get_password() {
+            let s = Zeroizing::new(s);
+            if let Ok(b) = B64.decode(s.as_bytes()) {
+                if b.len() == 32 {
+                    return Some(Zeroizing::new(b));
+                }
+            }
+        }
+        if !create {
+            return None;
+        }
+        let mut b = Zeroizing::new(vec![0u8; 32]);
+        htflow_auth::fill_random(&mut b);
+        let enc = Zeroizing::new(B64.encode(&*b));
+        entry.set_password(&enc).ok()?;
+        // Read back: refuse a PIN when the store silently drops writes (e.g. no secret service).
+        let back = Zeroizing::new(entry.get_password().ok()?);
+        (*back == *enc).then_some(b)
+    }
+}
 
 pub struct AuthState {
     pub store: Arc<ProfileStore>,
@@ -133,6 +163,7 @@ pub async fn auth_create_account(
     let remember_me = input.remember_me;
     let (session, words) = blocking(move || {
         let pw = Zeroizing::new(input.password);
+        let pin = input.pin.map(Zeroizing::new);
         Ok(store.create(
             NewProfile {
                 username: &input.username,
@@ -143,7 +174,7 @@ pub async fn auth_create_account(
                     theme: input.theme,
                     email: input.email,
                 },
-                pin: input.pin.as_deref(),
+                pin: pin.as_deref().map(String::as_str),
             },
             now_ms(),
         )?)
@@ -220,12 +251,14 @@ pub async fn auth_unlock_pin(
     pin: String,
 ) -> CmdResult<SessionInfo> {
     let store = state.store.clone();
+    let pin = Zeroizing::new(pin);
     let s = blocking(move || Ok(store.unlock_pin(&username, &pin)?)).await?;
     Ok(set_session(&state, s))
 }
 
 #[tauri::command]
 pub async fn auth_set_pin(state: State<'_, AuthState>, pin: Option<String>) -> CmdResult<()> {
+    let pin = pin.map(Zeroizing::new);
     let store = state.store.clone();
     let sess = state.session.clone();
     blocking(move || {
@@ -233,7 +266,7 @@ pub async fn auth_set_pin(state: State<'_, AuthState>, pin: Option<String>) -> C
         let s = g
             .as_ref()
             .ok_or_else(|| CmdError::new("auth.locked", "Not logged in"))?;
-        Ok(store.set_pin(s, pin.as_deref())?)
+        Ok(store.set_pin(s, pin.as_deref().map(String::as_str))?)
     })
     .await
 }
@@ -244,6 +277,7 @@ pub async fn auth_change_password(
     old_password: String,
     new_password: String,
 ) -> CmdResult<()> {
+    let (old_password, new_password) = (Zeroizing::new(old_password), Zeroizing::new(new_password));
     let store = state.store.clone();
     let sess = state.session.clone();
     blocking(move || {
@@ -263,6 +297,7 @@ pub async fn auth_recover(
     words: Vec<String>,
     new_password: String,
 ) -> CmdResult<()> {
+    let (words, new_password) = (Zeroizing::new(words), Zeroizing::new(new_password));
     let store = state.store.clone();
     blocking(move || Ok(store.recover(&username, &words, &new_password)?)).await
 }
@@ -321,6 +356,9 @@ pub async fn settings_set(
 
 #[tauri::command]
 pub async fn vault_put(state: State<'_, AuthState>, key: String, secret: String) -> CmdResult<()> {
+    if key.len() > 256 || secret.len() > 64 * 1024 {
+        return Err(CmdError::new("vault.too_large", "Vault entry is too large"));
+    }
     with_session(&state, |s| Ok(s.vault_put(&key, secret)?))
 }
 

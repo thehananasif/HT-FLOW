@@ -31,6 +31,9 @@ const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 /// Frames are batched for up to this long before one IPC message (like `market_subscribe`).
 const FLUSH_EVERY: Duration = Duration::from_millis(16);
 const MAX_BATCH: usize = 512;
+/// A batch is also flushed once it holds this many bytes, so a server streaming 1 MiB frames
+/// cannot make one batch hold up to `MAX_BATCH` MiB before the next flush.
+const MAX_BATCH_BYTES: usize = 4 * 1024 * 1024;
 
 /// Events streamed to the UI. `frames` carries raw text frames in arrival order.
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -121,6 +124,7 @@ pub async fn run(
     }
 
     let mut batch: Vec<String> = Vec::new();
+    let mut batch_bytes = 0usize;
     let mut flush = tokio::time::interval(FLUSH_EVERY);
     let mut ping = tokio::time::interval(PING_EVERY);
     ping.tick().await; // the first tick is immediate
@@ -131,10 +135,10 @@ pub async fn run(
                 last_rx = tokio::time::Instant::now();
                 match msg {
                     // Pings are answered by tungstenite itself on the next read / write.
-                    Some(Ok(Message::Text(t))) => batch.push(t),
+                    Some(Ok(Message::Text(t))) => { batch_bytes += t.len(); batch.push(t) }
                     Some(Ok(Message::Binary(b))) => {
                         // Many servers send JSON as binary frames; forward it when it is UTF-8.
-                        if let Ok(t) = String::from_utf8(b) { batch.push(t); }
+                        if let Ok(t) = String::from_utf8(b) { batch_bytes += t.len(); batch.push(t); }
                     }
                     Some(Ok(Message::Close(f))) => {
                         break WsEvent::Closed {
@@ -146,9 +150,12 @@ pub async fn run(
                     Some(Err(e)) => break WsEvent::Error { message: e.to_string() },
                     None => break WsEvent::Closed { code: None, reason: "Connection closed".into() },
                 }
-                if batch.len() >= MAX_BATCH && !emit(WsEvent::Frames { data: std::mem::take(&mut batch) }) {
-                    let _ = tokio::time::timeout(CLOSE_TIMEOUT, ws.close(None)).await;
-                    return;
+                if batch.len() >= MAX_BATCH || batch_bytes >= MAX_BATCH_BYTES {
+                    batch_bytes = 0;
+                    if !emit(WsEvent::Frames { data: std::mem::take(&mut batch) }) {
+                        let _ = tokio::time::timeout(CLOSE_TIMEOUT, ws.close(None)).await;
+                        return;
+                    }
                 }
             }
             cmd = cmds.recv() => match cmd {
@@ -163,6 +170,7 @@ pub async fn run(
                 }
             },
             _ = flush.tick() => {
+                batch_bytes = 0;
                 if !batch.is_empty() && !emit(WsEvent::Frames { data: std::mem::take(&mut batch) }) {
                     let _ = tokio::time::timeout(CLOSE_TIMEOUT, ws.close(None)).await;
                     return;

@@ -5,9 +5,15 @@
 //! once under a key derived from the password (Argon2id, m=64 MiB, t=3, p=1), once under the
 //! 24-word recovery code, and optionally under a 6-digit PIN. A wrong password therefore never
 //! decrypts anything, and "Forgot password" works only with the recovery code shown at sign-up.
+//!
+//! A 6-digit PIN has only 10^6 values, so on its own it could be brute-forced offline from a copied
+//! `profile.json`. The PIN wrap therefore also mixes in a per-profile random *pepper* that lives
+//! outside the profile folder (the OS credential store, see [`PinPepper`]); exported `.htprofile`
+//! bundles never carry the PIN wrap at all.
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use argon2::{Algorithm, Argon2, Params, Version};
 use base64::engine::general_purpose::STANDARD as B64;
@@ -39,7 +45,32 @@ impl KdfParams {
         t: 3,
         p: 1,
     };
+
+    /// Bounds accepted from disk / imported bundles. Parameters come from files an attacker may
+    /// have written (a crafted `.htprofile`), so they must not be able to request gigabytes of
+    /// memory, hours of CPU or values that make Argon2 refuse to run.
+    pub fn is_sane(&self) -> bool {
+        (8..=1024 * 1024).contains(&self.m_kib)
+            && (1..=16).contains(&self.t)
+            && (1..=8).contains(&self.p)
+            && self.m_kib >= 8 * self.p
+    }
 }
+
+/// Supplies the per-profile PIN pepper kept outside the profile folder (Windows: the Credential
+/// Manager). `create` asks for a new random pepper when none exists yet. Returning `None` means
+/// the pepper is unavailable, so a PIN cannot be set or used on this machine.
+pub trait PinPepper: Send + Sync {
+    fn pepper(&self, profile_id: &str, create: bool) -> Option<Zeroizing<Vec<u8>>>;
+}
+
+/// Fills `buf` from the OS CSPRNG (for callers that keep auth secrets, e.g. the PIN pepper).
+pub fn fill_random(buf: &mut [u8]) {
+    rand::rngs::OsRng.fill_bytes(buf);
+}
+
+/// Longest display name kept from user input or an imported bundle.
+pub const MAX_DISPLAY_NAME: usize = 64;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {
@@ -67,6 +98,8 @@ pub enum AuthError {
     InvalidRecovery,
     #[error("Not a valid .htprofile file")]
     Format,
+    #[error("A PIN needs the Windows credential store, which is not available")]
+    PinUnavailable,
     #[error("Storage error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Encrypted storage error: {0}")]
@@ -91,6 +124,7 @@ impl AuthError {
             AuthError::PinFormat => "auth.pin_format",
             AuthError::InvalidRecovery => "auth.invalid_recovery",
             AuthError::Format => "auth.format",
+            AuthError::PinUnavailable => "auth.pin_unavailable",
             AuthError::Io(_) | AuthError::Vault(_) | AuthError::Json(_) => "internal",
         }
     }
@@ -116,6 +150,9 @@ pub struct ProfileMeta {
     pub wrapped_recovery: WrappedKey,
     #[serde(default)]
     pub wrapped_pin: Option<WrappedKey>,
+    /// The PIN wrap mixes in the [`PinPepper`] (false for PINs set before round 6).
+    #[serde(default)]
+    pub pin_peppered: bool,
     #[serde(default)]
     pub pin_failures: u32,
     #[serde(default)]
@@ -178,19 +215,26 @@ fn valid_pin(p: &str) -> bool {
     p.len() == 6 && p.chars().all(|c| c.is_ascii_digit())
 }
 
-fn derive(secret: &[u8], salt: &[u8], kdf: KdfParams) -> Key {
-    let params = Params::new(kdf.m_kib, kdf.t, kdf.p, Some(KEY_LEN)).expect("valid Argon2 params");
+/// Argon2id. `None` for parameters outside [`KdfParams::is_sane`] or a salt shorter than 8 bytes
+/// (both can only come from a tampered or crafted file), instead of panicking or allocating
+/// whatever the file asks for.
+fn derive(secret: &[u8], salt: &[u8], kdf: KdfParams) -> Option<Key> {
+    if !kdf.is_sane() || !(8..=64).contains(&salt.len()) {
+        return None;
+    }
+    let params = Params::new(kdf.m_kib, kdf.t, kdf.p, Some(KEY_LEN)).ok()?;
     let mut out = Zeroizing::new([0u8; KEY_LEN]);
     Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
         .hash_password_into(secret, salt, out.as_mut())
-        .expect("Argon2id derivation");
-    out
+        .ok()?;
+    Some(out)
 }
 
 fn wrap(data_key: &[u8; KEY_LEN], secret: &[u8], kdf: KdfParams, purpose: &[u8]) -> WrappedKey {
     let mut salt = [0u8; 16];
     rand::rngs::OsRng.fill_bytes(&mut salt);
-    let kek = derive(secret, &salt, kdf);
+    // Our own parameters (PRODUCTION or the test set) are always sane.
+    let kek = derive(secret, &salt, kdf).expect("sane Argon2id parameters");
     WrappedKey {
         salt: B64.encode(salt),
         kdf,
@@ -201,7 +245,7 @@ fn wrap(data_key: &[u8; KEY_LEN], secret: &[u8], kdf: KdfParams, purpose: &[u8])
 fn unwrap(w: &WrappedKey, secret: &[u8], purpose: &[u8]) -> Option<Key> {
     let salt = B64.decode(&w.salt).ok()?;
     let blob = B64.decode(&w.blob).ok()?;
-    let kek = derive(secret, &salt, w.kdf);
+    let kek = derive(secret, &salt, w.kdf)?;
     let plain = open(&kek, &blob, purpose).ok()?;
     if plain.len() != KEY_LEN {
         return None;
@@ -209,6 +253,41 @@ fn unwrap(w: &WrappedKey, secret: &[u8], purpose: &[u8]) -> Option<Key> {
     let mut k = Zeroizing::new([0u8; KEY_LEN]);
     k.copy_from_slice(&plain);
     Some(k)
+}
+
+/// PIN wrap secret: the PIN, a separator and the pepper (when one is used).
+fn pin_secret(pin: &str, pepper: Option<&[u8]>) -> Zeroizing<Vec<u8>> {
+    let mut v = Zeroizing::new(Vec::with_capacity(
+        pin.len() + 1 + pepper.map_or(0, <[u8]>::len),
+    ));
+    v.extend_from_slice(pin.as_bytes());
+    if let Some(p) = pepper {
+        v.push(0);
+        v.extend_from_slice(p);
+    }
+    v
+}
+
+/// Display names are shown in the UI and written to files: trimmed, no control characters and no
+/// bidi overrides (which could make one profile name look like another).
+fn clean_display_name(s: &str) -> String {
+    s.trim()
+        .chars()
+        .filter(|c| {
+            !c.is_control()
+                && !matches!(c, '\u{200e}' | '\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+        })
+        .take(MAX_DISPLAY_NAME)
+        .collect()
+}
+
+/// Structural checks for a wrapped key read from an untrusted file.
+fn sane_wrapped(w: &WrappedKey) -> bool {
+    w.kdf.is_sane()
+        && B64
+            .decode(&w.salt)
+            .is_ok_and(|s| (8..=64).contains(&s.len()))
+        && B64.decode(&w.blob).is_ok_and(|b| b.len() <= 256)
 }
 
 fn normalize_recovery(words: &[String]) -> String {
@@ -300,6 +379,7 @@ impl Session {
 pub struct ProfileStore {
     root: PathBuf,
     kdf: KdfParams,
+    pepper: Option<Arc<dyn PinPepper>>,
 }
 
 impl ProfileStore {
@@ -307,6 +387,33 @@ impl ProfileStore {
         Self {
             root: root.into(),
             kdf,
+            pepper: None,
+        }
+    }
+
+    /// Uses `pepper` for PIN wraps. Without one, PINs are wrapped with the PIN alone (tests,
+    /// platforms without a credential store).
+    pub fn with_pin_pepper(mut self, pepper: Arc<dyn PinPepper>) -> Self {
+        self.pepper = Some(pepper);
+        self
+    }
+
+    /// Wraps the data key under a PIN. Returns `(wrap, peppered)`.
+    fn wrap_pin(
+        &self,
+        profile_id: &str,
+        data_key: &[u8; KEY_LEN],
+        pin: &str,
+    ) -> Result<(WrappedKey, bool)> {
+        match &self.pepper {
+            Some(p) => {
+                let pepper = p
+                    .pepper(profile_id, true)
+                    .ok_or(AuthError::PinUnavailable)?;
+                let secret = pin_secret(pin, Some(&pepper));
+                Ok((wrap(data_key, &secret, self.kdf, b"pin"), true))
+            }
+            None => Ok((wrap(data_key, pin.as_bytes(), self.kdf, b"pin"), false)),
         }
     }
 
@@ -394,11 +501,16 @@ impl ProfileStore {
             .map(|i| list[*i as usize % list.len()].to_string())
             .collect();
         let data_key = random_key();
+        let id = uuid::Uuid::new_v4().to_string();
+        let pin = match input.pin {
+            Some(p) => Some(self.wrap_pin(&id, &data_key, p)?),
+            None => None,
+        };
         let meta = ProfileMeta {
             format: 1,
-            id: uuid::Uuid::new_v4().to_string(),
+            id,
             username: input.username.trim().to_string(),
-            display_name: input.display_name.trim().to_string(),
+            display_name: clean_display_name(input.display_name),
             created_at: now_ms,
             wrapped_password: wrap(&data_key, input.password.as_bytes(), self.kdf, b"pw"),
             wrapped_recovery: wrap(
@@ -407,9 +519,8 @@ impl ProfileStore {
                 self.kdf,
                 b"rec",
             ),
-            wrapped_pin: input
-                .pin
-                .map(|p| wrap(&data_key, p.as_bytes(), self.kdf, b"pin")),
+            pin_peppered: pin.as_ref().is_some_and(|(_, p)| *p),
+            wrapped_pin: pin.map(|(w, _)| w),
             pin_failures: 0,
             failed_attempts: 0,
             locked_until_ms: 0,
@@ -439,7 +550,7 @@ impl ProfileStore {
                 Session::open(&dir, &meta, key)
             }
             None => {
-                meta.failed_attempts += 1;
+                meta.failed_attempts = meta.failed_attempts.saturating_add(1);
                 meta.locked_until_ms = now_ms + lockout_seconds(meta.failed_attempts) as i64 * 1000;
                 Self::save_meta(&dir, &meta)?;
                 Err(AuthError::InvalidCredentials)
@@ -450,19 +561,41 @@ impl ProfileStore {
     pub fn unlock_pin(&self, username: &str, pin: &str) -> Result<Session> {
         let (dir, mut meta) = self.find(username)?;
         let wrapped = meta.wrapped_pin.clone().ok_or(AuthError::NoPin)?;
-        match unwrap(&wrapped, pin.as_bytes(), b"pin") {
+        let secret = if meta.pin_peppered {
+            // The pepper lives in this machine's credential store; without it the PIN is unusable.
+            let pepper = self
+                .pepper
+                .as_ref()
+                .and_then(|p| p.pepper(&meta.id, false))
+                .ok_or(AuthError::NoPin)?;
+            pin_secret(pin, Some(&pepper))
+        } else {
+            pin_secret(pin, None)
+        };
+        match unwrap(&wrapped, &secret, b"pin") {
             Some(key) => {
-                if meta.pin_failures != 0 {
-                    meta.pin_failures = 0;
+                let mut dirty = meta.pin_failures != 0;
+                meta.pin_failures = 0;
+                if !meta.pin_peppered && self.pepper.is_some() {
+                    // Upgrade a PIN set before peppering existed. Keep the old wrap if the
+                    // credential store is unavailable right now.
+                    if let Ok((w, true)) = self.wrap_pin(&meta.id, &key, pin) {
+                        meta.wrapped_pin = Some(w);
+                        meta.pin_peppered = true;
+                        dirty = true;
+                    }
+                }
+                if dirty {
                     Self::save_meta(&dir, &meta)?;
                 }
                 Session::open(&dir, &meta, key)
             }
             None => {
-                meta.pin_failures += 1;
+                meta.pin_failures = meta.pin_failures.saturating_add(1);
                 let locked = meta.pin_failures >= PIN_MAX_FAILURES;
                 if locked {
                     meta.wrapped_pin = None;
+                    meta.pin_peppered = false;
                     meta.pin_failures = 0;
                 }
                 Self::save_meta(&dir, &meta)?;
@@ -517,14 +650,26 @@ impl ProfileStore {
             }
         }
         let (dir, mut meta) = self.find_id(&session.profile_id)?;
-        meta.wrapped_pin = pin.map(|p| wrap(session.data_key(), p.as_bytes(), self.kdf, b"pin"));
+        let w = match pin {
+            Some(p) => Some(self.wrap_pin(&meta.id, session.data_key(), p)?),
+            None => None,
+        };
+        meta.pin_peppered = w.as_ref().is_some_and(|(_, p)| *p);
+        meta.wrapped_pin = w.map(|(w, _)| w);
         meta.pin_failures = 0;
         Self::save_meta(&dir, &meta)
     }
 
     /// Encrypted `.htprofile` bundle: metadata with wrapped keys + sealed settings and vault.
+    /// The PIN wrap is left out: a 6-digit PIN is far too weak to protect a file that may be
+    /// copied to a USB stick or a cloud folder (set the PIN again after importing).
     pub fn export(&self, session: &Session) -> Result<String> {
-        let (dir, meta) = self.find_id(&session.profile_id)?;
+        let (dir, mut meta) = self.find_id(&session.profile_id)?;
+        meta.wrapped_pin = None;
+        meta.pin_peppered = false;
+        meta.pin_failures = 0;
+        meta.failed_attempts = 0;
+        meta.locked_until_ms = 0;
         let read = |f: &str| -> Result<Option<String>> {
             let p = dir.join(f);
             Ok(if p.exists() {
@@ -549,12 +694,35 @@ impl ProfileStore {
             return Err(AuthError::Format);
         }
         let mut meta = bundle.meta;
+        // Everything in the bundle is untrusted (a double-clicked file imports straight away).
+        // The id becomes a directory name, so only a canonical UUID is ever used as one:
+        // `../../x` or `C:\x` would otherwise write profile files outside the profiles folder.
+        if meta.format != 1
+            || !valid_username(meta.username.trim())
+            || !sane_wrapped(&meta.wrapped_password)
+            || !sane_wrapped(&meta.wrapped_recovery)
+        {
+            return Err(AuthError::Format);
+        }
+        meta.username = meta.username.trim().to_string();
+        meta.display_name = clean_display_name(&meta.display_name);
+        if meta.display_name.is_empty() {
+            meta.display_name = meta.username.clone();
+        }
         if self.find(&meta.username).is_ok() {
             return Err(AuthError::Exists);
         }
-        if self.find_id(&meta.id).is_ok() {
+        let canonical = uuid::Uuid::parse_str(&meta.id)
+            .ok()
+            .map(|u| u.hyphenated().to_string())
+            .filter(|c| *c == meta.id);
+        if canonical.is_none() || self.find_id(&meta.id).is_ok() {
             meta.id = uuid::Uuid::new_v4().to_string();
         }
+        // A PIN wrap from elsewhere is never trusted (weak secret, foreign pepper).
+        meta.wrapped_pin = None;
+        meta.pin_peppered = false;
+        meta.pin_failures = 0;
         let dir = self.profiles_dir().join(&meta.id);
         fs::create_dir_all(&dir)?;
         for (name, data) in [
@@ -616,9 +784,9 @@ mod tests {
             }
         );
         // Derivation is deterministic for the same salt and differs per secret.
-        let a = derive(b"password-1", b"0123456789abcdef", FAST);
-        let b = derive(b"password-1", b"0123456789abcdef", FAST);
-        let c = derive(b"password-2", b"0123456789abcdef", FAST);
+        let a = derive(b"password-1", b"0123456789abcdef", FAST).unwrap();
+        let b = derive(b"password-1", b"0123456789abcdef", FAST).unwrap();
+        let c = derive(b"password-2", b"0123456789abcdef", FAST).unwrap();
         assert_eq!(*a, *b);
         assert_ne!(*a, *c);
     }
@@ -758,6 +926,172 @@ mod tests {
         assert_eq!(restored.vault_get("dxfeed").as_deref(), Some("TOKEN"));
         let wrong = random_key();
         assert!(dst.session_from_key(&s2.profile_id, &wrong).is_err());
+    }
+
+    /// In-memory stand-in for the OS credential store.
+    #[derive(Default)]
+    struct MemPepper(
+        std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>,
+        bool,
+    );
+
+    impl PinPepper for MemPepper {
+        fn pepper(&self, id: &str, create: bool) -> Option<Zeroizing<Vec<u8>>> {
+            if self.1 {
+                return None; // "credential store unavailable"
+            }
+            let mut m = self.0.lock().unwrap();
+            if !m.contains_key(id) && create {
+                let mut v = vec![0u8; 32];
+                rand::rngs::OsRng.fill_bytes(&mut v);
+                m.insert(id.to_string(), v);
+            }
+            m.get(id).cloned().map(Zeroizing::new)
+        }
+    }
+
+    fn meta_of(dir: &Path) -> ProfileMeta {
+        let p = fs::read_dir(dir.join("profiles"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        serde_json::from_slice(&fs::read(p.join(META_FILE)).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn import_rejects_path_traversal_and_bad_fields() {
+        let src_dir = tempfile::tempdir().unwrap();
+        let src = ProfileStore::new(src_dir.path(), FAST);
+        let (s, _) = src.create(new("victim", "my-password-1"), 5).unwrap();
+        let good: serde_json::Value = serde_json::from_str(&src.export(&s).unwrap()).unwrap();
+
+        let dst_dir = tempfile::tempdir().unwrap();
+        let outside = dst_dir.path().join("outside");
+        let dst = ProfileStore::new(dst_dir.path().join("root"), FAST);
+        for (i, evil_id) in [
+            "../../outside".to_string(),
+            outside.display().to_string(),
+            "..".to_string(),
+            "x/../../outside".to_string(),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut b = good.clone();
+            b["meta"]["id"] = evil_id.clone().into();
+            b["meta"]["username"] = format!("user{i}").into();
+            let sum = dst.import(&b.to_string()).unwrap();
+            assert_ne!(sum.id, evil_id);
+            assert!(uuid::Uuid::parse_str(&sum.id).is_ok());
+            assert!(dst_dir
+                .path()
+                .join("root/profiles")
+                .join(&sum.id)
+                .join(META_FILE)
+                .is_file());
+        }
+        assert!(
+            !outside.exists(),
+            "import wrote outside the profiles folder"
+        );
+        assert!(!dst_dir.path().join(META_FILE).exists());
+
+        // Hostile field values are refused instead of panicking / allocating gigabytes.
+        let bad = |f: &dyn Fn(&mut serde_json::Value)| {
+            let mut b = good.clone();
+            b["meta"]["username"] = "fresh".into();
+            f(&mut b);
+            dst.import(&b.to_string())
+        };
+        for f in [
+            &(|b: &mut serde_json::Value| b["meta"]["username"] = "../x".into())
+                as &dyn Fn(&mut serde_json::Value),
+            &|b| b["meta"]["wrapped_password"]["kdf"]["m_kib"] = (u32::MAX).into(),
+            &|b| b["meta"]["wrapped_password"]["kdf"]["m_kib"] = 0.into(),
+            &|b| b["meta"]["wrapped_password"]["kdf"]["t"] = 0.into(),
+            &|b| b["meta"]["wrapped_recovery"]["kdf"]["p"] = 1000.into(),
+            &|b| b["meta"]["wrapped_password"]["salt"] = "AA==".into(),
+            &|b| b["meta"]["format"] = 7.into(),
+        ] {
+            assert!(matches!(bad(f), Err(AuthError::Format)));
+        }
+        // Control characters are stripped from the display name.
+        let ok = bad(&|b| b["meta"]["display_name"] = "a\u{202e}\nb".into()).unwrap();
+        assert_eq!(ok.display_name, "ab");
+    }
+
+    #[test]
+    fn tampered_kdf_on_disk_fails_closed_without_panicking() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ProfileStore::new(dir.path(), FAST);
+        store.create(new("mallory", "correct-horse-1"), 0).unwrap();
+        let p = fs::read_dir(dir.path().join("profiles"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let mut m = meta_of(dir.path());
+        m.wrapped_password.kdf.m_kib = u32::MAX;
+        m.failed_attempts = u32::MAX;
+        fs::write(p.join(META_FILE), serde_json::to_vec(&m).unwrap()).unwrap();
+        assert!(matches!(
+            store.login("mallory", "correct-horse-1", 0),
+            Err(AuthError::InvalidCredentials)
+        ));
+        assert_eq!(meta_of(dir.path()).failed_attempts, u32::MAX);
+    }
+
+    #[test]
+    fn pin_is_peppered_and_never_exported() {
+        let dir = tempfile::tempdir().unwrap();
+        let pep = Arc::new(MemPepper::default());
+        let store = ProfileStore::new(dir.path(), FAST).with_pin_pepper(pep.clone());
+        let (s, _) = store.create(new("pinny", "pin-password-1"), 0).unwrap();
+        let m = meta_of(dir.path());
+        assert!(m.pin_peppered && m.wrapped_pin.is_some());
+        // An attacker with only profile.json cannot test PINs: the PIN alone does not unwrap.
+        assert!(unwrap(m.wrapped_pin.as_ref().unwrap(), b"123456", b"pin").is_none());
+        assert!(store.unlock_pin("pinny", "123456").is_ok());
+        // Without the credential-store pepper the PIN cannot be used at all.
+        let bare = ProfileStore::new(dir.path(), FAST);
+        assert!(matches!(
+            bare.unlock_pin("pinny", "123456"),
+            Err(AuthError::NoPin)
+        ));
+        // Exports never carry the PIN wrap, imports never accept one.
+        let bundle = store.export(&s).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&bundle).unwrap();
+        assert!(v["meta"]["wrapped_pin"].is_null());
+        let other = tempfile::tempdir().unwrap();
+        let dst = ProfileStore::new(other.path(), FAST);
+        let mut with_pin = v.clone();
+        with_pin["meta"]["wrapped_pin"] = serde_json::to_value(&m.wrapped_pin).unwrap();
+        assert!(!dst.import(&with_pin.to_string()).unwrap().has_pin);
+        // No credential store: setting a PIN is refused rather than silently weak.
+        let no_store = ProfileStore::new(dir.path(), FAST)
+            .with_pin_pepper(Arc::new(MemPepper(Default::default(), true)));
+        assert!(matches!(
+            no_store.set_pin(&s, Some("111111")),
+            Err(AuthError::PinUnavailable)
+        ));
+    }
+
+    #[test]
+    fn legacy_pin_is_upgraded_to_peppered() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = ProfileStore::new(dir.path(), FAST);
+        legacy.create(new("old", "old-password-1"), 0).unwrap();
+        assert!(!meta_of(dir.path()).pin_peppered);
+        let store =
+            ProfileStore::new(dir.path(), FAST).with_pin_pepper(Arc::new(MemPepper::default()));
+        assert!(store.unlock_pin("old", "123456").is_ok());
+        let m = meta_of(dir.path());
+        assert!(m.pin_peppered);
+        assert!(unwrap(m.wrapped_pin.as_ref().unwrap(), b"123456", b"pin").is_none());
+        assert!(store.unlock_pin("old", "123456").is_ok());
     }
 
     #[test]

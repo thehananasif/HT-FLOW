@@ -225,3 +225,24 @@ describe('.htind files', () => {
     expect(() => parseHtind('plot("x", fetch(1))')).toThrow(/Script error/);
   });
 });
+
+describe('HT Script sandbox', () => {
+  it('does not resolve Object.prototype members as built-ins', () => {
+    for (const name of ['constructor', 'toString', 'valueOf', '__proto__', 'hasOwnProperty']) {
+      for (const src of [
+        `x = ${name}(close)\nplot("a", x)`,
+        `${name}(1)\nplot("a", close)`,
+        `y = ${name}\nplot("a", close)`,
+      ]) {
+        const r = checkScript(src);
+        expect(r.ok, src).toBe(false);
+        if (!r.ok)
+          expect(r.error, src).toMatch(src.startsWith('y') ? /Unknown name/ : /Unknown function/);
+      }
+      expect(() => compileFormula(`${name}(close)`)).toThrow();
+    }
+    // A built-in-looking label is just a label.
+    const ok = checkScript('len = input.int("constructor", 3)\nplot("toString", sma(close, len))');
+    expect(ok.ok).toBe(true);
+  });
+});

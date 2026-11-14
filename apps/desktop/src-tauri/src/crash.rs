@@ -134,9 +134,42 @@ fn redact_line(line: &str) -> String {
         } else if looks_like_token(word) {
             out.push_str("<token>");
         } else {
-            out.push_str(word);
+            out.push_str(&redact_embedded(word));
         }
         out.push_str(ws);
+    }
+    out
+}
+
+/// Secrets inside URLs and `id:secret` pairs, e.g. a Discord webhook
+/// `https://discord.com/api/webhooks/<id>/<token>` or a Telegram bot token `123456:AA…` inside
+/// `https://api.telegram.org/bot123456:AA…/sendMessage`: each piece between `/ : ? & = # ;` is
+/// checked on its own, and query values are always hidden.
+fn redact_embedded(word: &str) -> String {
+    let mut out = String::with_capacity(word.len());
+    let mut in_query = false;
+    let mut after_eq = false;
+    for piece in word.split_inclusive(['/', ':', '?', '&', '=', '#', ';', ',']) {
+        let sep = piece.chars().last().filter(|c| "/:?&=#;,".contains(*c));
+        let body = sep.map_or(piece, |c| &piece[..piece.len() - c.len_utf8()]);
+        let tokenish = body.len() >= 20
+            && body
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '=' | '_' | '-' | '.'))
+            && body.chars().any(|c| c.is_ascii_digit())
+            && body.chars().any(|c| c.is_ascii_alphabetic());
+        if (in_query && after_eq && !body.is_empty()) || tokenish || looks_like_token(body) {
+            out.push_str("<token>");
+        } else {
+            out.push_str(body);
+        }
+        if let Some(c) = sep {
+            out.push(c);
+            in_query |= c == '?';
+            after_eq = in_query && c == '=';
+        } else {
+            after_eq = false;
+        }
     }
     out
 }
@@ -340,6 +373,21 @@ pub fn crash_open_folder(state: State<'_, CrashState>) -> CmdResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn redacts_tokens_inside_urls() {
+        let hook = "https://discord.com/api/webhooks/123456789012345678/AbCdEf_1234567890-ghIJKLmnopQRstuVWxyz0123456789abcdefGHIJ";
+        let tg = "https://api.telegram.org/bot123456789:AAH7xY_z0123456789abcdefGHIJKLmnopq/sendMessage?chat_id=42&text=hi";
+        let r = redact(&format!("Discord: failed {hook}\nTelegram error {tg}\nbare 123456789:AAH7xY_z0123456789abcdefGHIJKLmnopq\n"));
+        assert!(!r.contains("AbCdEf_1234567890"), "{r}");
+        assert!(!r.contains("AAH7xY_z0123456789"), "{r}");
+        assert!(!r.contains("chat_id=42"), "{r}");
+        assert!(r.contains("https://discord.com/api/webhooks/"), "{r}");
+        assert!(r.contains("https://api.telegram.org/"), "{r}");
+        // Ordinary text and code locations survive.
+        let keep = "at src/charts/ChartWindow.tsx:120:7 (Binance:BTCUSDT) https://example.com/a/b";
+        assert_eq!(redact(keep), keep);
+    }
 
     #[test]
     fn redacts_user_paths() {

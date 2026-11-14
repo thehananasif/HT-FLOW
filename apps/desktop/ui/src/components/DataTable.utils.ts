@@ -125,8 +125,24 @@ export function groupRows<T>(
   return out;
 }
 
-const csvCell = (v: CellValue): string => {
-  const s = v === null || v === undefined ? '' : String(v);
+const NUMERIC = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+
+/**
+ * Spreadsheet formula injection guard: text that starts with `=`, `+`, `-`, `@`, tab or CR is
+ * run as a formula by Excel / LibreOffice when the CSV is opened (`=HYPERLINK(…)`, DDE). Such
+ * cells get a leading `'`; plain numbers (`-12.5`) are left alone.
+ */
+export function neutralizeFormula(s: string): string {
+  return /^[=+\-@\t\r]/.test(s) && !NUMERIC.test(s) ? `'${s}` : s;
+}
+
+export const csvCell = (v: CellValue): string => {
+  const s =
+    v === null || v === undefined
+      ? ''
+      : typeof v === 'number'
+        ? String(v)
+        : neutralizeFormula(String(v));
   return /[",\n\r]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 };
 
