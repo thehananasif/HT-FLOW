@@ -504,6 +504,9 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
       if (t.exitTs < from) return false;
       if (params.account === 'replay') {
         if (paper.accounts.get(t.accountId)?.kind !== 'replay') return false;
+      } else if (params.account === 'vps') {
+        // Strategy VPS runners (paper, imported from the user's own VPS).
+        if (!t.accountId.startsWith('vps:')) return false;
       } else if (params.account !== 'all' && t.accountId !== params.account) return false;
       if (params.instrument !== 'all' && t.instrumentId !== params.instrument) return false;
       if (params.tag !== 'all' && !journalStore.meta(t.id).tags.some((x) => x.text === params.tag))
@@ -512,9 +515,11 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
     });
   }, [all, params.account, params.period, params.tag, params.instrument]);
   const startBal =
-    params.account !== 'all' && params.account !== 'replay'
-      ? (paper.accounts.get(params.account)?.startingBalance ?? 0)
-      : accounts.reduce((a, x) => a + x.startingBalance, 0);
+    params.account === 'vps'
+      ? 0
+      : params.account !== 'all' && params.account !== 'replay'
+        ? (paper.accounts.get(params.account)?.startingBalance ?? 0)
+        : accounts.reduce((a, x) => a + x.startingBalance, 0);
   const s = useMemo(
     () =>
       journalStats(trips, {
@@ -553,7 +558,9 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
         {
           id: 'account',
           header: 'Account',
-          value: (t) => paper.accounts.get(t.accountId)?.name ?? t.accountId,
+          value: (t) =>
+            paper.accounts.get(t.accountId)?.name ??
+            (t.accountId.startsWith('vps:') ? `VPS (${t.accountId.slice(4)})` : t.accountId),
         },
         { id: 'instrument', header: 'Instrument', value: (t) => sym(t.instrumentId) },
         { id: 'side', header: 'Side', value: (t) => t.side },
@@ -610,6 +617,7 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
             </option>
           ))}
           <option value="replay">Replay</option>
+          <option value="vps">VPS</option>
           <option value="manual">Manual entries</option>
         </select>
         <div className="ht-seg" role="group" aria-label="Period">

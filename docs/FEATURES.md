@@ -296,7 +296,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Web Pages (tabbed iframe browser, bookmarks, claims `htflow:open-url` in the web build), Logs (in-app ring buffer capturing console errors and unhandled rejections; level / source filters, search, pause, copy, export, clear), User Guide (18 searchable articles, shortcuts table, F1), guided tour (once per profile, restartable from the palette), "Load sample replay session" (fixed seeded hour on CLZ6)
 - [~] Following Manager: full UI with a local list and sample feed; sharing and sync BLOCKED (needs a server)
 - [x] Strategies (P42): `@htflow/strategy` SDK (typed inputs, onBar / onTrade / onBook / onFill, indicators, footprint helpers, order API with brackets / trailing / ATM), 5 example strategies, deterministic backtester on replay datasets with slippage / commission, Sharpe / Sortino / Monte-Carlo DD, grid optimiser (Web Worker) with heatmap and walk-forward; Strategies window; chart strategies with markers and live paper trading
-- [~] VPS runner: UI with demo runner and protocol spec in `modules/strategies/README.md`; BLOCKED (needs your own runner binary + SSH transport)
+- [x] VPS runner on your own VPS ($0, no HT Flow server): add a VPS (host / port / user, SSH key or password in the encrypted vault, host-key pinning with a trust-on-first-use dialog), test connection + system check (Node.js 22+, install steps when missing), deploy a built-in strategy as a single-file Node.js bundle (SDK + strategy + inputs), start with nohup / systemd user unit (Linux) or a scheduled task (Windows), stop / restart / redeploy / remove, status poll (uptime, P&L, position, trades, last log lines), remote command console, fills imported into the Journal as the "VPS" account. Native side: `crates/vps` (russh)
+- [ ] VPS runner pending: live order routing (needs a broker connector), user-registered (non built-in) strategies in the bundle
 - [ ] Web Pages in the desktop app needs a native child webview (links open in the system browser); strategy code editor, `.ts` / `.py` / `.htstrat` loading, Python runner, no-code rule builder
 
 ## P29 — QA, performance & hardening
@@ -337,7 +338,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] P32 Connections window — see P05
 - [x] P33 Chart types — all template renderers plus Renko, P&F (X / O), Kagi, Line Break, Heikin-Ashi, range variants
 - [x] P34 Chart settings window (Ctrl+S): Visual / Footprint / Trading / Templates tabs, ~150 rows, live apply, Cancel reverts, JSON export / import; global Settings act as defaults
-- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [x] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [~] P42 Strategies + backtests done, VPS runner blocked · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
+- [x] P35 Chart Replay control · [x] P36 Trading Journal window · [x] P37 Workspaces / templates / layout settings windows · [x] P38 Market analytics windows · [x] P39 RSS / News / Calendar · [x] P40 tables (see P20) · [x] P41 Alerts / Risk / Watchlist / Forward curve (Sim prices) · [x] P42 Strategies + backtests + VPS runner (paper; live routing needs a broker connector) · [~] P43 Common settings (hot keys, sounds, time zones, commission, custom modules page done; languages pending)
 
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 

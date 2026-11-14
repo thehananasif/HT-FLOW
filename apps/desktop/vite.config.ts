@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { runnerBundlePlugin } from './runnerBundle';
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://v2.tauri.app/start/frontend/vite/
 export default defineConfig({
   root: 'ui',
-  plugins: [react()],
+  plugins: [react(), runnerBundlePlugin()],
   clearScreen: false,
   server: {
     port: 1420,

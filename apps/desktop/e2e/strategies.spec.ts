@@ -49,9 +49,9 @@ test('backtest an example strategy on simulated data: summary, trades, optimiser
   await page.getByTestId('strategy-optimise-run').click();
   await expect(page.getByTestId('strategy-heatmap')).toBeVisible({ timeout: 45_000 });
 
-  // VPS runner is blocked: the UI says so.
+  // VPS runner: the browser build cannot open SSH, and says so (full flow: vps-runner.spec.ts).
   await win.getByRole('tab', { name: 'VPS runner' }).click();
-  await expect(page.getByTestId('vps-banner')).toContainText('Requires your own VPS runner');
+  await expect(page.getByTestId('vps-desktop-only')).toContainText('Desktop app needed');
   expect(errors).toEqual([]);
 });
 

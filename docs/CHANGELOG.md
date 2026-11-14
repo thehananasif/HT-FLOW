@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 6
+
+### Added
+
+- **Strategy VPS runner (P42), on your own VPS, $0, no HT Flow server.** Strategies → VPS runner: add a VPS (host, port, user; SSH private key file / paste with optional passphrase, or a password — all stored in the encrypted vault, never sent to the UI again), with SHA-256 host-key pinning and a trust-on-first-use confirm dialog. Test connection probes the system (OS, Node.js, systemd, lingering) and shows Node.js 22+ install steps for Ubuntu / Debian / Windows Server when missing (HT Flow never installs anything as root). Deploy bundles the strategy SDK, every built-in strategy, the paper engine and the chosen strategy + inputs + risk cap into one `runner.js` (SHA-256 identified) and starts it with nohup or a systemd user unit (Linux) or a per-user scheduled task (Windows). The runner connects to public exchange trade streams itself (Binance Futures / Spot, Bybit, OKX) and trades **paper only**, writing `state.json`, `log.jsonl` and `trips.jsonl`. The tab lists runners per VPS with status, uptime, P&L, position, trades and the last log lines (polled over SSH), with start / stop / redeploy / remove, a remote command console with streamed output, and imports fills into the Trading Journal as the new **VPS** account. Command Palette: Add VPS, Deploy strategy to VPS, Refresh VPS runners, Import VPS fills to Journal.
+- `crates/vps`: pure-Rust SSH client (`russh` with `ring`, no OpenSSL) with strict connect / auth / command timeouts, keep-alives, pooled sessions, streamed exec, stdin upload and a command builder; Tauri `vps_*` commands. Tests cover host / user / key parsing, fingerprints, the command builder and an in-process SSH server loopback (pinning, password auth, exec with stdin and exit status).
+
 ## Unreleased — round 5
 
 ### Added

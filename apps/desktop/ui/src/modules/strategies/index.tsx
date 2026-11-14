@@ -68,7 +68,7 @@ import {
   tone,
   validColor,
 } from './shared';
-import { VpsPanel } from './vps';
+import { VPS_EVENT, VpsPanel, type VpsAction } from './vps/panel';
 import { allTemplates } from '../../trading/atmStore';
 import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
@@ -1287,6 +1287,23 @@ registerCommands([
     keywords: 'vps remote runner deploy ssh server',
     run: withWindow((a) => a.setTab('vps')),
   },
+  ...(
+    [
+      ['add', 'Strategies: Add VPS (SSH)…', 'vps ssh server add host key'],
+      ['deploy', 'Strategies: Deploy strategy to VPS…', 'vps deploy runner remote paper'],
+      ['refresh', 'Strategies: Refresh VPS runners', 'vps status poll uptime pnl'],
+      ['import', 'Strategies: Import VPS fills to Journal', 'vps journal fills trades import'],
+    ] as [VpsAction, string, string][]
+  ).map(([a, label, keywords]) => ({
+    id: `strategies.vps-${a}`,
+    label,
+    group: 'Trading' as const,
+    keywords,
+    run: withWindow((w) => {
+      w.setTab('vps');
+      setTimeout(() => window.dispatchEvent(new CustomEvent(VPS_EVENT, { detail: a })), 60);
+    }),
+  })),
   {
     id: 'strategies.attach',
     label: 'Chart: Attach strategy…',
