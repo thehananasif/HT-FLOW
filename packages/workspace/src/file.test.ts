@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   LIMITS,
+  REMOVED_MODULES,
   WORKSPACE_FILE_VERSION,
   parseWorkspaceFile,
   parseWorkspaceValue,
   safeJson,
   serializeWorkspaceFile,
   specsFromWindows,
+  stripRemovedModules,
   validateLayout,
   validateWindow,
   workspaceFileName,
@@ -331,5 +333,62 @@ describe('helpers', () => {
   it('makes Windows-safe file names', () => {
     expect(workspaceFileName('Scalping: NQ/ES?')).toBe('Scalping NQ ES.htworkspace');
     expect(workspaceFileName('...')).toBe('workspace.htworkspace');
+  });
+});
+
+describe('removed modules', () => {
+  const mod = (m: string) => ({ kind: 'module', module: m });
+  const raw = (layout: unknown) => ({
+    format: 'htworkspace',
+    version: 3,
+    workspace: {
+      meta: { name: 'Old' },
+      doc: {
+        version: 1,
+        name: 'Old',
+        activeTab: 't1',
+        savedAt: 0,
+        tabs: [
+          {
+            id: 't1',
+            name: 'L1',
+            layout,
+            windows: { a: mod('traderstalk'), b: mod('following'), c: mod('news') },
+          },
+        ],
+      },
+    },
+  });
+
+  it('drops TradersTalk and Following windows when a workspace is parsed', () => {
+    expect(REMOVED_MODULES).toEqual(['traderstalk', 'following']);
+    const kinds = { a: 'module', b: 'module', c: 'module' };
+    const r = parseWorkspaceValue(raw(layoutFor(['a', 'b', 'c'], kinds)), NOW);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const tab = r.workspace.doc.tabs[0]!;
+    expect(Object.keys(tab.windows)).toEqual(['c']);
+    expect(tab.layout).toBeNull();
+    expect(tab.specs?.map((s) => s.id)).toEqual(['c']);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('strips them from an already-loaded document and keeps clean docs untouched', () => {
+    const r = parseWorkspaceValue(raw(null), NOW);
+    if (!r.ok) throw new Error('parse');
+    const dirty: WorkspaceDoc = {
+      ...r.workspace.doc,
+      tabs: [
+        {
+          ...r.workspace.doc.tabs[0]!,
+          layout: layoutFor(['a', 'c'], { a: 'module', c: 'module' }),
+          windows: { a: mod('following'), c: mod('news') } as WorkspaceDoc['tabs'][0]['windows'],
+        },
+      ],
+    };
+    const clean = stripRemovedModules(dirty);
+    expect(Object.keys(clean.tabs[0]!.windows)).toEqual(['c']);
+    expect(clean.tabs[0]!.layout).toBeNull();
+    expect(stripRemovedModules(clean)).toBe(clean);
   });
 });

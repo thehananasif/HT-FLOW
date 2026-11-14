@@ -65,14 +65,26 @@ export function itemKey(item: {
   return `h:${hashString(`${item.title}|${item.published ?? ''}`)}`;
 }
 
-/** Resolves a possibly relative link against the feed / channel URL. */
+/**
+ * Only absolute http(s) links survive: feeds are untrusted, and a `javascript:` / `data:` /
+ * `file:` link would otherwise reach an `<a href>` in the News and RSS windows.
+ */
+export function safeLink(link: string): string {
+  const l = link.trim();
+  return /^https?:\/\/[^\s]/i.test(l) &&
+    ![...l].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)
+    ? l
+    : '';
+}
+
+/** Resolves a possibly relative link against the feed / channel URL (http(s) results only). */
 function resolve(link: string, base: string | undefined): string {
   const l = link.trim();
-  if (!l || !base) return l;
+  if (!l || !base) return safeLink(l);
   try {
-    return new URL(l, base).toString();
+    return safeLink(new URL(l, base).toString());
   } catch {
-    return l;
+    return safeLink(l);
   }
 }
 

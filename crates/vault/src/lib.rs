@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
 use rand::RngCore;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 pub const KEY_LEN: usize = 32;
 const NONCE_LEN: usize = 24;
@@ -132,12 +132,16 @@ impl SealedMap {
     }
 
     pub fn put(&mut self, k: &str, v: String) -> Result<(), VaultError> {
-        self.entries.insert(k.to_string(), v);
+        if let Some(mut old) = self.entries.insert(k.to_string(), v) {
+            old.zeroize();
+        }
         self.save()
     }
 
     pub fn remove(&mut self, k: &str) -> Result<(), VaultError> {
-        self.entries.remove(k);
+        if let Some(mut old) = self.entries.remove(k) {
+            old.zeroize();
+        }
         self.save()
     }
 
@@ -149,6 +153,16 @@ impl SealedMap {
         let plain = Zeroizing::new(serde_json::to_vec(&self.entries)?);
         write_atomic(&self.path, &seal(&self.key, &plain, self.aad))?;
         Ok(())
+    }
+}
+
+/// Plaintext values (API keys, bot tokens) are wiped from memory when the map is dropped
+/// (log out / lock), not left in freed heap pages.
+impl Drop for SealedMap {
+    fn drop(&mut self) {
+        for v in self.entries.values_mut() {
+            v.zeroize();
+        }
     }
 }
 

@@ -9,6 +9,7 @@ import {
   type RecorderStatus,
 } from './api';
 import { ImportedFiles } from './import/ImportedList';
+import { SymbolLists } from './symbols';
 import './styles.css';
 
 const fmtDate = (ms: number) =>
@@ -41,6 +42,7 @@ export function DataManager() {
   if (!isTauri) {
     return (
       <div className="col fill pad12 gap12 dm-root">
+        <SymbolLists />
         <ImportedFiles />
         <EmptyState title="Data manager runs in the desktop app">
           Recorded ticks and depth live in the local tick store on your PC (%APPDATA%\HTFlow\ticks).
@@ -90,6 +92,7 @@ export function DataManager() {
 
   return (
     <div className="col fill pad12 gap12 dm-root">
+      <SymbolLists />
       <div className="row gap12 dm-rec">
         <Checkbox
           label="Record live ticks + depth of subscribed instruments"

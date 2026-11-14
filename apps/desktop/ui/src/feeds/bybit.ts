@@ -1,5 +1,6 @@
 import { registerFeedProvider } from './registry';
 import { createLiveFeed, liveInstruments } from '../state/liveFeed';
+import { discoveredFeed, registerBuiltInFeeds, withDiscovered } from '../state/discovery';
 
 /** Bybit v5 linear perpetuals — free public data via crates/connectors/bybit (desktop app). */
 const INSTRUMENTS = liveInstruments('bybit-linear:', 'Bybit', [
@@ -10,18 +11,21 @@ const INSTRUMENTS = liveInstruments('bybit-linear:', 'Bybit', [
   ['DOGEUSDT', 0.00001, 5, 0],
 ]);
 
+registerBuiltInFeeds('bybit-linear', INSTRUMENTS);
+
 registerFeedProvider({
   prefix: 'bybit-linear:',
   label: 'Bybit (live)',
   desktopOnly: true,
-  instruments: () => INSTRUMENTS,
+  instruments: () => withDiscovered('bybit-linear', INSTRUMENTS),
   create(id) {
-    const inst = INSTRUMENTS.find((i) => i.id === id) ?? {
-      ...INSTRUMENTS[0]!,
-      id,
-      symbol: id.slice('bybit-linear:'.length),
-      displayName: id.slice('bybit-linear:'.length),
-    };
+    const inst = withDiscovered('bybit-linear', INSTRUMENTS).find((i) => i.id === id) ??
+      discoveredFeed(id) ?? {
+        ...INSTRUMENTS[0]!,
+        id,
+        symbol: id.slice('bybit-linear:'.length),
+        displayName: id.slice('bybit-linear:'.length),
+      };
     return createLiveFeed(inst, 'bybit-linear');
   },
 });

@@ -1,5 +1,5 @@
 //! P30 — file associations. Windows starts `htflow-desktop.exe "<file>"` for `.htprofile`,
-//! `.htworkspace`, `.htind`, `.htidea` and `.httemplate`; the single-instance plugin forwards the
+//! `.htworkspace`, `.htind` and `.httemplate`; the single-instance plugin forwards the
 //! arguments of a second launch to the running app. Each existing, size-checked file is read and
 //! handed to the UI as an `htflow:open-file` event (queued until the UI calls `open_file_ready`),
 //! where the matching importer picks it up (see `ui/src/shell/openFile.ts`).
@@ -15,11 +15,10 @@ pub const MAX_BYTES: u64 = 32 * 1024 * 1024;
 pub const EVENT: &str = "htflow:open-file";
 
 /// Extension (lower-case, no dot) -> kind the UI routes on.
-pub const KINDS: [(&str, &str); 5] = [
+pub const KINDS: [(&str, &str); 4] = [
     ("htprofile", "profile"),
     ("htworkspace", "workspace"),
     ("htind", "indicator"),
-    ("htidea", "idea"),
     ("httemplate", "template"),
 ];
 
@@ -64,6 +63,16 @@ pub fn paths_from_args<I: IntoIterator<Item = String>>(args: I) -> Vec<PathBuf> 
         .collect()
 }
 
+/// Reads at most `MAX_BYTES` (+1 to detect overflow) whatever the metadata said earlier.
+fn read_capped(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
+    use std::io::Read;
+    let mut b = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_BYTES + 1)
+        .read_to_end(&mut b)?;
+    Ok((b.len() as u64 <= MAX_BYTES).then_some(b))
+}
+
 /// Reads one file for the UI. Problems become `error` so the UI can show a toast.
 pub fn load(path: &Path) -> Option<OpenFile> {
     let (ext, kind) = classify(path)?;
@@ -81,11 +90,13 @@ pub fn load(path: &Path) -> Option<OpenFile> {
     match std::fs::metadata(path) {
         Ok(m) if !m.is_file() => f.error = Some("Not a file".into()),
         Ok(m) if m.len() > MAX_BYTES => f.error = Some("File is larger than 32 MB".into()),
-        Ok(_) => match std::fs::read(path) {
-            Ok(b) => match String::from_utf8(b) {
+        Ok(_) => match read_capped(path) {
+            Ok(Some(b)) => match String::from_utf8(b) {
                 Ok(t) => f.text = t.strip_prefix('\u{feff}').unwrap_or(&t).to_string(),
                 Err(_) => f.error = Some("File is not UTF-8 text".into()),
             },
+            // The file grew past the cap between the size check and the read.
+            Ok(None) => f.error = Some("File is larger than 32 MB".into()),
             Err(_) => f.error = Some("Could not read the file".into()),
         },
         Err(_) => f.error = Some("File not found".into()),
@@ -135,13 +146,20 @@ mod tests {
 
     #[test]
     fn args_keep_only_supported_files() {
-        let args = ["htflow.exe", "--flag", "a.htidea", "b.exe", "c.HTPROFILE"]
-            .map(String::from)
-            .to_vec();
+        let args = [
+            "htflow.exe",
+            "--flag",
+            "a.htidea",
+            "a.htind",
+            "b.exe",
+            "c.HTPROFILE",
+        ]
+        .map(String::from)
+        .to_vec();
         let p = paths_from_args(args);
         assert_eq!(
             p,
-            vec![PathBuf::from("a.htidea"), PathBuf::from("c.HTPROFILE")]
+            vec![PathBuf::from("a.htind"), PathBuf::from("c.HTPROFILE")]
         );
     }
 
@@ -156,7 +174,7 @@ mod tests {
             (f.kind.as_str(), f.text.as_str(), f.error),
             ("template", "{\"a\":1}", None)
         );
-        let bad = dir.join("b.htidea");
+        let bad = dir.join("b.htind");
         std::fs::write(&bad, [0xff, 0xfe, 0xfd]).unwrap();
         assert_eq!(
             load(&bad).unwrap().error.as_deref(),

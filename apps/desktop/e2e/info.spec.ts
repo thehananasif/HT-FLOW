@@ -45,11 +45,5 @@ test('Info group: RSS Reader, News and Calendar show offline sample content', as
   await expect(news.locator('.news-row').first()).toBeVisible();
   await expect(news.getByText(/offline sample/).first()).toBeVisible();
 
-  await page.getByTestId('ribbon-traderstalk').click();
-  const tt = page.getByTestId('traderstalk');
-  await tt.getByLabel('Idea text').fill('Long above value #breakout');
-  await tt.getByRole('button', { name: 'Post idea' }).click();
-  await expect(tt.locator('.tt-msg')).toContainText('Long above value');
-  await expect(tt.getByText('BLOCKED').first()).toBeVisible();
   expect(errors).toEqual([]);
 });

@@ -36,6 +36,13 @@ export { ScriptError } from './lang';
 
 type Ctx = CalcContext<InputDefs, OutputDefs, unknown>;
 
+/**
+ * Own-property lookup for the built-in tables: `name in FUNCS` / `FUNCS[name]` would also match
+ * `constructor`, `toString`, `__proto__` … inherited from Object.prototype.
+ */
+const own = <T>(table: Record<string, T>, name: string): T | undefined =>
+  Object.prototype.hasOwnProperty.call(table, name) ? table[name] : undefined;
+
 const PRICE_SOURCES: SourceId[] = ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4'];
 const BAR_SOURCES: SourceId[] = SOURCES.map((s) => s.value);
 
@@ -260,7 +267,7 @@ function build(stmts: Stmt[], opts: { defaultName: string }): ScriptProgram {
         return;
       }
       if (n.t !== 'call') return;
-      const isDecl = n.name in NAMED_OK;
+      const isDecl = own(NAMED_OK, n.name) !== undefined;
       if (isDecl) {
         if (n.name.startsWith('input.')) {
           if (n !== e || topLevelStmt) err('Assign inputs to a name: len = input.int(…)', n.pos);
@@ -269,7 +276,7 @@ function build(stmts: Stmt[], opts: { defaultName: string }): ScriptProgram {
           if (!NAMED_OK[n.name]!.includes(k)) err(`${n.name}() has no argument '${k}'`, n.pos);
         return;
       }
-      const sig = FUNCS[n.name];
+      const sig = own(FUNCS, n.name);
       if (!sig) err(`Unknown function '${n.name}'`, n.pos);
       if (Object.keys(n.named).length) err(`${n.name}() takes no named arguments`, n.pos);
       if (n.args.length < sig[0] || n.args.length > sig[1])
@@ -281,7 +288,11 @@ function build(stmts: Stmt[], opts: { defaultName: string }): ScriptProgram {
 
   for (const s of stmts) {
     if (s.t === 'assign') {
-      if (BAR_SOURCES.includes(s.name as SourceId) || s.name in FUNCS || s.name === 'tick')
+      if (
+        BAR_SOURCES.includes(s.name as SourceId) ||
+        own(FUNCS, s.name) !== undefined ||
+        s.name === 'tick'
+      )
         err(`'${s.name}' is a built-in name`, s.pos);
       if (s.reassign && !declared.has(s.name))
         err(`'${s.name}' must be declared before ':='`, s.pos);
@@ -294,7 +305,7 @@ function build(stmts: Stmt[], opts: { defaultName: string }): ScriptProgram {
       if (c.t === 'call' && c.name.startsWith('input.')) {
         const label = litStr(c.args[0], 'Input label').slice(0, 40);
         const key = slug(label);
-        if (inputs[key]) err(`Duplicate input '${label}'`, c.pos);
+        if (own(inputs, key)) err(`Duplicate input '${label}'`, c.pos);
         const help = c.named.help ? litStr(c.named.help, 'help') : undefined;
         let d: InputDef;
         if (c.name === 'input.int' || c.name === 'input.float') {
@@ -328,11 +339,11 @@ function build(stmts: Stmt[], opts: { defaultName: string }): ScriptProgram {
     }
     const kindName =
       e.name === 'plot' && e.named.kind ? `plot.${litStr(e.named.kind, 'kind')}` : e.name;
-    const kind = PLOT_KINDS[kindName];
+    const kind = own(PLOT_KINDS, kindName);
     if (!kind) continue;
     const label = litStr(e.args[0], 'Plot label').slice(0, 32);
     const key = slug(label);
-    if (outputs[key]) err(`Duplicate plot '${label}'`, e.pos);
+    if (own(outputs, key)) err(`Duplicate plot '${label}'`, e.pos);
     if (plots.length >= 32) err('At most 32 plots', e.pos);
     const need = kind === 'band' ? 3 : kind === 'markers' ? 2 : 2;
     if (e.args.length < need) err(`${e.name}() needs ${need} arguments`, e.pos);

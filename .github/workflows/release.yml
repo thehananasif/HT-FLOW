@@ -31,9 +31,10 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
-  # Optional. Absent secrets are empty strings and the signing steps below are skipped.
-  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  # Optional updater signing key. Only a yes/no flag is visible workflow-wide: the private key
+  # itself is passed to the one step that signs (Tauri build), never to `pnpm install`, whose
+  # dependency install scripts could otherwise read it from the environment.
+  HAS_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
   # Public key; may instead be committed in tauri.conf.json (plugins.updater.pubkey).
   TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY || vars.TAURI_UPDATER_PUBKEY }}
 
@@ -56,7 +57,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Updater signing config (skipped without TAURI_SIGNING_PRIVATE_KEY)
         id: signing
-        if: env.TAURI_SIGNING_PRIVATE_KEY != ''
+        if: env.HAS_SIGNING_KEY == 'true'
         shell: pwsh
         run: |
           $cfg = @{ bundle = @{ createUpdaterArtifacts = $true } }
@@ -70,9 +71,13 @@ jobs:
           "config=$path" >> $env:GITHUB_OUTPUT
       - name: Tauri build (NSIS + MSI, per-user install)
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SIGNING_CONFIG: ${{ steps.signing.outputs.config }}
         run: |
           $extra = @()
-          if ('${{ steps.signing.outputs.config }}') { $extra = @('--config', '${{ steps.signing.outputs.config }}') }
+          if ($env:SIGNING_CONFIG) { $extra = @('--config', $env:SIGNING_CONFIG) }
           pnpm --filter @htflow/desktop tauri build --bundles nsis msi @extra
       - name: Portable zip (exe + portable marker)
         shell: pwsh
@@ -90,7 +95,7 @@ jobs:
             Copy-Item $_.FullName "dist/HTFlow-$tag-windows-x64.msi"
           }
       - name: Updater manifest latest.json (skipped without signatures)
-        if: env.TAURI_SIGNING_PRIVATE_KEY != ''
+        if: env.HAS_SIGNING_KEY == 'true'
         shell: pwsh
         run: |
           $tag = $env:RELEASE_TAG

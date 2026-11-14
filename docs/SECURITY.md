@@ -1,4 +1,4 @@
-# Security notes (P29)
+# Security notes (P29, reviewed in round 6)
 
 HT Flow is local-first: no server, no account in the cloud, no telemetry. This page lists what it
 protects, what it does not, and what has been checked. Report vulnerabilities through a private
@@ -6,13 +6,13 @@ GitHub security advisory on the repository, not a public issue.
 
 ## Threat model
 
-| Asset                                                   | Where it lives                                                                                                                  | Protected against                                               | Not protected against                                                             |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Profile data (settings, workspaces, journal, templates) | `%APPDATA%\HTFlow\` (or `<exe dir>\data\` in portable mode), files sealed with XChaCha20-Poly1305 under a random data key       | Another user / a stolen disk or backup without the password     | Malware running as you while the profile is unlocked (it can read process memory) |
-| Data key                                                | Wrapped by Argon2id (m=64 MB, t=3, p=1) for the password, the recovery code and the PIN; unwrapped key is `Zeroizing` in memory | Offline guessing is slow; a wrong password never decrypts       | A weak password; losing both password and recovery code (data is unrecoverable)   |
-| Exchange API keys                                       | The vault (`vault_put` / `vault_get`), stored inside the encrypted profile                                                      | Disk theft; never written to logs or the crash reports          | A compromised UI process: `vault_get` returns the secret to the WebView           |
-| Recorded market data (tick store)                       | the tick-store folder under the data root, plain binary files                                                                   | Corruption (CRC blocks, torn-tail repair)                       | Reading by anyone with access to your Windows account (it is public market data)  |
-| Crash reports                                           | `<data>\crashes\`, plain text, redacted at write time                                                                           | Leaking user names, e-mails, `password=` values and long tokens | Anything the redaction rules do not recognise: read before you share              |
+| Asset                                                   | Where it lives                                                                                                                                                                                                       | Protected against                                                                                                                         | Not protected against                                                             |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Profile data (settings, workspaces, journal, templates) | `%APPDATA%\HTFlow\` (or `<exe dir>\data\` in portable mode), files sealed with XChaCha20-Poly1305 under a random data key                                                                                            | Another user / a stolen disk or backup without the password                                                                               | Malware running as you while the profile is unlocked (it can read process memory) |
+| Data key                                                | Wrapped by Argon2id (m=64 MB, t=3, p=1) for the password, the recovery code and the PIN; the PIN wrap also needs a per-profile pepper kept in the Windows Credential Manager; unwrapped key is `Zeroizing` in memory | Offline guessing is slow; a wrong password never decrypts; a copied profile folder or an exported `.htprofile` cannot be PIN-brute-forced | A weak password; losing both password and recovery code (data is unrecoverable)   |
+| Exchange API keys                                       | The vault (`vault_put` / `vault_get`), stored inside the encrypted profile                                                                                                                                           | Disk theft; never written to logs or the crash reports                                                                                    | A compromised UI process: `vault_get` returns the secret to the WebView           |
+| Recorded market data (tick store)                       | the tick-store folder under the data root, plain binary files                                                                                                                                                        | Corruption (CRC blocks, torn-tail repair)                                                                                                 | Reading by anyone with access to your Windows account (it is public market data)  |
+| Crash reports                                           | `<data>\crashes\`, plain text, redacted at write time                                                                                                                                                                | Leaking user names, e-mails, `password=` values and long tokens                                                                           | Anything the redaction rules do not recognise: read before you share              |
 
 Out of scope: a compromised Windows account, keyloggers, physical access to an unlocked session,
 malicious exchange servers beyond what TLS and message validation give.
@@ -22,8 +22,9 @@ malicious exchange servers beyond what TLS and message validation give.
 - **Exchange connectors** talk only to the venue's public (or, later, authenticated) endpoints over
   TLS (rustls). No other host receives market or account data.
 - **`net_fetch_text`** is the only generic fetch (RSS / Atom / OPML / ICS): GET only, `http` / `https`
-  only, 15 s timeout, 5 MB cap checked on `Content-Length` and while streaming, at most 5 redirects, fixed
-  user agent `HTFlow/0.1`, no cookies, no credentials.
+  only, 15 s timeout, 5 MB cap checked on `Content-Length` and while streaming, at most 5 redirects
+  (never from a public host to a loopback / private / link-local address), fixed user agent
+  `HTFlow/0.1`, no cookies, no credentials.
 - **Updater**: one GET for `latest.json` from GitHub Releases when you ask (or when
   `about.checkUpdates` is on). Installers are downloaded only after the manifest names a newer version
   and are installed only if their minisign signature verifies against the public key built into the app.
@@ -32,6 +33,9 @@ malicious exchange servers beyond what TLS and message validation give.
   user decides whether to paste it anywhere.
 - **File associations**: opening a `.ht*` file reads it (UTF-8, 32 MB cap, fixed extension allow-list)
   and hands the text to the matching importer in the UI, which validates it. Files are never executed.
+  A `.htprofile` is imported into a new folder named by a generated or canonical UUID (never a path
+  from the file), with username, display name and key-wrapping parameters validated; it never
+  carries a PIN.
 - No analytics, no ads, no remote configuration.
 
 ### WebView hardening
@@ -46,7 +50,13 @@ Checked in code review and by tests as of this phase.
 
 - [x] `net_fetch_text`: scheme allow-list, size cap, timeout, no cookies (unit tests in `net_cmds.rs`).
 - [x] No password, recovery code, PIN, API key or session key reaches `tracing`, `println!` or `console.*`: every log call in `apps/desktop/src-tauri` and `crates/` was read; they log counts, paths, symbols and error strings only.
-- [x] Data key and password material use `Zeroizing` (`crates/auth`).
+- [x] Data key and password material use `Zeroizing` (`crates/auth`); PIN, passwords and recovery words received over IPC are `Zeroizing`; vault values are wiped when replaced and on lock / log out.
+- [x] PIN wrap is peppered with a secret from the Windows Credential Manager; exports never contain the PIN wrap (round 6).
+- [x] Profile import cannot write outside `profiles/`; Argon2 parameters from files are bounded (round 6, see `SECURITY-AUDIT.md`).
+- [x] Crash redaction also hides tokens inside URLs (Discord webhooks, Telegram bot tokens) and URL query values.
+- [x] Tick-store readers survive corrupted / truncated data and index files (fuzz-style test).
+- [x] Feed links are http(s) only; CSV exports neutralise spreadsheet formulas; HT Script lookups ignore `Object.prototype`.
+- [x] Release workflow: the updater signing key is visible only to the build step; CI token is read-only.
 - [x] Command errors are `{ code, message }` with fixed messages; they never echo secrets.
 - [x] Crash files are redacted before they are written and again before the clipboard summary (`crash.rs` tests: user paths with spaces, e-mails, `password=` / `token:` values, 32+ character tokens).
 - [x] Crash writer cannot overwrite arbitrary files: the file name is generated (`crash-<unix>-<kind>.txt`, kind restricted to `[a-z0-9-]`), the report is capped at 64 KB, at most 20 files are kept.
@@ -59,7 +69,9 @@ Checked in code review and by tests as of this phase.
 ## Open items
 
 - [ ] Code signing of the installer (paid certificate; see `docs/BLOCKERS.md` and `docs/RELEASE.md` for free options).
-- [ ] Run `cargo audit` and `pnpm audit` in CI and triage the output.
+- [ ] Run `cargo audit` and `pnpm audit` in CI and triage the output (round 6 checked `Cargo.lock` by hand; see `SECURITY-AUDIT.md`).
+- [ ] Pin GitHub Actions to commit SHAs.
+- [ ] Send Telegram / Discord alerts from the core so bot tokens never reach the WebView.
 - [ ] Full axe-core accessibility run (`@axe-core/playwright` is not installed; adding a dev dependency was avoided).
 - [ ] 8-hour soak test on live streams and the Windows install-to-footprint timing check from the P30 acceptance list: both need a real Windows machine with network access.
 - [ ] Authenticated exchange trading is not built; when it is, add per-venue key permission guidance (trade only, no withdrawal) and re-run this review.

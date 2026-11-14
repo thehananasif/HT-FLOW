@@ -9,17 +9,21 @@
 //! * Funding rate and open interest are not streamed: `/api/v4/public/futures` is polled every
 //!   30 s for perpetuals.
 //! * REST: markets, order book, recent trades, server time. 10 requests/s token bucket.
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::future::BoxFuture;
 use htflow_connector_common::{
-    driver, levels, num_f64, num_text, Action, BookLevels, ClockSkew, ConnectorError, L2Book,
-    MarketApi, Ping, Protocol, Rest, Result, StreamConfig, SymbolSpec, TokenBucket,
+    driver, levels, num_f64, num_text, Action, BookLevels, ClockSkew, ConnectorError, Kline,
+    L2Book, MarketApi, Ping, Protocol, Rest, Result, StreamConfig, SymbolSpec, TokenBucket,
 };
 use htflow_core_types::{Aggressor, BookSnapshot, MarketEvent, MarketStat, TickSize, Trade};
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, watch};
+
+pub mod klines;
 
 pub const REST_BASE: &str = "https://whitebit.com";
 pub const WS_URL: &str = "wss://api.whitebit.com/ws";
@@ -339,6 +343,24 @@ impl MarketApi for Whitebit {
     }
     fn history_from_start(&self) -> bool {
         false
+    }
+    fn kline_intervals(&self) -> &'static [i64] {
+        klines::KLINE_INTERVALS
+    }
+    fn kline_max_bars(&self) -> i64 {
+        klines::KLINE_PAGE * i64::from(klines::KLINE_PAGES)
+    }
+    fn klines<'a>(
+        &'a self,
+        spec: &'a SymbolSpec,
+        interval_ms: i64,
+        from_ms: i64,
+        to_ms: i64,
+    ) -> BoxFuture<'a, Result<Vec<Kline>>> {
+        Box::pin(self.klines_range(spec, interval_ms, from_ms, to_ms, klines::KLINE_PAGES))
+    }
+    fn throttled(&self) -> u64 {
+        self.rest.throttled_count()
     }
     fn stream(
         &self,

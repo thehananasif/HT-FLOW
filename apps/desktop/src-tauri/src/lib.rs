@@ -8,11 +8,13 @@ mod data_cmds;
 mod error;
 mod history;
 mod history_cache;
+mod instruments_cmds;
 mod market_cmds;
 mod net_cmds;
 mod openfile;
 mod paths;
 mod updater_cmds;
+mod vps_cmds;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -50,7 +52,10 @@ pub fn run() {
                 &root,
             )?));
             app.manage(auth_cmds::AuthState {
-                store: Arc::new(ProfileStore::new(root.clone(), KdfParams::PRODUCTION)),
+                store: Arc::new(
+                    ProfileStore::new(root.clone(), KdfParams::PRODUCTION)
+                        .with_pin_pepper(Arc::new(auth_cmds::KeyringPepper)),
+                ),
                 session: Arc::new(Mutex::new(None)),
                 locked: AtomicBool::new(false),
             });
@@ -60,8 +65,10 @@ pub fn run() {
                     u64::from(history_cache::DEFAULT_MAX_MB) * 1024 * 1024,
                 ),
             )));
+            app.manage(instruments_cmds::InstrumentsState::new(&root.join("cache")));
             app.manage(market_cmds::MarketState::default());
             app.manage(custom_ws::CustomWsState::default());
+            app.manage(vps_cmds::VpsState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -95,6 +102,8 @@ pub fn run() {
             custom_ws::custom_ws_close,
             market_cmds::market_test,
             market_cmds::market_options_chain,
+            instruments_cmds::instruments_cached,
+            instruments_cmds::instruments_list,
             data_cmds::recorder_set,
             data_cmds::recorder_status,
             data_cmds::data_list,
@@ -109,6 +118,13 @@ pub fn run() {
             updater_cmds::update_status,
             updater_cmds::update_check,
             updater_cmds::update_install,
+            vps_cmds::vps_host_key,
+            vps_cmds::vps_key_info,
+            vps_cmds::vps_connect,
+            vps_cmds::vps_disconnect,
+            vps_cmds::vps_probe,
+            vps_cmds::vps_op,
+            vps_cmds::vps_exec,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");

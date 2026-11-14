@@ -47,13 +47,13 @@ describe('open-file routing', () => {
   });
 
   it('a handler returning false counts as unhandled and a throw as error', async () => {
-    const off = registerOpenFileHandler('idea', () => false);
-    expect(await routeOpenedFile(file('idea'), true)).toBe('unhandled');
+    const off = registerOpenFileHandler('template', () => false);
+    expect(await routeOpenedFile(file('template'), true)).toBe('unhandled');
     off();
-    const off2 = registerOpenFileHandler('idea', () => {
+    const off2 = registerOpenFileHandler('template', () => {
       throw new Error('bad');
     });
-    expect(await routeOpenedFile(file('idea'), true)).toBe('error');
+    expect(await routeOpenedFile(file('template'), true)).toBe('error');
     off2();
   });
 });
