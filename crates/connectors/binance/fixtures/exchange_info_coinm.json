@@ -1,0 +1,5 @@
+{"timezone":"UTC","serverTime":1794613560598,"symbols":[
+{"symbol":"BTCUSD_PERP","pair":"BTCUSD","contractType":"PERPETUAL","deliveryDate":4133404800000,"contractStatus":"TRADING","contractSize":100,"marginAsset":"BTC","baseAsset":"BTC","quoteAsset":"USD","pricePrecision":1,"quantityPrecision":0,"filters":[{"minPrice":"1000","maxPrice":"4520958","filterType":"PRICE_FILTER","tickSize":"0.1"},{"stepSize":"1","filterType":"LOT_SIZE","maxQty":"1000000","minQty":"1"}]},
+{"symbol":"ETHUSD_261225","pair":"ETHUSD","contractType":"CURRENT_QUARTER","deliveryDate":1798185600000,"contractStatus":"TRADING","contractSize":10,"marginAsset":"ETH","baseAsset":"ETH","quoteAsset":"USD","filters":[{"filterType":"PRICE_FILTER","tickSize":"0.01","minPrice":"50","maxPrice":"300000"},{"filterType":"LOT_SIZE","stepSize":"1","minQty":"1","maxQty":"1000000"}]},
+{"symbol":"LINKUSD_260925","pair":"LINKUSD","contractType":"NEXT_QUARTER","deliveryDate":1790323200000,"contractStatus":"DELIVERING","contractSize":10,"marginAsset":"LINK","baseAsset":"LINK","quoteAsset":"USD","filters":[{"filterType":"PRICE_FILTER","tickSize":"0.001"},{"filterType":"LOT_SIZE","stepSize":"1","minQty":"1"}]}
+]}

@@ -1,0 +1,4 @@
+{"retCode":0,"retMsg":"OK","result":{"category":"inverse","list":[
+{"symbol":"BTCUSD","contractType":"InversePerpetual","status":"Trading","baseCoin":"BTC","quoteCoin":"USD","settleCoin":"BTC","deliveryTime":"0","priceFilter":{"minPrice":"0.50","maxPrice":"1999999.00","tickSize":"0.50"},"lotSizeFilter":{"maxOrderQty":"1000000","minOrderQty":"1","qtyStep":"1"}},
+{"symbol":"BTCUSDZ26","contractType":"InverseFutures","status":"Trading","baseCoin":"BTC","quoteCoin":"USD","settleCoin":"BTC","deliveryTime":"1798185600000","priceFilter":{"tickSize":"0.50"},"lotSizeFilter":{"minOrderQty":"1","qtyStep":"1"}}
+],"nextPageCursor":""},"retExtInfo":{},"time":1794613560598}

@@ -1,0 +1,4 @@
+{"retCode":0,"retMsg":"OK","result":{"category":"linear","list":[
+{"symbol":"1000PEPEUSDT","contractType":"LinearPerpetual","status":"Trading","baseCoin":"1000PEPE","quoteCoin":"USDT","settleCoin":"USDT","deliveryTime":"0","priceFilter":{"minPrice":"0.0000001","maxPrice":"199.9999998","tickSize":"0.0000001"},"lotSizeFilter":{"maxOrderQty":"24676200","minOrderQty":"100","qtyStep":"100"}},
+{"symbol":"NEWUSDT","contractType":"LinearPerpetual","status":"PreLaunch","baseCoin":"NEW","quoteCoin":"USDT","settleCoin":"USDT","deliveryTime":"0","priceFilter":{"tickSize":"0.0001"},"lotSizeFilter":{"minOrderQty":"1","qtyStep":"1"}}
+],"nextPageCursor":""},"retExtInfo":{},"time":1794613560598}

@@ -8,6 +8,8 @@
 //! is re-subscribed, which makes Bybit push a fresh snapshot. A slow consumer never blocks the
 //! socket: when the output channel is full deltas are dropped and a snapshot is sent instead.
 
+pub mod instruments;
+
 use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

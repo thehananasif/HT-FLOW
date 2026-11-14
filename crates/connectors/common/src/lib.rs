@@ -9,12 +9,14 @@
 //! * [`rest`]: REST client that applies both.
 //! * [`api`]: the venue-neutral [`api::MarketApi`] the desktop app dispatches on, with
 //!   newest-first trade paging and one-minute klines for the history backfill (P06).
+//! * [`instruments`]: live symbol discovery rows (every tradable instrument of a venue).
 //! * [`mock_http`]: a scripted local HTTP server for REST tests (no live network in tests).
 
 pub mod api;
 pub mod book;
 pub mod clock;
 pub mod driver;
+pub mod instruments;
 pub mod mock_http;
 pub mod ratelimit;
 pub mod rest;
@@ -26,6 +28,7 @@ pub use api::{
 pub use book::L2Book;
 pub use clock::ClockSkew;
 pub use driver::{Action, Ping, Probe, Protocol, RestBook, StreamConfig};
+pub use instruments::{InstrumentInfo, MarketKind, RawSpec};
 pub use ratelimit::TokenBucket;
 pub use rest::Rest;
 pub use util::*;

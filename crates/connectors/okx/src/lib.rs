@@ -11,6 +11,8 @@
 //!   contracts); inverse contracts keep their contract counts.
 //! * REST: instruments, 400-level book, recent trades + `history-trades` paging, server time.
 //!   10 requests/s token bucket (OKX public limits are 20–40 per 2 s per endpoint).
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 

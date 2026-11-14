@@ -13,6 +13,8 @@
 //!   for linear USDC contracts and options).
 //! * REST: instrument, order book, trades by time range (paged), server time, and the options
 //!   chain (instruments + book summary with mark IV) for `@htflow/options`.
+pub mod instruments;
+
 use std::sync::Arc;
 use std::time::Duration;
 
