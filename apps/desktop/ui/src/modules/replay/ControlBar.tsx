@@ -436,17 +436,24 @@ class FillTagsLayer implements ChartLayer {
     ctx.textAlign = 'center';
     for (const t of tags) {
       const x = timeToX(series.bars, t.ts, v, barMs);
-      if (x === null) continue;
+      if (x === null || x < v.plot.x || x > v.plot.x + v.plot.w) continue;
       const y = v.yOf(t.px);
+      if (!Number.isFinite(y)) continue;
       const buy = t.side === 'buy';
       const w = ctx.measureText(t.text).width + 8;
       const h = d.tagSize + 6;
-      const ty = buy ? y + 6 + h / 2 : y - 6 - h / 2;
+      // Buys sit below the fill and sells above it; flip when that would leave the plot, so a fill
+      // near the top / bottom edge still shows its tag.
+      let below = buy;
+      if (below && y + 6 + h > v.plot.y + v.plot.h) below = false;
+      else if (!below && y - 6 - h < v.plot.y) below = true;
+      const ty = below ? y + 6 + h / 2 : y - 6 - h / 2;
+      if (ty + h / 2 < v.plot.y || ty - h / 2 > v.plot.y + v.plot.h) continue;
       ctx.fillStyle = buy ? p.up : p.down;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.lineTo(x - 4, buy ? ty - h / 2 : ty + h / 2);
-      ctx.lineTo(x + 4, buy ? ty - h / 2 : ty + h / 2);
+      ctx.lineTo(x - 4, below ? ty - h / 2 : ty + h / 2);
+      ctx.lineTo(x + 4, below ? ty - h / 2 : ty + h / 2);
       ctx.closePath();
       ctx.fill();
       ctx.fillRect(x - w / 2, ty - h / 2, w, h);
