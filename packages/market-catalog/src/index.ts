@@ -8,3 +8,4 @@ export * from './catalog';
 export * from './match';
 export { SESSIONS, TZ, catalogId } from './seed/common';
 export { DXFEED_GROUPS } from './seed/other';
+export * from './discovered';

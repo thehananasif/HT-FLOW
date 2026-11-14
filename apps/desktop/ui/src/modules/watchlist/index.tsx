@@ -6,6 +6,7 @@ import { LINK_COLORS, type LinkColor, type WindowState } from '@htflow/workspace
 import { hub } from '../../state/market';
 import { useWindows } from '../../state/windows';
 import { isTauri } from '../../backend';
+import { useCatalogVersion } from '../../state/discovery';
 import { runCommand } from '../../shell/commands';
 import {
   loadPickerPrefs,
@@ -412,7 +413,9 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
   useEffect(loadPickerPrefs, []);
   const p = readParams(state.params);
   const list = p.lists.find((l) => l.id === p.active)!;
-  const entries = useMemo(() => pickerEntries(isTauri), []);
+  const catVersion = useCatalogVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when live discovery merges symbols
+  const entries = useMemo(() => pickerEntries(isTauri), [catVersion]);
   const [selected, setSelected] = useState<string | null>(null);
   const values = useRef(new Map<string, Record<string, number>>());
 

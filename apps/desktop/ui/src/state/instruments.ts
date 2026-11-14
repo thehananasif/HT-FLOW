@@ -4,13 +4,15 @@ import {
   catalog,
   EMPTY_PREFS,
   matchFeedInstrument,
+  onCatalogChange,
   pushRecent,
+  STREAMING_VENUES,
   sanitizePrefs,
   toggleFavourite,
   type CatalogInstrument,
   type CatalogPrefs,
 } from '@htflow/market-catalog';
-import { feedProviders } from '../feeds/registry';
+import { feedProviders, providerFor } from '../feeds/registry';
 import { backend, isTauri } from '../backend';
 import { getSetting } from './settings';
 import { isVenueEnabled } from './liveFeed';
@@ -118,6 +120,8 @@ function providerPriority(): string[] {
 
 /** Catalog entry a feed instrument belongs to (cached per id). */
 const matchCache = new Map<string, CatalogInstrument | null>();
+// Live symbol discovery rebuilds the catalog: matches are recomputed against the new one.
+onCatalogChange(() => matchCache.clear());
 function catalogFor(ref: FeedRef): CatalogInstrument | undefined {
   let c = matchCache.get(ref.id);
   if (c === undefined) {
@@ -159,6 +163,11 @@ export function catalogInstrument(c: CatalogInstrument): Instrument {
 
 /** Feed instruments by id first (mock:*, binance-futures:*, providers), then catalog ids (cat:*). */
 export function instrumentById(id: string): Instrument | undefined {
+  // Fast path: only the provider that owns the id (thousands of discovered symbols otherwise).
+  const own = providerFor(id)
+    ?.instruments()
+    .find((x) => x.id === id);
+  if (own) return own;
   const r = feedRefs(true).find((x) => x.id === id);
   if (r) return r.instrument;
   const c = catalog().get(id);
@@ -214,8 +223,9 @@ export function pickerEntries(includeLive = isTauri): PickerEntry[] {
       });
     }
   }
+  const priority = providerPriority();
   const entries = catalog().instruments.map((c): PickerEntry => {
-    const feeds = rankFeeds(byCat.get(c.id) ?? [], providerPriority(), isVenueEnabled);
+    const feeds = rankFeeds(byCat.get(c.id) ?? [], priority, isVenueEnabled);
     return {
       key: c.id,
       symbol: c.symbol,
@@ -227,7 +237,7 @@ export function pickerEntries(includeLive = isTauri): PickerEntry[] {
       catalog: c,
       feeds,
       status: feeds[0]?.kind ?? 'none',
-      desktopOnly: !isTauri && c.providers.some((p) => p.provider === 'binance-futures'),
+      desktopOnly: !isTauri && c.providers.some((p) => STREAMING_VENUES.has(p.provider)),
     };
   });
   return [...entries, ...extra];

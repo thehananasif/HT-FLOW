@@ -4,10 +4,11 @@ import { catalogId, decimals, SESSIONS } from './common';
 /**
  * Appendix A section 2 — crypto venues (free, built in).
  *
- * The real symbol lists and filters (tick size, lot step, min qty) are loaded from each venue's
- * exchange-info endpoint at runtime by its connector (P05). Until a connector does that, every
- * venue is seeded with the same majors as placeholders: `verified: false`.
- * TODO(verify): replace with exchange-info data per venue.
+ * Curated seed: the same majors on every venue (`verified: false` placeholders). The desktop app
+ * replaces them with every tradable instrument of every venue, read live from each venue's
+ * exchange-info endpoint by its connector (see ../discovered.ts, src-tauri/instruments_cmds.rs):
+ * matching seed entries keep their names and sessions, the live specs override. The web preview
+ * cannot reach those endpoints (no CORS) and shows this seed list.
  */
 interface Venue {
   sub: string;
@@ -173,6 +174,31 @@ const MAJORS: [string, string, number, number][] = [
   ['LINK', 'Chainlink', 0.001, 0.1],
   ['TON', 'Toncoin', 0.0001, 0.1],
 ];
+
+/** Display names of well-known bases (discovered instruments use the base otherwise). */
+export const COIN_NAMES: Record<string, string> = {
+  ...Object.fromEntries(MAJORS.map(([b, n]) => [b, n])),
+  XBT: 'Bitcoin',
+  LTC: 'Litecoin',
+  DOT: 'Polkadot',
+  TRX: 'TRON',
+  BCH: 'Bitcoin Cash',
+  SHIB: 'Shiba Inu',
+  PEPE: 'Pepe',
+  SUI: 'Sui',
+  NEAR: 'NEAR Protocol',
+  UNI: 'Uniswap',
+  AAVE: 'Aave',
+  ARB: 'Arbitrum',
+  OP: 'Optimism',
+  APT: 'Aptos',
+  ATOM: 'Cosmos',
+  FIL: 'Filecoin',
+  ETC: 'Ethereum Classic',
+  XLM: 'Stellar',
+  HBAR: 'Hedera',
+  POL: 'Polygon',
+};
 
 /** Venues that list each base: Deribit only BTC/ETH (+SOL perp), Binance COIN-M majors. */
 function listed(v: Venue, base: string): boolean {
