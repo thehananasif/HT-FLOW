@@ -1,9 +1,9 @@
 /**
  * P30 — file associations (UI side). The Rust core reads a file Windows opened with HT Flow
- * (`.htprofile`, `.htworkspace`, `.htind`, `.htidea`, `.httemplate`) and emits `htflow:open-file`
+ * (`.htprofile`, `.htworkspace`, `.htind`, `.httemplate`) and emits `htflow:open-file`
  * with an `OpenedFile`. This module routes it to the importer registered for its kind:
  *
- *   registerOpenFileHandler('idea', (file) => { …import file.text…; return true; });
+ *   registerOpenFileHandler('template', (file) => { …import file.text…; return true; });
  *
  * The same payload is also dispatched as a DOM `CustomEvent('htflow:open-file', { detail })` on
  * `window` for code that only wants to observe. Handlers marked `needsSession` wait until the user
@@ -16,7 +16,7 @@ import { importTemplates, parseTemplatesFile } from '../charts/templates';
 import { useSession } from '../state/session';
 import { isTauri, native, onNative } from './native';
 
-export type OpenFileKind = 'profile' | 'workspace' | 'indicator' | 'idea' | 'template';
+export type OpenFileKind = 'profile' | 'workspace' | 'indicator' | 'template';
 
 export interface OpenedFile {
   path: string;

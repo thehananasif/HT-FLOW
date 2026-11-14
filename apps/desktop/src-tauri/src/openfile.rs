@@ -1,5 +1,5 @@
 //! P30 — file associations. Windows starts `htflow-desktop.exe "<file>"` for `.htprofile`,
-//! `.htworkspace`, `.htind`, `.htidea` and `.httemplate`; the single-instance plugin forwards the
+//! `.htworkspace`, `.htind` and `.httemplate`; the single-instance plugin forwards the
 //! arguments of a second launch to the running app. Each existing, size-checked file is read and
 //! handed to the UI as an `htflow:open-file` event (queued until the UI calls `open_file_ready`),
 //! where the matching importer picks it up (see `ui/src/shell/openFile.ts`).
@@ -15,11 +15,10 @@ pub const MAX_BYTES: u64 = 32 * 1024 * 1024;
 pub const EVENT: &str = "htflow:open-file";
 
 /// Extension (lower-case, no dot) -> kind the UI routes on.
-pub const KINDS: [(&str, &str); 5] = [
+pub const KINDS: [(&str, &str); 4] = [
     ("htprofile", "profile"),
     ("htworkspace", "workspace"),
     ("htind", "indicator"),
-    ("htidea", "idea"),
     ("httemplate", "template"),
 ];
 
@@ -135,13 +134,20 @@ mod tests {
 
     #[test]
     fn args_keep_only_supported_files() {
-        let args = ["htflow.exe", "--flag", "a.htidea", "b.exe", "c.HTPROFILE"]
-            .map(String::from)
-            .to_vec();
+        let args = [
+            "htflow.exe",
+            "--flag",
+            "a.htidea",
+            "a.htind",
+            "b.exe",
+            "c.HTPROFILE",
+        ]
+        .map(String::from)
+        .to_vec();
         let p = paths_from_args(args);
         assert_eq!(
             p,
-            vec![PathBuf::from("a.htidea"), PathBuf::from("c.HTPROFILE")]
+            vec![PathBuf::from("a.htind"), PathBuf::from("c.HTPROFILE")]
         );
     }
 
@@ -156,7 +162,7 @@ mod tests {
             (f.kind.as_str(), f.text.as_str(), f.error),
             ("template", "{\"a\":1}", None)
         );
-        let bad = dir.join("b.htidea");
+        let bad = dir.join("b.htind");
         std::fs::write(&bad, [0xff, 0xfe, 0xfd]).unwrap();
         assert_eq!(
             load(&bad).unwrap().error.as_deref(),

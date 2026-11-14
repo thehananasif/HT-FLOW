@@ -13,7 +13,7 @@ signatures), WiX and NSIS. Code signing with a paid certificate is out of scope 
 | `HTFlow-<tag>-windows-x64-portable.zip` | `HT Flow.exe` + an empty `portable` marker. Data is kept in `data\` next to the exe; no installer, no auto-update                                    |
 | `*.sig`, `latest.json`                  | Only when the signing secret is set: updater signatures and the update manifest                                                                      |
 
-File associations registered by the installers: `.htprofile`, `.htworkspace`, `.htind`, `.htidea`,
+File associations registered by the installers: `.htprofile`, `.htworkspace`, `.htind`,
 `.httemplate`. Opening one starts HT Flow (or hands the file to the running instance); the core emits an
 `htflow:open-file` event and the UI routes it to the matching importer (see "Opening files" below).
 
@@ -88,7 +88,7 @@ the holder of the updater key.
 
 The core (`src-tauri/src/openfile.rs`) reads the file (UTF-8, at most 32 MB) and emits
 `htflow:open-file` with `{ path, name, ext, kind, text, error }`. `kind` is `profile`, `workspace`,
-`indicator`, `idea` or `template`. The UI (`ui/src/platform/openFile.ts`) routes by kind:
+`indicator` or `template`. The UI (`ui/src/platform/openFile.ts`) routes by kind:
 
 ```ts
 import { registerOpenFileHandler } from '../../platform/openFile';
@@ -101,8 +101,8 @@ registerOpenFileHandler(
 );
 ```
 
-Built in: `profile` (imports like the login-screen button), `template` (chart template library) and
-`idea` (TradersTalk, registered in `modules/traderstalk`). `workspace` and `indicator` have no importer yet;
+Built in: `profile` (imports like the login-screen button), `template` (chart template library).
+`workspace` and `indicator` have no importer yet;
 opening one shows an info toast. Files that arrive before login wait until the user logs in (profiles
 excepted). The same payload is dispatched as a DOM `CustomEvent('htflow:open-file')` on `window`.
 

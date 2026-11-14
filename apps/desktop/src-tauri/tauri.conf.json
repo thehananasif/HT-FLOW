@@ -81,13 +81,6 @@
         "mimeType": "application/vnd.htflow.indicator+json"
       },
       {
-        "ext": ["htidea"],
-        "name": "HT Flow Ideas",
-        "description": "HT Flow trade ideas",
-        "role": "Editor",
-        "mimeType": "application/vnd.htflow.idea+json"
-      },
-      {
         "ext": ["httemplate"],
         "name": "HT Flow Chart Template",
         "description": "HT Flow chart template",
