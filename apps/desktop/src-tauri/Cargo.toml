@@ -30,6 +30,7 @@ htflow-connector-bitget.workspace = true
 htflow-connector-deribit.workspace = true
 htflow-connector-bybit.workspace = true
 htflow-tick-store.workspace = true
+htflow-vps.workspace = true
 htflow-core-types.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde.workspace = true

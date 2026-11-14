@@ -138,7 +138,7 @@ fn set_session(state: &AuthState, s: Session) -> SessionInfo {
     i
 }
 
-fn with_session<T>(
+pub(crate) fn with_session<T>(
     state: &AuthState,
     f: impl FnOnce(&mut Session) -> CmdResult<T>,
 ) -> CmdResult<T> {

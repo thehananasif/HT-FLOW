@@ -51,40 +51,60 @@ data give identical results, whatever the chunking (`Backtest.step(budgetMs)`).
 History comes from the replay data source registry (`feeds/replay.ts`): the tick store when it
 covers the instrument, otherwise the simulator (deterministic per UTC day) or session memory.
 
-## VPS runner: planned local-runner protocol (BLOCKED)
+## VPS runner (your own VPS, over SSH, paper only)
 
-Running strategies on a remote machine needs the headless **HT Flow Runner** binary (the Rust
-core: connectors, event bus, strategy engine, risk engine). That binary is not built yet. The UI
-(runner list, deploy dialog, status panel, kill switch) is in place and shows a
-"requires your own VPS runner" banner. Planned protocol:
+No HT Flow server is involved: the desktop app talks to the user's VPS directly over SSH, and the
+runner on the VPS talks only to public exchange market data.
 
-1. **Transport.** The desktop app opens an SSH connection (`russh`, key from the vault) and a
-   local port forward to `127.0.0.1:47800` on the VPS. The runner listens only on loopback, so no
-   port is open to the internet. Frames are length-prefixed JSON (later MessagePack):
-   `u32 length | { "v": 1, "id": n, "type": ..., "body": ... }`.
-2. **Handshake.** `hello { app_version, profile_id, nonce }` gets
-   `hello_ok { runner_version, host, os, cpu, ram, uptime_s }`. The session token is an HMAC of
-   the nonce with a per-runner secret stored in the vault at install time.
-3. **Install.** `Install runner` uploads the signed runner binary over SFTP to
-   `~/.htflow-runner/`, checks its signature, and registers a systemd user unit (on Linux) or a
-   scheduled task (on Windows). It is idempotent.
-4. **Deploy.** `deploy { bundle_id, strategy_id, source (bundled JS), inputs, instrument, account,
-risk_rules, atm_templates }` gets `deployed { bundle_id }`. Bundles are content-addressed
-   (SHA-256). The runner runs them in an embedded JS engine with the same `@htflow/strategy`
-   API. Risk rules are enforced on the runner too.
-5. **Control.** `start` / `stop { bundle_id }`, `flatten { bundle_id | "all" }`, and
-   `kill { flatten: true }`. The kill switch stops every strategy and flattens every account.
-6. **Streams** (runner to app, with a sequence number per stream): `fill`, `order`, `position`,
-   `pnl` (1 s), `log`, `status { cpu, ram, ping_broker_ms, strategies[] }` (5 s).
-7. **Resume.** On reconnect the app sends `resume { stream, last_seq }`, and the runner replays
-   from its local journal (SQLite) so no fill is lost while the PC was off. Fills are mirrored
-   into the Journal and Tables with the tag `vps:<runner>`.
-8. **Acceptance (P42).** Deploy to a test VPS, disconnect the PC, let the strategy keep trading
-   on paper, then reconnect: every fill appears in the Journal.
+**Code.** `crates/vps` (Rust: `russh` SSH client, host / key parsing, host-key pinning, remote
+command builder), `src-tauri/src/vps_cmds.rs` (Tauri `vps_*` commands, pooled sessions, vault
+access), `vps/` here (TS: `core.ts` headless runner, `feeds.ts` public trade streams, `main.ts` Node
+entry, `bundle.ts` deploy bundle, `protocol.ts` parsers, `service.ts` orchestration, `native.ts`
+Tauri bridge + in-memory mock, `panel.tsx` UI) and `apps/desktop/runnerBundle.ts` (Vite plugin).
+
+1. **Connection.** A VPS is `{ host, port, user, auth: key | password, fingerprint }` in settings.
+   Secrets live only in the encrypted vault under fixed keys `vps/<id>/key`, `vps/<id>/passphrase`
+   and `vps/<id>/password`; the Rust side reads them when it opens a session, so they never come
+   back to the UI. Host keys are pinned (`SHA256:<base64>`, as `ssh-keygen -lf` prints): on Add,
+   `vps_host_key` reads the server key without logging in and the user confirms it
+   (trust on first use). A changed key refuses the connection (`vps.host_key_mismatch`). Pinning
+   can be turned off explicitly (warning shown). Timeouts: connect 12 s, auth 20 s, commands
+   30–180 s, keep-alive 15 s × 3. Sessions are pooled per VPS and dropped on transport errors.
+2. **Probe.** `vps_probe` runs a POSIX probe (`uname`, `node --version`, systemd user manager,
+   lingering, distro) and falls back to a PowerShell probe for Windows. Node.js 22+ is required
+   (global `WebSocket`); if missing, the UI shows manual install steps (Ubuntu / Debian via
+   NodeSource or nvm, Windows Server via winget). HT Flow never installs software as root.
+3. **Deploy.** `runner.js` = a config header
+   (`globalThis.__HTFLOW_RUNNER_CONFIG__ = { runnerId, strategyId, inputs, instrument, feed, bars,
+account, maxPosition }`) + the prebuilt runner core (CommonJS for Node 22, ~240 KB: the
+   `@htflow/strategy` SDK, every built-in strategy, the `PaperEngine`, `core.ts`, `main.ts`), built
+   by Vite and imported lazily as `virtual:htflow-vps-runner`. The bundle id is its SHA-256. It is
+   uploaded over the exec channel's stdin (atomic `.part` + rename, mode 600; base64 through
+   PowerShell on Windows) to `~/.htflow-runner/runners/<runnerId>/`.
+4. **Start / stop.** Linux: `nohup node runner.js` or a systemd **user** unit
+   `htflow-runner-<id>.service` (`Restart=on-failure`; survives reboots with
+   `loginctl enable-linger`). Windows: per-user scheduled task `HTFlowRunner-<id>` (at log-on,
+   restart on failure). Stop writes a `stop` file: the runner flattens its paper position, writes
+   its last trips and state and exits; after 8 s it is killed. Remove also deletes the folder,
+   unit and task. Everything runs as the SSH user, never root.
+5. **Runner.** `main.ts` connects to the public trade stream (Binance Futures / Spot `aggTrade`,
+   Bybit `publicTrade`, OKX `trades`) with exponential back-off, feeds every trade to the
+   `PaperEngine` (fills against a tape-derived top of book, like the backtester) and to the
+   `StrategyRunner`. A risk cap (`maxPosition`) flattens and stops the runner. Files:
+   `state.json` (every 2 s), `log.jsonl` (rotated at 5 MB), `trips.jsonl` (closed round trips),
+   `pid`. Restarts start flat (paper).
+6. **Monitor.** Every 10 s while the tab is open, one `status` command returns
+   `@@now`, then per runner `@@runner`, `@@alive`, `@@state` + state.json, `@@log` + the last log
+   lines, `@@end` (`parseStatus`). A runner whose state is older than 30 s while its process lives
+   shows "No heartbeat".
+7. **Journal.** `trips` reads `trips.jsonl` from the last imported line; trips are imported with
+   ids `vps:<vps>:<runner>:<deployment>:<line>` (idempotent) into the account `vps:<vps>`, shown
+   as **VPS** in the Journal's account filter, tagged `vps`.
+8. **Not done.** Live order routing from the VPS needs a broker connector (see BLOCKERS). Only
+   built-in strategies are bundled (user-registered strategies are not yet).
 
 ## Not built
 
 - The Monaco code editor, `.ts` / `.py` / `.htstrat` file loading, and the embedded Python runner
   (Monaco would be a new dependency).
 - The no-code rule builder.
-- The runner binary and the SSH transport (see above).

@@ -427,3 +427,46 @@
   font-size: 10px;
   color: var(--ht-text-tertiary);
 }
+.stg-vps-intro {
+  line-height: 1.45;
+}
+.vps-fp,
+.vps-fp-big {
+  font-family: var(--ht-font-mono, monospace);
+  overflow-wrap: anywhere;
+}
+.vps-fp {
+  font-size: 11px;
+}
+.vps-fp-big {
+  display: block;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--ht-surface2);
+  font-size: 13px;
+}
+.vps-log {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  max-height: 160px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--ht-surface2);
+  font-family: var(--ht-font-mono, monospace);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+.vps-key {
+  width: 100%;
+  margin-top: 6px;
+  font-family: var(--ht-font-mono, monospace);
+  font-size: 11px;
+  background: var(--ht-surface2);
+  color: var(--ht-text-primary);
+  border: 1px solid var(--ht-divider);
+  border-radius: 6px;
+  padding: 6px;
+}
+.vps-runner-detail .stg-actions {
+  margin-top: 6px;
+}
