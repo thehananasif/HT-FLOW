@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — round 6
+
+### Security
+
+- Dev tooling advisories cleared (`pnpm audit` reports no known vulnerabilities): vitest upgraded from 3.2.x to 4.1.12 (fixes `@vitest/mocker` path traversal and code injection, and pulls a patched `tinypool`), `minimatch` pinned to `>=11.0.1` for the `>=7 <11.0.1` range via a `pnpm.overrides` entry (reached through `typescript-eslint`). Vitest 4 config change: the bench config uses `maxWorkers: 1` in place of the removed `poolOptions.forks.singleFork`.
+
 ## Unreleased — round 5
 
 ### Added

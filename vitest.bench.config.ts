@@ -9,7 +9,7 @@ export default defineConfig({
     include: ['apps/desktop/bench/**/*.perf.ts'],
     environment: 'node',
     pool: 'forks',
-    poolOptions: { forks: { singleFork: true } },
+    maxWorkers: 1,
     fileParallelism: false,
     globalSetup: ['apps/desktop/bench/report.ts'],
     testTimeout: 180_000,
