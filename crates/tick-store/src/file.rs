@@ -26,6 +26,10 @@ pub const BLOCK_MAGIC: u32 = 0x4B4C_4254; // "TBLK"
 pub const BLOCK_HEADER_LEN: u64 = 36;
 pub const INDEX_ENTRY_LEN: usize = 32;
 const ZSTD_LEVEL: i32 = 3;
+/// Most records a block may claim (same bound as the codec). The record count is not covered by
+/// the payload CRC and sizes the decompression buffer, so a flipped bit (or a crafted file) must
+/// not be able to ask for a multi-gigabyte allocation.
+pub const MAX_BLOCK_RECORDS: usize = BLOCK_RECORDS * 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileHeader {
@@ -182,7 +186,12 @@ impl FileIndex {
 /// Reads and validates a block (header check + CRC). Returns the compressed payload.
 fn check_block(header_bytes: &[u8], payload: &[u8], kind: Kind) -> Option<(BlockHeader, u32)> {
     let h = BlockHeader::decode(header_bytes)?;
-    if h.kind != kind as u8 || payload.len() != h.payload_len as usize {
+    if h.kind != kind as u8
+        || payload.len() != h.payload_len as usize
+        || h.count == 0
+        || h.count as usize > MAX_BLOCK_RECORDS
+        || h.min_ts > h.max_ts
+    {
         return None;
     }
     if crc32fast::hash(payload) != h.crc {
@@ -209,7 +218,12 @@ pub fn load_index(path: &Path) -> Result<FileIndex, StoreError> {
     let idx_whole = idx_bytes.len().is_multiple_of(INDEX_ENTRY_LEN);
     for chunk in idx_bytes.as_chunks::<INDEX_ENTRY_LEN>().0 {
         let e = IndexEntry::decode(chunk);
-        if e.offset != next || e.end() > file_len || e.count == 0 {
+        if e.offset != next
+            || e.end() > file_len
+            || e.count == 0
+            || e.count as usize > MAX_BLOCK_RECORDS
+            || e.min_ts > e.max_ts
+        {
             break;
         }
         entries.push(e);
@@ -273,16 +287,29 @@ pub fn load_index(path: &Path) -> Result<FileIndex, StoreError> {
 }
 
 /// Rescales a price in ticks of `from` to ticks of `to` (exact decimal math, half-up rounding).
+/// Saturates at the i64 range instead of overflowing on absurd tick sizes (corrupted headers).
 pub fn rescale_px(px: i64, from: TickSize, to: TickSize) -> i64 {
     if from == to {
         return px;
     }
     let s = from.scale.max(to.scale);
-    let num = i128::from(px) * i128::from(from.units) * 10i128.pow(s - from.scale);
-    let den = i128::from(to.units) * 10i128.pow(s - to.scale);
+    let sat = |neg: bool| if neg { i64::MIN } else { i64::MAX };
+    let num = 10i128.checked_pow(s - from.scale).and_then(|p| {
+        i128::from(px)
+            .checked_mul(i128::from(from.units))?
+            .checked_mul(p)
+    });
+    let den = 10i128
+        .checked_pow(s - to.scale)
+        .and_then(|p| i128::from(to.units).checked_mul(p))
+        .filter(|d| *d > 0);
+    let (Some(num), Some(den)) = (num, den) else {
+        return sat(px < 0);
+    };
     let q = num.div_euclid(den);
     let r = num.rem_euclid(den);
-    (if r * 2 >= den { q + 1 } else { q }) as i64
+    let q = if r.saturating_mul(2) >= den { q + 1 } else { q };
+    i64::try_from(q).unwrap_or_else(|_| sat(q < 0))
 }
 
 /// Reads the records of `idx` whose timestamp is in `[from, to)` and appends them to `out`
@@ -324,7 +351,7 @@ pub fn read_range<R: Record>(
             let hdr = &buf[off..off + BLOCK_HEADER_LEN as usize];
             let payload = &buf[off + BLOCK_HEADER_LEN as usize
                 ..off + BLOCK_HEADER_LEN as usize + e.payload_len as usize];
-            if check_block(hdr, payload, R::KIND).is_none() {
+            if check_block(hdr, payload, R::KIND).is_none_or(|(h, _)| h.count != e.count) {
                 tracing::warn!(file = %path.display(), offset = e.offset, "tick-store: skipping corrupt block");
                 continue;
             }
@@ -607,5 +634,125 @@ mod tests {
         // Garbage index entries are ignored.
         fs::write(index_path(&p), [7u8; 64]).unwrap();
         assert_eq!(load_index(&p).unwrap().records(), 2500);
+    }
+
+    /// Valid two-day-ish file with a few blocks, returned as (data, index) bytes.
+    fn sample(dir: &Path) -> (PathBuf, Vec<u8>, Vec<u8>) {
+        let p = dir.join("s.trd");
+        let tick = TickSize::parse("0.1").unwrap();
+        let mut w = DayWriter::<TradeRec>::open(&p, tick, 0).unwrap();
+        for i in 0..2500 {
+            w.push(tr(i, 10 + i, i as u64), tick).unwrap();
+        }
+        w.sync().unwrap();
+        drop(w);
+        (
+            p.clone(),
+            fs::read(&p).unwrap(),
+            fs::read(index_path(&p)).unwrap(),
+        )
+    }
+
+    fn exercise(p: &Path) {
+        if let Ok(idx) = load_index(p) {
+            let mut out: Vec<TradeRec> = Vec::new();
+            let _ = read_range(p, &idx, i64::MIN, i64::MAX, None, &mut out);
+            let _ = read_range(
+                p,
+                &idx,
+                0,
+                i64::MAX,
+                Some(TickSize::parse("0.01").unwrap()),
+                &mut out,
+            );
+            assert!(out.len() <= 2 * idx.records() as usize);
+        }
+        let _ = DayWriter::<TradeRec>::open(p, TickSize::parse("0.1").unwrap(), 0);
+    }
+
+    #[test]
+    fn huge_record_count_is_rejected_not_allocated() {
+        let dir = tempfile::tempdir().unwrap();
+        let (p, data, idx) = sample(dir.path());
+        // Block count lives outside the payload CRC: set it to u32::MAX in the first block header.
+        let off = FILE_HEADER_LEN as usize + 8;
+        let mut d = data.clone();
+        d[off..off + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        fs::write(&p, &d).unwrap();
+        fs::write(index_path(&p), &idx).unwrap();
+        // With the (intact) index the block is listed, but reading skips it instead of sizing
+        // a buffer from the bogus count.
+        let li = load_index(&p).unwrap();
+        let first = li.entries[0].count as usize;
+        let mut out: Vec<TradeRec> = Vec::new();
+        read_range(&p, &li, i64::MIN, i64::MAX, None, &mut out).unwrap();
+        assert_eq!(out.len(), 2500 - first);
+        // Without the index the scan stops at the corrupt block.
+        fs::remove_file(index_path(&p)).unwrap();
+        assert!(load_index(&p).unwrap().entries.is_empty());
+        // Same through the index file only (data intact).
+        fs::write(&p, &data).unwrap();
+        let mut ix = idx.clone();
+        ix[24..28].copy_from_slice(&u32::MAX.to_le_bytes());
+        fs::write(index_path(&p), &ix).unwrap();
+        let li = load_index(&p).unwrap();
+        assert_eq!(li.records(), 2500, "index rebuilt from the data file");
+        // An index whose count disagrees with the block header is skipped, not trusted.
+        let mut li = load_index(&p).unwrap();
+        li.entries[0].count = MAX_BLOCK_RECORDS as u32;
+        let mut out: Vec<TradeRec> = Vec::new();
+        read_range(&p, &li, i64::MIN, i64::MAX, None, &mut out).unwrap();
+        assert_eq!(out.len(), 2500 - first);
+    }
+
+    #[test]
+    fn corrupted_files_never_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let (p, data, idx) = sample(dir.path());
+        let mut seed = 0x9E37_79B9_7F4A_7C15u64;
+        let mut rnd = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for round in 0..300 {
+            let mut d = data.clone();
+            let mut ix = idx.clone();
+            for _ in 0..(1 + rnd() % 8) {
+                let r = rnd();
+                if r % 3 == 0 && !ix.is_empty() {
+                    let i = (rnd() as usize) % ix.len();
+                    ix[i] = rnd() as u8;
+                } else {
+                    // Bias towards headers: the first 32 B, and block headers.
+                    let i = if r % 2 == 0 {
+                        (rnd() as usize) % 200
+                    } else {
+                        (rnd() as usize) % d.len()
+                    };
+                    d[i] = rnd() as u8;
+                }
+            }
+            match round % 5 {
+                0 => d.truncate((rnd() as usize) % d.len()),
+                1 => ix.truncate((rnd() as usize) % (ix.len() + 1)),
+                _ => {}
+            }
+            fs::write(&p, &d).unwrap();
+            fs::write(index_path(&p), &ix).unwrap();
+            exercise(&p);
+        }
+        // Absurd tick sizes saturate instead of overflowing.
+        let huge = TickSize {
+            scale: 0,
+            units: i64::MAX,
+        };
+        let tiny = TickSize {
+            scale: 18,
+            units: 1,
+        };
+        assert_eq!(rescale_px(i64::MAX, huge, tiny), i64::MAX);
+        assert_eq!(rescale_px(i64::MIN, huge, tiny), i64::MIN);
     }
 }

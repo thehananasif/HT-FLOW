@@ -102,3 +102,32 @@ describe('Trading Activity retention', () => {
     expect(pruneActivity(list, now, 2).map((e) => e.id)).toEqual(['b', 'c']);
   });
 });
+
+describe('CSV formula injection', () => {
+  it('prefixes formula-like text but keeps numbers', () => {
+    const cols = [{ id: 'a', header: 'A', value: (r: { a: string | number }) => r.a }];
+    const csv = toCsv(
+      [
+        { a: '=HYPERLINK("http://evil","x")' },
+        { a: '+cmd|" /C calc"!A0' },
+        { a: '-2+3+cmd' },
+        { a: '@SUM(A1)' },
+        { a: '\tx' },
+        { a: '-12.5' },
+        { a: -7 },
+        { a: 'plain' },
+      ],
+      cols,
+    ).split('\r\n');
+    expect(csv.slice(1, 9)).toEqual([
+      `"'=HYPERLINK(""http://evil"",""x"")"`,
+      `"'+cmd|"" /C calc""!A0"`,
+      `'-2+3+cmd`,
+      `'@SUM(A1)`,
+      `'\tx`,
+      '-12.5',
+      '-7',
+      'plain',
+    ]);
+  });
+});

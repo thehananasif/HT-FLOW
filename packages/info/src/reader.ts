@@ -1,4 +1,5 @@
 import type { FeedItem } from './feed';
+import { safeLink } from './feed';
 import { normalizeKeywords } from './keywords';
 
 /** One subscribed feed. */
@@ -97,7 +98,7 @@ export function normalizeReaderState(raw: unknown): ReaderState {
       if (!isObj(it) || !feedIds.has(str(it.feedId)) || !str(it.id)) continue;
       const item: CachedItem = {
         id: str(it.id),
-        link: str(it.link),
+        link: safeLink(str(it.link)),
         title: str(it.title, '(untitled)'),
         summary: str(it.summary),
         published: num(it.published) ?? null,

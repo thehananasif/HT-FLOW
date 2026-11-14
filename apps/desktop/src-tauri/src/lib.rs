@@ -50,7 +50,10 @@ pub fn run() {
                 &root,
             )?));
             app.manage(auth_cmds::AuthState {
-                store: Arc::new(ProfileStore::new(root.clone(), KdfParams::PRODUCTION)),
+                store: Arc::new(
+                    ProfileStore::new(root.clone(), KdfParams::PRODUCTION)
+                        .with_pin_pepper(Arc::new(auth_cmds::KeyringPepper)),
+                ),
                 session: Arc::new(Mutex::new(None)),
                 locked: AtomicBool::new(false),
             });

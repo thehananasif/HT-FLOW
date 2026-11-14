@@ -22,6 +22,50 @@ fn validate_url(raw: &str) -> CmdResult<reqwest::Url> {
     }
 }
 
+/// True for hosts on this machine or the local network: `localhost`, loopback, private, link-local
+/// (incl. the 169.254.169.254 metadata address), CGNAT, unspecified and IPv6 ULA / link-local.
+/// Only literal addresses are classified (no DNS lookup).
+fn is_local_target(url: &reqwest::Url) -> bool {
+    use std::net::{IpAddr, Ipv4Addr};
+    let v4 = |ip: Ipv4Addr| {
+        let o = ip.octets();
+        ip.is_loopback()
+            || ip.is_private()
+            || ip.is_link_local()
+            || ip.is_unspecified()
+            || ip.is_broadcast()
+            || (o[0] == 100 && (64..128).contains(&o[1]))
+    };
+    let Some(host) = url.host_str() else {
+        return true;
+    };
+    let host = host.trim_end_matches('.').to_ascii_lowercase();
+    match host
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse::<IpAddr>()
+    {
+        Ok(IpAddr::V4(ip)) => v4(ip),
+        Ok(IpAddr::V6(ip)) => {
+            if let Some(m) = ip.to_ipv4_mapped() {
+                return v4(m);
+            }
+            let s0 = ip.segments()[0];
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || (s0 & 0xfe00) == 0xfc00
+                || (s0 & 0xffc0) == 0xfe80
+        }
+        Err(_) => host == "localhost" || host.ends_with(".localhost"),
+    }
+}
+
+/// A feed on the internet may not bounce the app to a local address (router admin page, a dev
+/// server, cloud metadata). Feeds the user deliberately points at a local host keep working.
+fn redirect_allowed(first: &reqwest::Url, next: &reqwest::Url) -> bool {
+    matches!(next.scheme(), "http" | "https") && (is_local_target(first) || !is_local_target(next))
+}
+
 /// Charset from a Content-Type header, else from the XML declaration.
 fn detect_charset(content_type: Option<&str>, body: &[u8]) -> String {
     if let Some(ct) = content_type {
@@ -104,7 +148,19 @@ fn client(system_proxy: bool) -> CmdResult<reqwest::Client> {
     let mut b = reqwest::Client::builder()
         .timeout(TIMEOUT)
         .user_agent(USER_AGENT)
-        .redirect(reqwest::redirect::Policy::limited(5));
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            let ok = attempt
+                .previous()
+                .first()
+                .is_some_and(|first| redirect_allowed(first, attempt.url()));
+            if attempt.previous().len() > 5 {
+                attempt.error("too many redirects")
+            } else if !ok {
+                attempt.error("redirect to a local address refused")
+            } else {
+                attempt.follow()
+            }
+        }));
     if !system_proxy {
         b = b.no_proxy();
     }
@@ -214,6 +270,37 @@ mod tests {
         ] {
             assert!(validate_post_url(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn redirects_cannot_reach_local_addresses() {
+        let u = |s: &str| reqwest::Url::parse(s).unwrap();
+        let public = u("https://feeds.example.com/rss");
+        for local in [
+            "http://127.0.0.1/admin",
+            "http://localhost:8080/",
+            "http://api.localhost/",
+            "http://192.168.1.1/",
+            "http://10.0.0.5/",
+            "http://172.16.3.4/",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://100.64.0.1/",
+            "http://0.0.0.0/",
+            "http://[::1]/",
+            "http://[fd00::1]/",
+            "http://[fe80::1]/",
+            "http://[::ffff:127.0.0.1]/",
+        ] {
+            assert!(is_local_target(&u(local)), "{local}");
+            assert!(!redirect_allowed(&public, &u(local)), "{local}");
+        }
+        assert!(redirect_allowed(&public, &u("https://cdn.example.org/rss")));
+        assert!(redirect_allowed(&public, &u("http://8.8.8.8/x")));
+        // A feed the user put on a local server may redirect within the LAN.
+        assert!(redirect_allowed(
+            &u("http://192.168.1.10/feed"),
+            &u("http://127.0.0.1/x")
+        ));
     }
 
     #[test]
