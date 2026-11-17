@@ -15,6 +15,7 @@ mod openfile;
 mod paths;
 mod updater_cmds;
 mod vps_cmds;
+mod webpage_cmds;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -69,7 +70,14 @@ pub fn run() {
             app.manage(market_cmds::MarketState::default());
             app.manage(custom_ws::CustomWsState::default());
             app.manage(vps_cmds::VpsState::default());
+            app.manage(webpage_cmds::WebpageState::default());
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Web Page windows never outlive the main window.
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                webpage_cmds::close_all(window.app_handle());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             auth_cmds::auth_list_profiles,
@@ -125,6 +133,16 @@ pub fn run() {
             vps_cmds::vps_probe,
             vps_cmds::vps_op,
             vps_cmds::vps_exec,
+            webpage_cmds::webpage_open,
+            webpage_cmds::webpage_navigate,
+            webpage_cmds::webpage_back,
+            webpage_cmds::webpage_forward,
+            webpage_cmds::webpage_reload,
+            webpage_cmds::webpage_close,
+            webpage_cmds::webpage_set_bounds,
+            webpage_cmds::webpage_set_always_on_top,
+            webpage_cmds::webpage_set_policy,
+            webpage_cmds::webpage_open_external,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");

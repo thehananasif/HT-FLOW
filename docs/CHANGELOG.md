@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Web Pages
+
+- Web Pages in the desktop app: each panel opens its page in a dedicated native `webpage-<id>` window (Rust `webpage_cmds.rs`, no `unstable` multi-webview). The window has no IPC or capabilities (the capability is scoped to `main` only, Tauri also rejects custom commands from remote origins), loads http / https only (an `on_navigation` handler cancels `file:`, `javascript:`, `data:`, `tauri:`, custom schemes and URLs with credentials), supports a per-panel domain allow-list (`example.com` incl. subdomains, `*.example.com`), and routes `window.open` / `target=_blank` to the same window or the system browser. Commands: open / navigate / back / forward / reload / close / set bounds / always-on-top / set policy / open external; size and position are remembered per panel. UI: allow-list editor, new-window and always-on-top options, "Open in system browser", six `Web Pages: …` palette commands; the web build keeps the iframe. Unit tests (Rust + TS) for URL validation, scheme blocking and allow-list matching, plus a Playwright spec. Security review in `docs/SECURITY-AUDIT.md`.
+
 ## Unreleased — round 6
 
 ### Security

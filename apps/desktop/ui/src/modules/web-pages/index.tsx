@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ExternalLink, Plus, RotateCw, Star, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Plus,
+  RotateCw,
+  Settings2,
+  Star,
+  X,
+} from 'lucide-react';
 import { Button, Input, toast } from '@htflow/ui-kit';
 import { backend, isTauri } from '../../backend';
 import { log } from '../../state/log';
+import { registerCommands } from '../../shell/commands';
 import { registerModule, type ModuleViewProps } from '../registry';
 import {
   back,
@@ -20,6 +30,8 @@ import {
   type Bookmark,
   type Tab,
 } from './nav';
+import { listenNative, nativePage, type Bounds } from './native';
+import { checkAddress, normalizeAllowList, parseAllowText, urlPermitted } from './policy';
 import './styles.css';
 
 const BOOKMARKS_KEY = 'web-pages.bookmarks';
@@ -31,9 +43,6 @@ const pending: string[] = [];
 
 if (typeof window !== 'undefined') {
   window.addEventListener('htflow:open-url', (e) => {
-    // The desktop webview's CSP blocks frames (see the Tauri notice below): leave the link to
-    // the system browser there instead of claiming it.
-    if (isTauri) return;
     const url = normalizeUrl(String((e as CustomEvent).detail ?? ''));
     if (!url) return;
     e.preventDefault();
@@ -46,10 +55,14 @@ if (typeof window !== 'undefined') {
   });
 }
 
+/** Palette commands reach the most recently mounted Web Pages panel through this event. */
+export const WEBPAGES_CMD = 'htflow:webpages-cmd';
+export type WebpagesCmd = 'reload' | 'system' | 'allow' | 'bookmark' | 'show';
+
 let tabSeq = 0;
 const nextTabId = () => `t${Date.now().toString(36)}${(tabSeq++).toString(36)}`;
 
-function WebPages({ state, setParams }: ModuleViewProps) {
+function WebPages({ windowId, state, setParams }: ModuleViewProps) {
   const tabs = readTabs(state.params?.tabs);
   const activeId =
     typeof state.params?.active === 'string' && tabs.some((t) => t.id === state.params?.active)
@@ -62,6 +75,15 @@ function WebPages({ state, setParams }: ModuleViewProps) {
   const [nonce, setNonce] = useState<Record<string, number>>({});
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [shown, setShown] = useState(false);
+  const allow = normalizeAllowList(
+    Array.isArray(state.params?.allow) ? (state.params.allow as string[]).map(String) : [],
+  );
+  const newWindowExternal = state.params?.newWindow === 'system';
+  const alwaysOnTop = state.params?.alwaysOnTop === true;
+  const savedBounds = state.params?.bounds as Bounds | undefined;
+  const [allowText, setAllowText] = useState(allow.join('\n'));
 
   // Always apply changes on top of the latest params, even from async / event callbacks.
   const live = useRef({ tabs, activeId });
@@ -75,6 +97,64 @@ function WebPages({ state, setParams }: ModuleViewProps) {
       live.current.tabs.map((t) => (t.id === live.current.activeId ? fn(t) : t)),
       live.current.activeId,
     );
+  const cfg = useRef({ allow, newWindowExternal, alwaysOnTop, savedBounds });
+  cfg.current = { allow, newWindowExternal, alwaysOnTop, savedBounds };
+  const updateRef = useRef(update);
+  updateRef.current = update;
+  /** URL the native window is known to show; avoids re-navigating to what it already displays. */
+  const nativeUrl = useRef<string | null>(null);
+
+  const showNative = useCallback(
+    (u: string) => {
+      if (!isTauri) return;
+      const c = cfg.current;
+      nativeUrl.current = u;
+      setShown(true);
+      void nativePage
+        .open(windowId, u, {
+          allow: c.allow,
+          newWindowExternal: c.newWindowExternal,
+          alwaysOnTop: c.alwaysOnTop,
+          bounds: c.savedBounds,
+        })
+        .catch((e) => {
+          setShown(false);
+          log.error('web-pages', `Opening the page window failed: ${errText(e)}`);
+          toast('error', 'Could not open the page window', errText(e));
+        });
+    },
+    [windowId],
+  );
+
+  useEffect(() => {
+    if (!isTauri) return;
+    let off: (() => void) | null = null;
+    let dead = false;
+    void listenNative(windowId, {
+      navigated: (u) => {
+        nativeUrl.current = u;
+        updateRef.current((t) => navigate(t, u));
+      },
+      bounds: (b) => setParams({ bounds: b }),
+      closed: () => {
+        nativeUrl.current = null;
+        setShown(false);
+      },
+    })
+      .then((o) => (dead ? o() : (off = o)))
+      .catch(() => undefined);
+    return () => {
+      dead = true;
+      off?.();
+      void nativePage.close(windowId).catch(() => undefined);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowId]);
+
+  // Switching tabs (or any other change of the current address) re-points the open window.
+  useEffect(() => {
+    if (isTauri && shown && url && nativeUrl.current !== url) showNative(url);
+  }, [url, shown, showNative]);
 
   useEffect(() => setAddress(url ?? ''), [url, activeId]);
 
@@ -100,11 +180,16 @@ function WebPages({ state, setParams }: ModuleViewProps) {
 
   const openInNewTab = useCallback(
     (u: string) => {
+      if (!urlPermitted(u, cfg.current.allow)) {
+        toast('warning', 'Blocked by the allow-list', u);
+        return;
+      }
       const t = navigate(newTab(nextTabId()), u);
       commit([...live.current.tabs, t], t.id);
+      showNative(u);
       log.info('web-pages', `Opened ${u}`);
     },
-    [commit],
+    [commit, showNative],
   );
 
   useEffect(() => {
@@ -116,13 +201,71 @@ function WebPages({ state, setParams }: ModuleViewProps) {
   }, [openInNewTab]);
 
   const go = (input: string) => {
-    const u = normalizeUrl(input);
-    if (!u) {
-      toast('warning', 'Not a web address', 'Enter an http(s) address such as example.com');
+    const r = checkAddress(input, allow);
+    if (!r.ok) {
+      toast('warning', 'Not opened', r.reason);
       return;
     }
-    update((t) => navigate(t, u));
+    update((t) => navigate(t, r.url));
+    showNative(r.url);
   };
+
+  const systemBrowser = (u: string) => {
+    if (isTauri)
+      void nativePage.openExternal(u).catch((e) => toast('error', 'Could not open', errText(e)));
+    else window.open(u, '_blank', 'noopener,noreferrer');
+  };
+
+  const saveAllow = () => {
+    const { list, rejected } = parseAllowText(allowText);
+    if (rejected.length) toast('warning', 'Ignored invalid entries', rejected.join(', '));
+    setParams({ allow: list });
+    setAllowText(list.join('\n'));
+    cfg.current = { ...cfg.current, allow: list };
+    if (isTauri)
+      void nativePage
+        .setPolicy(windowId, list, cfg.current.newWindowExternal)
+        .catch(() => undefined);
+    toast('success', list.length ? `Allow-list: ${list.length} site(s)` : 'Allow-list cleared');
+  };
+
+  const setNewWindow = (external: boolean) => {
+    setParams({ newWindow: external ? 'system' : 'same' });
+    cfg.current = { ...cfg.current, newWindowExternal: external };
+    if (isTauri)
+      void nativePage.setPolicy(windowId, cfg.current.allow, external).catch(() => undefined);
+  };
+
+  const setOnTop = (on: boolean) => {
+    setParams({ alwaysOnTop: on });
+    if (isTauri && shown) void nativePage.setAlwaysOnTop(windowId, on).catch(() => undefined);
+  };
+
+  const doReload = () => {
+    if (isTauri) void nativePage.reload(windowId).catch(() => url && showNative(url));
+    else setNonce((n) => ({ ...n, [activeId]: (n[activeId] ?? 0) + 1 }));
+  };
+
+  const cmdRef = useRef<(c: WebpagesCmd) => void>(() => undefined);
+  cmdRef.current = (c) => {
+    if (c === 'reload') doReload();
+    else if (c === 'system') {
+      if (url) systemBrowser(url);
+    } else if (c === 'allow') setShowSettings(true);
+    else if (c === 'bookmark') {
+      if (url) saveBookmarks(toggleBookmark(bookmarks, url, tabTitle(tab)));
+    } else if (c === 'show') {
+      if (url) showNative(url);
+    }
+  };
+  useEffect(() => {
+    const h = (e: Event) => {
+      if ([...handlers].at(-1) !== openInNewTab) return;
+      cmdRef.current((e as CustomEvent<WebpagesCmd>).detail);
+    };
+    window.addEventListener(WEBPAGES_CMD, h);
+    return () => window.removeEventListener(WEBPAGES_CMD, h);
+  }, [openInNewTab]);
 
   const closeTab = (id: string) => {
     const rest = live.current.tabs.filter((t) => t.id !== id);
@@ -183,8 +326,10 @@ function WebPages({ state, setParams }: ModuleViewProps) {
           size="sm"
           variant="ghost"
           aria-label="Back"
-          disabled={!canBack(tab)}
-          onClick={() => update(back)}
+          disabled={isTauri ? !shown : !canBack(tab)}
+          onClick={() =>
+            isTauri ? void nativePage.back(windowId).catch(() => undefined) : update(back)
+          }
         >
           <ArrowLeft size={14} />
         </Button>
@@ -193,8 +338,10 @@ function WebPages({ state, setParams }: ModuleViewProps) {
           size="sm"
           variant="ghost"
           aria-label="Forward"
-          disabled={!canForward(tab)}
-          onClick={() => update(forward)}
+          disabled={isTauri ? !shown : !canForward(tab)}
+          onClick={() =>
+            isTauri ? void nativePage.forward(windowId).catch(() => undefined) : update(forward)
+          }
         >
           <ArrowRight size={14} />
         </Button>
@@ -204,7 +351,7 @@ function WebPages({ state, setParams }: ModuleViewProps) {
           variant="ghost"
           aria-label="Reload"
           disabled={!url}
-          onClick={() => setNonce((n) => ({ ...n, [activeId]: (n[activeId] ?? 0) + 1 }))}
+          onClick={doReload}
         >
           <RotateCw size={14} />
         </Button>
@@ -233,11 +380,62 @@ function WebPages({ state, setParams }: ModuleViewProps) {
           variant="ghost"
           aria-label="Open in system browser"
           disabled={!url}
-          onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
+          onClick={() => url && systemBrowser(url)}
         >
           <ExternalLink size={14} />
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label="Panel settings"
+          aria-pressed={showSettings}
+          onClick={() => setShowSettings((v) => !v)}
+        >
+          <Settings2 size={14} />
+        </Button>
       </form>
+
+      {showSettings && (
+        <div className="web-settings" data-testid="web-settings">
+          <label className="web-set-row">
+            <span>
+              Allowed sites <span className="muted">(one per line; empty allows every site)</span>
+            </span>
+            <textarea
+              aria-label="Allowed sites"
+              className="web-allow"
+              rows={3}
+              placeholder={'example.com\n*.example.org'}
+              value={allowText}
+              onChange={(e) => setAllowText(e.target.value)}
+            />
+          </label>
+          <div className="web-set-row inline">
+            <Button type="button" size="sm" onClick={saveAllow}>
+              Save allow-list
+            </Button>
+            <label className="web-chk">
+              <input
+                type="checkbox"
+                checked={newWindowExternal}
+                onChange={(e) => setNewWindow(e.target.checked)}
+              />
+              Open new-window links in the system browser
+            </label>
+            {isTauri && (
+              <label className="web-chk">
+                <input
+                  type="checkbox"
+                  checked={alwaysOnTop}
+                  onChange={(e) => setOnTop(e.target.checked)}
+                />
+                Keep page window on top
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="web-bookmarks" aria-label="Bookmarks">
         {!loaded ? null : bookmarks.length === 0 ? (
@@ -261,12 +459,13 @@ function WebPages({ state, setParams }: ModuleViewProps) {
       </div>
 
       <div className="web-view">
-        {isTauri && (
-          <div className="web-notice" role="note" data-testid="web-tauri-notice">
-            <b>Desktop app:</b> pages cannot be framed here because the app&apos;s content security
-            policy blocks iframes. The desktop build needs a native child webview (Tauri
-            multiwebview, created from Rust and positioned over this area) with an allow-listed
-            navigation handler. Until then use <i>Open in system browser</i>.
+        {url && !isTauri && (
+          <div className="web-notice" role="note" data-testid="web-frame-hint">
+            Blank page or a refusal message? Many sites forbid being shown inside other pages
+            (X-Frame-Options / frame-ancestors) and a browser cannot tell us when that happens.{' '}
+            <button className="web-link" onClick={() => systemBrowser(url)}>
+              Open in system browser
+            </button>
           </div>
         )}
         {url && !isTauri ? (
@@ -279,6 +478,18 @@ function WebPages({ state, setParams }: ModuleViewProps) {
             referrerPolicy="no-referrer"
             data-testid="web-frame"
           />
+        ) : url && isTauri ? (
+          <div className="web-start" data-testid="web-native-card">
+            <p className="muted">
+              {shown
+                ? 'This page is open in its own window (it keeps its size and position).'
+                : 'The page window is closed.'}
+            </p>
+            <p className="ellipsis">{url}</p>
+            <Button type="button" size="sm" onClick={() => showNative(url)}>
+              {shown ? 'Bring window to front' : 'Show page window'}
+            </Button>
+          </div>
         ) : (
           <div className="web-start muted">
             {url
@@ -290,5 +501,63 @@ function WebPages({ state, setParams }: ModuleViewProps) {
     </div>
   );
 }
+
+function errText(e: unknown): string {
+  return e && typeof e === 'object' && 'message' in e
+    ? String((e as { message: unknown }).message)
+    : String(e);
+}
+
+const openModule = () =>
+  window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: 'web-pages' }));
+const cmd = (c: WebpagesCmd) => () => {
+  openModule();
+  window.dispatchEvent(new CustomEvent(WEBPAGES_CMD, { detail: c }));
+};
+
+registerCommands([
+  {
+    id: 'webpages.open',
+    label: 'Web Pages: Open browser panel',
+    group: 'Info',
+    keywords: 'web browser internet page url bookmarks',
+    run: openModule,
+  },
+  {
+    id: 'webpages.reload',
+    label: 'Web Pages: Reload page',
+    group: 'Info',
+    keywords: 'refresh browser',
+    run: cmd('reload'),
+  },
+  {
+    id: 'webpages.bookmark',
+    label: 'Web Pages: Bookmark / unbookmark this page',
+    group: 'Info',
+    keywords: 'star favourite',
+    run: cmd('bookmark'),
+  },
+  {
+    id: 'webpages.system-browser',
+    label: 'Web Pages: Open this page in the system browser',
+    group: 'Info',
+    keywords: 'external default browser',
+    run: cmd('system'),
+  },
+  {
+    id: 'webpages.allow-list',
+    label: 'Web Pages: Edit allowed sites…',
+    group: 'Info',
+    keywords: 'domain allow list whitelist restrict security',
+    run: cmd('allow'),
+  },
+  {
+    id: 'webpages.show-window',
+    label: 'Web Pages: Show page window (desktop)',
+    group: 'Info',
+    keywords: 'native webview window bring front',
+    run: cmd('show'),
+  },
+]);
 
 registerModule({ id: 'web-pages', view: WebPages });

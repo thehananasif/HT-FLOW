@@ -248,7 +248,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] `@htflow/info`: XML / RSS 2.0 / RSS 1.0 / Atom / OPML / ICS parsers, keyword highlighting, symbol tagging, calendar logic, reader cache, own-event detectors (big prints, delta spikes, liquidity pulls); Rust `net_fetch_text` (GET, 15 s, 5 MB cap, no cookies)
 - [x] RSS Reader (folders, unread, reading pane, open chart, OPML, keywords, refresh interval, offline cache), News (RSS + own events + calendar, filters, keyword alerts), Economic Calendar (impact filters, countdown, ICS URLs, actual vs forecast colours, vertical lines on charts, alert N min before)
 - [ ] ~~TradersTalk~~ Removed (needs a server): sharing, chat and sync need a service HT Flow does not have, so the window, the `.htidea` format and the idea log were deleted; saved workspaces that referenced it drop the window on load
-- [ ] Default feed URLs unverified; RRULE recurrence not expanded; "Open in Web Pages" (window not built); funding / OI / liquidation events (no connector data); bundled data is labelled sample
+- [ ] Default feed URLs unverified; RRULE recurrence not expanded; "Open in Web Pages" needs the Web Pages panel open (it claims the link); funding / OI / liquidation events (no connector data); bundled data is labelled sample
 
 ## P23 — Alerts & Risk Management
 
@@ -301,7 +301,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Strategies (P42): `@htflow/strategy` SDK (typed inputs, onBar / onTrade / onBook / onFill, indicators, footprint helpers, order API with brackets / trailing / ATM), 5 example strategies, deterministic backtester on replay datasets with slippage / commission, Sharpe / Sortino / Monte-Carlo DD, grid optimiser (Web Worker) with heatmap and walk-forward; Strategies window; chart strategies with markers and live paper trading
 - [x] VPS runner on your own VPS ($0, no HT Flow server): add a VPS (host / port / user, SSH key or password in the encrypted vault, host-key pinning with a trust-on-first-use dialog), test connection + system check (Node.js 22+, install steps when missing), deploy a built-in strategy as a single-file Node.js bundle (SDK + strategy + inputs), start with nohup / systemd user unit (Linux) or a scheduled task (Windows), stop / restart / redeploy / remove, status poll (uptime, P&L, position, trades, last log lines), remote command console, fills imported into the Journal as the "VPS" account. Native side: `crates/vps` (russh)
 - [ ] VPS runner pending: live order routing (needs a broker connector), user-registered (non built-in) strategies in the bundle
-- [ ] Web Pages in the desktop app needs a native child webview (links open in the system browser); strategy code editor, `.ts` / `.py` / `.htstrat` loading, Python runner, no-code rule builder
+- [x] Web Pages in the desktop app: one native `webpage-<id>` window per panel (http/https only, `on_navigation` scheme + per-panel domain allow-list, new-window links in the same window or system browser, no IPC / capabilities, size and position remembered, optional always-on-top), address bar, back / forward / reload, bookmarks, allow-list editor, palette commands (`Web Pages: …`); web build keeps the iframe
+- [ ] Web Pages page window is not docked inside the panel (separate window) and is untested on Windows WebView2; strategy code editor, `.ts` / `.py` / `.htstrat` loading, Python runner, no-code rule builder
 
 ## P29 — QA, performance & hardening
 
