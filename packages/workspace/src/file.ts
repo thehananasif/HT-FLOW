@@ -187,7 +187,10 @@ function ext(v: unknown): Record<string, unknown> | undefined {
 function timeframe(v: unknown): ChartWindowState['timeframe'] {
   const def = { kind: 'time' as const, ms: 300_000 };
   if (!isObj(v)) return def;
-  if (v.kind === 'time') return num(v.ms, 100, 31 * 86_400_000) ? { kind: 'time', ms: v.ms } : def;
+  if (v.kind === 'time') {
+    if (!num(v.ms, 100, 3650 * 86_400_000)) return def;
+    return v.cal === 'month' ? { kind: 'time', ms: v.ms, cal: 'month' } : { kind: 'time', ms: v.ms };
+  }
   if (v.kind === 'tick' || v.kind === 'volume' || v.kind === 'delta')
     return num(v.n, 1, 1e9) ? { kind: v.kind, n: v.n } : def;
   if (v.kind === 'range') return num(v.ticks, 1, 1e6) ? { kind: 'range', ticks: v.ticks } : def;

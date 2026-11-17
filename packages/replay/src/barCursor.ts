@@ -1,4 +1,4 @@
-import type { BarSpec, Trade } from '@htflow/market-data';
+import { timeBucketStart, type BarSpec, type Trade } from '@htflow/market-data';
 
 /**
  * Lightweight mirror of BarSeries.add's bar-boundary rules (no clusters), used to find where the
@@ -27,7 +27,7 @@ export class BarCursor {
     const s = this.spec;
     switch (s.kind) {
       case 'time':
-        return Math.floor(tr.ts / s.ms) * s.ms > this.t;
+        return timeBucketStart(tr.ts, s.ms, s.cal) > this.t;
       case 'range':
         return this.closed || Math.max(this.h, tr.px) - Math.min(this.l, tr.px) > s.ticks;
       default:
@@ -40,7 +40,7 @@ export class BarCursor {
     if (this.opensNewBar(tr)) {
       this.bars++;
       this.barStart = this.fed;
-      this.t = s.kind === 'time' ? Math.floor(tr.ts / s.ms) * s.ms : tr.ts;
+      this.t = s.kind === 'time' ? timeBucketStart(tr.ts, s.ms, s.cal) : tr.ts;
       this.h = tr.px;
       this.l = tr.px;
       this.trades = 0;

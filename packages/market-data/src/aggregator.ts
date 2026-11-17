@@ -1,4 +1,12 @@
 import type { Trade } from './types';
+import {
+  calendarMonths,
+  monthBucketEnd,
+  monthBucketStart,
+  weekStart,
+  DAY_MS as TF_DAY,
+  WEEK_MS,
+} from './timeframes';
 
 /**
  * Trading-session choice for a bar series (P07). `24h` (or undefined) applies no filter.
@@ -21,7 +29,8 @@ export interface SessionRules {
  * The exact rules of each type are documented in docs/ARCHITECTURE.md ("Bar types").
  */
 export type BarSpecBase =
-  | { kind: 'time'; ms: number }
+  /** `cal: 'month'` = calendar-month bars (`ms` is the nominal 30-day length per month). */
+  | { kind: 'time'; ms: number; cal?: 'month' }
   | { kind: 'tick'; n: number }
   | { kind: 'volume'; n: number }
   | { kind: 'delta'; n: number }
@@ -111,7 +120,7 @@ export function specKey(spec: BarSpec): string {
 function baseKey(spec: BarSpec): string {
   switch (spec.kind) {
     case 'time':
-      return `t${spec.ms}`;
+      return spec.cal === 'month' ? `tm${calendarMonths(spec)}` : `t${spec.ms}`;
     case 'tick':
       return `k${spec.n}`;
     case 'volume':
@@ -147,13 +156,18 @@ function baseKey(spec: BarSpec): string {
   }
 }
 
-function timeLabel(ms: number): string {
+function timeLabel(ms: number, cal?: 'month'): string {
+  if (cal === 'month') {
+    const n = calendarMonths({ ms });
+    return n === 1 ? 'Mo' : n === 12 ? 'Y' : `${n}Mo`;
+  }
   const s = ms / 1000;
   if (s < 60) return `S${s}`;
   if (s < 3600) return `M${s / 60}`;
   if (s < 86400) return `H${s / 3600}`;
   if (s === 86400) return 'D';
   if (s === 7 * 86400) return 'W';
+  if (s % (7 * 86400) === 0) return `${s / (7 * 86400)}W`;
   if (s === 30 * 86400) return 'Mo';
   return `${s / 86400}D`;
 }
@@ -171,7 +185,7 @@ export function specLabel(spec: BarSpec): string {
 function baseLabel(spec: BarSpec): string {
   switch (spec.kind) {
     case 'time':
-      return timeLabel(spec.ms);
+      return timeLabel(spec.ms, spec.cal);
     case 'tick':
       return `${spec.n} Tick`;
     case 'volume':
@@ -421,11 +435,11 @@ export class BarSeries {
           this.put(last, ts, px, qty, side, true, this.curEnd);
           return;
         }
-        const t = this.bucket(ts, spec.ms);
+        const t = this.bucket(ts, spec.ms, spec.cal);
         if (last === undefined || t > last.t) {
           const b = this.open(t, px);
           b.tEnd = ts;
-          this.curEnd = this.endOf(t, spec.ms);
+          this.curEnd = this.endOf(t, spec.ms, spec.cal);
           this.put(b, ts, px, qty, side, true, this.curEnd);
         } else {
           this.put(last, ts, px, qty, side, true, this.curEnd);
@@ -501,19 +515,27 @@ export class BarSeries {
     }
   }
 
-  /** Bar open time for time-based types; daily bars start at the session open. */
-  private bucket(ts: number, ms: number): number {
+  /**
+   * Bar open time for time-based types. Daily-and-longer bars start at the session open when the
+   * chart has a session; weekly bars start on Monday and month bars on the 1st (UTC).
+   */
+  private bucket(ts: number, ms: number, cal?: 'month'): number {
     const r = this.rules;
-    if (r !== null && ms >= DAY) {
-      const s = r.sessionStart(ts);
-      return ms === DAY ? s : Math.floor(s / ms) * ms;
+    const base = r !== null && ms >= TF_DAY ? r.sessionStart(ts) : ts;
+    if (cal === 'month') return monthBucketStart(base, calendarMonths({ ms }));
+    if (ms >= WEEK_MS && ms % WEEK_MS === 0) {
+      // A Sunday-evening session open (futures) belongs to the week that starts the next day.
+      const sun = r !== null && new Date(base).getUTCDay() === 0 ? TF_DAY : 0;
+      return weekStart(base + sun, ms / WEEK_MS);
     }
+    if (r !== null && ms >= TF_DAY) return ms === TF_DAY ? base : Math.floor(base / ms) * ms;
     return Math.floor(ts / ms) * ms;
   }
 
-  private endOf(t: number, ms: number): number {
+  private endOf(t: number, ms: number, cal?: 'month'): number {
     // Session-aligned daily bars re-check the session start on each print (DST-safe).
-    if (this.rules !== null && ms >= DAY) return t + 1;
+    if (this.rules !== null && ms >= TF_DAY) return t + 1;
+    if (cal === 'month') return monthBucketEnd(t, calendarMonths({ ms }));
     return t + ms;
   }
 
