@@ -1,14 +1,17 @@
 import { asAny, type AnyIndicator } from '@htflow/indicator-sdk';
+import * as account from './account';
 import * as bands from './bands';
 import * as bands2 from './bands2';
 import * as crypto from './crypto';
 import * as custom from './custom';
 import * as ma2 from './ma2';
 import * as mtf from './mtf';
+import * as optionsPos from './optionsPos';
 import * as orderbook from './orderbook';
 import * as orderflow2 from './orderflow2';
 import * as osc2 from './osc2';
 import * as samples from './samples';
+import * as second from './second';
 import * as trend2 from './trend2';
 import * as levels2 from './levels2';
 import * as volume2 from './volume2';
@@ -41,6 +44,9 @@ export {
   samples,
   mtf,
   custom,
+  second,
+  account,
+  optionsPos,
 };
 
 function collect(...mods: Record<string, unknown>[]): AnyIndicator[] {
@@ -72,6 +78,9 @@ export const INDICATORS: AnyIndicator[] = collect(
   samples,
   mtf,
   custom,
+  second,
+  account,
+  optionsPos,
 );
 
 const byId = new Map(INDICATORS.map((d) => [d.id, d]));
@@ -102,7 +111,12 @@ export function indicatorById(id: string): AnyIndicator | undefined {
  */
 const FEED_IDS = new Set(collect(crypto, orderbook).map((d) => d.id));
 export function poolable(def: AnyIndicator): boolean {
-  return !def.needsTrades && !FEED_IDS.has(def.id) && !FEED_IDS.has(def.id.replace(/^mtf-/, ''));
+  return (
+    !def.needsTrades &&
+    !def.needsHost &&
+    !FEED_IDS.has(def.id) &&
+    !FEED_IDS.has(def.id.replace(/^mtf-/, ''))
+  );
 }
 
 export function isImplemented(e: CatalogEntry): boolean {

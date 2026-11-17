@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Indicators
+
+- Second-instrument input: indicators can take an `instrument` parameter (symbol picker); the other symbol's bars of the chart timeframe are aligned to the chart's bars (gaps forward-filled). New Spread, Ratio, Correlation (rolling Pearson of returns or prices) and Beta (rolling) indicators.
+- Read-only account context in the indicator framework (paper / live store). New Account Info Display and Position Sizing Tracker (fixed-fractional size from risk %, stop ticks and tick value); Options Position and Options Risk Profile draw the paper account's open option legs (strike levels, break-evens, profit / loss zones).
+- Custom Formula: new editor dialog (Edit next to the formula) with line:col syntax errors and a live preview of the last bars; the language gained `iff`, `ref`, `buyVol` / `sellVol`, a 1000-character limit and a 48-level nesting limit (deeply nested input no longer risks a stack overflow). `.htind` scripts accept `let` bindings.
+- Only Options Board, Volatility Smile (need an options chain feed), the four COT entries, Market Profile & TPO, CMS and Margin Zones remain pending in the Indicators dialog.
+
 ## Unreleased — round 6
 
 ### Security

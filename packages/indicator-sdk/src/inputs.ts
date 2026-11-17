@@ -9,6 +9,7 @@ import {
   type InputDefs,
   type InputValue,
   type InputValues,
+  type InstrumentInput,
   type IntInput,
   type LineStyle,
   type LineStyleInput,
@@ -93,7 +94,11 @@ export const input = {
   ): SourceInput {
     return { type: 'source', label, default: def, ...o };
   },
-  string(label: string, def: string, o: Opts & { maxLength?: number } = {}): StringInput {
+  string(
+    label: string,
+    def: string,
+    o: Opts & { maxLength?: number; editor?: 'formula' } = {},
+  ): StringInput {
     return {
       type: 'string',
       label,
@@ -101,7 +106,12 @@ export const input = {
       maxLength: o.maxLength ?? 64,
       help: o.help,
       group: o.group,
+      ...(o.editor ? { editor: o.editor } : {}),
     };
+  },
+  /** A second instrument (instrument id); '' means none picked yet. */
+  instrument(label: string, def = '', o: Opts = {}): InstrumentInput {
+    return { type: 'instrument', label, default: def, ...o };
   },
   timeframe(
     label: string,
@@ -146,6 +156,8 @@ export function validateInput(def: InputDef, raw: unknown): InputValue {
     }
     case 'string':
       return typeof raw === 'string' ? raw.slice(0, def.maxLength) : def.default;
+    case 'instrument':
+      return typeof raw === 'string' ? raw.slice(0, 80) : def.default;
     case 'timeframe': {
       const allowed = def.options ?? TIMEFRAMES.map((t) => t.value);
       return typeof raw === 'string' && (allowed as readonly string[]).includes(raw)

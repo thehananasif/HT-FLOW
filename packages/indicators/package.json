@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@htflow/indicator-sdk": "workspace:*",
-    "@htflow/market-data": "workspace:*"
+    "@htflow/market-data": "workspace:*",
+    "@htflow/options": "workspace:*"
   },
   "peerDependencies": {}
 }

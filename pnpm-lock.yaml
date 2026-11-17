@@ -232,6 +232,9 @@ importers:
       '@htflow/market-data':
         specifier: workspace:*
         version: link:../market-data
+      '@htflow/options':
+        specifier: workspace:*
+        version: link:../options
 
   packages/info: {}
 
