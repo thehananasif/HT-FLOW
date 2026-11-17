@@ -53,6 +53,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] "Forgot password" → 24-word recovery code shown at sign-up (copy / print), resets the password
 - [x] Account menu: change password, change PIN, export profile (encrypted .htprofile), switch user, lock (Ctrl+L), logout
 - [x] Import profile (.htprofile) from the login screen
+- [x] Branding (round 7): the owner's app icon (glossy black bars on a white rounded square) is the window / installer / favicon / title-bar icon (full Tauri set, multi-size `icon.ico` 16-256, Square*Logo, StoreLogo, NSIS + WiX installer bitmaps); the "HANAN TRADE" bull-head logo (original + background-removed copy) shows on the login / create-account page, boot splash, About dialog and User Guide header. Originals and `generate.py` in `apps/desktop/branding/`. No tray icon exists yet
+- [x] Animated login background: original canvas of synthetic footprint candles (bid x ask cells, delta tint, POC outline, diagonal imbalances) forming and scrolling; requestAnimationFrame, paused while hidden, still frame under prefers-reduced-motion, off via Settings > Appearance > "Animated login background" or the toggle on the login page
+- [x] Command Palette: "About HT Flow"
 - [x] Auto-lock after N minutes idle (30 min default)
 - [ ] Profile screen and auto-lock minutes as a user setting (needs Settings centre, P27)
 - [x] Tests: two users see only their own settings; wrong password never decrypts; export / import round-trips; KDF and vault unit tests

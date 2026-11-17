@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { t } from '@htflow/i18n';
 import {
   Button,
@@ -6,7 +6,6 @@ import {
   Dialog,
   Field,
   Input,
-  LogoMark,
   SegmentedControl,
   Select,
   toast,
@@ -16,6 +15,9 @@ import { backend, BackendError, type ProfileSummary } from '../backend';
 import { useSession } from '../state/session';
 import { passwordStrength } from './strength';
 import { TitleBar } from '../shell/TitleBar';
+import { BrandIcon, BrandLogo } from '../components/Brand';
+import { FootprintAnimation, type AnimState } from './footprintCanvas';
+import { loginAnimationEnabled, setLoginAnimationEnabled } from './loginAnim';
 
 const TIMEZONES = (() => {
   try {
@@ -37,39 +39,39 @@ const TIMEZONES = (() => {
 const errMsg = (e: unknown) =>
   e instanceof BackendError ? e.message : e instanceof Error ? e.message : String(e);
 
-/** Decorative footprint wall for the hero (original artwork, seeded so it never flickers). */
-function HeroFootprint() {
-  const cols = useMemo(() => {
-    let s = 7;
-    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    return Array.from({ length: 9 }, (_, c) => ({
-      top: 20 + Math.floor(rnd() * 140),
-      cells: Array.from({ length: 8 + Math.floor(rnd() * 9) }, () => ({
-        a: Math.floor(rnd() * 900) + 10,
-        b: Math.floor(rnd() * 900) + 10,
-        tone: rnd(),
-        c,
-      })),
-    }));
+/** Animated synthetic footprint chart behind the login card (see footprintCanvas.ts). */
+function LoginBackdrop() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [on, setOn] = useState(loginAnimationEnabled);
+  const [state, setState] = useState<AnimState>('stopped');
+  useEffect(() => {
+    const h = (e: Event) => setOn((e as CustomEvent<boolean>).detail);
+    window.addEventListener('htflow:login-animation', h);
+    return () => window.removeEventListener('htflow:login-animation', h);
   }, []);
-  return (
-    <div className="hero-fp" aria-hidden="true">
-      {cols.map((col, i) => (
-        <div key={i} className="hero-fp-col" style={{ marginTop: col.top }}>
-          {col.cells.map((cell, k) => (
-            <div
-              key={k}
-              className="hero-fp-cell"
-              data-tone={cell.tone < 0.22 ? 'up' : cell.tone > 0.8 ? 'down' : 'flat'}
-            >
-              <span>{cell.a}</span>
-              <span>{cell.b}</span>
-            </div>
-          ))}
-        </div>
-      ))}
+  useEffect(() => {
+    const cv = ref.current;
+    if (!on || !cv) return;
+    let anim: FootprintAnimation;
+    try {
+      anim = new FootprintAnimation(cv, { onState: setState });
+    } catch {
+      return;
+    }
+    anim.start();
+    cv.dataset.frames = '0';
+    const iv = window.setInterval(() => (cv.dataset.frames = String(anim.frames)), 500);
+    return () => {
+      clearInterval(iv);
+      anim.destroy();
+    };
+  }, [on]);
+  return on ? (
+    <div className="login-anim" aria-hidden="true">
+      <canvas ref={ref} data-testid="login-anim" data-state={state} />
+      <div className="login-anim-shade" />
     </div>
-  );
+  ) : null;
 }
 
 function RecoveryDialog({ words, onDone }: { words: string[]; onDone: () => void }) {
@@ -185,15 +187,16 @@ export function LoginScreen() {
     <div className="login-root">
       <TitleBar minimal />
       <div className="login-body">
+        <LoginBackdrop />
         <section className="login-hero">
           <div className="row gap12 center-y">
-            <LogoMark size={44} />
+            <BrandIcon size={44} />
             <div>
               <div className="login-brand">HT FLOW</div>
               <div className="login-brand-sub">{t('app.tagline')}</div>
             </div>
           </div>
-          <HeroFootprint />
+          <BrandLogo height={190} className="login-hero-logo" />
           <div className="login-hero-copy">
             <h1>{t('login.hero')}</h1>
             <p>{t('login.heroSub')}</p>
@@ -213,7 +216,7 @@ export function LoginScreen() {
           </div>
           <div className="login-foot">
             <span className="ht-dot" data-state="live" /> Your data stays on this PC ·{' '}
-            {version && `v${version}`}
+            {version && `v${version}`} · <AnimToggle />
           </div>
         </section>
         <section className="login-side">
@@ -566,5 +569,24 @@ function ForgotDialog({
         </Button>
       </form>
     </Dialog>
+  );
+}
+
+function AnimToggle() {
+  const [on, setOn] = useState(loginAnimationEnabled);
+  useEffect(() => {
+    const h = (e: Event) => setOn((e as CustomEvent<boolean>).detail);
+    window.addEventListener('htflow:login-animation', h);
+    return () => window.removeEventListener('htflow:login-animation', h);
+  }, []);
+  return (
+    <button
+      type="button"
+      className="link"
+      data-testid="login-anim-toggle"
+      onClick={() => setLoginAnimationEnabled(!on)}
+    >
+      Animated background: {on ? 'on' : 'off'}
+    </button>
   );
 }

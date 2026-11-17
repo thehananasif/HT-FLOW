@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Minus, Square, X } from 'lucide-react';
-import { LogoBars } from '@htflow/ui-kit';
+import { BrandIcon } from '../components/Brand';
 import { backend } from '../backend';
 import { requestExit } from '../state/exit';
 
@@ -10,7 +10,7 @@ export function TitleBar({ minimal, children }: { minimal?: boolean; children?: 
     <header className="titlebar" data-tauri-drag-region>
       {minimal ? (
         <div className="titlebar-brand" data-tauri-drag-region>
-          <LogoBars size={16} />
+          <BrandIcon size={16} />
           <span>HT Flow</span>
         </div>
       ) : (

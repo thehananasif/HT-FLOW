@@ -1,5 +1,6 @@
 import { Fragment, useMemo } from 'react';
 import { Button, EmptyState, Input } from '@htflow/ui-kit';
+import { BrandIcon, BrandLogo } from '../../components/Brand';
 import { registerCommands } from '../../shell/commands';
 import { moduleDef } from '../../shell/modules';
 import { registerModule, type ModuleViewProps } from '../registry';
@@ -104,6 +105,13 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
   return (
     <div className="ug-win" data-testid="user-guide">
       <nav className="ug-toc" aria-label="Table of contents">
+        <div className="ug-brand" data-testid="guide-brand">
+          <BrandLogo height={72} testId="guide-logo" />
+          <div className="row gap8 center-y">
+            <BrandIcon size={18} />
+            <b>HT Flow User Guide</b>
+          </div>
+        </div>
         <Input
           aria-label="Search the guide"
           placeholder="Search the guide…"

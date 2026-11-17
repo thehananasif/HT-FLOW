@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Added
+
+- New branding: the owner's app icon replaces the placeholder everywhere (Tauri `icons/*`, multi-size `icon.ico`, Square*Logo / StoreLogo, NSIS header + sidebar and WiX banner + dialog bitmaps wired in `tauri.conf.json`, web favicon, title bar, Settings > About). The "HANAN TRADE" logo (optimised webp + background-removed webp; originals kept in `apps/desktop/branding/`) appears on the login / create-account page, a boot splash, the new About dialog and the User Guide header. `branding/generate.py` regenerates all assets.
+- Login page: animated synthetic footprint-candle background (canvas, rAF, pauses when hidden, still frame with reduced motion, setting `appearance.loginAnimation` + login-page toggle). Command Palette: "About HT Flow". Tests: `footprintSim.test.ts`, e2e `login-branding.spec.ts`.
+
 ## Unreleased — round 6
 
 ### Security

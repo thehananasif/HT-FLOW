@@ -5,10 +5,18 @@ import { installGlobalCrashHandlers, useReportDialog } from './crash';
 import { flushWaitingFiles, startOpenFileBridge } from './openFile';
 import { ReportProblemDialog } from './ReportProblem';
 import { UpdateDialog } from './UpdateDialog';
+import { AboutDialog, useAbout } from './AboutDialog';
 import { checkForUpdates, startupUpdateCheck } from './updates';
 import './styles.css';
 
 registerCommands([
+  {
+    id: 'platform.about',
+    label: 'About HT Flow',
+    group: 'Platform',
+    keywords: 'version licence license logo brand hanan trade info',
+    run: () => useAbout.getState().show(),
+  },
   {
     id: 'platform.checkUpdates',
     label: 'Check for updates',
@@ -50,6 +58,7 @@ export function PlatformHost() {
     <>
       <ReportProblemDialog />
       <UpdateDialog />
+      <AboutDialog />
     </>
   );
 }

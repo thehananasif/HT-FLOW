@@ -17,6 +17,7 @@ import {
 } from '../../state/log';
 import { fmtDateTime } from '../../state/format';
 import { ABOUT_LINKS, BUNDLED_LIBRARIES } from './licenses';
+import { BrandIcon } from '../../components/Brand';
 import { useReportDialog } from '../../platform/crash';
 import { checkForUpdates } from '../../platform/updates';
 import type { EditorProps } from './editors';
@@ -238,6 +239,7 @@ export function AboutPanel() {
   return (
     <div className="st-about" data-testid="about-panel">
       <div className="st-about-head">
+        <BrandIcon size={28} />
         <b>HT Flow</b>
         <Badge kind="default">v{version}</Badge>
         <span className="muted">Order-flow trading platform · local-first · MIT licence</span>

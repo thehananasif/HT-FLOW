@@ -120,3 +120,7 @@ remove everything.
   survives. The smoke test is informational (it does not fail the build) until it has been seen green.
 - `latest.json` generation is unit-tested (`scripts/release/latest-json.test.ts`).
 - The NSIS hook (`src-tauri/windows/installer-hooks.nsh`) compiles with `makensis -WX` against a stub.
+
+## Icon and logo sources
+
+Owner-supplied originals live in `apps/desktop/branding/` (`app-icon.webp`, `hanan-trade-logo.webp`). Run `python3 apps/desktop/branding/generate.py` (Pillow) to rebuild `src-tauri/icons/*` (incl. `installer/*.bmp` used by the NSIS and WiX bundles), `ui/public/favicon.png` and `ui/public/brand/*`. Commit the regenerated files.
