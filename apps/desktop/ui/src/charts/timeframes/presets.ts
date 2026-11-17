@@ -1,10 +1,5 @@
 import { create } from 'zustand';
-import {
-  specKey,
-  TIMEFRAME_PRESETS,
-  type BarKind,
-  type BarSpec,
-} from '@htflow/market-data';
+import { specKey, TIMEFRAME_PRESETS, type BarKind, type BarSpec } from '@htflow/market-data';
 import { backend } from '../../backend';
 
 /** One row of the timeframe dialog (P07): a bar type and its preset chips. */
@@ -151,7 +146,9 @@ export function sanitizeCustom(raw: unknown): BarSpec[] {
 }
 
 export function sanitizeCollapsed(raw: unknown): string[] {
-  return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string').slice(0, 60) : [];
+  return Array.isArray(raw)
+    ? raw.filter((x): x is string => typeof x === 'string').slice(0, 60)
+    : [];
 }
 
 export const defaultRows = (): TfRow[] =>

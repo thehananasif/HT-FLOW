@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Added
+
+- Timeframe menu with every interval (ticks 1 / 10 / 100 / 1000, seconds 1-45, minutes 1-45, hours 1-12, 1 day, 1 week, 1 / 3 / 6 / 12 months) in collapsible groups next to the other bar types, star favourites that become toolbar chips, a custom-interval dialog (number + unit, validated, saved locally, removable), remembered collapsed groups, and a quick interval input when typing a number in a chart ("15", "4h", "1D").
+- Weekly bars now start on Monday and calendar-month bars (`cal: 'month'` on time specs, labels Mo / 3Mo / Y) split on real month boundaries; pure period maths and the interval parser live in `@htflow/market-data` (`timeframes.ts`, unit-tested). Command Palette: "Timeframe: <name>" for each interval and "Timeframe: Add custom interval". New e2e spec `interval-menu.spec.ts`.
+
 ## Unreleased — round 6
 
 ### Security

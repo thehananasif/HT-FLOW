@@ -103,7 +103,6 @@ export interface Bar {
   flip?: number;
 }
 
-const DAY = 86_400_000;
 /** Longest gap credited to time-at-price for non-time bars (5 min). */
 export const MAX_TAP_GAP_MS = 300_000;
 

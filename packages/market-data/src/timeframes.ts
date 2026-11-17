@@ -63,15 +63,7 @@ export function timeBucketStart(ts: number, ms: number, cal?: 'month'): number {
 // ------------------------------------------------------------------ interval model
 
 export type IntervalUnit =
-  | 'tick'
-  | 'second'
-  | 'minute'
-  | 'hour'
-  | 'day'
-  | 'week'
-  | 'month'
-  | 'volume'
-  | 'range';
+  'tick' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'volume' | 'range';
 
 export interface Interval {
   unit: IntervalUnit;

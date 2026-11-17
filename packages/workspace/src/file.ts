@@ -189,7 +189,9 @@ function timeframe(v: unknown): ChartWindowState['timeframe'] {
   if (!isObj(v)) return def;
   if (v.kind === 'time') {
     if (!num(v.ms, 100, 3650 * 86_400_000)) return def;
-    return v.cal === 'month' ? { kind: 'time', ms: v.ms, cal: 'month' } : { kind: 'time', ms: v.ms };
+    return v.cal === 'month'
+      ? { kind: 'time', ms: v.ms, cal: 'month' }
+      : { kind: 'time', ms: v.ms };
   }
   if (v.kind === 'tick' || v.kind === 'volume' || v.kind === 'delta')
     return num(v.n, 1, 1e9) ? { kind: v.kind, n: v.n } : def;

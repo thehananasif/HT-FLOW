@@ -194,7 +194,11 @@ describe('aggregation of the new intervals', () => {
       tr(utc(2024, 5, 15, 7, 59)),
       tr(utc(2024, 5, 15, 8, 0)),
     ]).bars;
-    expect(h4.map((b) => b.t)).toEqual([utc(2024, 5, 15, 0), utc(2024, 5, 15, 4), utc(2024, 5, 15, 8)]);
+    expect(h4.map((b) => b.t)).toEqual([
+      utc(2024, 5, 15, 0),
+      utc(2024, 5, 15, 4),
+      utc(2024, 5, 15, 8),
+    ]);
     const ticks = BarSeries.build(
       { kind: 'tick', n: 10 },
       Array.from({ length: 25 }, (_, i) => tr(1000 + i)),

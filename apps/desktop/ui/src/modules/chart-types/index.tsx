@@ -1,15 +1,23 @@
 import { create } from 'zustand';
 import { SlidersHorizontal } from 'lucide-react';
 import type { ChartLayer } from '@htflow/chart-engine';
-import { TIMEFRAME_PRESETS, type BarSpec } from '@htflow/market-data';
+import { t } from '@htflow/i18n';
+import { INTERVAL_GROUPS, TIMEFRAME_PRESETS, specKey, type BarSpec } from '@htflow/market-data';
 import { CHART_TEMPLATES, type ChartWindowState, type WindowState } from '@htflow/workspace';
 import { registerChartExtension, type ChartExtensionContext } from '../../charts/extensions';
 import { KagiLayer, PnfLayer } from '../../charts/layers/chartTypeLayers';
 import { CT_EXT, readChartTypeSettings } from '../../charts/layers/settings';
 import { EXTRA_TEMPLATES } from '../../charts/layers/templates';
 import '../../charts/layers/sessions';
+import {
+  CustomIntervalDialogHost,
+  QuickIntervalHost,
+  applyTimeframe,
+  openCustomInterval,
+  specName,
+} from '../../charts/timeframes/IntervalMenu';
 import { TimeframeDialogHost } from '../../charts/timeframes/TimeframeDialog';
-import { openTimeframeDialog, withSession } from '../../charts/timeframes/presets';
+import { openTimeframeDialog, useTimeframes, withSession } from '../../charts/timeframes/presets';
 import { useWindows } from '../../state/windows';
 import { registerCommands } from '../../shell/commands';
 import { ChartTypeSettingsDialog, hasTypeSettings } from './SettingsDialog';
@@ -79,6 +87,8 @@ function Overlay({ windowId, state }: { windowId: string; state: ChartWindowStat
         />
       )}
       <TimeframeDialogHost windowId={windowId} s={state} />
+      <CustomIntervalDialogHost windowId={windowId} />
+      <QuickIntervalHost windowId={windowId} />
     </>
   );
 }
@@ -101,7 +111,29 @@ const DEFAULT_TF: Partial<Record<string, BarSpec>> = {
   cot: { kind: 'time', ms: 3_600_000 },
 };
 
+const intervalCommand = (sp: BarSpec) => ({
+  id: `chart.timeframe.${specKey(sp)}`,
+  label: t('tf.setCmd', { name: specName(sp) }),
+  group: 'Chart' as const,
+  keywords: 'timeframe interval period bar ticks seconds minutes hours days week month',
+  run: () => {
+    const id = activeChart();
+    if (id) applyTimeframe(id, sp);
+  },
+});
+
 registerCommands([
+  ...INTERVAL_GROUPS.flatMap((g) => g.specs).map(intervalCommand),
+  {
+    id: 'chart.timeframe-add-custom',
+    label: t('tf.addCustomCmd'),
+    group: 'Chart',
+    keywords: 'timeframe interval custom add',
+    run: () => {
+      const id = activeChart();
+      if (id) openCustomInterval(id);
+    },
+  },
   {
     id: 'chart.timeframe-dialog',
     label: 'Chart: Timeframe dialog',
@@ -159,3 +191,14 @@ registerCommands([
     run: () => useCtDialog.setState({ windowId: activeChart() }),
   },
 ]);
+
+// User-defined intervals are palette commands too (re-registered when the list changes).
+let unregisterCustom: (() => void) | null = null;
+const registerCustom = (custom: BarSpec[]) => {
+  unregisterCustom?.();
+  unregisterCustom = registerCommands(custom.map(intervalCommand));
+};
+useTimeframes.subscribe((st, prev) => {
+  if (st.custom !== prev.custom) registerCustom(st.custom);
+});
+void useTimeframes.getState().load();
