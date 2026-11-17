@@ -39,6 +39,7 @@ tauri = { version = "2", features = [] }
 tokio.workspace = true
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 tracing.workspace = true
+tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeroize.workspace = true
 

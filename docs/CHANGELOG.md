@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Added
+
+- Native log files: a daily-rolling `tracing` file (`htflow.<date>.log`) under `logs.folder` (default `%APPDATA%\HTFlow\logs`), secrets redacted with the crash reporter's helper; files older than `logs.keepDays` are deleted at start-up. New "Open log folder" button (Settings -> Logs) and Command Palette entry.
+- Profile backups: `profile_backup_now()` / `profile_backup_prune(max)` copy the sealed profile folder into `backups\<YYYYMMDD-HHMMSS>\`; a timer checks at start-up and daily against `common.backupDays` and deletes the oldest beyond `common.maxBackups`. "Back up now" / "Open backups folder" buttons (Settings -> Common) and palette commands.
+- Video adapter now applies to the whole WebView2 (all charts, not only the 3D heatmap): chosen at start-up via `--force_high_performance_gpu` / `--force_low_power_gpu`; the setting shows a "restart required" note. The few settings the core needs before login (log folder, retention, backup schedule, adapter) are mirrored to `native-prefs.json` in the data folder.
+
 ## Unreleased — round 6
 
 ### Security

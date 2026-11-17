@@ -196,6 +196,8 @@ interface BaseDef<T> {
    * shows a "not used yet" hint for these.
    */
   wired?: boolean;
+  /** True when a change only takes effect after HT Flow restarts (a visible note is shown). */
+  restartRequired?: boolean;
 }
 
 export interface NumberDef extends BaseDef<number> {
@@ -954,7 +956,7 @@ export const SCHEMA = {
     alsoIn: ['common'],
     group: 'Rendering',
     label: 'Video adapter',
-    help: 'GPU preference of WebGL contexts (3D heatmap) on PCs with integrated + discrete graphics; the Heatmap rendering adapter wins when set.',
+    help: 'GPU the whole app (WebView2: all charts and WebGL) runs on, on PCs with integrated + discrete graphics. Passed to WebView2 at start-up, so it applies after a restart. The 3D heatmap also honours it for new WebGL contexts; the Heatmap rendering adapter wins there when set.',
     default: 'auto',
     options: [
       { value: 'auto', label: 'Auto' },
@@ -962,6 +964,7 @@ export const SCHEMA = {
       { value: 'low-power', label: 'Integrated (low power)' },
     ],
     wired: true,
+    restartRequired: true,
   }),
   'performance.showDebugInfo': bool({
     section: 'performance',
@@ -1205,13 +1208,13 @@ export const SCHEMA = {
     alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Backup period',
-    help: 'How often the local database is backed up.',
+    help: 'How often the sealed profile folder is copied into backups\\<timestamp>\\ (checked at start-up and daily).',
     default: 1,
     min: 1,
     max: 30,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'common.maxBackups': num({
     section: 'common',
@@ -1223,7 +1226,7 @@ export const SCHEMA = {
     min: 1,
     max: 100,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'common.recorderMaxGb': num({
     section: 'common',
@@ -2586,18 +2589,19 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'logs.folder': str({
     section: 'logs',
     group: 'Files',
     label: 'Log folder',
-    help: 'Where log files are written. Applied on the next start; opening the folder needs the native shell.',
+    help: 'Where the daily log files are written (secrets are redacted). Applied on the next start.',
     default: '%APPDATA%\\HTFlow\\logs',
     maxLength: 260,
     pattern: /^[^<>"|?*\0]+$/,
     patternHint: 'A folder path without < > " | ? *',
-    wired: false,
+    wired: true,
+    restartRequired: true,
   }),
 
   // ---------------------------------------------------------------- Layout (P25 / P37)

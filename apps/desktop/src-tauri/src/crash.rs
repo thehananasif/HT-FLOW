@@ -356,6 +356,11 @@ pub fn crash_summary(state: State<'_, CrashState>) -> String {
 pub fn crash_open_folder(state: State<'_, CrashState>) -> CmdResult<()> {
     fs::create_dir_all(&state.0)
         .map_err(|_| CmdError::new("crash.folder", "Could not create the crashes folder"))?;
+    open_folder(&state.0).map_err(|_| CmdError::new("crash.folder", "Could not open the folder"))
+}
+
+/// Opens a folder in the system file manager (Explorer on Windows).
+pub fn open_folder(path: &Path) -> std::io::Result<()> {
     let opener = if cfg!(windows) {
         "explorer"
     } else if cfg!(target_os = "macos") {
@@ -364,10 +369,9 @@ pub fn crash_open_folder(state: State<'_, CrashState>) -> CmdResult<()> {
         "xdg-open"
     };
     std::process::Command::new(opener)
-        .arg(&state.0)
+        .arg(path)
         .spawn()
         .map(|_| ())
-        .map_err(|_| CmdError::new("crash.folder", "Could not open the folder"))
 }
 
 #[cfg(test)]
