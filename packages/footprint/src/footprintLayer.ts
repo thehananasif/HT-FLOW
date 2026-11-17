@@ -1,4 +1,11 @@
-import { barsRange, type ChartLayer, type ChartView } from '@htflow/chart-engine';
+import {
+  barsRange,
+  painterOf,
+  RectBatch,
+  type ChartLayer,
+  type ChartView,
+} from '@htflow/chart-engine';
+import { buildFootprintCell, type CellParams } from './cellGeometry';
 import { formatCompact, type BarSeries, type OrderBook } from '@htflow/market-data';
 import { footprintMode, type FootprintModeDef } from './modes';
 import {
@@ -98,6 +105,7 @@ export class FootprintLayer implements ChartLayer {
   /** Rows used in the last frame (shared with gutters). */
   rowTicks = 1;
   private rowCache = new RowCache();
+  private batch = new RectBatch(2048);
 
   constructor(
     private series: () => BarSeries,
@@ -169,10 +177,24 @@ export class FootprintLayer implements ChartLayer {
     ctx.textBaseline = 'middle';
     const fonts = { n: v.font(fontSize), b: v.font(fontSize, 700) };
     ctx.font = fonts.n;
+    const paint = painterOf(v);
+    paint.setClip({ x: v.plot.x, y: 0, w: v.plot.w, h: v.plot.h });
+    const cell: CellParams = {
+      mode,
+      palette: p,
+      opacity: s.cellOpacity ?? 1,
+      colorMode: s.colorMode ?? 'volume',
+      maxD,
+      maxSide,
+    };
+    const out = this.batch;
 
     for (let i = v.i0; i <= v.i1; i++) {
       const rows = rowsCache[i - v.i0]!;
       if (!rows.length) continue;
+      // One bar: rects (zones, value area, cells, POC box) go out as one batch, then its text.
+      out.clear();
+      const marks: { k: number; yTop: number; h: number }[] = [];
       const x = v.xOf(i) - v.slotWidth / 2 + stripW + 3;
       let pocIdx = 0;
       for (let k = 1; k < rows.length; k++) if (rows[k]!.vol > rows[pocIdx]!.vol) pocIdx = k;
@@ -190,8 +212,14 @@ export class FootprintLayer implements ChartLayer {
         for (const [lo, hi, side] of stackedZones(rows, imb, s.imbalance.stacked)) {
           const y0 = v.yOf(hi + rt - 0.5);
           const y1 = v.yOf(lo - 0.5);
-          ctx.fillStyle = rgba(side === 'buy' ? imbBuy : imbSell, 0.12);
-          ctx.fillRect(x + cellW, y0, v.plot.x + v.plot.w - x - cellW, y1 - y0);
+          out.rect(
+            x + cellW,
+            y0,
+            v.plot.x + v.plot.w - x - cellW,
+            y1 - y0,
+            side === 'buy' ? imbBuy : imbSell,
+            0.12,
+          );
         }
       }
 
@@ -201,10 +229,8 @@ export class FootprintLayer implements ChartLayer {
         const yHi = v.yOf(rows[vaRows.hi]!.px + rt - 0.5);
         const yLo = v.yOf(rows[vaRows.lo]!.px - 0.5);
         const vc = va!.color || p.info;
-        ctx.fillStyle = rgba(vc, 0.16);
-        ctx.fillRect(x - 2, Math.min(yHi, yLo), cellW + 2, Math.abs(yLo - yHi));
-        ctx.fillStyle = vc;
-        ctx.fillRect(x - 2, Math.min(yHi, yLo), 2, Math.abs(yLo - yHi));
+        out.rect(x - 2, Math.min(yHi, yLo), cellW + 2, Math.abs(yLo - yHi), vc, 0.16);
+        out.rect(x - 2, Math.min(yHi, yLo), 2, Math.abs(yLo - yHi), vc);
       }
       const absorb = s.absorption ? new Set(absorptionRows(rows)) : null;
 
@@ -218,120 +244,32 @@ export class FootprintLayer implements ChartLayer {
         if (!passesFilter(r, filt.minVolume, filt.minDelta)) continue;
         const kv = val / maxV;
         const dShare = r.vol ? r.delta / r.vol : 0;
-        this.drawCell(v, mode, r, x, yTop, cellW, h, kv, dShare, maxV, maxD, maxSide);
+        buildFootprintCell(out, cell, r, x, yTop, cellW, h, kv, dShare);
+        if (s.showPoc && k === pocIdx)
+          out.outline(
+            Math.round(x),
+            Math.round(yTop),
+            Math.round(cellW),
+            Math.round(h),
+            col.poc || p.textPrimary,
+          );
+        marks.push({ k, yTop, h });
+      }
+      paint.rects(out);
+      for (const { k, yTop, h } of marks) {
         if (absorb?.has(k)) {
           ctx.fillStyle = p.warning;
           ctx.beginPath();
           ctx.arc(x + cellW - 4, yTop + h / 2, Math.min(3, h / 3), 0, Math.PI * 2);
           ctx.fill();
         }
-        if (s.showPoc && k === pocIdx) {
-          ctx.strokeStyle = col.poc || p.textPrimary;
-          ctx.lineWidth = 1;
-          ctx.strokeRect(
-            Math.round(x) + 0.5,
-            Math.round(yTop) + 0.5,
-            Math.round(cellW) - 1,
-            Math.round(h) - 1,
-          );
-        }
         if (showText) {
-          this.drawText(v, mode, r, x, yTop + h / 2, cellW, k === pocIdx, imb?.[k], fonts);
+          this.drawText(v, mode, rows[k]!, x, yTop + h / 2, cellW, k === pocIdx, imb?.[k], fonts);
         }
       }
     }
+    paint.setClip(null);
     ctx.restore();
-  }
-
-  private drawCell(
-    v: ChartView,
-    mode: FootprintModeDef,
-    r: Row,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    kv: number,
-    dShare: number,
-    maxV: number,
-    maxD: number,
-    maxSide: number,
-  ): void {
-    const { ctx, palette: p } = v;
-    const st = mode.style;
-    const op = Math.max(0, Math.min(1, this.settings.cellOpacity ?? 1));
-    const cm = this.settings.colorMode ?? 'volume';
-    // Colour strings are built only by the branch that uses them (hot path: one call per cell).
-    const deltaCol = () =>
-      rgba(
-        dShare >= 0 ? p.up : p.down,
-        (0.15 + Math.min(1, Math.abs(dShare)) * 0.6 * (0.4 + kv * 0.6)) * op,
-      );
-    switch (st) {
-      case 'plain':
-        if (cm === 'none') {
-          ctx.fillStyle = rgba(p.surface3, 0.5 * op);
-        } else if (cm === 'delta') {
-          ctx.fillStyle = deltaCol();
-        } else if (mode.content === 'bidask') {
-          ctx.fillStyle = rgba(p.surface3, 0.9 * op);
-        } else {
-          ctx.fillStyle = rgba(p.clusterStrong, (0.18 + kv * 0.55) * op);
-        }
-        ctx.fillRect(x, y, w, h);
-        return;
-      case 'deltaColored':
-        ctx.fillStyle =
-          mode.content === 'delta'
-            ? rgba(r.delta >= 0 ? p.up : p.down, 0.12 + (Math.abs(r.delta) / maxD) * 0.7)
-            : deltaCol();
-        ctx.fillRect(x, y, w, h);
-        return;
-      case 'histogram':
-      case 'digital':
-      case 'deltaHistogram': {
-        ctx.fillStyle = rgba(p.surface3, 0.6);
-        ctx.fillRect(x, y, w, h);
-        const col = st === 'deltaHistogram' ? (dShare >= 0 ? p.up : p.down) : p.clusterStrong;
-        ctx.fillStyle = rgba(col, st === 'digital' ? 0.9 : 0.7);
-        const bw = Math.max(1, kv * w);
-        if (mode.content === 'bidask') {
-          const half = w / 2;
-          ctx.fillStyle = rgba(p.down, 0.6);
-          ctx.fillRect(x + half - (r.bid / maxSide) * half, y, (r.bid / maxSide) * half, h);
-          ctx.fillStyle = rgba(p.up, 0.6);
-          ctx.fillRect(x + half, y, (r.ask / maxSide) * half, h);
-        } else ctx.fillRect(x, y, bw, h);
-        return;
-      }
-      case 'ladder': {
-        const half = w / 2;
-        ctx.fillStyle = rgba(p.down, 0.12 + (r.bid / maxSide) * 0.55);
-        ctx.fillRect(x, y, half - 1, h);
-        ctx.fillStyle = rgba(p.up, 0.12 + (r.ask / maxSide) * 0.55);
-        ctx.fillRect(x + half, y, half, h);
-        return;
-      }
-      case 'profile': {
-        const half = w / 2;
-        ctx.fillStyle = rgba(p.down, 0.65);
-        ctx.fillRect(x + half - (r.bid / maxSide) * half, y, (r.bid / maxSide) * half, h);
-        ctx.fillStyle = rgba(p.up, 0.65);
-        ctx.fillRect(x + half, y, (r.ask / maxSide) * half, h);
-        return;
-      }
-      case 'deltaProfile': {
-        const half = w / 2;
-        const len = (Math.abs(r.delta) / maxD) * half;
-        ctx.fillStyle = rgba(r.delta >= 0 ? p.up : p.down, 0.7);
-        if (r.delta >= 0) ctx.fillRect(x + half, y, len, h);
-        else ctx.fillRect(x + half - len, y, len, h);
-        ctx.fillStyle = p.divider;
-        ctx.fillRect(x + half, y, 1, h);
-        void maxV;
-        return;
-      }
-    }
   }
 
   private drawText(

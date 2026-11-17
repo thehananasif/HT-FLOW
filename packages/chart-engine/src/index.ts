@@ -9,3 +9,8 @@ export * from './layers/orderFlowTape';
 export * from './layers/extras';
 export * from './sources';
 export * from './layers/prevSession';
+export * from './render/color';
+export * from './render/batch';
+export * from './render/geometry';
+export * from './render/painter';
+export * from './render/webgl2';
