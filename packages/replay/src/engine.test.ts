@@ -279,4 +279,49 @@ describe('ReplayEngine', () => {
     sch.stop();
     expect(sch.running).toBe(false);
   });
+
+  it('the scheduler sheds load: a slow tick makes it skip frames instead of freezing the UI', () => {
+    let now = 0;
+    const ticks: number[] = [];
+    const sch = new ReplayScheduler(
+      {
+        tick: (dt) => {
+          ticks.push(dt);
+          now += 100; // a tick that costs 100 ms of wall time
+        },
+      },
+      16,
+      () => now,
+      40,
+    );
+    sch.start();
+    sch.frame();
+    expect(sch.lastCostMs).toBe(100);
+    now += 16;
+    sch.frame(); // inside the yield window (100 ms): skipped
+    now += 16;
+    sch.frame();
+    expect(ticks).toHaveLength(1);
+    expect(sch.skipped).toBe(2);
+    now += 100;
+    sch.frame();
+    expect(ticks).toHaveLength(2);
+    sch.stop();
+  });
+
+  it('loops, pauses at the end, and replays from the loop start on Play', () => {
+    const e = new ReplayEngine(ds('CLZ6', 3));
+    e.setLoop({ from: e.start + MIN, to: e.start + 2 * MIN });
+    e.setSpeed(1000);
+    e.play();
+    for (let i = 0; i < 40; i++) e.tick(100);
+    expect(e.time).toBeGreaterThanOrEqual(e.start);
+    expect(e.time).toBeLessThanOrEqual(e.start + 2 * MIN + 1);
+    expect(e.playing).toBe(true);
+    e.setLoop(null);
+    while (e.playing) e.tick(100);
+    expect(e.atEnd).toBe(true);
+    e.play();
+    expect(e.time).toBe(e.start);
+  });
 });

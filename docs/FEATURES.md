@@ -264,7 +264,9 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] `@htflow/replay`: deterministic engine (trades, book snapshots / deltas, keyframes), 0.25×–1000×, step tick / bar / back bar, jump to time, loop, bookmarks, multi-instrument synced groups; sources: simulator history, in-memory store history, pluggable `registerReplaySource()` for the tick store
 - [x] `replay:` feed provider (purple Replay badge / status pill), Replay window (setup, templates, replay paper account with tag routing), chart control bar (P35) with timeline, speeds, Go to time, bookmarks, Sync, Loop; Space / arrows / 1–7 hotkeys
 - [x] Hide future bars toggle with ghost candles (never fed to the store), fills stamped in replay time (`PaperEngine.setClock`), B / S fill tags, economic-event markers on the timeline, bookmarks and loop saved per template, Replay window opens in its own split
-- [ ] Missing-data download
+- [x] Missing-data download: "Exchange history" replay source (trades for the last 24 h, bar-level ticks up to 30 days, no depth) via the native backfill; source auto-chosen by range coverage; range validation and empty-range errors in the setup
+- [x] Stop replay (control bar, palette, Replay window) returns every replay chart to its live instrument and closes replay positions; Session P&L shows realized + open; scheduler sheds load at high speed
+- [ ] Exchange history has no depth (heatmap / DOM use the one-level trade book); exchange download is desktop-only (the browser preview needs a stand-in)
 
 ## P25 — Workspaces, layouts, linking
 

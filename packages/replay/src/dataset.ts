@@ -113,7 +113,7 @@ export const DEFAULT_LAYERS: ReplayLayers = { ticks: true, depth: true };
 
 /** Where data comes from and how large it is (setup "data on disk / in memory" line). */
 export interface ReplayDataInfo {
-  where: 'disk' | 'memory' | 'generated';
+  where: 'disk' | 'memory' | 'generated' | 'exchange';
   /** Approximate size of the selected range in bytes. */
   bytes: number;
   /** Days of data available for the instrument. */

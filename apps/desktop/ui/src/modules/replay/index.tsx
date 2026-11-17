@@ -13,9 +13,10 @@ import {
 } from '@htflow/ui-kit';
 import type { ReplayDataInfo } from '@htflow/replay';
 import { journalStats, roundTrips } from '@htflow/trading';
+import { exchangeHistoryAvailable } from '../../feeds/exchangeHistory';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { allInstruments } from '../../state/instruments';
-import { paper, pnlTick } from '../../state/market';
+import { hub, paper, pnlTick } from '../../state/market';
 import { isTauri } from '../../backend';
 import { activeInstrument } from '../../state/windows';
 import {
@@ -26,10 +27,10 @@ import {
   replaySources,
   sourceIdOf,
   startReplay,
-  stopReplay,
   type ReplayConfig,
 } from '../../feeds/replay';
-import { showReplayOn } from './ControlBar';
+import { exitReplay, showReplayOn } from './ControlBar';
+import { pickSourceId, validateRange } from './logic';
 import {
   addTemplate,
   applyTemplateState,
@@ -128,10 +129,29 @@ function Setup({ state, setParams }: ModuleViewProps) {
   const [info, setInfo] = useState<(ReplayDataInfo & { label: string; range?: string }) | null>(
     null,
   );
-  const all = allInstruments(isTauri).filter((i) => !isReplayId(i.id));
+  const all = allInstruments(isTauri || exchangeHistoryAvailable()).filter(
+    (i) => !isReplayId(i.id),
+  );
   const first = p.instruments[0] ?? '';
   const sources = replaySources(first);
-  const source = sources.find((s) => s.id === p.source) ?? sources[0];
+  const sourceKey = sources.map((s) => s.id).join(',');
+  // Without an explicit choice the source whose data covers the range wins (same rule as start).
+  const [auto, setAuto] = useState('');
+  useEffect(() => {
+    let alive = true;
+    void Promise.all(
+      replaySources(first).map(async (s) => ({
+        id: s.id,
+        range: await s.range(first).catch(() => null),
+      })),
+    ).then((r) => {
+      if (alive) setAuto(pickSourceId(r, p.from, p.to) ?? '');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [first, p.from, p.to, sourceKey]);
+  const source = sources.find((s) => s.id === (p.source || auto)) ?? sources[0];
   useEffect(() => {
     let alive = true;
     if (!source) {
@@ -150,7 +170,8 @@ function Setup({ state, setParams }: ModuleViewProps) {
       alive = false;
     };
   }, [source, first, p.from, p.to]);
-  const valid = p.to > p.from && p.instruments.length > 0 && !!source;
+  const rangeError = validateRange(p.from, p.to, Date.now(), info?.bytes ?? 0);
+  const valid = !rangeError && p.instruments.length > 0 && !!source;
   const symbol = (id: string) => all.find((i) => i.id === id)?.symbol ?? id;
   return (
     <section className="rp-card" aria-label="Replay setup">
@@ -211,7 +232,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
               }}
             />
           </Field>
-          <Field label="To" error={p.to > p.from ? undefined : 'To must be after From'}>
+          <Field label="To" error={rangeError ?? undefined}>
             <Input
               type="datetime-local"
               aria-label="To"
@@ -259,18 +280,21 @@ function Setup({ state, setParams }: ModuleViewProps) {
                   ? 'Data on disk'
                   : info.where === 'memory'
                     ? 'Data in memory'
-                    : 'Generated on demand'}
+                    : info.where === 'exchange'
+                      ? 'Downloaded from the exchange when you start'
+                      : 'Generated on demand'}
               </span>
               <span className="tnum" data-testid="replay-data-info">
                 {symbol(first)} · {fmtBytes(info.bytes)} · {info.trades.toLocaleString()} ticks ·{' '}
                 {info.days >= 1 ? `${Math.round(info.days)} days` : 'this session'}
               </span>
               {info.range && <span className="muted rp-sub">Available {info.range}</span>}
+              {info.note && <span className="muted rp-sub">{info.note}</span>}
             </>
           ) : (
             <span className="muted">
-              No recorded data for {symbol(first)} — open it in a chart to record it in memory (tick
-              store download arrives with P06).
+              No data source covers {symbol(first)}: open it in a chart to record it in memory, or
+              connect its exchange to download history.
             </span>
           )}
         </div>
@@ -314,7 +338,12 @@ function Account() {
   if (!acc) return null;
   const positions = paper.allPositions(REPLAY_ACCOUNT);
   const pos = positions[0];
-  const pnl = acc.balance - acc.startingBalance;
+  const realized = acc.balance - acc.startingBalance;
+  const open = positions.reduce((sum, q) => {
+    const mark = hub.peek(q.instrumentId)?.lastTrade?.px;
+    return mark === undefined ? sum : sum + paper.unrealized(REPLAY_ACCOUNT, q.instrumentId, mark);
+  }, 0);
+  const pnl = realized + open;
   const money = (v: number) =>
     `${v < 0 ? '−' : v > 0 ? '+' : ''}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   return (
@@ -328,7 +357,9 @@ function Account() {
           <b className="tnum">${acc.balance.toLocaleString('en-US')}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Session P&amp;L</span>
+          <span className="muted" title={`Realized ${money(realized)} · open ${money(open)}`}>
+            Session P&amp;L
+          </span>
           <b className={`tnum ${pnl > 0 ? 'up' : pnl < 0 ? 'down' : ''}`}>{money(pnl)}</b>
         </div>
         <div className="card-stat">
@@ -482,7 +513,7 @@ function Running() {
         <Button size="xs" onClick={() => showReplayOn([...s.engines.keys()])}>
           Show on chart
         </Button>
-        <Button size="xs" variant="ghost" onClick={stopReplay}>
+        <Button size="xs" variant="ghost" onClick={exitReplay}>
           Stop
         </Button>
       </div>

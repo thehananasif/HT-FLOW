@@ -175,3 +175,84 @@ test('bookmarks persist per replay template', async ({ page }) => {
   await expect(bar.locator('.rp-mark')).toHaveCount(2, { timeout: 20_000 });
   expect(errors).toEqual([]);
 });
+
+test('start, change speed, step, stop: the chart goes back to live without replay bars', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'replay6');
+  await startReplayOnChart(page);
+  const bar = page.getByTestId('replay-bar');
+  await bar.getByRole('button', { name: '1000×' }).click();
+  await expect(bar.getByRole('button', { name: '1000×' })).toHaveAttribute('aria-pressed', 'true');
+  await bar.getByRole('button', { name: '5×', exact: true }).click();
+  await expect(bar.getByRole('button', { name: '5×', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await bar.getByTestId('replay-step-bar').click();
+  await bar.getByTestId('replay-step-tick').click();
+  await bar.getByTestId('replay-stop').click();
+  await expect(page.getByTestId('replay-bar')).toHaveCount(0);
+  await expect(page.getByLabel('Running replay')).toHaveCount(0);
+  await expect(page.getByTestId('chart-footprint')).toBeVisible();
+  await expect(page.locator('.ht-badge--replay', { hasText: 'Replay' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('replay runs on downloaded exchange history when nothing is recorded locally', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // Stand-in for the native backfill: one trade per second, prices in ticks (0.1).
+  await page.addInitScript(() => {
+    (globalThis as Record<string, unknown>).__HTFLOW_REPLAY_HISTORY__ = async (r: {
+      from: number;
+      to: number;
+      onProgress?: (p: number) => void;
+    }) => {
+      const out: { ts: number; px: number; qty: number; side: string; id: number }[] = [];
+      let id = 1;
+      for (let t = Math.ceil(r.from / 1000) * 1000; t <= r.to; t += 1000, id++)
+        out.push({
+          ts: t,
+          px: 600_000 + ((id * 7) % 40) - 20,
+          qty: 0.01,
+          side: id % 2 ? 'buy' : 'sell',
+          id,
+        });
+      r.onProgress?.(1);
+      return out;
+    };
+  });
+  await createAccount(page, 'replay7');
+  await expect(page.getByTestId('chart-footprint')).toBeVisible();
+  await page.getByTestId('chart-footprint').click({ position: { x: 200, y: 200 } });
+  await page.getByTestId('ribbon-replay').click();
+  await page.getByTestId('replay-instrument').click();
+  await page.getByText('BTCUSDT · Binance Futures', { exact: true }).first().click();
+  await expect(page.getByTestId('replay-data-info')).toContainText('BTCUSDT');
+  await page.getByTestId('replay-start').click();
+  await expect(page.getByLabel('Running replay')).toBeVisible({ timeout: 20_000 });
+  const bar = page.getByTestId('replay-bar');
+  await expect(bar).toBeVisible({ timeout: 20_000 });
+  const clock = page.getByTestId('replay-clock');
+  const t0 = await clock.textContent();
+  await bar.getByRole('button', { name: '100×' }).click();
+  await page.getByTestId('replay-play').click();
+  await expect(clock).not.toHaveText(t0 ?? '', { timeout: 5000 });
+  await bar.getByTestId('replay-stop').click();
+  await expect(page.getByTestId('replay-bar')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('an invalid replay range is reported and blocks Start', async ({ page }) => {
+  await createAccount(page, 'replay8');
+  await page.getByTestId('chart-footprint').click({ position: { x: 200, y: 200 } });
+  await page.getByTestId('ribbon-replay').click();
+  await page.getByLabel('To', { exact: true }).fill('2999-01-01T00:00');
+  await expect(page.getByText('To is in the future')).toBeVisible();
+  await expect(page.getByTestId('replay-start')).toBeDisabled();
+});

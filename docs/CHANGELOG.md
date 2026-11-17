@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — round 7
+
+- Replay chart audit (user report "Replay chart is not working correctly"). Fixed: (1) there was no way back to live: new Stop button on the control bar, "Replay: stop and return to the live chart" palette command and Replay window Stop now close replay positions, stop the clock and switch every replay chart back to its live / simulated instrument (previously the chart stayed on stale replay bars with "Loading replay…"); (2) with no local recording, live instruments could only replay the last ~30 min of session memory: new "Exchange history" data source downloads trades (last 24 h) and bar-level ticks (older) through the native backfill; (3) the data source is now chosen by coverage of the requested range (tick store, simulator / memory, then exchange) instead of the first that merely knows the instrument; (4) a range with no ticks started a silent blank chart: it now fails with a message naming the range and source; (5) future "To" dates and ranges over 600 MB are refused in the setup with the reason; (6) loop band on the timeline had the wrong width (start offset added to the width); (7) timeline ends showed only HH:MM for multi-day ranges; a cancelled timeline drag stayed stuck; (8) Session P&L ignored the open position: it now shows realized + open P&L; (9) at 1000x a heavy tick could freeze the window: the scheduler now sheds load (skips frames for as long as a slow tick took) so the UI keeps painting; (10) the control bar wraps and scrolls on narrow charts. Unit tests: range validation, source choice, exit mapping, loop band, scheduler load shedding, loop / end behaviour; Playwright: start, speed, step, stop to live, exchange-history-backed replay, invalid range.
+
 ## Unreleased — round 6
 
 ### Security
