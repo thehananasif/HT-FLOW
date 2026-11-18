@@ -22,7 +22,9 @@ HT Flow has no cloud sync, so backups are yours to make:
 2. **Workspaces manager → Export** and chart templates export to files you can keep in version control.
 3. Copying the whole data folder while HT Flow is closed backs up every profile and the tick store.
 
-> **Note** Automatic store backups (Settings → Common → _Backup period_, _Maximum store backups_) are shown but are not active yet.
+> **Automatic backups** Settings → Common → _Backup period_ and _Maximum store backups_ copy your profile folder into `backups\<date-time>\` in the data folder on that schedule (checked at start-up and daily) and delete the oldest beyond the maximum. **Back up now** and **Open backups folder** are on the same page and in the Command Palette.
+>
+> **Log files** are written daily to the log folder (Settings → Logs, default `logs\` in the data folder) with passwords and keys removed; files older than _Keep days_ are deleted at start-up. **Open log folder** opens it.
 
 To restore, import the `.htprofile` on the login screen, or copy the data folder back. Without the password or recovery code a profile cannot be opened.
 

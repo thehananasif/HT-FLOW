@@ -79,7 +79,7 @@ Every action in HT Flow is a **command** in the Command Palette (`Ctrl+K`). A co
 | `F4`           | Draw: Anchored VWAP              | global    |
 | `F8`           | Draw: Fibonacci Retracements     | global    |
 | `Ctrl+Shift+W` | Draw: Up Arrow                   | global    |
-| `Ctrl+Shift+S` | Draw: Down Arrow                 | global    |
+| `Ctrl+Shift+Z` | Draw: Down Arrow                 | global    |
 | `Ctrl+Shift+N` | Draw: Dot                        | global    |
 | `Ctrl+Shift+Q` | Draw: Diamond                    | global    |
 | `Ctrl+Shift+E` | Draw: Square                     | global    |
@@ -95,5 +95,3 @@ Every action in HT Flow is a **command** in the Command Palette (`Ctrl+K`). A co
 | `Ctrl+Y`       | Drawing: Redo                    | chart     |
 
 <!-- shortcuts:end -->
-
-> **Note** Two defaults currently share a key (`Ctrl+Shift+S` is both _Workspace: Save current_ and _Draw: Down Arrow_). The Hot keys editor flags this; rebind one of them.

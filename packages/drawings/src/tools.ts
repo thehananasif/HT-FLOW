@@ -2054,7 +2054,7 @@ export const TOOLS: ToolDef[] = [
   waveTool('head-shoulders', 'Head & Shoulders', 7),
   // ---------------------------------------------------------- markers
   markerTool('arrow-up', 'Up Arrow', 'Ctrl+Shift+W', '#20C77A'),
-  markerTool('arrow-down', 'Down Arrow', 'Ctrl+Shift+S', '#F04A5D'),
+  markerTool('arrow-down', 'Down Arrow', 'Ctrl+Shift+Z', '#F04A5D'),
   markerTool('dot', 'Dot', 'Ctrl+Shift+N'),
   markerTool('diamond', 'Diamond', 'Ctrl+Shift+Q'),
   markerTool('square', 'Square', 'Ctrl+Shift+E'),

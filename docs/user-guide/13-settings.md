@@ -38,7 +38,7 @@ Open Settings with `Ctrl+,` or `Ctrl+K` → `Settings: <section>`. Search finds 
 
 ![Hot keys](images/settings-hotkeys.webp)
 
-> **Note** A few options are shown but not active yet (they are marked in the window): MBO history storage, store backups, log files on disk, NTP server, module folders. They are placeholders for work that needs the native core.
+> **Note** A few options are shown but not active yet (they are marked in the window): MBO history storage, NTP server, module folders. They are placeholders for work that needs the native core.
 
 ![Data settings](images/settings-data.webp)
 
