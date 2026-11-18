@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — round 7
+
+- Paper trading P&L fixed end to end: unrealized P&L uses the engine's own mark (every trade it sees, with a store last-trade / mid fallback), so it no longer stays at +0.00 when a position's feed is gone; trades reach the engine under the requested instrument id (fallback simulator feeds reported another id, so limits never filled and P&L stayed flat); feeds of instruments with open positions or working orders are kept alive; zero / invalid tick size or value no longer zeroes P&L. New engine API: `mark`, `setMark`, `openPnl`, `pnlSummary`, `pnlPerTick`, `MarketHub.feed()`; `onStore` callbacks get the requested id.
+- Trading Panel shows open P&L, today's realized / fees / net and balance / equity / since-reset; the status bar has a P&L item (open · day net) and the DOM footer shows the position P&L. Fills carry `closedQty` / `entryAvg` and recent fills are saved with the account state, so trade history, day P&L and the journal survive a restart (a restored position still produces a journal round trip on close).
+- Trading Panel, order entry and DOM Trader are responsive: no horizontal overflow at any width ≥ 240 px (shrinking tracks, wrapping labels, truncation).
+- Small windows: the chart drawing rail moves groups that do not fit into a "More tools" flyout (footprint tabs too, as a last resort), flyouts near the bottom open upward; Settings' section list and OK / Cancel, the Strategies body and the title bar window controls stay reachable at 1366 × 700.
+- Tests: `packages/trading/src/paperPnl.test.ts` (buy → move → unrealized × multiplier → realized, linear quantity, partial closes, reversal, short, limit cross, stop + slippage, fees, bad economics, mark fallback, restore + journal); e2e `paper-pnl-layout.spec.ts` (paper P&L flow, panel at 260 / 240 px, drawing rail on a short window, settings at 1366 × 700).
+
 ## Unreleased — round 6
 
 ### Security

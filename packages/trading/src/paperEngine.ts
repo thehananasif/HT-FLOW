@@ -417,9 +417,7 @@ export class PaperEngine {
       realized += f.realized;
       fees += f.commission;
     }
-    const open = instrumentId
-      ? this.unrealized(accountId, instrumentId)
-      : this.openPnl(accountId);
+    const open = instrumentId ? this.unrealized(accountId, instrumentId) : this.openPnl(accountId);
     const balance = this.accounts.get(accountId)?.balance ?? 0;
     return {
       open,

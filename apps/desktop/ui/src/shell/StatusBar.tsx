@@ -52,7 +52,10 @@ function PnlItem() {
       title={`${acc.name}: open P&L of every position, and today's net (realized ${s.realized.toFixed(2)} − fees ${s.fees.toFixed(2)} + open). Click for positions.`}
       onClick={() => runCommand('open.positions')}
     >
-      P&amp;L <b className={cls(s.open)} data-testid="status-pnl-open">{f(s.open)}</b>
+      P&amp;L{' '}
+      <b className={cls(s.open)} data-testid="status-pnl-open">
+        {f(s.open)}
+      </b>
       <span className="muted"> · Day </span>
       <b className={cls(s.net)}>{f(s.net)}</b>
     </button>

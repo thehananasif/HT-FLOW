@@ -107,7 +107,7 @@ export function roundTrips(
       const have = book.side === -dir ? book.lots.reduce((a, l) => a + l.qty, 0) : 0;
       const missing = f.closedQty - have;
       if (missing > 1e-12) {
-        if (book.side !== -dir) book = { side: (-dir) as 1 | -1, lots: [] };
+        if (book.side !== -dir) book = { side: -dir as 1 | -1, lots: [] };
         open.set(key, book);
         book.lots.push({ qty: missing, px: f.entryAvg, ts: f.ts, comm: 0, orderId: '' });
       }
