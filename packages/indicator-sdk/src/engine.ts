@@ -74,6 +74,12 @@ export type ToEngine =
       bars?: Bar[];
       /** Columnar bars (what RemoteRuntime sends: typed arrays clone ~100× faster than Bar objects). */
       packed?: PackedBars;
+      /**
+       * Reuse the last `packed` this host received (another indicator of the same chart got it in
+       * the previous message): the history crosses the thread boundary once per worker, not once
+       * per indicator.
+       */
+      packedRef?: boolean;
       version: number;
       tickSize: number;
     }
@@ -225,14 +231,18 @@ function saveShadow(
 type AnyItem = Marker | Level | Zone;
 
 function sameItem(a: AnyItem, b: AnyItem): boolean {
-  const ka = Object.keys(a);
-  if (ka.length !== Object.keys(b).length) return false;
-  for (const k of ka) {
-    const x = (a as unknown as Record<string, unknown>)[k];
-    const y = (b as unknown as Record<string, unknown>)[k];
-    if (x !== y && !(Number.isNaN(x) && Number.isNaN(y))) return false;
+  const ra = a as unknown as Record<string, unknown>;
+  const rb = b as unknown as Record<string, unknown>;
+  let n = 0;
+  for (const k in ra) {
+    const x = ra[k];
+    const y = rb[k];
+    if (x !== y && !(x !== x && y !== y)) return false;
+    n++;
   }
-  return true;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for (const _k in rb) n--;
+  return n === 0;
 }
 
 /**
@@ -292,8 +302,14 @@ export class EngineHost {
             seq: msg.seq,
             message: this.errors.get(msg.rid) ?? 'Indicator not created',
           };
-        const incoming = msg.packed ? unpackBars(msg.packed) : (msg.bars ?? []);
-        if (msg.reset) e.bars = incoming;
+        let incoming: Bar[];
+        if (msg.packedRef && this.last) incoming = this.last.bars;
+        else if (msg.packed) {
+          incoming = unpackBars(msg.packed);
+          this.last = { bars: incoming };
+        } else incoming = msg.bars ?? [];
+        // Bar objects may be shared by the runtimes of one chart (read-only); the arrays are not.
+        if (msg.reset) e.bars = incoming.slice();
         else {
           e.bars.length = Math.min(e.bars.length, msg.from);
           for (const b of incoming) e.bars.push(b);
@@ -311,9 +327,13 @@ export class EngineHost {
           for (const [k, o] of Object.entries(e.rt.outputs)) {
             if (o instanceof SeriesOut) series[k] = sliceSeries(o, from, count);
             else {
-              let prev = e.lists.get(k);
-              if (!prev || kind === 'full') e.lists.set(k, (prev = []));
-              const at = listDiff(prev, o.items);
+              let at: number;
+              if (e.rt.def.listsAppendOnly) at = kind === 'full' ? 0 : o.indexFrom(from);
+              else {
+                let prev = e.lists.get(k);
+                if (!prev || kind === 'full') e.lists.set(k, (prev = []));
+                at = listDiff(prev, o.items);
+              }
               listFrom[k] = at;
               // Long tails (a full result) go columnar; a tick's few changed items stay plain.
               lists[k] = o.items.length - at > 64 ? packList(o.items.slice(at)) : o.items.slice(at);
@@ -343,6 +363,8 @@ export class EngineHost {
     }
   }
   private errors = new Map<number, string>();
+  /** Bars of the last packet received (for `packedRef`). */
+  private last: { bars: Bar[] } | null = null;
 }
 
 /** Typed arrays to transfer (zero-copy) with a result. */
@@ -413,6 +435,9 @@ export class CloneTransport implements EngineTransport {
   }
 }
 
+/** Last packet posted per transport (a host keeps the last packet it received). */
+const lastPacket = new WeakMap<EngineTransport, PackedBars>();
+
 /** Main-thread mirror of a runtime that lives in an EngineHost. */
 export class RemoteRuntime implements RuntimeLike {
   readonly inputs: InputValues<InputDefs>;
@@ -465,13 +490,16 @@ export class RemoteRuntime implements RuntimeLike {
     this.first = bars[0];
     this.anchor = n >= 2 ? bars[n - 2] : undefined;
     this.pending++;
+    const packed = packBarsCached(bars, from, data.version);
+    const ref = lastPacket.get(this.transport) === packed;
+    lastPacket.set(this.transport, packed);
     this.transport.post({
       op: 'bars',
       rid: this.rid,
       seq: ++this.seq,
       from,
       reset: !appendOnly,
-      packed: packBarsCached(bars, from, data.version),
+      ...(ref ? { packedRef: true } : { packed }),
       version: data.version,
       tickSize: data.tickSize,
     });

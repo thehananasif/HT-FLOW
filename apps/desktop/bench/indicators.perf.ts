@@ -107,6 +107,9 @@ class SimTransport implements EngineTransport {
       this.clock.worker += performance.now() - t0;
       if (r) replies.push(r);
     }
+    // Worker garbage is collected in the worker's own heap in the app; collect it here before
+    // timing the main thread so it is not charged to the main thread.
+    gc();
     const t1 = performance.now();
     for (const r of replies) this.fn?.(structuredClone(r));
     this.clock.main += performance.now() - t1;
@@ -118,6 +121,8 @@ class SimTransport implements EngineTransport {
     this.fn = null;
   }
 }
+
+const gc = (globalThis as { gc?: () => void }).gc ?? (() => {});
 
 function setup() {
   const bars = makeBars(BARS);
@@ -171,6 +176,7 @@ describe('indicators', () => {
       for (const rt of rts) rt.dispose();
       clock.main = 0;
       clock.worker = 0;
+      gc();
       const t0 = performance.now();
       rts = IDS.map((id) => pool.create(indicatorById(id)!, { type: id, inputs: {} }, () => {}));
       for (const rt of rts) rt.update(data);

@@ -346,6 +346,12 @@ export interface IndicatorMeta {
   zeroLine?: boolean;
   /** Needs the tape (trades) — hosts without it show empty output. */
   needsTrades?: boolean;
+  /**
+   * Performance hint: list items (markers / levels / zones) are never edited after the calc that
+   * added them, so the worker sends only items added from the recomputed bar on (default false:
+   * every item is compared with what was sent, which also catches zones extended in place).
+   */
+  listsAppendOnly?: boolean;
 }
 
 export interface IndicatorDefinition<
