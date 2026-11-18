@@ -17,6 +17,7 @@ members = [
     "crates/connectors/deribit",
     "crates/tick-store",
     "crates/vps",
+    "crates/ai",
 ]
 
 [workspace.package]
@@ -56,6 +57,7 @@ htflow-connector-deribit = { path = "crates/connectors/deribit" }
 
 htflow-tick-store = { path = "crates/tick-store" }
 htflow-vps = { path = "crates/vps" }
+htflow-ai = { path = "crates/ai" }
 
 [profile.release]
 codegen-units = 1
