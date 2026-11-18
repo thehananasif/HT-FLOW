@@ -1,7 +1,7 @@
 import type { IDockviewPanelProps } from 'dockview';
 import { PowerOff } from 'lucide-react';
 import { EmptyState } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import type { ModuleWindowState, WindowState } from '@htflow/workspace';
 import { useWindows } from '../state/windows';
 import { moduleDef } from '../shell/modules';
@@ -20,7 +20,7 @@ export function ModuleWindow(props: IDockviewPanelProps) {
   if (reg && isModuleDisabled(s.module)) {
     return (
       <EmptyState icon={<PowerOff size={28} />} title={`${reg.label ?? s.module} is disabled`}>
-        Enable it again in Settings → Custom modules.
+        {tl('Enable it again in Settings → Custom modules.')}
       </EmptyState>
     );
   }

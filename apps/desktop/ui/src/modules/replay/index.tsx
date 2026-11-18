@@ -48,6 +48,7 @@ import {
 } from './shared';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 interface SetupParams {
   instruments: string[];
   from: number;
@@ -114,9 +115,9 @@ async function launch(
     );
     if (template) applyTemplateState(s, template);
     showReplayOn([...s.engines.keys()]);
-    toast('success', 'Replay ready', 'Press Play or Space on the chart');
+    toast('success', tl('Replay ready'), tl('Press Play or Space on the chart'));
   } catch (e) {
-    toast('error', 'Replay failed', e instanceof Error ? e.message : String(e));
+    toast('error', tl('Replay failed'), e instanceof Error ? e.message : String(e));
   } finally {
     setBusy(null);
   }
@@ -174,10 +175,10 @@ function Setup({ state, setParams }: ModuleViewProps) {
   const valid = !rangeError && p.instruments.length > 0 && !!source;
   const symbol = (id: string) => all.find((i) => i.id === id)?.symbol ?? id;
   return (
-    <section className="rp-card" aria-label="Replay setup">
-      <h4>Replay setup</h4>
+    <section className="rp-card" aria-label={tl('Replay setup')}>
+      <h4>{tl('Replay setup')}</h4>
       <div className="col gap8">
-        <span className="ht-label">Instruments (synced)</span>
+        <span className="ht-label">{tl('Instruments (synced)')}</span>
         <div className="row gap6 rp-chips">
           {p.instruments.map((id) => (
             <span key={id} className="rp-chip">
@@ -202,7 +203,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
               }))}
             trigger={
               <button className="rp-chip rp-chip--add" data-testid="replay-add-instrument">
-                + add
+                {tl('+ add')}
               </button>
             }
           />
@@ -215,16 +216,16 @@ function Setup({ state, setParams }: ModuleViewProps) {
             }))}
             trigger={
               <button className="rp-chip rp-chip--add" data-testid="replay-instrument">
-                Change ▾
+                {tl('Change ▾')}
               </button>
             }
           />
         </div>
         <div className="row gap8">
-          <Field label="From">
+          <Field label={tl('From')}>
             <Input
               type="datetime-local"
-              aria-label="From"
+              aria-label={tl('From')}
               value={toLocalInput(p.from)}
               onChange={(e) => {
                 const t = fromLocalInput(e.target.value);
@@ -232,10 +233,10 @@ function Setup({ state, setParams }: ModuleViewProps) {
               }}
             />
           </Field>
-          <Field label="To" error={rangeError ?? undefined}>
+          <Field label={tl('To')} error={rangeError ?? undefined}>
             <Input
               type="datetime-local"
-              aria-label="To"
+              aria-label={tl('To')}
               value={toLocalInput(p.to)}
               onChange={(e) => {
                 const t = fromLocalInput(e.target.value);
@@ -245,7 +246,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
           </Field>
         </div>
         {sources.length > 1 && (
-          <Field label="Data source">
+          <Field label={tl('Data source')}>
             <Select
               value={source?.id ?? ''}
               onChange={(v) => set({ source: v })}
@@ -253,11 +254,11 @@ function Setup({ state, setParams }: ModuleViewProps) {
             />
           </Field>
         )}
-        <Checkbox checked onChange={() => {}} label="Ticks (trades)" />
+        <Checkbox checked onChange={() => {}} label={tl('Ticks (trades)')} />
         <Checkbox
           checked={p.depth}
           onChange={(v) => set({ depth: v })}
-          label="Depth of market (heatmap + DOM)"
+          label={tl('Depth of market (heatmap + DOM)')}
         />
         <Checkbox
           checked={p.hideFuture}
@@ -265,11 +266,11 @@ function Setup({ state, setParams }: ModuleViewProps) {
             set({ hideFuture: v });
             setHideFuture(v);
           }}
-          label="Hide future bars (no peeking)"
+          label={tl('Hide future bars (no peeking)')}
         />
         {!p.hideFuture && (
           <span className="muted rp-sub">
-            Future bars show as faded ghost candles after the last real bar.
+            {tl('Future bars show as faded ghost candles after the last real bar.')}
           </span>
         )}
         <div className="rp-info">
@@ -285,16 +286,22 @@ function Setup({ state, setParams }: ModuleViewProps) {
                       : 'Generated on demand'}
               </span>
               <span className="tnum" data-testid="replay-data-info">
-                {symbol(first)} · {fmtBytes(info.bytes)} · {info.trades.toLocaleString()} ticks ·{' '}
-                {info.days >= 1 ? `${Math.round(info.days)} days` : 'this session'}
+                {symbol(first)} · {fmtBytes(info.bytes)} · {info.trades.toLocaleString()}{' '}
+                {tl('ticks ·')} {info.days >= 1 ? `${Math.round(info.days)} days` : 'this session'}
               </span>
-              {info.range && <span className="muted rp-sub">Available {info.range}</span>}
+              {info.range && (
+                <span className="muted rp-sub">
+                  {tl('Available')} {info.range}
+                </span>
+              )}
               {info.note && <span className="muted rp-sub">{info.note}</span>}
             </>
           ) : (
             <span className="muted">
-              No data source covers {symbol(first)}: open it in a chart to record it in memory, or
-              connect its exchange to download history.
+              {tl('No data source covers')} {symbol(first)}
+              {tl(
+                ': open it in a chart to record it in memory, or connect its exchange to download history.',
+              )}
             </span>
           )}
         </div>
@@ -320,7 +327,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
               if (name) addTemplate(name, toConfig(p));
             }}
           >
-            Save as template
+            {tl('Save as template')}
           </Button>
         </div>
       </div>
@@ -347,13 +354,14 @@ function Account() {
   const money = (v: number) =>
     `${v < 0 ? '−' : v > 0 ? '+' : ''}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   return (
-    <section className="rp-card" aria-label="Replay account">
+    <section className="rp-card" aria-label={tl('Replay account')}>
       <h4>
-        Replay account <span className="muted rp-sub">paper · journal tag #replay</span>
+        {tl('Replay account')}{' '}
+        <span className="muted rp-sub">{tl('paper · journal tag #replay')}</span>
       </h4>
       <div className="rp-stats">
         <div className="card-stat">
-          <span className="muted">Balance</span>
+          <span className="muted">{tl('Balance')}</span>
           <b className="tnum">${acc.balance.toLocaleString('en-US')}</b>
         </div>
         <div className="card-stat">
@@ -363,13 +371,14 @@ function Account() {
           <b className={`tnum ${pnl > 0 ? 'up' : pnl < 0 ? 'down' : ''}`}>{money(pnl)}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Trades</span>
+          <span className="muted">{tl('Trades')}</span>
           <b className="tnum">
-            {stats.trades} · {Math.round(stats.winRate * 100)}% win
+            {stats.trades} · {Math.round(stats.winRate * 100)}
+            {tl('% win')}
           </b>
         </div>
         <div className="card-stat">
-          <span className="muted">Position</span>
+          <span className="muted">{tl('Position')}</span>
           <b className={`tnum ${pos ? (pos.qty > 0 ? 'up' : 'down') : ''}`}>
             {pos ? `${pos.qty > 0 ? 'LONG' : 'SHORT'} ${Math.abs(pos.qty)}` : 'FLAT'}
           </b>
@@ -377,10 +386,10 @@ function Account() {
       </div>
       <div className="row gap8">
         <Button size="sm" variant="ghost" onClick={() => paper.flattenAll(REPLAY_ACCOUNT)}>
-          Flatten replay
+          {tl('Flatten replay')}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => paper.resetAccount(REPLAY_ACCOUNT)}>
-          Reset account
+          {tl('Reset account')}
         </Button>
       </div>
     </section>
@@ -390,23 +399,23 @@ function Account() {
 function Templates({ setBusy }: { setBusy: (b: string | null) => void }) {
   const list = useTemplates();
   return (
-    <section className="rp-card" aria-label="Replay templates">
-      <h4>Replay templates</h4>
+    <section className="rp-card" aria-label={tl('Replay templates')}>
+      <h4>{tl('Replay templates')}</h4>
       {list.length === 0 && (
         <p className="muted rp-sub">
-          None yet — save one from the setup or right-click a chart → Add replay template.
+          {tl('None yet — save one from the setup or right-click a chart → Add replay template.')}
         </p>
       )}
       {list.map((t) => (
         <div key={t.id} className="rp-tpl">
           <span className="rp-tpl-name">{t.name}</span>
           <span className="muted tnum">{fmtRange(t.config.from, t.config.to)}</span>
-          <span className="muted tnum" title="Saved with this template">
+          <span className="muted tnum" title={tl('Saved with this template')}>
             {(t.bookmarks?.length ?? 0) > 0 ? `${t.bookmarks!.length} bookmarks` : ''}
             {t.loop ? ' · loop' : ''}
           </span>
           <Button size="xs" onClick={() => void launch(t.config, setBusy, t)}>
-            Load
+            {tl('Load')}
           </Button>
           <button
             className="ht-icon-btn"
@@ -427,22 +436,22 @@ function Display() {
   const d = useReplayDisplay();
   const hf = hideFuture();
   return (
-    <section className="rp-card" aria-label="Replay display">
-      <h4>Replay display</h4>
+    <section className="rp-card" aria-label={tl('Replay display')}>
+      <h4>{tl('Replay display')}</h4>
       <div className="col gap8">
         <Checkbox
           checked={d.fillTags}
           onChange={(v) => setReplayDisplay({ fillTags: v })}
-          label="B / S fill tags on bars"
+          label={tl('B / S fill tags on bars')}
         />
         <Checkbox
           checked={d.tagQty}
           onChange={(v) => setReplayDisplay({ tagQty: v })}
-          label="Show quantity in the tag"
+          label={tl('Show quantity in the tag')}
         />
         <Field label={`Tag size: ${d.tagSize}px`}>
           <Slider
-            label="Tag size"
+            label={tl('Tag size')}
             min={8}
             max={16}
             value={d.tagSize}
@@ -452,9 +461,9 @@ function Display() {
         <Checkbox
           checked={d.timelineEvents}
           onChange={(v) => setReplayDisplay({ timelineEvents: v })}
-          label="Economic events on the timeline"
+          label={tl('Economic events on the timeline')}
         />
-        <Field label="Event impact">
+        <Field label={tl('Event impact')}>
           <Select
             value={d.eventImpact}
             onChange={(v) => setReplayDisplay({ eventImpact: v as typeof d.eventImpact })}
@@ -468,10 +477,10 @@ function Display() {
         <Checkbox
           checked={hf}
           onChange={(v) => setHideFuture(v)}
-          label="Hide future bars (off = ghost candles)"
+          label={tl('Hide future bars (off = ghost candles)')}
         />
         <div className="row gap8">
-          <Field label="Ghost bars">
+          <Field label={tl('Ghost bars')}>
             <NumberInput
               value={d.ghostBars}
               min={5}
@@ -481,7 +490,7 @@ function Display() {
           </Field>
           <Field label={`Ghost opacity: ${Math.round(d.ghostOpacity * 100)}%`}>
             <Slider
-              label="Ghost opacity"
+              label={tl('Ghost opacity')}
               min={10}
               max={90}
               value={Math.round(d.ghostOpacity * 100)}
@@ -499,9 +508,9 @@ function Running() {
   if (!s) return null;
   const e = s.group.primary;
   return (
-    <section className="rp-card" aria-label="Running replay">
+    <section className="rp-card" aria-label={tl('Running replay')}>
       <h4>
-        Running <span className="ht-badge ht-badge--replay">Replay</span>
+        {tl('Running')} <span className="ht-badge ht-badge--replay">{tl('Replay')}</span>
       </h4>
       <div className="row gap8 rp-running">
         <span className="tnum">{fmtClock(e.time)}</span>
@@ -511,10 +520,10 @@ function Running() {
         </span>
         <div className="grow" />
         <Button size="xs" onClick={() => showReplayOn([...s.engines.keys()])}>
-          Show on chart
+          {tl('Show on chart')}
         </Button>
         <Button size="xs" variant="ghost" onClick={exitReplay}>
-          Stop
+          {tl('Stop')}
         </Button>
       </div>
     </section>

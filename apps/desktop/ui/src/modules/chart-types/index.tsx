@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { SlidersHorizontal } from 'lucide-react';
 import type { ChartLayer } from '@htflow/chart-engine';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import { INTERVAL_GROUPS, TIMEFRAME_PRESETS, specKey, type BarSpec } from '@htflow/market-data';
 import { CHART_TEMPLATES, type ChartWindowState, type WindowState } from '@htflow/workspace';
 import { registerChartExtension, type ChartExtensionContext } from '../../charts/extensions';
@@ -64,11 +64,11 @@ function Overlay({ windowId, state }: { windowId: string; state: ChartWindowStat
         <button
           className="ct-settings-btn"
           data-testid="chart-type-settings"
-          title="Template / chart type settings"
+          title={tl('Template / chart type settings')}
           onClick={() => setOpen(true)}
         >
           <SlidersHorizontal size={12} />
-          Style
+          {tl('Style')}
         </button>
       )}
       {state.template === 'cot' && (

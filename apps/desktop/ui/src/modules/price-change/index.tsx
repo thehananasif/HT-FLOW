@@ -16,6 +16,7 @@ import {
   type ScanColumn,
 } from '../market-pressure/scanner';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type Unit = 'pct' | 'ticks' | 'usd';
 
 interface Row {
@@ -179,7 +180,7 @@ function PriceChange({ state, setParams }: ModuleViewProps) {
   return (
     <ScannerFrame
       testId="price-change"
-      subtitle="multi-window"
+      subtitle={tl('multi-window')}
       chips={(
         [
           ['pct', '%'],
@@ -200,7 +201,7 @@ function PriceChange({ state, setParams }: ModuleViewProps) {
           onReset={() => setParams({ ids: undefined, alerts: false, alertPct: 2, unit: 'pct' })}
         >
           <label>
-            Alert when |day change| ≥ (%)
+            {tl('Alert when |day change| ≥ (%)')}
             <Input
               type="number"
               min={0.1}

@@ -9,6 +9,7 @@ import { readChartTypeSettings, type ChartTypeSettings } from '../../charts/laye
 import { useCot } from '../../state/cot';
 import { useSetting } from '../../state/settings';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /**
  * Header strip of the COT Chart: market + report pickers, refresh, and where the data comes from
  * (download / cache / offline sample). Changes are saved through `onChange` (window ext).
@@ -35,12 +36,12 @@ export function CotBar({
   return (
     <div className="cot-bar" data-testid="cot-bar">
       <select
-        aria-label="COT market"
+        aria-label={tl('COT market')}
         data-testid="cot-market"
         value={market?.root ?? ''}
         onChange={(e) => onChange((c) => (c.market = e.target.value || 'auto'))}
       >
-        {!market && <option value="">Pick a market…</option>}
+        {!market && <option value="">{tl('Pick a market…')}</option>}
         {COT_MARKETS.map((m) => (
           <option key={m.root} value={m.root}>
             {m.root} · {m.name}
@@ -48,7 +49,7 @@ export function CotBar({
         ))}
       </select>
       <select
-        aria-label="COT report"
+        aria-label={tl('COT report')}
         data-testid="cot-report"
         value={report}
         onChange={(e) => onChange((c) => (c.report = e.target.value as typeof c.report))}
@@ -62,8 +63,8 @@ export function CotBar({
       <button
         className="cot-refresh"
         data-testid="cot-refresh"
-        aria-label="Refresh COT data"
-        title="Download the latest COT data now"
+        aria-label={tl('Refresh COT data')}
+        title={tl('Download the latest COT data now')}
         disabled={!market || loading}
         onClick={() =>
           market && void useCot.getState().load(report, market.code, st.cot.years, true)
@@ -71,7 +72,7 @@ export function CotBar({
       >
         <RefreshCw size={11} />
       </button>
-      {d.sample && <span className="ct-sample-badge">Sample data</span>}
+      {d.sample && <span className="ct-sample-badge">{tl('Sample data')}</span>}
       <span
         className={`cot-status cot-${d.status}`}
         data-testid="cot-status"

@@ -17,7 +17,7 @@ import {
   type HtindFile,
 } from '@htflow/indicator-sdk';
 import { indicatorById } from '@htflow/indicators';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import { Badge, Button, Input, toast } from '@htflow/ui-kit';
 import { registerCommands } from '../../shell/commands';
 import { downloadText } from '../../components/DataTable.utils';
@@ -38,7 +38,7 @@ function addToChart(id: string): void {
   const chart = targetChart();
   const def = indicatorById(SCRIPT_PREFIX + id);
   if (!chart || !def) {
-    toast('error', 'No chart to add the script to', 'Open a chart window first.');
+    toast('error', tl('No chart to add the script to'), tl('Open a chart window first.'));
     return;
   }
   writeExt(chart, [...readExt(chart).items, createConfig(def)]);
@@ -82,7 +82,7 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
 
   const save = (): string | null => {
     if (!check.ok) {
-      toast('error', 'Fix the script before saving', check.error);
+      toast('error', tl('Fix the script before saving'), check.error);
       return null;
     }
     const nm = name.trim() || check.program.meta.name;
@@ -93,16 +93,16 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
         .save({ format: 'htind', version: 1, id: sid, name: nm, source, updated: Date.now() });
       setId(sid);
       setName(nm);
-      toast('success', `Script "${nm}" saved`, 'Find it under Indicators → Custom (scripts).');
+      toast('success', `Script "${nm}" saved`, tl('Find it under Indicators → Custom (scripts).'));
       return sid;
     } catch (e) {
-      toast('error', 'Could not save', e instanceof Error ? e.message : String(e));
+      toast('error', tl('Could not save'), e instanceof Error ? e.message : String(e));
       return null;
     }
   };
 
   const exportFile = () => {
-    if (!check.ok) return toast('error', 'Fix the script before exporting', check.error);
+    if (!check.ok) return toast('error', tl('Fix the script before exporting'), check.error);
     const nm = name.trim() || check.program.meta.name;
     const f: HtindFile = {
       format: 'htind',
@@ -121,7 +121,7 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
       setId(null);
       setName(f.name);
       setSource(f.source);
-      toast('success', `Imported ${file.name}`, 'Save it to add it to your library.');
+      toast('success', `Imported ${file.name}`, tl('Save it to add it to your library.'));
     } catch (e) {
       toast('error', `Could not import ${file.name}`, e instanceof Error ? e.message : String(e));
     }
@@ -163,34 +163,36 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
         <div className="se-ref">
           <div className="se-head">{t('scriptEditor.reference')}</div>
           <p>
-            <b>Values</b> {SCRIPT_BUILTINS.variables.join(' ')} · <code>x[n]</code> = n bars ago
+            <b>{tl('Values')}</b> {SCRIPT_BUILTINS.variables.join(' ')} · <code>x[n]</code>{' '}
+            {tl('= n bars ago')}
           </p>
           <p>
-            <b>Functions</b> {SCRIPT_BUILTINS.functions.join(' ')}
+            <b>{tl('Functions')}</b> {SCRIPT_BUILTINS.functions.join(' ')}
           </p>
           <p>
-            <b>Declarations</b> {SCRIPT_BUILTINS.declarations.join(' ')}
+            <b>{tl('Declarations')}</b> {SCRIPT_BUILTINS.declarations.join(' ')}
           </p>
           <p>
-            <b>Statements</b> <code>let a = expr</code> (or <code>a = expr</code>),{' '}
-            <code>var s = 0</code> then <code>s := s + 1</code>, operators{' '}
-            <code>+ - * / % ^ &lt; &gt; == != and or not ?:</code>
+            <b>{tl('Statements')}</b> <code>{tl('let a = expr')}</code> {tl('(or')}{' '}
+            <code>{tl('a = expr')}</code>), <code>{tl('var s = 0')}</code> {tl('then')}{' '}
+            <code>s := s + 1</code>
+            {tl(', operators')} <code>+ - * / % ^ &lt; &gt; == != and or not ?:</code>
           </p>
           <p className="muted">
-            Scripts are sandboxed: no network, files, DOM or host objects — only bar data.
+            {tl('Scripts are sandboxed: no network, files, DOM or host objects — only bar data.')}
           </p>
         </div>
       </aside>
       <section className="se-main">
         <div className="se-bar">
           <Input
-            aria-label="Script name"
+            aria-label={tl('Script name')}
             className="se-name"
             value={name}
             maxLength={60}
             onChange={(e) => setName(e.target.value)}
           />
-          {dirty ? <Badge>unsaved</Badge> : <Badge>saved</Badge>}
+          {dirty ? <Badge>{tl('unsaved')}</Badge> : <Badge>{tl('saved')}</Badge>}
           <div className="grow" />
           <Button size="sm" variant="primary" data-testid="se-save" onClick={() => save()}>
             <Save size={12} /> {t('scriptEditor.save')}
@@ -207,7 +209,7 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
             <PlusSquare size={12} /> {t('scriptEditor.addToChart')}
           </Button>
           <Button size="sm" variant="outline" onClick={exportFile}>
-            <Download size={12} /> .htind
+            <Download size={12} /> {tl('.htind')}
           </Button>
           <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
             <Upload size={12} /> {t('scriptEditor.import')}
@@ -216,7 +218,7 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Delete script"
+              aria-label={tl('Delete script')}
               onClick={() => {
                 useScripts.getState().remove(saved.id);
                 load(null);
@@ -252,7 +254,7 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
           <textarea
             ref={areaRef}
             className="se-area mono"
-            aria-label="Script source"
+            aria-label={tl('Script source')}
             data-testid="se-source"
             spellCheck={false}
             value={source}
@@ -300,5 +302,5 @@ registerOpenFileHandler('indicator', (f) => {
   const file = parseHtind(f.text, f.name.replace(/\.htind$/i, ''));
   const exists = useScripts.getState().scripts.some((s) => s.id === file.id);
   useScripts.getState().save({ ...file, id: exists ? uniqueScriptId(file.name) : file.id });
-  toast('success', `Indicator "${file.name}" imported`, 'Indicators → Custom (scripts).');
+  toast('success', `Indicator "${file.name}" imported`, tl('Indicators → Custom (scripts).'));
 });

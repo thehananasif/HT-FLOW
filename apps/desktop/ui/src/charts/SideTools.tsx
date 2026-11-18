@@ -20,6 +20,7 @@ import { toolDef, toolsIn, type ToolGroup, type ToolId } from '@htflow/drawings'
 import { activateTool, controllers, openObjectsList, useDrawUi } from '../modules/drawings/store';
 import { tk, toolbarGroupLabel, toolLabel, toolNote } from '../modules/drawings/toolText';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Drawing groups (P45): each flyout lists tools of @htflow/drawings (P12). */
 const DRAW_GROUPS: { id: string; label: string; icon: typeof Minus; tools: ToolId[] }[] = [
   { id: 'lines', label: 'Lines', icon: Minus, tools: ids('lines') },
@@ -189,7 +190,7 @@ export function SideTools({
         <>
           <button className="st-item" role="menuitem" onClick={act(openObjectsList)}>
             <span className="st-check" />
-            Objects List
+            {tl('Objects List')}
           </button>
           <button
             className="st-item"
@@ -198,7 +199,7 @@ export function SideTools({
             onClick={() => useDrawUi.getState().setPrefs({ keep: !prefs.keep })}
           >
             <span className="st-check">{prefs.keep ? '✓' : ''}</span>
-            Keep Drawing
+            {tl('Keep Drawing')}
           </button>
           <button
             className="st-item"
@@ -207,8 +208,10 @@ export function SideTools({
             onClick={() => useDrawUi.getState().setPrefs({ magnet: !prefs.magnet })}
           >
             <span className="st-check">{prefs.magnet ? '✓' : ''}</span>
-            Magnet (OHLC / clusters)
-            <span className="ht-menu-sc">{prefs.magnetPx} px</span>
+            {tl('Magnet (OHLC / clusters)')}
+            <span className="ht-menu-sc">
+              {prefs.magnetPx} {tl('px')}
+            </span>
           </button>
           <button
             className="st-item"
@@ -216,27 +219,27 @@ export function SideTools({
             onClick={act(() => void ctrl()?.removeSelected())}
           >
             <span className="st-check" />
-            Delete selected
-            <span className="ht-menu-sc">Del</span>
+            {tl('Delete selected')}
+            <span className="ht-menu-sc">{tl('Del')}</span>
           </button>
           <button className="st-item" role="menuitem" onClick={act(() => ctrl()?.removeAll())}>
             <span className="st-check" />
-            Delete all drawings
+            {tl('Delete all drawings')}
           </button>
           <button className="st-item" role="menuitem" onClick={act(() => void ctrl()?.undo())}>
             <span className="st-check" />
-            Undo
-            <span className="ht-menu-sc">Ctrl+Z</span>
+            {tl('Undo')}
+            <span className="ht-menu-sc">{tl('Ctrl+Z')}</span>
           </button>
           <button className="st-item" role="menuitem" onClick={act(() => void ctrl()?.redo())}>
             <span className="st-check" />
-            Redo
-            <span className="ht-menu-sc">Ctrl+Y</span>
+            {tl('Redo')}
+            <span className="ht-menu-sc">{tl('Ctrl+Y')}</span>
           </button>
-          <button className="st-item" disabled title="Arrives with the indicators phase">
+          <button className="st-item" disabled title={tl('Arrives with the indicators phase')}>
             <span className="st-check" />
-            Remove indicators
-            <span className="ht-menu-sc">pending</span>
+            {tl('Remove indicators')}
+            <span className="ht-menu-sc">{tl('pending')}</span>
           </button>
         </>
       )}
@@ -246,8 +249,8 @@ export function SideTools({
     <div className="sidetools" ref={ref} data-testid="sidetools">
       <button
         className="st-btn"
-        aria-label="Footprint quick settings"
-        title="Footprint quick settings"
+        aria-label={tl('Footprint quick settings')}
+        title={tl('Footprint quick settings')}
         onClick={onSettings}
       >
         <SlidersHorizontal size={15} />
@@ -291,7 +294,7 @@ export function SideTools({
         <div className="st-rel">
           <button
             className="st-btn"
-            aria-label="More tools"
+            aria-label={tl('More tools')}
             title={`More tools: ${[
               ...(fpHidden ? FOOTPRINT_GROUPS : []),
               ...hidden.map((g) => toolbarGroupLabel(g.id, g.label)),
@@ -307,8 +310,8 @@ export function SideTools({
             <MoreHorizontal size={15} />
           </button>
           {open === 'more' && (
-            <div className="st-flyout" role="menu" aria-label="More tools" style={flyStyle}>
-              <div className="ht-menu-label">More tools</div>
+            <div className="st-flyout" role="menu" aria-label={tl('More tools')} style={flyStyle}>
+              <div className="ht-menu-label">{tl('More tools')}</div>
               {fpHidden &&
                 FOOTPRINT_GROUPS.map((g) => (
                   <button key={g} className="st-item" role="menuitem" onClick={() => setOpen(g)}>

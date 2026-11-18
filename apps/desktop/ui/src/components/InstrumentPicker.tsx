@@ -17,15 +17,16 @@ import {
 import { INSTRUMENT_MIME, encodePayload } from '../dashboard/instrumentDrop';
 import './InstrumentPicker.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const ROW_H = 24;
 
 /** Status badge used by the picker and the watchlist. */
 export function FeedStatusBadge({ entry }: { entry: Pick<PickerEntry, 'status' | 'desktopOnly'> }) {
   const s: FeedKind = entry.status;
-  if (s === 'live') return <Badge kind="live">Live</Badge>;
-  if (s === 'sim') return <Badge kind="replay">Sim</Badge>;
-  if (s === 'replay') return <Badge kind="replay">Replay</Badge>;
-  if (s === 'delayed') return <Badge kind="delayed">Delayed</Badge>;
+  if (s === 'live') return <Badge kind="live">{tl('Live')}</Badge>;
+  if (s === 'sim') return <Badge kind="replay">{tl('Sim')}</Badge>;
+  if (s === 'replay') return <Badge kind="replay">{tl('Replay')}</Badge>;
+  if (s === 'delayed') return <Badge kind="delayed">{tl('Delayed')}</Badge>;
   return <Badge>{entry.desktopOnly ? 'Desktop app' : 'No feed'}</Badge>;
 }
 
@@ -236,19 +237,19 @@ export function InstrumentPicker({
       ref={rootRef}
       className="ip-root"
       role="dialog"
-      aria-label="Instrument picker"
+      aria-label={tl('Instrument picker')}
       style={{ left: pos.left, top: pos.top }}
       data-dragging={dragging || undefined}
       tabIndex={-1}
       onKeyDown={onKey}
       data-testid="instrument-picker-popover"
     >
-      <nav className="ip-tree" aria-label="Market catalog">
+      <nav className="ip-tree" aria-label={tl('Market catalog')}>
         {treeItem('all', 'All markets', 0, entries.length)}
         {treeItem(
           'fav',
           <>
-            <Star size={11} /> Favourites
+            <Star size={11} /> {tl('Favourites')}
           </>,
           0,
           prefs.favourites.length,
@@ -256,7 +257,7 @@ export function InstrumentPicker({
         {treeItem(
           'recent',
           <>
-            <Clock size={11} /> Recent
+            <Clock size={11} /> {tl('Recent')}
           </>,
           0,
           prefs.recent.length,
@@ -276,8 +277,8 @@ export function InstrumentPicker({
           <input
             autoFocus
             className="ip-search"
-            placeholder="Search symbol, name, root or exchange…"
-            aria-label="Search instruments"
+            placeholder={tl('Search symbol, name, root or exchange…')}
+            aria-label={tl('Search instruments')}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -285,21 +286,21 @@ export function InstrumentPicker({
               if (listRef.current) listRef.current.scrollTop = 0;
             }}
           />
-          <Checkbox checked={liveOnly} onChange={setLiveOnly} label="Has live feed" />
+          <Checkbox checked={liveOnly} onChange={setLiveOnly} label={tl('Has live feed')} />
         </div>
         <div className="ip-head">
           <span />
-          <span>Symbol</span>
-          <span>Name</span>
-          <span>Exchange</span>
-          <span className="r">Tick size</span>
-          <span>Status</span>
+          <span>{tl('Symbol')}</span>
+          <span>{tl('Name')}</span>
+          <span>{tl('Exchange')}</span>
+          <span className="r">{tl('Tick size')}</span>
+          <span>{tl('Status')}</span>
         </div>
         <div
           className="ip-list"
           ref={listRef}
           role="listbox"
-          aria-label="Instruments"
+          aria-label={tl('Instruments')}
           onScroll={(e) => setScroll(e.currentTarget.scrollTop)}
         >
           <div style={{ height: rows.length * ROW_H, position: 'relative' }}>
@@ -372,7 +373,7 @@ export function InstrumentPicker({
                           runCommand('open.connections');
                         }}
                       >
-                        connect
+                        {tl('connect')}
                       </button>
                     )}
                   </span>
@@ -380,12 +381,12 @@ export function InstrumentPicker({
               );
             })}
           </div>
-          {!rows.length && <div className="ip-empty">No instruments match.</div>}
+          {!rows.length && <div className="ip-empty">{tl('No instruments match.')}</div>}
         </div>
         <div className="ip-foot">
           {noFeed ? (
             <span className="ip-nofeed" role="alert">
-              <b>{noFeed.symbol}</b> has no feed —{' '}
+              <b>{noFeed.symbol}</b> {tl('has no feed —')}{' '}
               {noFeed.desktopOnly ? 'available in the desktop app.' : 'connect a data provider.'}
               {!noFeed.desktopOnly && (
                 <Button
@@ -395,15 +396,16 @@ export function InstrumentPicker({
                     runCommand('open.connections');
                   }}
                 >
-                  Open Connections
+                  {tl('Open Connections')}
                 </Button>
               )}
             </span>
           ) : (
             <span className="muted">
-              {rows.length.toLocaleString()} instruments · ↑↓ to move · Enter / double-click to{' '}
-              {mode === 'open' ? 'open' : 'add'} · drag onto a window (Ctrl: new chart) · Esc to
-              close
+              {rows.length.toLocaleString()}{' '}
+              {tl('instruments · ↑↓ to move · Enter / double-click to')}{' '}
+              {mode === 'open' ? 'open' : 'add'}{' '}
+              {tl('· drag onto a window (Ctrl: new chart) · Esc to close')}
             </span>
           )}
         </div>
@@ -423,7 +425,7 @@ function SymbolListStatus() {
   if (!report?.sources.length) return null;
   return (
     <div className="ip-lists" data-testid="picker-symbol-lists">
-      <div className="ip-lists-head muted">Symbol lists</div>
+      <div className="ip-lists-head muted">{tl('Symbol lists')}</div>
       {report.sources.map((src) => (
         <div
           key={src.id}

@@ -74,6 +74,7 @@ import { HeatDrawings, HEATMAP_TOOLS } from './drawings';
 import { StressFeed, type StressResult } from './stress';
 import { registerHeatmapApi } from './api';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const TOOL_ICONS: Record<string, typeof Minus> = {
   'trend-line': TrendingUp,
   'horizontal-line': Minus,
@@ -106,13 +107,17 @@ function Tip({ hit, inst, w }: { hit: HeatHit; inst: Instrument; w: number }) {
           <span className="muted">{fmtMs(b.t)}</span>
         </div>
         <div className="hm-tip-row tnum">
-          Vol: {formatCompact(sum.vol)} <span className="hm-tip-side">{sum.side}</span>
+          {tl('Vol:')} {formatCompact(sum.vol)} <span className="hm-tip-side">{sum.side}</span>
         </div>
         <div className="hm-tip-row tnum">
-          <span className="hm-dot hm-dot--up" /> Buy {formatCompact(sum.buy)} ({sum.buyPct}%)
-          <span className="hm-dot hm-dot--down" /> Sell {formatCompact(sum.sell)} ({sum.sellPct}%)
+          <span className="hm-dot hm-dot--up" /> {tl('Buy')} {formatCompact(sum.buy)} ({sum.buyPct}
+          %)
+          <span className="hm-dot hm-dot--down" /> {tl('Sell')} {formatCompact(sum.sell)} (
+          {sum.sellPct}%)
         </div>
-        <div className="hm-tip-row tnum">Trades: {sum.trades}</div>
+        <div className="hm-tip-row tnum">
+          {tl('Trades:')} {sum.trades}
+        </div>
       </div>
     );
   }
@@ -123,20 +128,20 @@ function Tip({ hit, inst, w }: { hit: HeatHit; inst: Instrument; w: number }) {
         <span className="muted">{fmtMs(hit.t)}</span>
       </div>
       <div className="hm-tip-row tnum">
-        Resting: {hit.qty > 0 ? formatCompact(Math.round(hit.qty * 1000) / 1000) : '—'}
+        {tl('Resting:')} {hit.qty > 0 ? formatCompact(Math.round(hit.qty * 1000) / 1000) : '—'}
         {hit.side && <span className="hm-tip-side">{hit.side === 'bid' ? 'BID' : 'ASK'}</span>}
       </div>
       {hit.spoof && (
         <div className="hm-tip-row hm-tip-warn tnum">
-          Pulled {formatCompact(hit.spoof.size)} after{' '}
-          {((hit.spoof.t1 - hit.spoof.t0) / 1000).toFixed(1)} s (traded{' '}
+          {tl('Pulled')} {formatCompact(hit.spoof.size)} {tl('after')}{' '}
+          {((hit.spoof.t1 - hit.spoof.t0) / 1000).toFixed(1)} {tl('s (traded')}{' '}
           {formatCompact(hit.spoof.traded)})
         </div>
       )}
       {hit.iceberg && (
         <div className="hm-tip-row hm-tip-info tnum">
-          Iceberg: traded {formatCompact(hit.iceberg.traded)} vs shown{' '}
-          {formatCompact(hit.iceberg.shown)} · {hit.iceberg.refills} refills
+          {tl('Iceberg: traded')} {formatCompact(hit.iceberg.traded)} {tl('vs shown')}{' '}
+          {formatCompact(hit.iceberg.shown)} · {hit.iceberg.refills} {tl('refills')}
         </div>
       )}
     </div>
@@ -427,7 +432,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
             data-testid="heatmap-settings-button"
             onClick={() => setQs((x) => !x)}
           >
-            <SlidersHorizontal size={12} /> Settings ▾
+            <SlidersHorizontal size={12} /> {tl('Settings ▾')}
           </button>
           {qs && (
             <QuickSettings
@@ -446,7 +451,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           )}
         </div>
         <SegmentedControl
-          aria-label="Column width"
+          aria-label={tl('Column width')}
           value={String(params.columnMs)}
           options={COLUMN_WIDTHS.map((ms) => ({ value: String(ms), label: columnLabel(ms) }))}
           onChange={(v) => setColumn(Number(v) as ColumnMs)}
@@ -467,7 +472,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           aria-pressed={params.mode3d}
           data-testid="heatmap-3d-toggle"
           onClick={() => set3d(!params.mode3d)}
-          title="3D mode (time × price × size)"
+          title={tl('3D mode (time × price × size)')}
         >
           <Box size={12} /> {params.mode3d ? '3D on' : '3D off'}
         </button>
@@ -475,8 +480,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           type="button"
           className="ht-chip ht-chip--ghost"
           onClick={() => setFull(true)}
-          title="Open full settings"
-          aria-label="Open full settings"
+          title={tl('Open full settings')}
+          aria-label={tl('Open full settings')}
         >
           <Settings2 size={12} />
         </button>
@@ -485,7 +490,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
         <div
           className="hm-tools"
           role="toolbar"
-          aria-label="Drawing tools"
+          aria-label={tl('Drawing tools')}
           aria-orientation="vertical"
         >
           {HEATMAP_TOOLS.map((t) => {
@@ -508,8 +513,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           <button
             type="button"
             className="hm-tool"
-            aria-label="Objects list"
-            title="Objects list"
+            aria-label={tl('Objects list')}
+            title={tl('Objects list')}
             aria-pressed={drawPanel === 'objects'}
             onClick={() => setDrawPanel((x) => (x === 'objects' ? null : 'objects'))}
           >
@@ -518,8 +523,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           <button
             type="button"
             className="hm-tool"
-            aria-label="Drawing settings"
-            title="Drawing settings"
+            aria-label={tl('Drawing settings')}
+            title={tl('Drawing settings')}
             aria-pressed={drawPanel === 'settings'}
             onClick={() => setDrawPanel((x) => (x === 'settings' ? null : 'settings'))}
           >
@@ -559,13 +564,13 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           {stressResult && (
             <div className="hm-stress" data-testid="heatmap-stress-result">
               <b>
-                {stressResult.passed ? '✓' : '✗'} {stressResult.fps.toFixed(0)} fps
+                {stressResult.passed ? '✓' : '✗'} {stressResult.fps.toFixed(0)} {tl('fps')}
               </b>{' '}
-              · {stressResult.columns} columns · heat {stressResult.heatMs.toFixed(1)} ms · draw{' '}
-              {stressResult.drawMs.toFixed(1)} ms · p95 frame {stressResult.p95FrameMs.toFixed(1)}{' '}
-              ms
+              · {stressResult.columns} {tl('columns · heat')} {stressResult.heatMs.toFixed(1)}{' '}
+              {tl('ms · draw')} {stressResult.drawMs.toFixed(1)} {tl('ms · p95 frame')}{' '}
+              {stressResult.p95FrameMs.toFixed(1)} {tl('ms')}
               <button type="button" className="hm-link" onClick={() => setStressResult(null)}>
-                Close
+                {tl('Close')}
               </button>
             </div>
           )}
@@ -573,9 +578,9 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
       </div>
       <div className="hm-status">
         <span className="tnum">
-          Brightness {s.brightness} · Cut-off {s.cutoffUpper}/{s.cutoffLower} · {s.scale} ·{' '}
-          {s.normalize === 'column' ? 'per column' : `global (${s.scope})`} · {cols} columns of{' '}
-          {columnLabel(params.columnMs)}
+          {tl('Brightness')} {s.brightness} {tl('· Cut-off')} {s.cutoffUpper}/{s.cutoffLower} ·{' '}
+          {s.scale} · {s.normalize === 'column' ? 'per column' : `global (${s.scope})`} · {cols}{' '}
+          {tl('columns of')} {columnLabel(params.columnMs)}
           {s.historyMinutes > 0 ? ` · history ${s.historyMinutes} min` : ''}
           {params.mode3d && used3d ? ` · 3D ${used3d === 'webgl' ? 'three.js' : 'Canvas 2D'}` : ''}
         </span>
@@ -586,7 +591,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           onClick={startStress}
           disabled={!!stress}
           data-testid="heatmap-stress"
-          title="Stream a CL-like book at 10× and measure the frame rate"
+          title={tl('Stream a CL-like book at 10× and measure the frame rate')}
         >
           {stress ? 'Stress test running…' : 'Stress test'}
         </button>
@@ -595,7 +600,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           className="ht-chip ht-chip--ghost"
           onClick={() => coreRef.current?.reset()}
         >
-          ◂▸ Latest
+          {tl('◂▸ Latest')}
         </button>
       </div>
       <FullSettings
@@ -633,7 +638,7 @@ function TextDialog({
   const [text, setText] = useState('');
   useEffect(() => setText(d?.style.text ?? 'Text'), [d]);
   return (
-    <Dialog open={!!d} onOpenChange={(o) => !o && onClose()} title="Text" width={360}>
+    <Dialog open={!!d} onOpenChange={(o) => !o && onClose()} title={tl('Text')} width={360}>
       <form
         className="col gap12"
         onSubmit={(e) => {
@@ -642,9 +647,14 @@ function TextDialog({
           onClose();
         }}
       >
-        <Input aria-label="Text" value={text} autoFocus onChange={(e) => setText(e.target.value)} />
+        <Input
+          aria-label={tl('Text')}
+          value={text}
+          autoFocus
+          onChange={(e) => setText(e.target.value)}
+        />
         <Button variant="primary" type="submit">
-          Save
+          {tl('Save')}
         </Button>
       </form>
     </Dialog>
@@ -671,12 +681,12 @@ function DrawPanel({
       <header className="hm-draw-head">
         <b>{kind === 'objects' ? 'Objects list' : 'Drawing settings'}</b>
         <button type="button" className="hm-link" onClick={onClose}>
-          Close
+          {tl('Close')}
         </button>
       </header>
       {kind === 'objects' ? (
         list.length === 0 ? (
-          <p className="muted hm-note">No drawings yet. Pick a tool on the left.</p>
+          <p className="muted hm-note">{tl('No drawings yet. Pick a tool on the left.')}</p>
         ) : (
           <ul className="hm-objects">
             {list.map((d) => (
@@ -707,7 +717,7 @@ function DrawPanel({
                 <button
                   type="button"
                   className="hm-icon"
-                  aria-label="Delete"
+                  aria-label={tl('Delete')}
                   onClick={() => dr.ctrl.remove(d.id)}
                 >
                   <Trash2 size={12} />
@@ -721,24 +731,24 @@ function DrawPanel({
           <Checkbox
             checked={dr.prefs.keep}
             onChange={(v) => dr.setPrefs({ keep: v })}
-            label="Keep drawing"
+            label={tl('Keep drawing')}
           />
           <Checkbox
             checked={dr.prefs.magnet}
             onChange={(v) => dr.setPrefs({ magnet: v })}
-            label="Magnet"
+            label={tl('Magnet')}
           />
           <Checkbox
             checked={dr.prefs.snapTicks}
             onChange={(v) => dr.setPrefs({ snapTicks: v })}
-            label="Snap to ticks"
+            label={tl('Snap to ticks')}
           />
           {sel ? (
             <>
               <div className="hm-row">
-                <span className="hm-row-label">Colour</span>
+                <span className="hm-row-label">{tl('Colour')}</span>
                 <ColorPicker
-                  label="Drawing colour"
+                  label={tl('Drawing colour')}
                   value={sel.style.color}
                   alpha={false}
                   onChange={(c) =>
@@ -747,9 +757,9 @@ function DrawPanel({
                 />
               </div>
               <div className="hm-row">
-                <span className="hm-row-label">Width</span>
+                <span className="hm-row-label">{tl('Width')}</span>
                 <SegmentedControl
-                  aria-label="Line width"
+                  aria-label={tl('Line width')}
                   value={String(sel.style.width)}
                   options={['1', '2', '3', '4'].map((w) => ({ value: w, label: w }))}
                   onChange={(w) =>
@@ -759,10 +769,10 @@ function DrawPanel({
               </div>
             </>
           ) : (
-            <p className="muted hm-note">Select a drawing to edit its colour and width.</p>
+            <p className="muted hm-note">{tl('Select a drawing to edit its colour and width.')}</p>
           )}
           <Button size="sm" onClick={() => dr.ctrl.removeAll()}>
-            Delete all drawings
+            {tl('Delete all drawings')}
           </Button>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** [glyph, search keywords] — common trading / chart-annotation emojis. */
 export const EMOJIS: [string, string][] = [
   ['⭐', 'star favorite'],
@@ -113,21 +114,21 @@ export function EmojiPicker({ value, onPick }: { value: string; onPick: (glyph: 
       <div className="row gap8">
         <input
           className="ht-input"
-          aria-label="Search emoji"
-          placeholder="Search emoji (fire, rocket, bull…)"
+          aria-label={tl('Search emoji')}
+          placeholder={tl('Search emoji (fire, rocket, bull…)')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <input
           className="ht-input dr-emoji-custom"
-          aria-label="Custom emoji"
-          title="Type or paste any emoji"
+          aria-label={tl('Custom emoji')}
+          title={tl('Type or paste any emoji')}
           value={value}
           maxLength={8}
           onChange={(e) => e.target.value && onPick(e.target.value)}
         />
       </div>
-      <div className="dr-emoji-grid" role="listbox" aria-label="Emoji">
+      <div className="dr-emoji-grid" role="listbox" aria-label={tl('Emoji')}>
         {list.map(([g, k]) => (
           <button
             key={g}
@@ -141,7 +142,12 @@ export function EmojiPicker({ value, onPick }: { value: string; onPick: (glyph: 
             {g}
           </button>
         ))}
-        {!list.length && <div className="muted">No emoji matches “{q}”</div>}
+        {!list.length && (
+          <div className="muted">
+            {tl('No emoji matches “')}
+            {q}”
+          </div>
+        )}
       </div>
     </div>
   );

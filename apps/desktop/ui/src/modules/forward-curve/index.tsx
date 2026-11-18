@@ -17,6 +17,7 @@ import {
 } from './curve';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const AGO = ['1', '7', '30'] as const;
 type Ago = (typeof AGO)[number];
 
@@ -76,7 +77,7 @@ function CurveChart({
   return (
     <div className="fc-chart" ref={ref}>
       {w > 0 && now.length > 0 && (
-        <svg width={w} height={h} role="img" aria-label="Forward curve chart">
+        <svg width={w} height={h} role="img" aria-label={tl('Forward curve chart')}>
           {ticks.map((t) => (
             <g key={t}>
               <line x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} className="fc-grid" />
@@ -144,26 +145,26 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
     <div className="module-window fc" data-testid="forward-curve">
       <div className="fc-top">
         <span className="fc-title">
-          Forward curve{' '}
+          {tl('Forward curve')}{' '}
           <span className="muted">
             · {root.label} ({name})
           </span>
         </span>
         <div className="grow" />
         {provider.kind === 'sim' ? (
-          <Badge kind="replay">Sim</Badge>
+          <Badge kind="replay">{tl('Sim')}</Badge>
         ) : provider.kind === 'delayed' ? (
-          <Badge kind="delayed">Delayed</Badge>
+          <Badge kind="delayed">{tl('Delayed')}</Badge>
         ) : (
-          <Badge kind="live">Live</Badge>
+          <Badge kind="live">{tl('Live')}</Badge>
         )}
         <span data-testid="fc-shape">
           {shape === 'contango' ? (
-            <Badge kind="live">Contango</Badge>
+            <Badge kind="live">{tl('Contango')}</Badge>
           ) : shape === 'backwardation' ? (
-            <Badge kind="error">Backwardation</Badge>
+            <Badge kind="error">{tl('Backwardation')}</Badge>
           ) : (
-            <Badge>Flat</Badge>
+            <Badge>{tl('Flat')}</Badge>
           )}
         </span>
       </div>
@@ -178,9 +179,9 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
           </Chip>
         ))}
         <div className="grow" />
-        <span className="muted">Compare with</span>
+        <span className="muted">{tl('Compare with')}</span>
         <SegmentedControl
-          aria-label="Days ago"
+          aria-label={tl('Days ago')}
           value={ago}
           onChange={(v) => setParams({ ago: v })}
           options={AGO.map((a) => ({ value: a, label: `${a}d` }))}
@@ -188,9 +189,9 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
       </div>
       {provider.kind === 'sim' && (
         <div className="fc-note" role="note">
-          Simulated term structure — no free futures-curve data. Anchored on{' '}
-          {streaming ? `the Sim feed's last price (${root.spotFeed})` : 'a reference price'};
-          expiries from the catalog roll rules. Connect a futures feed for real quotes.
+          {tl('Simulated term structure — no free futures-curve data. Anchored on')}{' '}
+          {streaming ? `the Sim feed's last price (${root.spotFeed})` : 'a reference price'}
+          {tl('; expiries from the catalog roll rules. Connect a futures feed for real quotes.')}
         </div>
       )}
       <div className="fc-body">
@@ -199,13 +200,13 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
           <table className="tbl tnum fc-table">
             <thead>
               <tr>
-                <th>Contract</th>
-                <th>Expiry</th>
-                <th className="r">Days</th>
-                <th className="r">Last</th>
-                <th className="r">Spread</th>
-                {root.crypto && <th className="r">Basis</th>}
-                {root.crypto && <th className="r">Ann.</th>}
+                <th>{tl('Contract')}</th>
+                <th>{tl('Expiry')}</th>
+                <th className="r">{tl('Days')}</th>
+                <th className="r">{tl('Last')}</th>
+                <th className="r">{tl('Spread')}</th>
+                {root.crypto && <th className="r">{tl('Basis')}</th>}
+                {root.crypto && <th className="r">{tl('Ann.')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -238,12 +239,17 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
       </div>
       <div className="fc-foot">
         <span className="fc-legend">
-          <i className="fc-key" /> Now
+          <i className="fc-key" /> {tl('Now')}
         </span>
         <span className="fc-legend">
-          <i className="fc-key fc-key-ago" /> {days} day{days > 1 ? 's' : ''} ago
+          <i className="fc-key fc-key-ago" /> {days} {tl('day')}
+          {days > 1 ? 's' : ''} {tl('ago')}
         </span>
-        {root.crypto && <span className="muted tnum">Spot {spot.toFixed(prec)}</span>}
+        {root.crypto && (
+          <span className="muted tnum">
+            {tl('Spot')} {spot.toFixed(prec)}
+          </span>
+        )}
         <span className="muted" data-testid="fc-roll">
           {roll
             ? `Next roll: ${roll.from.code} → ${roll.to.code} in ${roll.days} day${roll.days === 1 ? '' : 's'} (${roll.date.toISOString().slice(0, 10)})`

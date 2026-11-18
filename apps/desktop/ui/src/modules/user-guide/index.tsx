@@ -11,6 +11,7 @@ import { searchArticles, sections, type Article } from './search';
 import { consumeGuideRequest, helpTopicFor, openGuide, useGuideRequest } from './topics';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const openModule = (id: string) =>
   window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: id }));
 
@@ -111,9 +112,9 @@ function ShortcutsTable() {
           <table className="ug-table">
             <thead>
               <tr>
-                <th>Keys</th>
-                <th>Command</th>
-                <th>Active in</th>
+                <th>{tl('Keys')}</th>
+                <th>{tl('Command')}</th>
+                <th>{tl('Active in')}</th>
               </tr>
             </thead>
             <tbody>
@@ -200,7 +201,7 @@ function Blocks({ blocks, article, nav }: { blocks: Block[]; article: Article; n
               </figure>
             ) : (
               <p key={i} className="muted">
-                [Image not found: {b.src}]
+                {tl('[Image not found:')} {b.src}]
               </p>
             );
           }
@@ -283,26 +284,27 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
 
   return (
     <div className="ug-win" data-testid="user-guide">
-      <nav className="ug-toc" aria-label="Table of contents">
+      <nav className="ug-toc" aria-label={tl('Table of contents')}>
         <div className="ug-brand" data-testid="guide-brand">
           <BrandLogo height={72} testId="guide-logo" />
           <div className="row gap8 center-y">
             <BrandIcon size={18} />
-            <b>HT Flow User Guide</b>
+            <b>{tl('HT Flow User Guide')}</b>
           </div>
         </div>
         <Input
-          aria-label="Search the guide"
-          placeholder="Search the guide…"
+          aria-label={tl('Search the guide')}
+          placeholder={tl('Search the guide…')}
           value={query}
           onChange={(e) => setParams({ query: e.target.value })}
         />
         {query ? (
           <>
             <div className="muted ug-count">
-              {hits.length} result{hits.length === 1 ? '' : 's'}
+              {hits.length} {tl('result')}
+              {hits.length === 1 ? '' : 's'}
             </div>
-            {hits.length === 0 && <div className="muted ug-count">No articles match</div>}
+            {hits.length === 0 && <div className="muted ug-count">{tl('No articles match')}</div>}
             {hits.map((h) => (
               <button
                 key={`${h.article.id}#${h.anchor}`}
@@ -327,7 +329,7 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
                     onClick={() => nav(a.id)}
                   >
                     {a.title}
-                    {a.isNew && <span className="ug-new">new</span>}
+                    {a.isNew && <span className="ug-new">{tl('new')}</span>}
                   </button>
                   {article?.id === a.id &&
                     (a.parts ?? [])
@@ -358,13 +360,13 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
             <div className="ug-crumb muted">{article.section}</div>
             <h2 className="ug-title">
               {article.title}
-              {article.isNew && <span className="ug-new">new</span>}
+              {article.isNew && <span className="ug-new">{tl('new')}</span>}
             </h2>
             {article.opens && article.opens.length > 0 && (
               <div className="ug-open">
                 {article.opens.map((id) => (
                   <Button key={id} size="sm" variant="outline" onClick={() => openModule(id)}>
-                    Open {moduleDef(id)?.label ?? id}
+                    {tl('Open')} {moduleDef(id)?.label ?? id}
                   </Button>
                 ))}
               </div>
@@ -385,19 +387,21 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
               )}
             </div>
             <div className="ug-size muted">
-              Text size
+              {tl('Text size')}
               <input
                 type="range"
                 min={11}
                 max={18}
                 value={fontSize}
-                aria-label="Guide text size"
+                aria-label={tl('Guide text size')}
                 onChange={(e) => setParams({ fontSize: Number(e.target.value) })}
               />
             </div>
           </>
         ) : (
-          <EmptyState title="No articles match">Try a different search term.</EmptyState>
+          <EmptyState title={tl('No articles match')}>
+            {tl('Try a different search term.')}
+          </EmptyState>
         )}
       </article>
     </div>

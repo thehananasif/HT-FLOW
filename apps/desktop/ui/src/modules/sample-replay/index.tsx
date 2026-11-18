@@ -5,6 +5,7 @@ import { log } from '../../state/log';
 import { registerCommands } from '../../shell/commands';
 import { showReplayOn } from '../replay/ControlBar';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /**
  * "Load sample replay session" (P28): replays one fixed hour of a simulated instrument. The
  * simulator is deterministic by (symbol, UTC day), so this session is identical on every PC and
@@ -31,14 +32,14 @@ export async function loadSampleReplay(): Promise<void> {
   if (loading) return;
   loading = true;
   try {
-    toast('info', 'Loading sample replay…', 'Simulated CLZ6, one fixed hour');
+    toast('info', tl('Loading sample replay…'), tl('Simulated CLZ6, one fixed hour'));
     const s = await startReplay(sampleConfig());
     showReplayOn([...s.engines.keys()]);
     log.info('replay', 'Sample replay session loaded (CLZ6, 2026-01-05 00:00–01:00 UTC)');
-    toast('success', 'Sample replay ready', 'Press Space on the chart to play');
+    toast('success', tl('Sample replay ready'), tl('Press Space on the chart to play'));
   } catch (e) {
     log.error('replay', `Sample replay failed: ${e instanceof Error ? e.message : String(e)}`);
-    toast('error', 'Sample replay failed', e instanceof Error ? e.message : String(e));
+    toast('error', tl('Sample replay failed'), e instanceof Error ? e.message : String(e));
   } finally {
     loading = false;
   }

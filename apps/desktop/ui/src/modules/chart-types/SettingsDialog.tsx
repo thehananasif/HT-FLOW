@@ -20,6 +20,7 @@ import {
 } from '../../charts/layers/settings';
 import { EXTRA_TEMPLATES } from '../../charts/layers/templates';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Templates and chart types that have their own style settings. */
 export function hasTypeSettings(s: ChartWindowState): boolean {
   const k = (s.timeframe as BarSpec).kind;
@@ -62,11 +63,11 @@ export function ChartTypeSettingsDialog({
       open
       onOpenChange={onOpenChange}
       title={`${tpl} — style`}
-      description="Changes apply live and are saved with the window."
+      description={tl('Changes apply live and are saved with the window.')}
       width={460}
     >
       <div className="col gap8" style={{ maxHeight: '64vh', overflowY: 'auto' }}>
-        <Section title="Colours (empty = theme)">
+        <Section title={tl('Colours (empty = theme)')}>
           <div className="row gap8 wrap">
             {(['up', 'down', 'highlight', 'text'] as const).map((k) => (
               <ColorPicker
@@ -81,8 +82,8 @@ export function ChartTypeSettingsDialog({
         </Section>
 
         {state.template === 'tpo' && (
-          <Section title="TPO">
-            <Field label="Period (minutes)">
+          <Section title={tl('TPO')}>
+            <Field label={tl('Period (minutes)')}>
               <NumberInput
                 value={st.tpo.periodMin}
                 min={1}
@@ -90,7 +91,7 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.tpo.periodMin = v))}
               />
             </Field>
-            <Field label="Profile split / merge">
+            <Field label={tl('Profile split / merge')}>
               <Select
                 value={st.tpo.split}
                 onChange={(v) => set((x) => (x.tpo.split = v))}
@@ -103,7 +104,7 @@ export function ChartTypeSettingsDialog({
                 ]}
               />
             </Field>
-            <Field label="Value area (%)">
+            <Field label={tl('Value area (%)')}>
               <NumberInput
                 value={st.tpo.valueAreaPct}
                 min={10}
@@ -111,7 +112,7 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.tpo.valueAreaPct = v))}
               />
             </Field>
-            <Field label="Initial balance (periods)">
+            <Field label={tl('Initial balance (periods)')}>
               <NumberInput
                 value={st.tpo.ibPeriods}
                 min={1}
@@ -119,7 +120,7 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.tpo.ibPeriods = v))}
               />
             </Field>
-            <Field label="Ticks per row (0 = auto)">
+            <Field label={tl('Ticks per row (0 = auto)')}>
               <NumberInput
                 value={st.tpo.rowTicks}
                 min={0}
@@ -127,7 +128,7 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.tpo.rowTicks = v))}
               />
             </Field>
-            <Field label="Profile width (px)">
+            <Field label={tl('Profile width (px)')}>
               <NumberInput
                 value={st.tpo.slotWidth}
                 min={60}
@@ -137,7 +138,7 @@ export function ChartTypeSettingsDialog({
               />
             </Field>
             <SegmentedControl
-              aria-label="TPO display"
+              aria-label={tl('TPO display')}
               value={st.tpo.display}
               onChange={(v) => set((x) => (x.tpo.display = v))}
               options={[
@@ -146,22 +147,22 @@ export function ChartTypeSettingsDialog({
               ]}
             />
             <Checkbox
-              label="Value area"
+              label={tl('Value area')}
               checked={st.tpo.showValueArea}
               onChange={(v) => set((x) => (x.tpo.showValueArea = v))}
             />
             <Checkbox
-              label="POC row"
+              label={tl('POC row')}
               checked={st.tpo.showPoc}
               onChange={(v) => set((x) => (x.tpo.showPoc = v))}
             />
             <Checkbox
-              label="Initial balance"
+              label={tl('Initial balance')}
               checked={st.tpo.showIb}
               onChange={(v) => set((x) => (x.tpo.showIb = v))}
             />
             <Checkbox
-              label="Single prints"
+              label={tl('Single prints')}
               checked={st.tpo.showSingles}
               onChange={(v) => set((x) => (x.tpo.showSingles = v))}
             />
@@ -169,9 +170,9 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'mtf' && (
-          <Section title="Multi-timeframe">
+          <Section title={tl('Multi-timeframe')}>
             <SegmentedControl
-              aria-label="MTF layout"
+              aria-label={tl('MTF layout')}
               value={st.mtf.layout}
               onChange={(v) => set((x) => (x.mtf.layout = v))}
               options={[
@@ -180,7 +181,7 @@ export function ChartTypeSettingsDialog({
                 { value: 'stacked', label: 'Stacked' },
               ]}
             />
-            <span className="muted">Extra timeframes (1–3, plus the chart's own)</span>
+            <span className="muted">{tl("Extra timeframes (1–3, plus the chart's own)")}</span>
             <div className="row gap8 wrap">
               {MTF_CHOICES.map((ms) => (
                 <Checkbox
@@ -196,7 +197,7 @@ export function ChartTypeSettingsDialog({
                 />
               ))}
             </div>
-            <Field label="Box opacity (%)">
+            <Field label={tl('Box opacity (%)')}>
               <NumberInput
                 value={st.mtf.opacity}
                 min={2}
@@ -208,9 +209,9 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'volume-histogram' && (
-          <Section title="Volume histogram">
+          <Section title={tl('Volume histogram')}>
             <SegmentedControl
-              aria-label="Colour by"
+              aria-label={tl('Colour by')}
               value={st.volumeHistogram.colorBy}
               onChange={(v) => set((x) => (x.volumeHistogram.colorBy = v))}
               options={[
@@ -218,7 +219,7 @@ export function ChartTypeSettingsDialog({
                 { value: 'volume', label: 'Volume' },
               ]}
             />
-            <Field label="Width (% of bar)">
+            <Field label={tl('Width (% of bar)')}>
               <NumberInput
                 value={st.volumeHistogram.widthPct}
                 min={20}
@@ -227,12 +228,12 @@ export function ChartTypeSettingsDialog({
               />
             </Field>
             <Checkbox
-              label="Values"
+              label={tl('Values')}
               checked={st.volumeHistogram.showValues}
               onChange={(v) => set((x) => (x.volumeHistogram.showValues = v))}
             />
             <Checkbox
-              label="Highlight max level"
+              label={tl('Highlight max level')}
               checked={st.volumeHistogram.highlightMax}
               onChange={(v) => set((x) => (x.volumeHistogram.highlightMax = v))}
             />
@@ -240,8 +241,8 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'imbalance' && (
-          <Section title="Imbalance">
-            <Field label="Ratio (%)">
+          <Section title={tl('Imbalance')}>
+            <Field label={tl('Ratio (%)')}>
               <NumberInput
                 value={st.imbalance.ratio}
                 min={101}
@@ -250,14 +251,14 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.imbalance.ratio = v))}
               />
             </Field>
-            <Field label="Minimum volume">
+            <Field label={tl('Minimum volume')}>
               <NumberInput
                 value={st.imbalance.minVolume}
                 min={0}
                 onChange={(v) => set((x) => (x.imbalance.minVolume = v))}
               />
             </Field>
-            <Field label="Stacked levels">
+            <Field label={tl('Stacked levels')}>
               <NumberInput
                 value={st.imbalance.stacked}
                 min={2}
@@ -266,7 +267,7 @@ export function ChartTypeSettingsDialog({
               />
             </Field>
             <Checkbox
-              label="Extend stacked zones until filled"
+              label={tl('Extend stacked zones until filled')}
               checked={st.imbalance.extendZones}
               onChange={(v) => set((x) => (x.imbalance.extendZones = v))}
             />
@@ -274,15 +275,15 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'onchart-liquidity' && (
-          <Section title="Liquidity heat">
-            <Field label="Gradient">
+          <Section title={tl('Liquidity heat')}>
+            <Field label={tl('Gradient')}>
               <Select
                 value={st.liquidity.gradient}
                 onChange={(v) => set((x) => (x.liquidity.gradient = v))}
                 options={Object.keys(GRADIENTS).map((g) => ({ value: g, label: g }))}
               />
             </Field>
-            <Field label="Opacity (%)">
+            <Field label={tl('Opacity (%)')}>
               <NumberInput
                 value={st.liquidity.opacity}
                 min={5}
@@ -290,7 +291,7 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.liquidity.opacity = v))}
               />
             </Field>
-            <Field label="Upper cut-off (percentile)">
+            <Field label={tl('Upper cut-off (percentile)')}>
               <NumberInput
                 value={st.liquidity.upperCut}
                 min={50}
@@ -302,8 +303,8 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'order-flow-light' && (
-          <Section title="Order Flow (Light)">
-            <Field label="Big trade bubbles ≥ (lots)">
+          <Section title={tl('Order Flow (Light)')}>
+            <Field label={tl('Big trade bubbles ≥ (lots)')}>
               <NumberInput
                 value={st.orderFlowLight.bigTrade}
                 min={0}
@@ -311,12 +312,12 @@ export function ChartTypeSettingsDialog({
               />
             </Field>
             <Checkbox
-              label="Bubbles"
+              label={tl('Bubbles')}
               checked={st.orderFlowLight.showBubbles}
               onChange={(v) => set((x) => (x.orderFlowLight.showBubbles = v))}
             />
             <Checkbox
-              label="CVD pane"
+              label={tl('CVD pane')}
               checked={st.orderFlowLight.showCvd}
               onChange={(v) => set((x) => (x.orderFlowLight.showCvd = v))}
             />
@@ -324,8 +325,8 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'cot' && (
-          <Section title="COT (CFTC Commitments of Traders)">
-            <Field label="Weekly history (years)">
+          <Section title={tl('COT (CFTC Commitments of Traders)')}>
+            <Field label={tl('Weekly history (years)')}>
               <NumberInput
                 value={st.cot.years}
                 min={1}
@@ -360,7 +361,7 @@ export function ChartTypeSettingsDialog({
               />
             ))}
             <Checkbox
-              label="Open interest"
+              label={tl('Open interest')}
               checked={st.cot.openInterest}
               onChange={(v) => set((x) => (x.cot.openInterest = v))}
             />
@@ -368,9 +369,9 @@ export function ChartTypeSettingsDialog({
         )}
 
         {kind === 'pnf' && (
-          <Section title="Point & Figure">
+          <Section title={tl('Point & Figure')}>
             <SegmentedControl
-              aria-label="P&F style"
+              aria-label={tl('P&F style')}
               value={st.pnf.style}
               onChange={(v) => set((x) => (x.pnf.style = v))}
               options={[
@@ -382,8 +383,8 @@ export function ChartTypeSettingsDialog({
         )}
 
         {kind === 'kagi' && (
-          <Section title="Kagi">
-            <Field label="Yang (thick) width">
+          <Section title={tl('Kagi')}>
+            <Field label={tl('Yang (thick) width')}>
               <NumberInput
                 value={st.kagi.yangWidth}
                 min={1}
@@ -391,7 +392,7 @@ export function ChartTypeSettingsDialog({
                 onChange={(v) => set((x) => (x.kagi.yangWidth = v))}
               />
             </Field>
-            <Field label="Yin (thin) width">
+            <Field label={tl('Yin (thin) width')}>
               <NumberInput
                 value={st.kagi.yinWidth}
                 min={1}
@@ -404,11 +405,11 @@ export function ChartTypeSettingsDialog({
 
         <div className="row gap8">
           <Button variant="ghost" onClick={() => onChange(DEFAULT_CHART_TYPE_SETTINGS)}>
-            Reset
+            {tl('Reset')}
           </Button>
           <div className="grow" />
           <Button variant="primary" onClick={() => onOpenChange(false)}>
-            Done
+            {tl('Done')}
           </Button>
         </div>
       </div>

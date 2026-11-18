@@ -7,6 +7,7 @@ import { ABOUT_LINKS } from '../modules/settings/licenses';
 import { useReportDialog } from './crash';
 import { checkForUpdates } from './updates';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export const useAbout = create<{ open: boolean; show(): void; hide(): void }>((set) => ({
   open: false,
   show: () => set({ open: true }),
@@ -28,8 +29,8 @@ export function AboutDialog() {
     <Dialog
       open={open}
       onOpenChange={(o) => (o ? undefined : hide())}
-      title="About HT Flow"
-      description="Order-flow trading platform. Local-first, MIT licence."
+      title={tl('About HT Flow')}
+      description={tl('Order-flow trading platform. Local-first, MIT licence.')}
       width={460}
     >
       <div className="col gap12 about-dlg" data-testid="about-dialog">
@@ -38,9 +39,9 @@ export function AboutDialog() {
           <div className="row gap8 center-y">
             <BrandIcon size={28} />
             <div>
-              <b>HT Flow</b> <span className="muted">v{version}</span>
+              <b>{tl('HT Flow')}</b> <span className="muted">v{version}</span>
               <div className="muted" style={{ fontSize: 11 }}>
-                Logo and brand: HANAN TRADE
+                {tl('Logo and brand: HANAN TRADE')}
               </div>
             </div>
           </div>
@@ -54,13 +55,13 @@ export function AboutDialog() {
         </div>
         <div className="row gap8">
           <Button size="sm" onClick={() => void checkForUpdates()}>
-            Check for updates
+            {tl('Check for updates')}
           </Button>
           <Button size="sm" onClick={() => useReportDialog.getState().show()}>
-            Report a problem…
+            {tl('Report a problem…')}
           </Button>
           <Button size="sm" onClick={hide}>
-            Close
+            {tl('Close')}
           </Button>
         </div>
       </div>

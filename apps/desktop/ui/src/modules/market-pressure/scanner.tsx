@@ -11,6 +11,7 @@ import { chartTargetId } from '../smart-tape/shared';
 import '../smart-tape/styles.css';
 import './scanner.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /* ------------------------------------------------------------------ shared analytics engine */
 
 const entries = new Map<string, { a: SymbolAnalytics; refs: number }>();
@@ -230,7 +231,7 @@ export function ScannerFrame({
         <span className="grow" />
         {chips}
         <div className="scan-pop-anchor" ref={ref}>
-          <IconButton label="Settings" active={open} onClick={() => setOpen((x) => !x)}>
+          <IconButton label={tl('Settings')} active={open} onClick={() => setOpen((x) => !x)}>
             <Settings2 size={13} />
           </IconButton>
           {open && <div className="scan-pop">{settings}</div>}
@@ -262,15 +263,20 @@ export function CommonSettings({
   return (
     <>
       {children}
-      <Checkbox checked={alerts} onChange={onAlerts} label="Alert (toast + sound) on new signals" />
+      <Checkbox
+        checked={alerts}
+        onChange={onAlerts}
+        label={tl('Alert (toast + sound) on new signals')}
+      />
       <div className="scan-pop-title">
-        Instruments ({ids.length}/{Math.min(all.length, MAX_SYMBOLS)})
+        {tl('Instruments (')}
+        {ids.length}/{Math.min(all.length, MAX_SYMBOLS)})
         <span className="grow" />
         <button className="link" onClick={() => onIds(all.map((i) => i.id))}>
-          All
+          {tl('All')}
         </button>
         <button className="link" onClick={() => onIds([])}>
-          None
+          {tl('None')}
         </button>
       </div>
       <div className="scan-pop-list">
@@ -290,7 +296,7 @@ export function CommonSettings({
         ))}
       </div>
       <Button size="xs" onClick={onReset}>
-        Reset to default
+        {tl('Reset to default')}
       </Button>
     </>
   );

@@ -4,6 +4,7 @@ import { MAX_FORMULA, SCRIPT_BUILTINS, previewFormula } from '@htflow/indicator-
 import { Button, Dialog, Input } from '@htflow/ui-kit';
 import { contexts } from './state';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const EXAMPLES = [
   '(close - sma(close, 20)) / stdev(close, 20)',
   'ema(delta, 10) - ema(delta, 30)',
@@ -42,7 +43,7 @@ function EditorBody({
     <div className="fe-body">
       <textarea
         className="fe-text"
-        aria-label="Formula"
+        aria-label={tl('Formula')}
         data-testid="formula-text"
         spellCheck={false}
         maxLength={MAX_FORMULA}
@@ -61,8 +62,8 @@ function EditorBody({
         <table className="fe-preview" data-testid="formula-preview">
           <thead>
             <tr>
-              <th>Bar</th>
-              <th>Value</th>
+              <th>{tl('Bar')}</th>
+              <th>{tl('Value')}</th>
             </tr>
           </thead>
           <tbody>
@@ -76,13 +77,14 @@ function EditorBody({
         </table>
       )}
       <p className="fe-ref">
-        <b>Values</b> {SCRIPT_BUILTINS.variables.join(' ')} · <code>x[n]</code> or{' '}
-        <code>ref(x, n)</code> = n bars ago
+        <b>{tl('Values')}</b> {SCRIPT_BUILTINS.variables.join(' ')} · <code>x[n]</code> {tl('or')}{' '}
+        <code>{tl('ref(x, n)')}</code> {tl('= n bars ago')}
         <br />
-        <b>Functions</b> {SCRIPT_BUILTINS.functions.join(' ')}
+        <b>{tl('Functions')}</b> {SCRIPT_BUILTINS.functions.join(' ')}
         <br />
-        <b>Operators</b> <code>+ - * / % ^ &lt; &gt; == != and or not ?:</code> · up to{' '}
-        {MAX_FORMULA} characters. Formulas are sandboxed: only bar values and the functions above.
+        <b>{tl('Operators')}</b> <code>+ - * / % ^ &lt; &gt; == != and or not ?:</code>{' '}
+        {tl('· up to')} {MAX_FORMULA}{' '}
+        {tl('characters. Formulas are sandboxed: only bar values and the functions above.')}
       </p>
       <div className="fe-examples">
         {EXAMPLES.map((ex) => (
@@ -121,26 +123,28 @@ export function FormulaInput({
         size="sm"
         variant="outline"
         data-testid="formula-edit"
-        aria-label="Edit formula"
+        aria-label={tl('Edit formula')}
         onClick={() => {
           setDraft(value);
           setOpen(true);
         }}
       >
-        <Pencil size={12} /> Edit
+        <Pencil size={12} /> {tl('Edit')}
       </Button>
       {open && (
         <Dialog
           open
           onOpenChange={setOpen}
-          title="Custom Formula"
-          description="Type an expression; it is checked and previewed on the chart's last bars as you type."
+          title={tl('Custom Formula')}
+          description={tl(
+            "Type an expression; it is checked and previewed on the chart's last bars as you type.",
+          )}
           width={620}
         >
           <EditorBody windowId={windowId} text={draft} setText={setDraft} />
           <div className="fe-actions">
             <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
+              {tl('Cancel')}
             </Button>
             <Button
               size="sm"
@@ -151,7 +155,7 @@ export function FormulaInput({
                 setOpen(false);
               }}
             >
-              Apply
+              {tl('Apply')}
             </Button>
           </div>
         </Dialog>

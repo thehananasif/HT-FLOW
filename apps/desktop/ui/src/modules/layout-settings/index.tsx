@@ -32,6 +32,7 @@ import { installLayoutEffects, LINK_SETTING } from './apply';
 import { currentMonitors, installDisplayTracking, refreshDisplay } from './display';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 installLayoutEffects();
 
 type EnumKey = {
@@ -65,7 +66,8 @@ function EnumRow({ k, label }: { k: EnumKey; label?: string }) {
       />
       {off.length > 0 && (
         <span className="ls-hint">
-          {off.map((o) => o.label.replace(/ — coming$/, '')).join(', ')}: coming
+          {off.map((o) => o.label.replace(/ — coming$/, '')).join(', ')}
+          {tl(': coming')}
         </span>
       )}
     </Row>
@@ -122,9 +124,12 @@ function RibbonRow() {
   const hidden = useSetting('layout.ribbonHidden');
   const mode = hidden ? 'hidden' : icons ? 'icons' : 'labels';
   return (
-    <Row label="Ribbon" help="Icons with labels, icons only, or hidden (modules stay in Ctrl+K).">
+    <Row
+      label={tl('Ribbon')}
+      help={tl('Icons with labels, icons only, or hidden (modules stay in Ctrl+K).')}
+    >
       <SegmentedControl<'labels' | 'icons' | 'hidden'>
-        aria-label="Ribbon"
+        aria-label={tl('Ribbon')}
         value={mode}
         onChange={(v) =>
           setSettings({
@@ -146,9 +151,12 @@ function ThemeRow() {
   const theme = useSetting('appearance.theme');
   const names = Object.keys(THEMES) as ThemeName[];
   return (
-    <Row label="Theme" help="Colour theme of the whole app (more in Settings → Appearance).">
+    <Row
+      label={tl('Theme')}
+      help={tl('Colour theme of the whole app (more in Settings → Appearance).')}
+    >
       <SegmentedControl<ThemeName>
-        aria-label="Theme"
+        aria-label={tl('Theme')}
         value={theme}
         onChange={(v) => setSetting('appearance.theme', v)}
         options={names.map((n) => ({
@@ -179,11 +187,12 @@ function LinkColorRow({ c }: { c: Exclude<LinkColor, 'none'> }) {
         onChange={(hex) => setSetting(key, hex.slice(0, 7) as never)}
       />
       <span className="ls-hint tnum">
-        {count} window{count === 1 ? '' : 's'}
+        {count} {tl('window')}
+        {count === 1 ? '' : 's'}
       </span>
       {value && (
         <Button size="xs" variant="ghost" onClick={() => setSetting(key, '' as never)}>
-          Default
+          {tl('Default')}
         </Button>
       )}
     </Row>
@@ -199,8 +208,8 @@ function Monitors() {
   const mons = currentMonitors();
   return (
     <Row
-      label="Monitors"
-      help="Screens detected now. A browser sees one screen; the desktop app lists them all."
+      label={tl('Monitors')}
+      help={tl('Screens detected now. A browser sees one screen; the desktop app lists them all.')}
     >
       <span className="ls-hint tnum" data-testid="ls-monitors">
         {mons
@@ -224,46 +233,46 @@ function LayoutSettings() {
   return (
     <div className="ls-win" data-testid="layout-settings">
       <div className="ls-scroll">
-        <Section title="Grid">
+        <Section title={tl('Grid')}>
           <BoolRow k="layout.snapToGrid" />
           <NumRow k="layout.gridSize" />
           <NumRow k="layout.gap" />
           <BoolRow k="layout.lock" />
         </Section>
-        <Section title="Headers & tabs">
+        <Section title={tl('Headers & tabs')}>
           <EnumRow k="layout.headerDensity" />
           <EnumRow k="layout.headerStyle" />
           <EnumRow k="layout.tabPosition" />
           <RibbonRow />
           <ThemeRow />
         </Section>
-        <Section title="New windows open">
-          <EnumRow k="layout.openChart" label="Chart" />
-          <EnumRow k="layout.openDom" label="DOM" />
-          <EnumRow k="layout.openTape" label="Tape" />
-          <EnumRow k="layout.openModule" label="Other windows" />
+        <Section title={tl('New windows open')}>
+          <EnumRow k="layout.openChart" label={tl('Chart')} />
+          <EnumRow k="layout.openDom" label={tl('DOM')} />
+          <EnumRow k="layout.openTape" label={tl('Tape')} />
+          <EnumRow k="layout.openModule" label={tl('Other windows')} />
           <EnumRow k="layout.detachMode" />
           <EnumRow k="layout.dockPlacement" />
           <EnumRow k="layout.floatPlacement" />
           <NumRow k="layout.newWindowWidth" />
           <NumRow k="layout.newWindowHeight" />
         </Section>
-        <Section title="Link-group colours">
+        <Section title={tl('Link-group colours')}>
           {(['red', 'green', 'blue', 'yellow', 'purple'] as const).map((c) => (
             <LinkColorRow key={c} c={c} />
           ))}
         </Section>
-        <Section title="Multi-monitor restore">
+        <Section title={tl('Multi-monitor restore')}>
           <BoolRow k="layout.restoreMonitors" />
           <EnumRow k="layout.restoreMode" />
           <Monitors />
         </Section>
       </div>
       <footer className="ls-foot">
-        <span className="muted">Saved automatically · also in Settings → Layout</span>
+        <span className="muted">{tl('Saved automatically · also in Settings → Layout')}</span>
         <span className="grow" />
         <Button size="sm" variant="ghost" onClick={() => resetSection('layout')}>
-          <RotateCcw size={12} /> Reset layout settings
+          <RotateCcw size={12} /> {tl('Reset layout settings')}
         </Button>
       </footer>
     </div>

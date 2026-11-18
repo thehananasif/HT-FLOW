@@ -30,6 +30,7 @@ import {
 } from './delivery';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Kinds the form can create (drawing alerts come from charts, indicator alerts from Indicators). */
 const KINDS: { id: AlertKind; label: string }[] = [
   { id: 'price-cross', label: 'Price crosses value' },
@@ -97,16 +98,16 @@ const readAsDataUrl = (f: File) =>
 /** Adds a local .wav / .mp3 / .ogg to the profile's sound list; returns its sound ref. */
 export async function addSoundFile(f: File): Promise<string | null> {
   if (!/^audio\//.test(f.type) && !/\.(wav|mp3|ogg|m4a)$/i.test(f.name)) {
-    toast('error', 'Not an audio file', f.name);
+    toast('error', tl('Not an audio file'), f.name);
     return null;
   }
   if (f.size > MAX_CUSTOM_SOUND_BYTES) {
-    toast('error', 'Sound file too large', 'Max 2 MB per file.');
+    toast('error', tl('Sound file too large'), tl('Max 2 MB per file.'));
     return null;
   }
   const list = getSetting('sounds.custom');
   if (list.length >= MAX_CUSTOM_SOUNDS) {
-    toast('error', 'Too many sound files', `Max ${MAX_CUSTOM_SOUNDS}.`);
+    toast('error', tl('Too many sound files'), `Max ${MAX_CUSTOM_SOUNDS}.`);
     return null;
   }
   let dataUrl = await readAsDataUrl(f);
@@ -117,10 +118,10 @@ export async function addSoundFile(f: File): Promise<string | null> {
   const id = `s${Date.now().toString(36)}`;
   const err = setSetting('sounds.custom', [...list, { id, name: f.name.slice(0, 120), dataUrl }]);
   if (err) {
-    toast('error', 'Could not add the sound', err);
+    toast('error', tl('Could not add the sound'), err);
     return null;
   }
-  toast('success', 'Sound added', `${f.name} is saved in your profile.`);
+  toast('success', tl('Sound added'), `${f.name} is saved in your profile.`);
   return `custom:${id}`;
 }
 
@@ -130,12 +131,12 @@ function SoundPicker({ value, onChange }: { value: string; onChange(v: string): 
     <div className="row gap6">
       <select
         className="ht-select ht-select--sm grow"
-        aria-label="Alert sound"
+        aria-label={tl('Alert sound')}
         data-testid="alert-sound"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">Default (Settings → Sounds → Alert)</option>
+        <option value="">{tl('Default (Settings → Sounds → Alert)')}</option>
         {BUILTIN_SOUNDS.map((s) => (
           <option key={s.id} value={s.id}>
             {s.label}
@@ -147,8 +148,11 @@ function SoundPicker({ value, onChange }: { value: string; onChange(v: string): 
           </option>
         ))}
       </select>
-      <label className="ht-btn ht-btn--outline ht-btn--xs al-file" title="Add your own sound file">
-        File…
+      <label
+        className="ht-btn ht-btn--outline ht-btn--xs al-file"
+        title={tl('Add your own sound file')}
+      >
+        {tl('File…')}
         <input
           type="file"
           accept="audio/*,.wav,.mp3,.ogg,.m4a"
@@ -161,7 +165,11 @@ function SoundPicker({ value, onChange }: { value: string; onChange(v: string): 
           }}
         />
       </label>
-      <button className="al-x" aria-label="Preview sound" onClick={() => playAlertSound(value)}>
+      <button
+        className="al-x"
+        aria-label={tl('Preview sound')}
+        onClick={() => playAlertSound(value)}
+      >
         ▶
       </button>
     </div>
@@ -189,12 +197,16 @@ function DeliveryPanel() {
       if (cfg.telegramToken) ch.push('telegram');
       if (cfg.discordWebhook) ch.push('discord');
       if (!ch.length) {
-        toast('info', 'Nothing to test', 'Enter a Telegram bot or a Discord webhook first.');
+        toast(
+          'info',
+          tl('Nothing to test'),
+          tl('Enter a Telegram bot or a Discord webhook first.'),
+        );
         return;
       }
       const errs = await deliver(ch, '🔔 HT Flow test message', { ignoreThrottle: true });
-      if (errs.length) toast('error', 'Test failed', errs.join(' · '), 8000);
-      else toast('success', 'Test sent', ch.join(' + '));
+      if (errs.length) toast('error', tl('Test failed'), errs.join(' · '), 8000);
+      else toast('success', tl('Test sent'), ch.join(' + '));
     } finally {
       setBusy(false);
     }
@@ -202,27 +214,28 @@ function DeliveryPanel() {
   return (
     <div className="al-delivery" data-testid="alert-delivery">
       <button className="al-section" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {open ? '▾' : '▸'} Delivery: Telegram / Discord
+        {open ? '▾' : '▸'} {tl('Delivery: Telegram / Discord')}
       </button>
       {open && (
         <>
           <span className="muted al-sub">
-            Free: use your own Telegram bot (@BotFather) or a Discord channel webhook. Stored
-            encrypted in your profile vault.
+            {tl(
+              'Free: use your own Telegram bot (@BotFather) or a Discord channel webhook. Stored encrypted in your profile vault.',
+            )}
           </span>
           <input
             className="ht-input al-in"
             type="password"
             autoComplete="off"
-            aria-label="Telegram bot token"
-            placeholder="Telegram bot token"
+            aria-label={tl('Telegram bot token')}
+            placeholder={tl('Telegram bot token')}
             value={cfg.telegramToken}
             onChange={(e) => set({ telegramToken: e.target.value })}
           />
           <input
             className="ht-input al-in"
-            aria-label="Telegram chat id"
-            placeholder="Telegram chat id (e.g. 123456789 or @channel)"
+            aria-label={tl('Telegram chat id')}
+            placeholder={tl('Telegram chat id (e.g. 123456789 or @channel)')}
             value={cfg.telegramChat}
             onChange={(e) => set({ telegramChat: e.target.value })}
           />
@@ -230,14 +243,16 @@ function DeliveryPanel() {
             className="ht-input al-in"
             type="password"
             autoComplete="off"
-            aria-label="Discord webhook URL"
-            placeholder="Discord webhook URL"
+            aria-label={tl('Discord webhook URL')}
+            placeholder={tl('Discord webhook URL')}
             value={cfg.discordWebhook}
             onChange={(e) => set({ discordWebhook: e.target.value })}
           />
           {isTauri && cfg.discordWebhook && (
             <span className="muted al-sub">
-              Discord from the desktop app needs a native POST command that is not shipped yet.
+              {tl(
+                'Discord from the desktop app needs a native POST command that is not shipped yet.',
+              )}
             </span>
           )}
           {errors.length > 0 && <span className="down">{errors.join(' · ')}</span>}
@@ -248,13 +263,13 @@ function DeliveryPanel() {
               disabled={errors.length > 0 || busy}
               data-testid="delivery-save"
               onClick={() =>
-                void saveDelivery(cfg).then(() => toast('success', 'Delivery settings saved'))
+                void saveDelivery(cfg).then(() => toast('success', tl('Delivery settings saved')))
               }
             >
-              Save
+              {tl('Save')}
             </Button>
             <Button size="sm" disabled={errors.length > 0 || busy} onClick={() => void test()}>
-              Send test
+              {tl('Send test')}
             </Button>
           </div>
         </>
@@ -338,7 +353,7 @@ function NewAlertForm() {
   const create = async () => {
     if (errors.length) return;
     if (actions.desktop && !(await ensureNotificationPermission()))
-      toast('warning', 'Desktop notifications are blocked', 'The other actions still run.');
+      toast('warning', tl('Desktop notifications are blocked'), tl('The other actions still run.'));
     const now = Date.now();
     const e = EXPIRY[expiry]!.ms;
     const end = new Date();
@@ -350,21 +365,21 @@ function NewAlertForm() {
       expiresAt: e === null ? null : e < 0 ? end.getTime() : now + e,
     });
     if (!r.ok) {
-      toast('error', 'Alert not created', r.errors.join(' · '));
+      toast('error', tl('Alert not created'), r.errors.join(' · '));
       return;
     }
     setValue('');
-    toast('success', 'Alert created', describe(cond));
+    toast('success', tl('Alert created'), describe(cond));
   };
   const needsValue = kind !== 'connection-lost';
   const liveOnly = kind === 'funding' || kind === 'liquidation';
   return (
     <div className="al-form" data-testid="alert-form">
-      <b>New alert</b>
-      <span className="muted">Condition type</span>
+      <b>{tl('New alert')}</b>
+      <span className="muted">{tl('Condition type')}</span>
       <select
         className="ht-select ht-select--sm"
-        aria-label="Condition type"
+        aria-label={tl('Condition type')}
         value={kind}
         onChange={(e) => setKind(e.target.value as AlertKind)}
       >
@@ -376,20 +391,22 @@ function NewAlertForm() {
       </select>
       {liveOnly && (
         <span className="muted al-sub">
-          Needs a live derivatives connection (Binance / Bybit futures …); the simulator has no{' '}
+          {tl(
+            'Needs a live derivatives connection (Binance / Bybit futures …); the simulator has no',
+          )}{' '}
           {kind === 'funding' ? 'funding' : 'liquidations'}.
         </span>
       )}
       {kind === 'connection-lost' ? (
         <label className="ht-check">
           <input type="checkbox" checked={anyConn} onChange={(e) => setAnyConn(e.target.checked)} />
-          Any connection
+          {tl('Any connection')}
         </label>
       ) : null}
       {(kind !== 'connection-lost' || !anyConn) && (
         <select
           className="ht-select ht-select--sm"
-          aria-label="Instrument"
+          aria-label={tl('Instrument')}
           value={inst}
           onChange={(e) => setInst(e.target.value)}
         >
@@ -405,44 +422,45 @@ function NewAlertForm() {
           {kind === 'price-cross' && (
             <select
               className="ht-select ht-select--sm"
-              aria-label="Direction"
+              aria-label={tl('Direction')}
               value={dir}
               onChange={(e) => setDir(e.target.value as 'up' | 'down' | 'any')}
             >
-              <option value="any">crosses</option>
-              <option value="up">crosses above</option>
-              <option value="down">crosses below</option>
+              <option value="any">{tl('crosses')}</option>
+              <option value="up">{tl('crosses above')}</option>
+              <option value="down">{tl('crosses below')}</option>
             </select>
           )}
           {kind === 'funding' && (
             <select
               className="ht-select ht-select--sm"
-              aria-label="Funding operator"
+              aria-label={tl('Funding operator')}
               value={fop}
               onChange={(e) => setFop(e.target.value as 'gte' | 'lte' | 'abs-gte')}
             >
-              <option value="abs-gte">|rate| ≥</option>
-              <option value="gte">rate ≥</option>
-              <option value="lte">rate ≤</option>
+              <option value="abs-gte">{tl('|rate| ≥')}</option>
+              <option value="gte">{tl('rate ≥')}</option>
+              <option value="lte">{tl('rate ≤')}</option>
             </select>
           )}
           {kind === 'bar-delta' && (
             <>
               <select
                 className="ht-select ht-select--sm"
-                aria-label="Bar"
+                aria-label={tl('Bar')}
                 value={barMin}
                 onChange={(e) => setBarMin(e.target.value)}
               >
                 {['1', '5', '15', '60'].map((m) => (
                   <option key={m} value={m}>
-                    {m}m bar
+                    {m}
+                    {tl('m bar')}
                   </option>
                 ))}
               </select>
               <select
                 className="ht-select ht-select--sm"
-                aria-label="Operator"
+                aria-label={tl('Operator')}
                 value={op}
                 onChange={(e) => setOp(e.target.value as 'gte' | 'lte')}
               >
@@ -454,11 +472,11 @@ function NewAlertForm() {
           {(kind === 'big-trade' || kind === 'dom-size' || kind === 'liquidation') && (
             <select
               className="ht-select ht-select--sm"
-              aria-label="Side"
+              aria-label={tl('Side')}
               value={side}
               onChange={(e) => setSide(e.target.value)}
             >
-              <option value="any">any side</option>
+              <option value="any">{tl('any side')}</option>
               <option value="buy">
                 {kind === 'dom-size' ? 'bid' : kind === 'liquidation' ? 'longs' : 'buy'}
               </option>
@@ -469,7 +487,7 @@ function NewAlertForm() {
           )}
           <input
             className="ht-input al-in grow tnum"
-            aria-label="Value"
+            aria-label={tl('Value')}
             data-testid="alert-value"
             placeholder={
               kind === 'price-cross'
@@ -487,8 +505,8 @@ function NewAlertForm() {
           {kind === 'dom-size' && (
             <input
               className="ht-input al-in tnum"
-              aria-label="Within ticks"
-              title="Within N ticks of the best price"
+              aria-label={tl('Within ticks')}
+              title={tl('Within N ticks of the best price')}
               style={{ width: 56 }}
               value={ticks}
               onChange={(e) => setTicks(e.target.value)}
@@ -499,18 +517,18 @@ function NewAlertForm() {
       {kind === 'liquidation' && (
         <select
           className="ht-select ht-select--sm"
-          aria-label="Liquidation window"
+          aria-label={tl('Liquidation window')}
           value={liqWin}
           onChange={(e) => setLiqWin(Number(e.target.value))}
         >
           {LIQ_WINDOWS.map((w) => (
             <option key={w.ms} value={w.ms}>
-              Size: {w.label}
+              {tl('Size:')} {w.label}
             </option>
           ))}
         </select>
       )}
-      <span className="muted">Actions</span>
+      <span className="muted">{tl('Actions')}</span>
       <div className="row gap6 wrap">
         {ACTIONS.map((a) => (
           <button
@@ -528,34 +546,35 @@ function NewAlertForm() {
       <div className="row gap6">
         <select
           className="ht-select ht-select--sm grow"
-          aria-label="Cooldown"
+          aria-label={tl('Cooldown')}
           value={cooldown}
           onChange={(e) => setCooldown(Number(e.target.value))}
         >
           {COOLDOWNS.map((c) => (
             <option key={c} value={c}>
-              Cooldown {c === 0 ? 'none' : c < 60_000 ? `${c / 1000} s` : `${c / 60_000} min`}
+              {tl('Cooldown')}{' '}
+              {c === 0 ? 'none' : c < 60_000 ? `${c / 1000} s` : `${c / 60_000} min`}
             </option>
           ))}
         </select>
         <select
           className="ht-select ht-select--sm grow"
-          aria-label="Expiry"
+          aria-label={tl('Expiry')}
           value={expiry}
           onChange={(e) => setExpiry(Number(e.target.value))}
         >
           {EXPIRY.map((x, k) => (
             <option key={x.label} value={k}>
-              Expires: {x.label}
+              {tl('Expires:')} {x.label}
             </option>
           ))}
         </select>
       </div>
       <label className="row gap6 center-y muted">
-        Trigger count (0 = unlimited)
+        {tl('Trigger count (0 = unlimited)')}
         <input
           className="ht-input al-in tnum"
-          aria-label="Trigger count"
+          aria-label={tl('Trigger count')}
           style={{ width: 56 }}
           value={maxTriggers}
           onChange={(e) => setMaxTriggers(e.target.value)}
@@ -569,7 +588,7 @@ function NewAlertForm() {
         onClick={() => void create()}
         data-testid="alert-create"
       >
-        Create alert
+        {tl('Create alert')}
       </Button>
       <DeliveryPanel />
     </div>
@@ -584,11 +603,13 @@ function AlertsWindow() {
   return (
     <div className="module-window al" data-testid="alerts-window">
       <div className="al-head">
-        <b>Alerts</b>
-        <span className="muted">· {active} active</span>
+        <b>{tl('Alerts')}</b>
+        <span className="muted">
+          · {active} {tl('active')}
+        </span>
         {!enabled && (
           <span className="down" data-testid="alerts-paused">
-            · paused (Settings → Alerts)
+            {tl('· paused (Settings → Alerts)')}
           </span>
         )}
       </div>
@@ -614,21 +635,26 @@ function AlertsWindow() {
               <span className="muted al-status">{statusText(a, now)}</span>
               <button
                 className="al-x"
-                aria-label="Test alert"
-                title="Run this alert's actions now"
+                aria-label={tl('Test alert')}
+                title={tl("Run this alert's actions now")}
                 onClick={() => testAlert(a.id)}
               >
                 ▶
               </button>
-              <button className="al-x" aria-label="Delete alert" onClick={() => removeAlert(a.id)}>
+              <button
+                className="al-x"
+                aria-label={tl('Delete alert')}
+                onClick={() => removeAlert(a.id)}
+              >
                 ✕
               </button>
             </div>
           ))}
           {!list.length && (
             <div className="tbl-empty">
-              No alerts yet. Create one here, right-click a chart → “Set alert at …”, or turn on
-              “Alert on cross” for a drawing.
+              {tl(
+                'No alerts yet. Create one here, right-click a chart → “Set alert at …”, or turn on “Alert on cross” for a drawing.',
+              )}
             </div>
           )}
         </div>
@@ -678,10 +704,10 @@ registerCommands([
         const ch: Channel[] = [];
         if (c.telegramToken) ch.push('telegram');
         if (c.discordWebhook) ch.push('discord');
-        if (!ch.length) return toast('info', 'Set up delivery in the Alerts window first');
+        if (!ch.length) return toast('info', tl('Set up delivery in the Alerts window first'));
         const errs = await deliver(ch, '🔔 HT Flow test message', { ignoreThrottle: true });
-        if (errs.length) toast('error', 'Test failed', errs.join(' · '), 8000);
-        else toast('success', 'Test sent', ch.join(' + '));
+        if (errs.length) toast('error', tl('Test failed'), errs.join(' · '), 8000);
+        else toast('success', tl('Test sent'), ch.join(' + '));
       }),
   },
 ]);
@@ -741,8 +767,8 @@ registerChartExtension({
             // Chart alerts keep the classic behaviour: repeat with a 30 s cool-down.
             { maxTriggers: 0, cooldownMs: 30_000 },
           );
-          if (r.ok) toast('success', 'Alert created', `${inst.symbol} price crosses ${label}`);
-          else toast('error', 'Alert not created', r.errors.join(' · '));
+          if (r.ok) toast('success', tl('Alert created'), `${inst.symbol} price crosses ${label}`);
+          else toast('error', tl('Alert not created'), r.errors.join(' · '));
         },
       },
     ];

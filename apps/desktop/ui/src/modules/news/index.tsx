@@ -36,6 +36,7 @@ import { allEvents, calendar } from '../calendar/store';
 import { Highlighted } from '../rss';
 import '../rss/styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 // ------------------------------------------------ HT Flow generated events (ref-counted service)
 
 const generated: NewsItem[] = [];
@@ -241,7 +242,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
       <div className="info-toolbar">
         <Input
           style={{ flex: 1, minWidth: 140 }}
-          placeholder="Search or keyword alert…"
+          placeholder={tl('Search or keyword alert…')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -251,7 +252,9 @@ function News({ state: win, setParams }: ModuleViewProps) {
               setQuery('');
             }
           }}
-          title="Type to filter; press Enter to add a keyword alert (toast when a new item matches)"
+          title={tl(
+            'Type to filter; press Enter to add a keyword alert (toast when a new item matches)',
+          )}
         />
         {CHIPS.map((c) => (
           <Chip key={c.id} selected={chip === c.id} onClick={() => setParams({ chip: c.id })}>
@@ -266,12 +269,12 @@ function News({ state: win, setParams }: ModuleViewProps) {
       </div>
       {alerts.length > 0 && (
         <div className="info-toolbar">
-          <span className="muted">Alerts:</span>
+          <span className="muted">{tl('Alerts:')}</span>
           {alerts.map((a) => (
             <button
               key={a}
               className="ht-chip"
-              title="Remove alert"
+              title={tl('Remove alert')}
               onClick={() => setParams({ alerts: alerts.filter((x) => x !== a) })}
             >
               {a} ×
@@ -280,7 +283,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
         </div>
       )}
       <div className="news-list">
-        {list.length === 0 && <div className="tbl-empty">No news for this filter</div>}
+        {list.length === 0 && <div className="tbl-empty">{tl('No news for this filter')}</div>}
         {list.slice(0, 300).map((i) => {
           const inst = i.symbols[0] ? instrumentForTag(i.symbols[0]) : null;
           return (
@@ -320,16 +323,16 @@ function News({ state: win, setParams }: ModuleViewProps) {
         })}
       </div>
       <div className="info-foot">
-        Sources: free public RSS you subscribe to, HT Flow metrics from open instruments (big
-        prints, delta spikes, liquidity pulls), calendar. Funding flips, OI jumps and liquidation
-        spikes need funding / OI / liquidation streams the connectors do not expose yet.{' '}
+        {tl(
+          'Sources: free public RSS you subscribe to, HT Flow metrics from open instruments (big prints, delta spikes, liquidity pulls), calendar. Funding flips, OI jumps and liquidation spikes need funding / OI / liquidation streams the connectors do not expose yet.',
+        )}{' '}
         <Button
           size="xs"
           variant="ghost"
           onClick={() => setParams({ alerts: [] })}
           disabled={!alerts.length}
         >
-          Clear alerts
+          {tl('Clear alerts')}
         </Button>
       </div>
     </div>

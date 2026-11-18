@@ -38,6 +38,7 @@ import '../../trading/commands';
 import '../../trading/trading.css';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const TABS: { value: SetupTab; label: string }[] = [
   { value: 'atm', label: 'ATM templates' },
   { value: 'accounts', label: 'Paper accounts' },
@@ -70,7 +71,7 @@ function AccountRow({ id }: { id: string }) {
           onBlur={() => {
             if (!paper.renameAccount(id, name)) setName(a.name);
           }}
-          aria-label="Account name"
+          aria-label={tl('Account name')}
         />
         <div className="muted tnum pa-id">{maskId(id)}</div>
       </td>
@@ -86,7 +87,7 @@ function AccountRow({ id }: { id: string }) {
           onChange={setStart}
           min={0}
           step={1000}
-          aria-label="Starting balance"
+          aria-label={tl('Starting balance')}
         />
       </td>
       <td>
@@ -95,7 +96,7 @@ function AccountRow({ id }: { id: string }) {
           value={currency}
           onChange={setCurrency}
           options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          aria-label="Currency"
+          aria-label={tl('Currency')}
         />
       </td>
       <td>
@@ -108,7 +109,7 @@ function AccountRow({ id }: { id: string }) {
           min={0}
           max={100}
           unit="T"
-          aria-label="Slippage ticks"
+          aria-label={tl('Slippage ticks')}
         />
       </td>
       <td className="pa-actions">
@@ -125,7 +126,7 @@ function AccountRow({ id }: { id: string }) {
             ]).then((ok) => ok && paper.setStartingBalance(id, start, currency))
           }
         >
-          Apply
+          {tl('Apply')}
         </Button>
         <Button
           size="sm"
@@ -134,7 +135,7 @@ function AccountRow({ id }: { id: string }) {
               paper.resetAccount(id);
           }}
         >
-          Reset
+          {tl('Reset')}
         </Button>
         <Button
           size="sm"
@@ -144,7 +145,7 @@ function AccountRow({ id }: { id: string }) {
             if (window.confirm(`Delete ${a.name}? This cannot be undone.`)) deletePaperAccount(id);
           }}
         >
-          Delete
+          {tl('Delete')}
         </Button>
       </td>
     </tr>
@@ -162,11 +163,11 @@ function AccountsTab() {
       <table className="pa-table">
         <thead>
           <tr>
-            <th>Account</th>
-            <th>Balance</th>
-            <th>Starting balance</th>
-            <th>Currency</th>
-            <th>Slippage</th>
+            <th>{tl('Account')}</th>
+            <th>{tl('Balance')}</th>
+            <th>{tl('Starting balance')}</th>
+            <th>{tl('Currency')}</th>
+            <th>{tl('Slippage')}</th>
             <th />
           </tr>
         </thead>
@@ -185,40 +186,41 @@ function AccountsTab() {
             start,
             currency,
           );
-          toast('success', 'Paper account created', a.name);
+          toast('success', tl('Paper account created'), a.name);
           setName('');
         }}
       >
-        <b>New account</b>
+        <b>{tl('New account')}</b>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
-          aria-label="New account name"
+          placeholder={tl('Name')}
+          aria-label={tl('New account name')}
         />
         <NumberInput
           value={start}
           onChange={setStart}
           min={0}
           step={1000}
-          aria-label="New starting balance"
+          aria-label={tl('New starting balance')}
         />
         <Select
           small
           value={currency}
           onChange={setCurrency}
           options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          aria-label="New account currency"
+          aria-label={tl('New account currency')}
         />
         <Button type="submit" variant="primary" data-testid="create-paper-account">
-          Create
+          {tl('Create')}
         </Button>
       </form>
       {replay.length > 0 && (
         <p className="muted pa-note">
-          Replay instruments always trade {replay.map((a) => a.name).join(', ')} (routed
-          automatically). Broker accounts appear here once a broker connector is added; none is
-          available yet.
+          {tl('Replay instruments always trade')} {replay.map((a) => a.name).join(', ')}{' '}
+          {tl(
+            '(routed automatically). Broker accounts appear here once a broker connector is added; none is available yet.',
+          )}
         </p>
       )}
     </div>
@@ -232,8 +234,9 @@ function ConfirmTab() {
   return (
     <div className="pa-tab">
       <p className="muted">
-        Ask before sending these actions. Lock trading (Ctrl+L / DOM lock) disables all order
-        buttons.
+        {tl(
+          'Ask before sending these actions. Lock trading (Ctrl+L / DOM lock) disables all order buttons.',
+        )}
       </p>
       <div className="cf-grid">
         {CONFIRM_KINDS.map((k) => (
@@ -256,7 +259,7 @@ function ConfirmTab() {
             })
           }
         >
-          Confirm everything
+          {tl('Confirm everything')}
         </Button>
         <Button
           size="sm"
@@ -268,7 +271,7 @@ function ConfirmTab() {
             })
           }
         >
-          Confirm nothing
+          {tl('Confirm nothing')}
         </Button>
       </div>
     </div>
@@ -294,7 +297,7 @@ function ChartTab() {
             className="ot-link"
             onClick={() => setChartPrefs({ [k]: '' } as Partial<ChartTradingPrefs>)}
           >
-            Theme default
+            {tl('Theme default')}
           </button>
         )}
       </div>
@@ -324,18 +327,18 @@ function ChartTab() {
         {color('tpColor', 'Take profit', t.up)}
         {color('positionColor', 'Position', t.info)}
         <div className="atm-row">
-          <span>Line width</span>
+          <span>{tl('Line width')}</span>
           <NumberInput
             value={chart.lineWidth}
             onChange={(v) => setChartPrefs({ lineWidth: v })}
             min={1}
             max={4}
             unit="px"
-            aria-label="Line width"
+            aria-label={tl('Line width')}
           />
         </div>
         <div className="atm-row">
-          <span>Line style</span>
+          <span>{tl('Line style')}</span>
           <Select
             small
             value={chart.lineStyle}
@@ -345,11 +348,11 @@ function ChartTab() {
               { value: 'dashed', label: 'Dashed' },
               { value: 'dotted', label: 'Dotted' },
             ]}
-            aria-label="Line style"
+            aria-label={tl('Line style')}
           />
         </div>
         <div className="atm-row">
-          <span>Labels</span>
+          <span>{tl('Labels')}</span>
           <Select
             small
             value={chart.labelSide}
@@ -358,34 +361,34 @@ function ChartTab() {
               { value: 'left', label: 'Left' },
               { value: 'right', label: 'Right' },
             ]}
-            aria-label="Label side"
+            aria-label={tl('Label side')}
           />
         </div>
         <div className="atm-row">
-          <span>Marker size</span>
+          <span>{tl('Marker size')}</span>
           <NumberInput
             value={chart.markerSize}
             onChange={(v) => setChartPrefs({ markerSize: v })}
             min={3}
             max={16}
             unit="px"
-            aria-label="Marker size"
+            aria-label={tl('Marker size')}
           />
         </div>
         <div className="atm-row">
-          <span>Max markers</span>
+          <span>{tl('Max markers')}</span>
           <NumberInput
             value={chart.maxMarkers}
             onChange={(v) => setChartPrefs({ maxMarkers: v })}
             min={0}
             max={5000}
             step={50}
-            aria-label="Max markers"
+            aria-label={tl('Max markers')}
           />
         </div>
       </div>
       <Button size="sm" onClick={() => setPrefs({ chart: { ...DEFAULT_CHART_PREFS } })}>
-        Reset to defaults
+        {tl('Reset to defaults')}
       </Button>
     </div>
   );

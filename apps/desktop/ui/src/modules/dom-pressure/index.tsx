@@ -16,6 +16,7 @@ import {
   type ScanColumn,
 } from '../market-pressure/scanner';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 interface Row {
   key: string;
   sym: string;
@@ -161,7 +162,7 @@ function DomPressure({ state, setParams }: ModuleViewProps) {
           }
         >
           <label>
-            Pull flash when a side drops by more than (%)
+            {tl('Pull flash when a side drops by more than (%)')}
             <Input
               type="number"
               min={5}
@@ -171,7 +172,7 @@ function DomPressure({ state, setParams }: ModuleViewProps) {
             />
           </label>
           <label>
-            Tint rows when |imbalance| above (%)
+            {tl('Tint rows when |imbalance| above (%)')}
             <Input
               type="number"
               min={5}

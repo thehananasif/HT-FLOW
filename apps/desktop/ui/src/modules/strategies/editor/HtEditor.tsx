@@ -61,6 +61,7 @@ import {
 import { WorkerTransport } from './workerTransport';
 import './editor.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type ResultTab = 'problems' | 'summary' | 'equity' | 'plots' | 'trades' | 'log' | 'runs';
 
 export interface EditorSettings {
@@ -308,9 +309,9 @@ export function HtEditor({
     if (state.phase !== 'idle') return;
     if (!compiled.project) {
       set({ rtab: 'problems' });
-      return toast('error', 'Fix the errors first', `${errors} error(s) in the code`);
+      return toast('error', tl('Fix the errors first'), `${errors} error(s) in the code`);
     }
-    if (!inst) return toast('error', 'No instrument with history');
+    if (!inst) return toast('error', tl('No instrument with history'));
     set({ phase: 'loading', progress: 0, runtime: null });
     let t: WorkerTransport | null = null;
     try {
@@ -354,7 +355,7 @@ export function HtEditor({
             }
           : null,
       });
-      if (e) toast('error', 'Strategy error', e.message);
+      if (e) toast('error', tl('Strategy error'), e.message);
     } catch (err) {
       const e = err as { message?: string; line?: number; file?: string; column?: number };
       set({
@@ -368,14 +369,14 @@ export function HtEditor({
           severity: 'error',
         },
       });
-      toast('error', 'Backtest failed', e.message ?? String(err));
+      toast('error', tl('Backtest failed'), e.message ?? String(err));
     } finally {
       t?.dispose();
     }
   };
 
   const startRun = async (mode: 'paper' | 'live', router?: LiveOrderRouter) => {
-    if (!compiled.project) return toast('error', 'Fix the errors first');
+    if (!compiled.project) return toast('error', tl('Fix the errors first'));
     if (!inst) return;
     set({ rtab: 'runs' });
     const run = await scriptRuns.start({
@@ -423,7 +424,7 @@ export function HtEditor({
       open(proj);
       toast('success', `Imported ${proj.name}`);
     } catch (e) {
-      toast('error', 'Import failed', e instanceof Error ? e.message : String(e));
+      toast('error', tl('Import failed'), e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -486,7 +487,7 @@ export function HtEditor({
     );
     if (!name || name === project.files[i]!.name) return;
     if (!validFileName(name) || project.files.some((f) => f.name === name))
-      return toast('error', 'Invalid or duplicate file name');
+      return toast('error', tl('Invalid or duplicate file name'));
     setProject({ ...project, files: project.files.map((f, j) => (j === i ? { ...f, name } : f)) });
   };
 
@@ -503,16 +504,16 @@ export function HtEditor({
 
   return (
     <div className="hte" data-testid="ht-editor">
-      <aside className="hte-side" aria-label="My strategies">
+      <aside className="hte-side" aria-label={tl('My strategies')}>
         <div className="hte-side-head">
-          <b>My strategies</b>
+          <b>{tl('My strategies')}</b>
           <Button size="xs" variant="ghost" onClick={() => newStrategy()} data-testid="hte-new">
-            New
+            {tl('New')}
           </Button>
         </div>
         <Select
           small
-          aria-label="Templates"
+          aria-label={tl('Templates')}
           value=""
           options={[
             { value: '', label: 'New from template…' },
@@ -543,14 +544,14 @@ export function HtEditor({
               </button>
             </li>
           ))}
-          {!scripts.length && <li className="stg-muted">Nothing saved yet.</li>}
+          {!scripts.length && <li className="stg-muted">{tl('Nothing saved yet.')}</li>}
         </ul>
         <div className="hte-side-foot">
           <Button size="xs" variant="ghost" onClick={() => fileInput.current?.click()}>
-            Import .htstrat
+            {tl('Import .htstrat')}
           </Button>
           <Button size="xs" variant="ghost" onClick={exportFile}>
-            Export
+            {tl('Export')}
           </Button>
           <input
             ref={fileInput}
@@ -570,14 +571,14 @@ export function HtEditor({
       <section className="hte-main">
         <div className="hte-toolbar">
           <Input
-            aria-label="Strategy name"
+            aria-label={tl('Strategy name')}
             className="hte-name"
             value={project.name}
             onChange={(e) => setProject({ ...project, name: e.target.value.slice(0, 80) })}
           />
-          {dirty && <span className="stg-muted">unsaved</span>}
+          {dirty && <span className="stg-muted">{tl('unsaved')}</span>}
           <Button size="xs" onClick={save} data-testid="hte-save">
-            Save
+            {tl('Save')}
           </Button>
           <span className="grow" />
           <Badge kind={errors ? 'error' : 'default'}>
@@ -595,10 +596,10 @@ export function HtEditor({
               : 'Backtest'}
           </Button>
           <Button size="xs" onClick={() => void startRun('paper')} data-testid="hte-paper">
-            Paper
+            {tl('Paper')}
           </Button>
           <Button size="xs" onClick={() => setArmOpen(true)} data-testid="hte-live">
-            Live…
+            {tl('Live…')}
           </Button>
           <Button
             size="xs"
@@ -610,21 +611,21 @@ export function HtEditor({
             }}
             data-testid="hte-vps"
           >
-            Deploy to my VPS
+            {tl('Deploy to my VPS')}
           </Button>
           <Button size="xs" variant="ghost" onClick={stopAll}>
-            Stop
+            {tl('Stop')}
           </Button>
           <button
             className="hte-kill"
             onClick={kill}
             data-testid="hte-kill"
-            title="Stop every strategy and flatten"
+            title={tl('Stop every strategy and flatten')}
           >
-            KILL
+            {tl('KILL')}
           </button>
         </div>
-        <div className="hte-files" role="tablist" aria-label="Files">
+        <div className="hte-files" role="tablist" aria-label={tl('Files')}>
           {project.files.map((f, i) => (
             <button
               key={f.name}
@@ -633,7 +634,7 @@ export function HtEditor({
               className="hte-file"
               onClick={() => set({ file: i })}
               onDoubleClick={() => renameFile(i)}
-              title="Double-click to rename"
+              title={tl('Double-click to rename')}
             >
               {f.name}
               {i > 0 && (
@@ -651,7 +652,7 @@ export function HtEditor({
               )}
             </button>
           ))}
-          <button className="hte-file" onClick={addFile} aria-label="Add file">
+          <button className="hte-file" onClick={addFile} aria-label={tl('Add file')}>
             +
           </button>
         </div>
@@ -697,12 +698,12 @@ export function HtEditor({
                     {d.message}
                   </li>
                 ))}
-                {!diagnostics.length && <li className="stg-muted">No problems.</li>}
+                {!diagnostics.length && <li className="stg-muted">{tl('No problems.')}</li>}
               </ul>
             ) : state.rtab === 'runs' ? (
               <RunsPanel runs={myRuns} logRun={logRun} setLogRun={setLogRun} />
             ) : !res ? (
-              <p className="stg-muted">Run a backtest to see results.</p>
+              <p className="stg-muted">{tl('Run a backtest to see results.')}</p>
             ) : state.rtab === 'summary' ? (
               <Summary r={res.result} />
             ) : state.rtab === 'equity' ? (
@@ -734,8 +735,8 @@ export function HtEditor({
         </div>
       </section>
 
-      <aside className="hte-settings" aria-label="Strategy settings">
-        <div className="stg-subhead">Parameters</div>
+      <aside className="hte-settings" aria-label={tl('Strategy settings')}>
+        <div className="stg-subhead">{tl('Parameters')}</div>
         {desc ? (
           Object.keys(defs).length ? (
             <InputsForm
@@ -745,20 +746,20 @@ export function HtEditor({
               testId="hte-params"
             />
           ) : (
-            <p className="stg-muted">No params exported.</p>
+            <p className="stg-muted">{tl('No params exported.')}</p>
           )
         ) : (
           <p className="stg-muted">
             {compiled.project ? 'Reading the strategy…' : 'Fix the errors to see the parameters.'}
           </p>
         )}
-        <div className="stg-subhead">Data</div>
+        <div className="stg-subhead">{tl('Data')}</div>
         <div className="stg-inputs">
           <label className="stg-input-row">
-            <span>Instrument</span>
+            <span>{tl('Instrument')}</span>
             <Select
               small
-              aria-label="Instrument"
+              aria-label={tl('Instrument')}
               value={settings.data.instrumentId}
               options={instruments.map((i) => ({
                 value: i.id,
@@ -770,19 +771,19 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Day (UTC)</span>
+            <span>{tl('Day (UTC)')}</span>
             <input
               type="date"
               className="ht-input"
-              aria-label="Day"
+              aria-label={tl('Day')}
               value={settings.data.day || new Date(range.from).toISOString().slice(0, 10)}
               onChange={(e) => setSettings({ data: { ...settings.data, day: e.target.value } })}
             />
           </label>
           <label className="stg-input-row">
-            <span>From hour</span>
+            <span>{tl('From hour')}</span>
             <NumberInput
-              aria-label="From hour"
+              aria-label={tl('From hour')}
               value={settings.data.fromHour}
               min={0}
               max={23}
@@ -791,9 +792,9 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Length</span>
+            <span>{tl('Length')}</span>
             <NumberInput
-              aria-label="Hours"
+              aria-label={tl('Hours')}
               value={settings.data.hours}
               min={1}
               max={720}
@@ -802,10 +803,10 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Bars</span>
+            <span>{tl('Bars')}</span>
             <Select
               small
-              aria-label="Bars"
+              aria-label={tl('Bars')}
               value={settings.bars}
               options={[
                 { value: '', label: `Script (${desc?.timeframe ?? '5m'})` },
@@ -815,9 +816,9 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Commission</span>
+            <span>{tl('Commission')}</span>
             <NumberInput
-              aria-label="Commission per side"
+              aria-label={tl('Commission per side')}
               value={settings.commissionPerUnit}
               min={0}
               max={1000}
@@ -827,9 +828,9 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Slippage</span>
+            <span>{tl('Slippage')}</span>
             <NumberInput
-              aria-label="Slippage"
+              aria-label={tl('Slippage')}
               value={settings.slippageTicks}
               min={0}
               max={100}
@@ -838,12 +839,12 @@ export function HtEditor({
             />
           </label>
         </div>
-        <div className="stg-subhead">Risk limits</div>
+        <div className="stg-subhead">{tl('Risk limits')}</div>
         <div className="stg-inputs">
           <label className="stg-input-row">
-            <span>Max order qty</span>
+            <span>{tl('Max order qty')}</span>
             <NumberInput
-              aria-label="Max order quantity"
+              aria-label={tl('Max order quantity')}
               value={settings.maxOrderQty}
               min={0.0001}
               max={1e6}
@@ -851,9 +852,9 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Max position</span>
+            <span>{tl('Max position')}</span>
             <NumberInput
-              aria-label="Max position"
+              aria-label={tl('Max position')}
               value={settings.maxPosition}
               min={0.0001}
               max={1e6}
@@ -861,9 +862,9 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>Daily loss</span>
+            <span>{tl('Daily loss')}</span>
             <NumberInput
-              aria-label="Daily loss limit"
+              aria-label={tl('Daily loss limit')}
               value={settings.dailyLoss}
               min={0}
               max={1e9}
@@ -872,9 +873,9 @@ export function HtEditor({
             />
           </label>
           <label className="stg-input-row">
-            <span>CPU budget</span>
+            <span>{tl('CPU budget')}</span>
             <NumberInput
-              aria-label="CPU budget per callback"
+              aria-label={tl('CPU budget per callback')}
               value={settings.budgetMs}
               min={10}
               max={5000}
@@ -917,11 +918,11 @@ function RunsPanel({
   return (
     <div className="hte-runs" data-testid="hte-runs">
       <Table<ScriptRun>
-        aria-label="Strategy runs"
+        aria-label={tl('Strategy runs')}
         height={150}
         rows={runs}
         rowId={(r) => r.id}
-        empty="No strategy runs. Use Paper or Live… to start one."
+        empty={tl('No strategy runs. Use Paper or Live… to start one.')}
         onRowActivate={(r) => setLogRun(r.id)}
         columns={[
           { key: 'name', header: 'Strategy', width: 140, render: (r) => r.name },
@@ -929,7 +930,7 @@ function RunsPanel({
             key: 'mode',
             header: 'Mode',
             width: 60,
-            render: (r) => (r.mode === 'live' ? <b className="down">LIVE</b> : 'Paper'),
+            render: (r) => (r.mode === 'live' ? <b className="down">{tl('LIVE')}</b> : 'Paper'),
           },
           {
             key: 'inst',
@@ -982,15 +983,15 @@ function RunsPanel({
               <span className="stg-row-actions">
                 {r.status === 'running' || r.status === 'starting' ? (
                   <Button size="xs" variant="secondary" onClick={() => scriptRuns.stop(r.id)}>
-                    Stop
+                    {tl('Stop')}
                   </Button>
                 ) : (
                   <Button size="xs" variant="ghost" onClick={() => scriptRuns.remove(r.id)}>
-                    Remove
+                    {tl('Remove')}
                   </Button>
                 )}
                 <Button size="xs" variant="ghost" onClick={() => setLogRun(r.id)}>
-                  Logs
+                  {tl('Logs')}
                 </Button>
               </span>
             ),
@@ -1078,7 +1079,12 @@ function PlotCanvas({ res }: { res: ScriptBacktestResult }) {
     [res],
   );
   return (
-    <canvas ref={ref} className="stg-canvas" aria-label="Strategy plots" data-testid="hte-plots" />
+    <canvas
+      ref={ref}
+      className="stg-canvas"
+      aria-label={tl('Strategy plots')}
+      data-testid="hte-plots"
+    />
   );
 }
 
@@ -1101,22 +1107,26 @@ function ArmDialog({
   const [ack, setAck] = useState(false);
   const router = routers.find((r) => r.id === routerId);
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} title="Arm live trading" width={440}>
+    <Dialog open onOpenChange={(o) => !o && onClose()} title={tl('Arm live trading')} width={440}>
       <div className="stg-form" data-testid="hte-arm-dialog">
         <div className="stg-banner" role="note">
-          <b>Real orders.</b> The strategy will send orders to your broker / exchange account. Every
-          order is validated, then checked by the risk engine. The KILL button stops every strategy
-          and flattens.
+          <b>{tl('Real orders.')}</b>{' '}
+          {tl(
+            'The strategy will send orders to your broker / exchange account. Every order is validated, then checked by the risk engine. The KILL button stops every strategy and flattens.',
+          )}
         </div>
         {routers.length === 0 ? (
           <p className="down" data-testid="hte-no-live">
-            No connected account supports live order routing for {symbol || 'this instrument'} yet.
-            Live trading needs a broker / exchange trading connector (see BLOCKERS). Use Paper.
+            {tl('No connected account supports live order routing for')}{' '}
+            {symbol || 'this instrument'}{' '}
+            {tl(
+              'yet. Live trading needs a broker / exchange trading connector (see BLOCKERS). Use Paper.',
+            )}
           </p>
         ) : (
           <>
             <label className="stg-input-row">
-              <span>Account</span>
+              <span>{tl('Account')}</span>
               <Select
                 small
                 value={routerId}
@@ -1125,15 +1135,23 @@ function ArmDialog({
               />
             </label>
             <ul className="tnum">
-              <li>Max order qty: {settings.maxOrderQty}</li>
-              <li>Max position: {settings.maxPosition}</li>
-              <li>Daily loss limit (account rules): see the Risk module</li>
-              <li>CPU budget per callback: {settings.budgetMs} ms</li>
+              <li>
+                {tl('Max order qty:')} {settings.maxOrderQty}
+              </li>
+              <li>
+                {tl('Max position:')} {settings.maxPosition}
+              </li>
+              <li>{tl('Daily loss limit (account rules): see the Risk module')}</li>
+              <li>
+                {tl('CPU budget per callback:')} {settings.budgetMs} {tl('ms')}
+              </li>
             </ul>
             <label className="stg-input-row">
-              <span>Type {symbol} to arm</span>
+              <span>
+                {tl('Type')} {symbol} {tl('to arm')}
+              </span>
               <Input
-                aria-label="Confirm symbol"
+                aria-label={tl('Confirm symbol')}
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
               />
@@ -1141,14 +1159,14 @@ function ArmDialog({
             <Checkbox
               checked={ack}
               onChange={setAck}
-              label="I understand this strategy trades real money"
+              label={tl('I understand this strategy trades real money')}
             />
           </>
         )}
         <div className="stg-dialog-foot">
           <span className="grow" />
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -1156,7 +1174,7 @@ function ArmDialog({
             onClick={() => router && onArm(router)}
             data-testid="hte-arm-go"
           >
-            Arm and start
+            {tl('Arm and start')}
           </Button>
         </div>
       </div>

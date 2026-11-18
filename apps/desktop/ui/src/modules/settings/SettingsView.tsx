@@ -77,6 +77,7 @@ import {
   TokensEditor,
 } from './editors';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const ICONS: Record<SectionId, ReactNode> = {
   general: <Settings2 size={15} />,
   appearance: <Palette size={15} />,
@@ -239,7 +240,7 @@ function ColorControl({
       <input
         className="ht-input st-hex"
         aria-label={label}
-        placeholder="Theme"
+        placeholder={tl('Theme')}
         spellCheck={false}
         value={text}
         onChange={(e) => {
@@ -270,19 +271,21 @@ function Row({
     <div className="st-row" data-testid={`setting-${k}`}>
       <span className="st-row-label">
         <span className="st-dot-slot">
-          {modified && <span className="st-mod" title="Modified" />}
+          {modified && <span className="st-mod" title={tl('Modified')} />}
         </span>
         {d.label}
         {d.restartRequired && (
           <em className="st-restart" data-testid={`restart-note-${k}`}>
-            restart required
+            {tl('restart required')}
           </em>
         )}
         <Tooltip
           content={
             <span className="st-tip">
               {d.help}
-              {d.wired === false && <em> Stored; the module that uses it is not built yet.</em>}
+              {d.wired === false && (
+                <em> {tl('Stored; the module that uses it is not built yet.')}</em>
+              )}
             </span>
           }
         >
@@ -297,7 +300,7 @@ function Row({
           <button
             className="ht-icon-btn"
             aria-label={`Reset ${d.label}`}
-            title="Reset to default"
+            title={tl('Reset to default')}
             onClick={() => onChange(k, defaults[k])}
           >
             <RotateCcw size={12} />
@@ -378,7 +381,7 @@ export function SettingsView({
 
   const apply = () => {
     if (hasErrors) {
-      toast('error', 'Fix the highlighted settings first');
+      toast('error', tl('Fix the highlighted settings first'));
       return false;
     }
     const patch: Partial<Record<SettingKey, unknown>> = {};
@@ -485,7 +488,7 @@ export function SettingsView({
               variant="outline"
               onClick={() => download(`htflow-theme-${fileStamp()}.json`, themeFile(draft))}
             >
-              <Download size={13} /> Export theme
+              <Download size={13} /> {tl('Export theme')}
             </Button>
             <Button
               size="sm"
@@ -493,13 +496,13 @@ export function SettingsView({
               onClick={() =>
                 pickJson((t) => {
                   const r = parseThemeFile(t);
-                  if (!r) return toast('error', 'Not an HT Flow theme file');
+                  if (!r) return toast('error', tl('Not an HT Flow theme file'));
                   for (const [k, v] of Object.entries(r)) change(k as SettingKey, v);
-                  toast('success', 'Theme loaded', 'Press Apply to keep it.');
+                  toast('success', tl('Theme loaded'), tl('Press Apply to keep it.'));
                 })
               }
             >
-              <Upload size={13} /> Import theme
+              <Upload size={13} /> {tl('Import theme')}
             </Button>
           </>
         );
@@ -518,7 +521,7 @@ export function SettingsView({
                 })
               }
             >
-              <Download size={13} /> Export hot keys
+              <Download size={13} /> {tl('Export hot keys')}
             </Button>
             <Button
               size="sm"
@@ -530,14 +533,14 @@ export function SettingsView({
                     if (j?.kind !== 'htflow-hotkeys') throw new Error();
                     change('hotkeys.bindings', j.bindings);
                     if (j.preset) change('hotkeys.preset', j.preset);
-                    toast('success', 'Hot keys loaded', 'Press Apply to keep them.');
+                    toast('success', tl('Hot keys loaded'), tl('Press Apply to keep them.'));
                   } catch {
-                    toast('error', 'Not an HT Flow hot keys file');
+                    toast('error', tl('Not an HT Flow hot keys file'));
                   }
                 })
               }
             >
-              <Upload size={13} /> Import hot keys
+              <Upload size={13} /> {tl('Import hot keys')}
             </Button>
           </>
         );
@@ -549,10 +552,14 @@ export function SettingsView({
               variant="outline"
               onClick={() => {
                 clearLocalCaches();
-                toast('success', 'Cache cleared', 'Market data caches are rebuilt from the feeds.');
+                toast(
+                  'success',
+                  tl('Cache cleared'),
+                  tl('Market data caches are rebuilt from the feeds.'),
+                );
               }}
             >
-              Clear cache
+              {tl('Clear cache')}
             </Button>
             <Button
               size="sm"
@@ -560,7 +567,7 @@ export function SettingsView({
               data-testid="settings-backup-now"
               onClick={() => void runBackupNow()}
             >
-              Back up now
+              {tl('Back up now')}
             </Button>
             <Button
               size="sm"
@@ -568,7 +575,7 @@ export function SettingsView({
               data-testid="settings-open-backups"
               onClick={() => void runOpenBackupsFolder()}
             >
-              Open backups folder
+              {tl('Open backups folder')}
             </Button>
             <Button
               size="sm"
@@ -576,13 +583,13 @@ export function SettingsView({
               onClick={() =>
                 toast(
                   'info',
-                  'Settings folder',
+                  tl('Settings folder'),
                   `%APPDATA%\\HTFlow\\profiles\\${session?.profileId ?? '<profile>'}\\settings.bin (encrypted). Opening Explorer needs the native shell command (not available yet).`,
                   8000,
                 )
               }
             >
-              Open settings folder
+              {tl('Open settings folder')}
             </Button>
           </>
         );
@@ -595,20 +602,24 @@ export function SettingsView({
               data-testid="privacy-clear-cache"
               onClick={() => {
                 clearLocalCaches();
-                toast('success', 'Caches cleared', 'Session and market-data caches were deleted.');
+                toast(
+                  'success',
+                  tl('Caches cleared'),
+                  tl('Session and market-data caches were deleted.'),
+                );
               }}
             >
-              Clear caches
+              {tl('Clear caches')}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => {
                 clearLog();
-                toast('success', 'Logs cleared', 'The in-memory log was emptied.');
+                toast('success', tl('Logs cleared'), tl('The in-memory log was emptied.'));
               }}
             >
-              Clear logs
+              {tl('Clear logs')}
             </Button>
             <Button
               size="sm"
@@ -625,11 +636,15 @@ export function SettingsView({
                   resetAllSettings();
                   dirtyRef.current = false;
                   setDraft(getSettings());
-                  toast('success', 'Settings reset', 'All settings are back to their defaults.');
+                  toast(
+                    'success',
+                    tl('Settings reset'),
+                    tl('All settings are back to their defaults.'),
+                  );
                 })
               }
             >
-              Reset all settings…
+              {tl('Reset all settings…')}
             </Button>
           </>
         );
@@ -641,7 +656,7 @@ export function SettingsView({
             data-testid="settings-open-logs"
             onClick={() => void runOpenLogFolder()}
           >
-            Open log folder
+            {tl('Open log folder')}
           </Button>
         );
       default:
@@ -651,7 +666,7 @@ export function SettingsView({
 
   return (
     <div className="st-root" data-testid="settings-window" ref={rootRef}>
-      <nav className="st-nav" aria-label="Settings sections">
+      <nav className="st-nav" aria-label={tl('Settings sections')}>
         {SECTIONS.map((s) => (
           <button
             key={s.id}
@@ -664,7 +679,9 @@ export function SettingsView({
           >
             {ICONS[s.id]}
             <span className="grow">{s.label}</span>
-            {sectionModified(s.id) && <span className="st-mod" title="Has modified settings" />}
+            {sectionModified(s.id) && (
+              <span className="st-mod" title={tl('Has modified settings')} />
+            )}
           </button>
         ))}
         <div className="grow" />
@@ -677,7 +694,7 @@ export function SettingsView({
               download(`htflow-settings-${fileStamp()}.json`, exportSettings(getSettings()))
             }
           >
-            <Download size={12} /> Export all settings
+            <Download size={12} /> {tl('Export all settings')}
           </Button>
           <Button
             size="xs"
@@ -685,7 +702,7 @@ export function SettingsView({
             onClick={() =>
               pickJson((t) => {
                 const pre = parseSettingsFile(t);
-                if (!pre.applied) return toast('error', 'Import failed', pre.errors[0]);
+                if (!pre.applied) return toast('error', tl('Import failed'), pre.errors[0]);
                 const r = importSettings(t);
                 dirtyRef.current = false;
                 setDraft(getSettings());
@@ -699,7 +716,7 @@ export function SettingsView({
               })
             }
           >
-            <Upload size={12} /> Import settings…
+            <Upload size={12} /> {tl('Import settings…')}
           </Button>
         </div>
       </nav>
@@ -711,16 +728,16 @@ export function SettingsView({
               size="xs"
               variant="ghost"
               onClick={resetPage}
-              title="Reset every setting on this page to its default"
+              title={tl('Reset every setting on this page to its default')}
             >
-              <RotateCcw size={12} /> Reset section
+              <RotateCcw size={12} /> {tl('Reset section')}
             </Button>
           )}
         </div>
         <input
           className="ht-input st-search"
-          placeholder="Search all settings…"
-          aria-label="Search settings"
+          placeholder={tl('Search all settings…')}
+          aria-label={tl('Search settings')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -749,7 +766,7 @@ export function SettingsView({
                         <span className="st-row-label">{settingDef(k).label}</span>
                         <span className="st-row-ctl">
                           <Button size="xs" onClick={() => (setSection(s.id), setQuery(''))}>
-                            Open
+                            {tl('Open')}
                           </Button>
                         </span>
                       </div>
@@ -757,7 +774,10 @@ export function SettingsView({
                 </div>
               ))
             ) : (
-              <div className="tbl-empty">No settings match “{query}”</div>
+              <div className="tbl-empty">
+                {tl('No settings match “')}
+                {query}”
+              </div>
             )
           ) : (
             <>
@@ -765,8 +785,8 @@ export function SettingsView({
                 <div className="st-appearance-top">
                   <ThemePreview draft={draft} />
                   <label className="row gap8 center-y">
-                    <Toggle label="Live preview" checked={preview} onChange={setPreview} /> Live
-                    preview
+                    <Toggle label={tl('Live preview')} checked={preview} onChange={setPreview} />{' '}
+                    {tl('Live preview')}
                   </label>
                 </div>
               )}
@@ -774,7 +794,7 @@ export function SettingsView({
                 <div className="row gap8 center-y st-hk-tools">
                   <select
                     className="ht-select ht-select--sm"
-                    aria-label="Hot key preset"
+                    aria-label={tl('Hot key preset')}
                     value={draft['hotkeys.preset']}
                     onChange={(e) => change('hotkeys.preset', e.target.value)}
                   >
@@ -793,12 +813,12 @@ export function SettingsView({
                       )
                     }
                   >
-                    Apply preset
+                    {tl('Apply preset')}
                   </Button>
                   <input
                     className="ht-input st-hk-filter"
-                    placeholder="Filter commands…"
-                    aria-label="Filter commands"
+                    placeholder={tl('Filter commands…')}
+                    aria-label={tl('Filter commands')}
                     value={hkFilter}
                     onChange={(e) => setHkFilter(e.target.value)}
                   />
@@ -813,12 +833,12 @@ export function SettingsView({
         <footer className="st-foot">
           {pageButtons}
           <div className="grow" />
-          {dirty && <span className="muted st-unsaved">Unsaved changes</span>}
+          {dirty && <span className="muted st-unsaved">{tl('Unsaved changes')}</span>}
           <Button size="sm" variant="ghost" onClick={cancel} disabled={!dirty}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button size="sm" onClick={apply} disabled={!dirty}>
-            Apply
+            {tl('Apply')}
           </Button>
           <Button
             size="sm"
@@ -827,7 +847,7 @@ export function SettingsView({
               if (!dirty || apply()) onClose?.();
             }}
           >
-            OK
+            {tl('OK')}
           </Button>
         </footer>
       </div>

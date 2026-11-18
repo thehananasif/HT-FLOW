@@ -38,7 +38,7 @@ import {
   type TimeframeId,
 } from '@htflow/indicator-sdk';
 import { CATALOG, indicatorById, isImplemented, type CatalogEntry } from '@htflow/indicators';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import {
   Badge,
   Button,
@@ -248,11 +248,11 @@ export function IndicatorsDialog({
           onChange={(e) => setQuery(e.target.value)}
           aria-label={t('indicators.search')}
         />
-        <button className="ht-icon-btn ind-close" aria-label="Close" onClick={cancel}>
+        <button className="ht-icon-btn ind-close" aria-label={tl('Close')} onClick={cancel}>
           <X size={16} />
         </button>
         <div className="ind-cols">
-          <nav className="ind-cats" aria-label="Categories">
+          <nav className="ind-cats" aria-label={tl('Categories')}>
             <button
               aria-pressed={cat === 'favourites' && !query}
               onClick={() => (setCat('favourites'), setQuery(''))}
@@ -305,7 +305,7 @@ export function IndicatorsDialog({
                         <button
                           className="ht-icon-btn"
                           aria-label={`Edit ${e.name}`}
-                          title="Open in the Script Editor"
+                          title={tl('Open in the Script Editor')}
                           onClick={() =>
                             openScriptEditor(
                               userScript ? e.impl!.slice(SCRIPT_PREFIX.length) : null,
@@ -376,21 +376,21 @@ export function IndicatorsDialog({
                     <span className="ind-acts">
                       <button
                         className="ht-icon-btn"
-                        aria-label="Move up"
+                        aria-label={tl('Move up')}
                         onClick={(e) => (e.stopPropagation(), move(c.uid, -1))}
                       >
                         <ArrowUp size={12} />
                       </button>
                       <button
                         className="ht-icon-btn"
-                        aria-label="Move down"
+                        aria-label={tl('Move down')}
                         onClick={(e) => (e.stopPropagation(), move(c.uid, 1))}
                       >
                         <ArrowDown size={12} />
                       </button>
                       <button
                         className="ht-icon-btn"
-                        aria-label="Duplicate"
+                        aria-label={tl('Duplicate')}
                         onClick={(e) => {
                           e.stopPropagation();
                           const copy = { ...c, uid: newUid() };
@@ -402,7 +402,7 @@ export function IndicatorsDialog({
                       </button>
                       <button
                         className="ht-icon-btn"
-                        aria-label="Remove"
+                        aria-label={tl('Remove')}
                         onClick={(e) => {
                           e.stopPropagation();
                           setDraft(
@@ -432,7 +432,7 @@ export function IndicatorsDialog({
                   <div className="grow" />
                   <Select
                     small
-                    aria-label="Preset"
+                    aria-label={tl('Preset')}
                     value=""
                     onChange={(name) => {
                       if (name === '__default')
@@ -542,14 +542,14 @@ export function IndicatorsDialog({
                     <span className="ind-preset">
                       <Input
                         autoFocus
-                        aria-label="Preset name"
-                        placeholder="Preset name"
+                        aria-label={tl('Preset name')}
+                        placeholder={tl('Preset name')}
                         value={presetName}
                         onChange={(e) => setPresetName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && savePreset()}
                       />
                       <Button size="sm" variant="outline" onClick={savePreset}>
-                        Save
+                        {tl('Save')}
                       </Button>
                     </span>
                   )}
@@ -619,7 +619,7 @@ function InstrumentControl({
         <Button
           size="sm"
           variant="ghost"
-          aria-label="Clear instrument"
+          aria-label={tl('Clear instrument')}
           onClick={() => onChange('')}
         >
           <X size={12} />
@@ -738,7 +738,7 @@ function InputsTab({
 }) {
   const vals = resolveInputs(def.inputs, cfg.inputs) as Record<string, InputValue>;
   const entries = Object.entries(def.inputs);
-  if (!entries.length) return <p className="muted">This indicator has no inputs.</p>;
+  if (!entries.length) return <p className="muted">{tl('This indicator has no inputs.')}</p>;
   return (
     <div className="ind-form">
       {entries.map(([k, d]) => (
@@ -812,7 +812,7 @@ function StyleTab({
                 { value: 'dotted', label: 'Dotted' },
               ]}
             />
-            <span className="ind-opacity" title="Opacity">
+            <span className="ind-opacity" title={tl('Opacity')}>
               <Slider
                 label={`${o.label} opacity`}
                 value={Math.round(s.opacity * 100)}
@@ -821,7 +821,11 @@ function StyleTab({
                 onChange={(v) => set(id, { opacity: v / 100 })}
               />
             </span>
-            <Checkbox label="Tag" checked={s.priceTag} onChange={(v) => set(id, { priceTag: v })} />
+            <Checkbox
+              label={tl('Tag')}
+              checked={s.priceTag}
+              onChange={(v) => set(id, { priceTag: v })}
+            />
           </div>
         );
       })}
@@ -851,9 +855,12 @@ function AdvancedTab({
   const panes = before.filter((c) => c.pane === 'new');
   return (
     <div className="ind-form">
-      <Row label="Pane" help="Price pane overlay, a new sub-pane, or share an existing pane.">
+      <Row
+        label={tl('Pane')}
+        help={tl('Price pane overlay, a new sub-pane, or share an existing pane.')}
+      >
         <Select
-          aria-label="Pane"
+          aria-label={tl('Pane')}
           value={cfg.pane}
           onChange={(v) => update({ pane: v })}
           options={[
@@ -867,11 +874,13 @@ function AdvancedTab({
         />
       </Row>
       <Row
-        label="Scale"
-        help="Merged: price scale (overlay) or the pane's shared scale. Own: independent scale."
+        label={tl('Scale')}
+        help={tl(
+          "Merged: price scale (overlay) or the pane's shared scale. Own: independent scale.",
+        )}
       >
         <Select
-          aria-label="Scale"
+          aria-label={tl('Scale')}
           value={cfg.scale}
           onChange={(v) => update({ scale: v as IndicatorConfig['scale'] })}
           options={[
@@ -880,9 +889,9 @@ function AdvancedTab({
           ]}
         />
       </Row>
-      <Row label="Z-order" help="Draw above or below the price bars.">
+      <Row label={tl('Z-order')} help={tl('Draw above or below the price bars.')}>
         <Select
-          aria-label="Z-order"
+          aria-label={tl('Z-order')}
           value={cfg.z}
           onChange={(v) => update({ z: v as IndicatorConfig['z'] })}
           options={[
@@ -891,9 +900,9 @@ function AdvancedTab({
           ]}
         />
       </Row>
-      <Row label="Pane height" help={`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
+      <Row label={tl('Pane height')} help={`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
         <NumberInput
-          aria-label="Pane height"
+          aria-label={tl('Pane height')}
           value={cfg.height}
           min={PANE_HEIGHT.min}
           max={PANE_HEIGHT.max}
@@ -903,11 +912,13 @@ function AdvancedTab({
         />
       </Row>
       <Row
-        label="Timeframe"
-        help="Compute the indicator on higher-timeframe bars (the chart's bars merged per period) and map it onto this chart."
+        label={tl('Timeframe')}
+        help={tl(
+          "Compute the indicator on higher-timeframe bars (the chart's bars merged per period) and map it onto this chart.",
+        )}
       >
         <Select
-          aria-label="Indicator timeframe"
+          aria-label={tl('Indicator timeframe')}
           value={cfg.tf}
           onChange={(v) => update({ tf: v as TimeframeId })}
           options={[
@@ -920,11 +931,11 @@ function AdvancedTab({
       </Row>
       {cfg.tf !== 'chart' && (
         <Row
-          label="Higher-timeframe bar"
-          help="Closed: never repaints. Forming: follows the live bar."
+          label={tl('Higher-timeframe bar')}
+          help={tl('Closed: never repaints. Forming: follows the live bar.')}
         >
           <Select
-            aria-label="Higher-timeframe bar"
+            aria-label={tl('Higher-timeframe bar')}
             value={cfg.tfMode}
             onChange={(v) => update({ tfMode: v as IndicatorConfig['tfMode'] })}
             options={[
@@ -935,11 +946,13 @@ function AdvancedTab({
         </Row>
       )}
       <Row
-        label="Data source"
-        help="Compute the indicator on another instrument; values are mapped onto this chart by time (own scale by default)."
+        label={tl('Data source')}
+        help={tl(
+          'Compute the indicator on another instrument; values are mapped onto this chart by time (own scale by default).',
+        )}
       >
         <Select
-          aria-label="Data source"
+          aria-label={tl('Data source')}
           value={cfg.symbol || 'chart'}
           onChange={(v) =>
             update(
@@ -974,34 +987,36 @@ function AlertsTab({
   const opts = outs.map((o) => ({ value: o, label: styles[o]?.label ?? def.outputs[o]!.label }));
   const set = (id: string, p: Partial<IndicatorAlert>) =>
     onChange(cfg.alerts.map((a) => (a.id === id ? { ...a, ...p } : a)));
-  if (!outs.length) return <p className="muted">This indicator has no line outputs to alert on.</p>;
+  if (!outs.length)
+    return <p className="muted">{tl('This indicator has no line outputs to alert on.')}</p>;
   const precision = Math.max(0, Math.min(8, Math.ceil(-Math.log10(Math.min(tickSize, 1)) - 1e-9)));
   return (
     <div className="ind-alerts" data-testid="ind-alerts">
       <p className="muted ind-note">
-        Alerts fire a toast, a sound and an Activity entry through the Alerts module. Price levels
-        are real prices.
+        {tl(
+          'Alerts fire a toast, a sound and an Activity entry through the Alerts module. Price levels are real prices.',
+        )}
       </p>
       {cfg.alerts.map((a) => (
         <div key={a.id} className="ind-alert-row" data-testid="ind-alert-row">
           <Checkbox label="" checked={a.enabled} onChange={(v) => set(a.id, { enabled: v })} />
           <Select
             small
-            aria-label="Alert output"
+            aria-label={tl('Alert output')}
             value={a.output}
             onChange={(v) => set(a.id, { output: v })}
             options={opts}
           />
           <Select
             small
-            aria-label="Alert condition"
+            aria-label={tl('Alert condition')}
             value={a.cond}
             onChange={(v) => set(a.id, { cond: v as IndicatorAlert['cond'] })}
             options={ALERT_CONDS.map((c) => ({ ...c }))}
           />
           <Select
             small
-            aria-label="Alert target"
+            aria-label={tl('Alert target')}
             value={a.target === 'output' ? `o:${a.other}` : 'value'}
             onChange={(v) =>
               set(
@@ -1016,7 +1031,7 @@ function AlertsTab({
           />
           {a.target === 'value' && (
             <NumberInput
-              aria-label="Alert level"
+              aria-label={tl('Alert level')}
               value={a.value}
               min={-1e12}
               max={1e12}
@@ -1027,7 +1042,7 @@ function AlertsTab({
           )}
           <Select
             small
-            aria-label="Alert timing"
+            aria-label={tl('Alert timing')}
             value={a.when}
             onChange={(v) => set(a.id, { when: v as IndicatorAlert['when'] })}
             options={[
@@ -1035,13 +1050,21 @@ function AlertsTab({
               { value: 'close', label: 'On bar close' },
             ]}
           />
-          <Checkbox label="Once" checked={a.once} onChange={(v) => set(a.id, { once: v })} />
-          <Checkbox label="Toast" checked={a.toast} onChange={(v) => set(a.id, { toast: v })} />
-          <Checkbox label="Sound" checked={a.sound} onChange={(v) => set(a.id, { sound: v })} />
-          <Checkbox label="Log" checked={a.log} onChange={(v) => set(a.id, { log: v })} />
+          <Checkbox label={tl('Once')} checked={a.once} onChange={(v) => set(a.id, { once: v })} />
+          <Checkbox
+            label={tl('Toast')}
+            checked={a.toast}
+            onChange={(v) => set(a.id, { toast: v })}
+          />
+          <Checkbox
+            label={tl('Sound')}
+            checked={a.sound}
+            onChange={(v) => set(a.id, { sound: v })}
+          />
+          <Checkbox label={tl('Log')} checked={a.log} onChange={(v) => set(a.id, { log: v })} />
           <button
             className="ht-icon-btn"
-            aria-label="Remove alert"
+            aria-label={tl('Remove alert')}
             onClick={() => onChange(cfg.alerts.filter((x) => x.id !== a.id))}
           >
             <Trash2 size={12} />
@@ -1055,7 +1078,7 @@ function AlertsTab({
         disabled={cfg.alerts.length >= 20}
         onClick={() => onChange([...cfg.alerts, newIndicatorAlert(outs[0]!, `a${newUid()}`)])}
       >
-        <Bell size={12} /> Add alert
+        <Bell size={12} /> {tl('Add alert')}
       </Button>
     </div>
   );

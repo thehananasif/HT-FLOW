@@ -4,6 +4,7 @@ import { registerModule, type ModuleViewProps } from '../registry';
 import { fmtClock, fmtDate, useTimeFormat } from '../../state/format';
 import { activityLog, type ActivityEvent, type ActivityType } from './log';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const TYPES: Record<
   ActivityType,
   { label: string; tone: 'up' | 'down' | 'warning' | 'info' | 'muted' }
@@ -60,14 +61,16 @@ function Activity({ state, setParams }: ModuleViewProps) {
     <div className="module-window">
       <DataTable
         testId="activity-table"
-        title="Trading Activity"
-        subtitle="all account events"
+        title={tl('Trading Activity')}
+        subtitle={tl('all account events')}
         rows={rows}
         columns={cols}
         rowKey={(e) => e.id}
-        empty="No activity yet"
+        empty={tl('No activity yet')}
         exportName="htflow-activity"
-        footer={<span>Kept 90 days · ☰ → Column filters to filter by event · Export CSV</span>}
+        footer={
+          <span>{tl('Kept 90 days · ☰ → Column filters to filter by event · Export CSV')}</span>
+        }
         {...tableParams(state.params, setParams, cols)}
       />
     </div>

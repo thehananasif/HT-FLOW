@@ -53,6 +53,7 @@ import {
 } from './runtime';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type Tab = 'chat' | 'agent' | 'audit' | 'providers';
 
 function useAi() {
@@ -78,8 +79,8 @@ function MessageView({
 }) {
   const copy = () =>
     navigator.clipboard.writeText(m.text).then(
-      () => toast('success', 'Copied'),
-      () => toast('error', 'Copy failed'),
+      () => toast('success', tl('Copied')),
+      () => toast('error', tl('Copy failed')),
     );
   if (m.role === 'tool')
     return (
@@ -94,10 +95,10 @@ function MessageView({
           <div className="ai-user-text">{m.text}</div>
           {(m.hadImage || m.context) && (
             <div className="ai-attach">
-              {m.hadImage && <Badge kind="live">screenshot sent</Badge>}
+              {m.hadImage && <Badge kind="live">{tl('screenshot sent')}</Badge>}
               {m.context && (
                 <details>
-                  <summary>screen context</summary>
+                  <summary>{tl('screen context')}</summary>
                   <pre>{m.context}</pre>
                 </details>
               )}
@@ -125,17 +126,17 @@ function MessageView({
             <div className="ai-msg-actions">
               {m.text && (
                 <button type="button" onClick={copy}>
-                  Copy
+                  {tl('Copy')}
                 </button>
               )}
               {last && (
                 <button type="button" onClick={onRegenerate} data-testid="ai-regenerate">
-                  Regenerate
+                  {tl('Regenerate')}
                 </button>
               )}
               {m.usage && (
                 <span className="tnum">
-                  {m.usage.input} in · {m.usage.output} out
+                  {m.usage.input} {tl('in ·')} {m.usage.output} {tl('out')}
                 </span>
               )}
             </div>
@@ -203,7 +204,7 @@ function ChatPane({ conv }: { conv: Conversation }) {
     <div className="ai-chat col">
       <div className="ai-chat-head">
         <Select<string>
-          aria-label="Provider"
+          aria-label={tl('Provider')}
           small
           value={conv.configId}
           onChange={(v) => patchConversation(conv.id, { configId: v })}
@@ -213,7 +214,7 @@ function ChatPane({ conv }: { conv: Conversation }) {
           }))}
         />
         <Select<string>
-          aria-label="Model"
+          aria-label={tl('Model')}
           small
           value={conv.model}
           onChange={(v) => patchConversation(conv.id, { model: v })}
@@ -222,7 +223,7 @@ function ChatPane({ conv }: { conv: Conversation }) {
             .map((m) => ({ value: m, label: m }))}
         />
         <Select<string>
-          aria-label="Preset"
+          aria-label={tl('Preset')}
           small
           value={conv.presetId}
           onChange={(v) => patchConversation(conv.id, { presetId: v })}
@@ -232,8 +233,8 @@ function ChatPane({ conv }: { conv: Conversation }) {
       {conv.presetId === 'custom' && (
         <textarea
           className="ai-system"
-          aria-label="System prompt"
-          placeholder="System prompt…"
+          aria-label={tl('System prompt')}
+          placeholder={tl('System prompt…')}
           value={conv.system}
           onChange={(e) => patchConversation(conv.id, { system: e.target.value })}
         />
@@ -241,8 +242,9 @@ function ChatPane({ conv }: { conv: Conversation }) {
       <div className="ai-messages" ref={listRef} data-testid="ai-messages">
         {conv.messages.length === 0 && (
           <div className="ai-empty">
-            Ask about your chart, order flow or risk. Your own API key is used; nothing goes through
-            an HT Flow server.
+            {tl(
+              'Ask about your chart, order flow or risk. Your own API key is used; nothing goes through an HT Flow server.',
+            )}
           </div>
         )}
         {conv.messages.map((m, i) => (
@@ -256,7 +258,7 @@ function ChatPane({ conv }: { conv: Conversation }) {
       </div>
       <div className="ai-composer">
         <div className="ai-composer-opts">
-          <Checkbox checked={ctx} onChange={setCtx} label="Screen context" />
+          <Checkbox checked={ctx} onChange={setCtx} label={tl('Screen context')} />
           <Button
             size="sm"
             variant={shot ? 'primary' : 'outline'}
@@ -271,12 +273,17 @@ function ChatPane({ conv }: { conv: Conversation }) {
                   : 'Attach a screenshot of the HT Flow window'
             }
           >
-            📷 See my screen
+            {tl('📷 See my screen')}
           </Button>
           {shot && (
             <span className="ai-shot-chip" data-testid="ai-shot-chip">
-              Screenshot will be attached{shotPref === 'ask' ? ' (you confirm first)' : ''}
-              <button type="button" aria-label="Remove screenshot" onClick={() => setShot(false)}>
+              {tl('Screenshot will be attached')}
+              {shotPref === 'ask' ? ' (you confirm first)' : ''}
+              <button
+                type="button"
+                aria-label={tl('Remove screenshot')}
+                onClick={() => setShot(false)}
+              >
                 ×
               </button>
             </span>
@@ -284,10 +291,10 @@ function ChatPane({ conv }: { conv: Conversation }) {
         </div>
         <div className="ai-composer-row">
           <textarea
-            aria-label="Message"
+            aria-label={tl('Message')}
             data-testid="ai-input"
             value={text}
-            placeholder="Ask the AI… (Enter to send, Shift+Enter for a new line)"
+            placeholder={tl('Ask the AI… (Enter to send, Shift+Enter for a new line)')}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -298,11 +305,11 @@ function ChatPane({ conv }: { conv: Conversation }) {
           />
           {busy ? (
             <Button variant="destructive" onClick={() => stop(conv.id)} data-testid="ai-stop">
-              Stop
+              {tl('Stop')}
             </Button>
           ) : (
             <Button variant="primary" onClick={() => void submit()} data-testid="ai-send">
-              Send
+              {tl('Send')}
             </Button>
           )}
         </div>
@@ -319,7 +326,7 @@ function ChatTab() {
     <div className="ai-chat-layout">
       <div className="ai-convs col">
         <Button size="sm" variant="primary" onClick={() => newConversation()} data-testid="ai-new">
-          + New chat
+          {tl('+ New chat')}
         </Button>
         <div className="ai-conv-list">
           {st.convs.map((c) => (
@@ -352,7 +359,7 @@ function ChatTab() {
       ) : (
         <div className="ai-empty">
           <Button variant="primary" onClick={() => newConversation()}>
-            Start a chat
+            {tl('Start a chat')}
           </Button>
         </div>
       )}
@@ -377,35 +384,37 @@ function AgentTab() {
         <Badge kind={st.agentRunning ? 'live' : 'default'}>
           {st.agentRunning ? 'Agent running' : 'Agent stopped'}
         </Badge>
-        {guard.isKilled && <Badge kind="error">Kill switch on</Badge>}
-        {guard.isLiveArmed && <Badge kind="delayed">Live armed</Badge>}
+        {guard.isKilled && <Badge kind="error">{tl('Kill switch on')}</Badge>}
+        {guard.isLiveArmed && <Badge kind="delayed">{tl('Live armed')}</Badge>}
         {st.nextRunAt && (
-          <span className="tnum">next run {new Date(st.nextRunAt).toLocaleTimeString()}</span>
+          <span className="tnum">
+            {tl('next run')} {new Date(st.nextRunAt).toLocaleTimeString()}
+          </span>
         )}
         <span className="grow" />
         {st.agentRunning ? (
           <Button onClick={stopAgent} data-testid="ai-agent-stop">
-            Stop agent
+            {tl('Stop agent')}
           </Button>
         ) : (
           <Button variant="primary" onClick={() => startAgent()} data-testid="ai-agent-start">
-            Start agent
+            {tl('Start agent')}
           </Button>
         )}
         <Button variant="destructive" onClick={killSwitch} data-testid="ai-kill">
-          Kill switch
+          {tl('Kill switch')}
         </Button>
         {guard.isKilled && (
           <Button variant="outline" onClick={() => guard.resetKill()} data-testid="ai-kill-reset">
-            Reset kill switch
+            {tl('Reset kill switch')}
           </Button>
         )}
       </div>
       <div className="ai-form">
         <label>
-          Account
+          {tl('Account')}
           <Select<string>
-            aria-label="Agent account"
+            aria-label={tl('Agent account')}
             value={a.accountId}
             onChange={(v) => setAgent({ accountId: v })}
             options={[...paper.accounts.values()].map((x) => ({
@@ -415,16 +424,17 @@ function AgentTab() {
           />
         </label>
         <label>
-          Provider for scheduled runs
+          {tl('Provider for scheduled runs')}
           <span className="ai-hint">
-            The agent uses the provider and model of its conversation; defaults to your first
-            provider with a key.
+            {tl(
+              'The agent uses the provider and model of its conversation; defaults to your first provider with a key.',
+            )}
           </span>
         </label>
         <label>
-          Run every (seconds)
+          {tl('Run every (seconds)')}
           <NumberInput
-            aria-label="Interval seconds"
+            aria-label={tl('Interval seconds')}
             value={a.intervalSec}
             min={30}
             max={86400}
@@ -433,9 +443,9 @@ function AgentTab() {
           />
         </label>
         <label>
-          Max steps per run
+          {tl('Max steps per run')}
           <NumberInput
-            aria-label="Max steps"
+            aria-label={tl('Max steps')}
             value={a.maxSteps}
             min={1}
             max={20}
@@ -443,20 +453,20 @@ function AgentTab() {
           />
         </label>
         <label className="ai-wide">
-          Goal / rules
+          {tl('Goal / rules')}
           <textarea
-            aria-label="Agent goal"
+            aria-label={tl('Agent goal')}
             value={a.goal}
             onChange={(e) => setAgent({ goal: e.target.value })}
           />
         </label>
       </div>
-      <h4>Hard limits (enforced by the paper engine's pre-trade checks)</h4>
+      <h4>{tl("Hard limits (enforced by the paper engine's pre-trade checks)")}</h4>
       <div className="ai-form">
         <label>
-          Max quantity per order
+          {tl('Max quantity per order')}
           <NumberInput
-            aria-label="Max quantity"
+            aria-label={tl('Max quantity')}
             value={l.maxQty}
             min={0.000001}
             step={1}
@@ -464,9 +474,9 @@ function AgentTab() {
           />
         </label>
         <label>
-          Max orders per hour
+          {tl('Max orders per hour')}
           <NumberInput
-            aria-label="Max orders per hour"
+            aria-label={tl('Max orders per hour')}
             value={l.maxOrdersPerHour}
             min={1}
             max={1000}
@@ -474,9 +484,9 @@ function AgentTab() {
           />
         </label>
         <label>
-          Daily loss stop
+          {tl('Daily loss stop')}
           <NumberInput
-            aria-label="Daily loss stop"
+            aria-label={tl('Daily loss stop')}
             value={l.dailyLossStop}
             min={1}
             step={50}
@@ -484,11 +494,11 @@ function AgentTab() {
           />
         </label>
         <label>
-          Allowed symbols (empty = any)
+          {tl('Allowed symbols (empty = any)')}
           <Input
-            aria-label="Allowed symbols"
+            aria-label={tl('Allowed symbols')}
             value={symbols}
-            placeholder="BTCUSDT, ESZ6"
+            placeholder={tl('BTCUSDT, ESZ6')}
             onChange={(e) => setSymbols(e.target.value)}
             onBlur={() => setLimits({ allowedSymbols: parseSymbols(symbols) })}
           />
@@ -496,13 +506,13 @@ function AgentTab() {
         <Checkbox
           checked={l.confirmEachTrade}
           onChange={(v) => setLimits({ confirmEachTrade: v })}
-          label="Confirm each trade"
+          label={tl('Confirm each trade')}
         />
       </div>
       <div className="ai-live">
         <Toggle
           checked={guard.isLiveArmed}
-          label="Arm live trading for this session"
+          label={tl('Arm live trading for this session')}
           onChange={async (on) => {
             if (!on) return guard.armLive(false);
             const ok = await askConfirm({
@@ -532,20 +542,22 @@ function AuditTab() {
   return (
     <div className="ai-audit col" data-testid="ai-audit">
       <div className="ai-audit-head">
-        <span>{rows.length} tool calls</span>
+        <span>
+          {rows.length} {tl('tool calls')}
+        </span>
         <span className="grow" />
         <Button size="sm" variant="outline" onClick={clearAudit}>
-          Clear
+          {tl('Clear')}
         </Button>
       </div>
       <table className="ai-audit-table tnum">
         <thead>
           <tr>
-            <th>Time</th>
-            <th>Mode</th>
-            <th>Tool</th>
-            <th>Arguments</th>
-            <th>Result</th>
+            <th>{tl('Time')}</th>
+            <th>{tl('Mode')}</th>
+            <th>{tl('Tool')}</th>
+            <th>{tl('Arguments')}</th>
+            <th>{tl('Result')}</th>
           </tr>
         </thead>
         <tbody>
@@ -580,7 +592,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
       setModels(m.join('\n'));
       toast('success', `${m.length} models`, c.label);
     } catch (e) {
-      toast('error', 'Could not list models', errorText(e));
+      toast('error', tl('Could not list models'), errorText(e));
     } finally {
       setLoading(false);
     }
@@ -589,11 +601,11 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
     <div className="ai-provider" data-testid={`ai-provider-${c.id}`}>
       <div className="ai-provider-head">
         <strong>{c.label}</strong>
-        {info.local && <Badge>local</Badge>}
+        {info.local && <Badge>{tl('local')}</Badge>}
         {c.hasKey ? (
-          <Badge kind="live">key saved</Badge>
+          <Badge kind="live">{tl('key saved')}</Badge>
         ) : info.needsKey ? (
-          <Badge kind="error">no key</Badge>
+          <Badge kind="error">{tl('no key')}</Badge>
         ) : null}
         <span className="grow" />
         {c.kind === 'custom' && (
@@ -602,13 +614,13 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
             variant="ghost"
             onClick={() => setConfigs(ai.state().configs.filter((x) => x.id !== c.id))}
           >
-            Remove
+            {tl('Remove')}
           </Button>
         )}
       </div>
       <div className="ai-form">
         <label>
-          API key {info.needsKey ? '' : '(optional)'}
+          {tl('API key')} {info.needsKey ? '' : '(optional)'}
           <div className="row">
             <Input
               type="password"
@@ -626,23 +638,23 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
                 try {
                   await saveKey(c.id, key);
                   setKey('');
-                  toast('success', 'Key saved', 'Stored in your encrypted vault');
+                  toast('success', tl('Key saved'), tl('Stored in your encrypted vault'));
                 } catch (e) {
-                  toast('error', 'Could not save the key', errorText(e));
+                  toast('error', tl('Could not save the key'), errorText(e));
                 }
               }}
             >
-              Save key
+              {tl('Save key')}
             </Button>
             {c.hasKey && (
               <Button size="sm" variant="ghost" onClick={() => void saveKey(c.id, '')}>
-                Forget
+                {tl('Forget')}
               </Button>
             )}
           </div>
         </label>
         <label>
-          Base URL
+          {tl('Base URL')}
           <Input
             aria-label={`${c.label} base URL`}
             value={base}
@@ -654,7 +666,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
           {urlErr && <span className="ai-error">{urlErr}</span>}
         </label>
         <label className="ai-wide">
-          Models (one per line)
+          {tl('Models (one per line)')}
           <textarea
             aria-label={`${c.label} models`}
             value={models}
@@ -688,15 +700,15 @@ function ProvidersTab() {
   return (
     <div className="ai-providers col" data-testid="ai-providers">
       <p className="ai-hint">
-        Bring your own key: calls go straight from this PC to the provider (https only; local models
-        on localhost). Keys are stored only in your encrypted vault and never in settings, logs or
-        crash reports.
+        {tl(
+          'Bring your own key: calls go straight from this PC to the provider (https only; local models on localhost). Keys are stored only in your encrypted vault and never in settings, logs or crash reports.',
+        )}
         {aiNative.kind === 'none' &&
           ' The browser preview cannot reach providers; use the desktop app.'}
       </p>
       <div className="row">
         <Select<ProviderKind>
-          aria-label="Add provider"
+          aria-label={tl('Add provider')}
           value={kind}
           onChange={setKind}
           options={PROVIDERS.map((p) => ({ value: p.kind, label: p.label }))}
@@ -720,7 +732,7 @@ function ProvidersTab() {
             ]);
           }}
         >
-          Add endpoint
+          {tl('Add endpoint')}
         </Button>
       </div>
       {st.configs.map((c) => (

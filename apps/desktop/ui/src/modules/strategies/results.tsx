@@ -3,6 +3,7 @@ import type { BacktestResult, BacktestTrade } from '@htflow/strategy';
 import { Table, type TableColumn } from '@htflow/ui-kit';
 import { money, pct, ratio, signedMoney, tone } from './shared';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export const fmtTime = (ts: number) => new Date(ts).toISOString().slice(5, 19).replace('T', ' ');
 
 export function Stat({
@@ -33,40 +34,44 @@ export function Summary({ r }: { r: BacktestResult }) {
     <div className="stg-summary" data-testid="strategy-summary">
       <div className="stg-stats">
         <Stat
-          label="Net P&L"
+          label={tl('Net P&L')}
           value={signedMoney(s.netPnl, 2)}
           cls={tone(s.netPnl)}
           testId="strategy-net"
         />
-        <Stat label="Trades" value={String(s.trades)} testId="strategy-trades-count" />
-        <Stat label="Win rate" value={pct(s.winRate)} />
-        <Stat label="Profit factor" value={ratio(s.profitFactor)} />
-        <Stat label="Expectancy" value={signedMoney(s.expectancy, 2)} cls={tone(s.expectancy)} />
+        <Stat label={tl('Trades')} value={String(s.trades)} testId="strategy-trades-count" />
+        <Stat label={tl('Win rate')} value={pct(s.winRate)} />
+        <Stat label={tl('Profit factor')} value={ratio(s.profitFactor)} />
         <Stat
-          label="Expectancy (R)"
+          label={tl('Expectancy')}
+          value={signedMoney(s.expectancy, 2)}
+          cls={tone(s.expectancy)}
+        />
+        <Stat
+          label={tl('Expectancy (R)')}
           value={Number.isNaN(s.expectancyR) ? '—' : `${s.expectancyR.toFixed(2)} R`}
         />
         <Stat
-          label="Max drawdown"
+          label={tl('Max drawdown')}
           value={money(s.maxDrawdown, 2)}
           cls={s.maxDrawdown > 0 ? 'down' : ''}
         />
-        <Stat label="Monte-Carlo DD 95%" value={money(s.monteCarloDd95, 2)} />
-        <Stat label="Sharpe / trade" value={ratio(s.sharpe)} />
-        <Stat label="Sortino / trade" value={ratio(s.sortino)} />
-        <Stat label="Avg win / loss" value={`${money(s.avgWin)} / ${money(s.avgLoss)}`} />
-        <Stat label="Commission" value={money(s.commission, 2)} />
-        <Stat label="Long / short" value={`${s.longTrades} / ${s.shortTrades}`} />
-        <Stat label="Return" value={pct(s.returnPct, 2)} cls={tone(s.returnPct)} />
-        <Stat label="Avg bars held" value={s.avgBarsHeld.toFixed(1)} />
-        <Stat label="Trades / day" value={(s.trades / days).toFixed(1)} />
+        <Stat label={tl('Monte-Carlo DD 95%')} value={money(s.monteCarloDd95, 2)} />
+        <Stat label={tl('Sharpe / trade')} value={ratio(s.sharpe)} />
+        <Stat label={tl('Sortino / trade')} value={ratio(s.sortino)} />
+        <Stat label={tl('Avg win / loss')} value={`${money(s.avgWin)} / ${money(s.avgLoss)}`} />
+        <Stat label={tl('Commission')} value={money(s.commission, 2)} />
+        <Stat label={tl('Long / short')} value={`${s.longTrades} / ${s.shortTrades}`} />
+        <Stat label={tl('Return')} value={pct(s.returnPct, 2)} cls={tone(s.returnPct)} />
+        <Stat label={tl('Avg bars held')} value={s.avgBarsHeld.toFixed(1)} />
+        <Stat label={tl('Trades / day')} value={(s.trades / days).toFixed(1)} />
       </div>
       <p className="stg-muted tnum">
-        {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} UTC ·{' '}
-        {r.ticks.toLocaleString()} ticks · {r.barCount} bars · fills:{' '}
-        {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks} tick
-        slippage · {money(r.config.commissionPerUnit, 2)}/side. Sharpe and Sortino use per-trade net
-        P&L (not annualised).
+        {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} {tl('UTC ·')}{' '}
+        {r.ticks.toLocaleString()} {tl('ticks ·')} {r.barCount} {tl('bars · fills:')}{' '}
+        {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks}{' '}
+        {tl('tick slippage ·')} {money(r.config.commissionPerUnit, 2)}
+        {tl('/side. Sharpe and Sortino use per-trade net P&L (not annualised).')}
       </p>
     </div>
   );
@@ -144,11 +149,11 @@ export function TradesTable({ r }: { r: BacktestResult }) {
   return (
     <div className="stg-table" data-testid="strategy-trades">
       <Table
-        aria-label="Backtest trades"
+        aria-label={tl('Backtest trades')}
         columns={columns}
         rows={r.trades}
         rowId={(t) => String(t.n)}
-        empty="No trades"
+        empty={tl('No trades')}
       />
     </div>
   );

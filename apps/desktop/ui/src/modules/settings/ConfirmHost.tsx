@@ -1,6 +1,7 @@
 import { Button, Dialog } from '@htflow/ui-kit';
 import { useConfirmStore } from '../../state/confirm';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Renders the oldest pending confirmation (state/confirm.ts). Mounted once by the Settings module. */
 export function ConfirmHost() {
   const req = useConfirmStore((s) => s.queue[0]);
@@ -18,7 +19,7 @@ export function ConfirmHost() {
           data-testid="confirm-cancel"
           onClick={() => req.resolve(false)}
         >
-          Cancel
+          {tl('Cancel')}
         </Button>
         <Button
           size="sm"

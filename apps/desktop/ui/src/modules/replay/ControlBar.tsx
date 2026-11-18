@@ -46,6 +46,7 @@ import {
   useReplayEngine,
 } from './shared';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const speedLabel = (x: number) => `${x}×`;
 
 /** Bar type used by step bar: the chart's timeframe (1 min for the liquidity map). */
@@ -106,7 +107,7 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
         ref={ref}
         className="rp-track"
         role="slider"
-        aria-label="Replay timeline"
+        aria-label={tl('Replay timeline')}
         aria-valuemin={e.start}
         aria-valuemax={e.end}
         aria-valuenow={Math.round(e.time)}
@@ -174,7 +175,7 @@ function GoToDialog({
   const t = fromLocalInput(v);
   const ok = Number.isFinite(t) && t >= e.start - 60_000 && t <= e.end;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Go to time" width={360}>
+    <Dialog open={open} onOpenChange={onOpenChange} title={tl('Go to time')} width={360}>
       <form
         className="col gap12"
         onSubmit={(ev) => {
@@ -185,18 +186,18 @@ function GoToDialog({
         }}
       >
         <Field
-          label="Replay time"
+          label={tl('Replay time')}
           error={ok ? undefined : `Between ${fmtClock(e.start)} and ${fmtClock(e.end)}`}
         >
           <Input
             type="datetime-local"
-            aria-label="Replay time"
+            aria-label={tl('Replay time')}
             value={v}
             onChange={(x) => setV(x.target.value)}
           />
         </Field>
         <Button type="submit" variant="primary" disabled={!ok}>
-          Go
+          {tl('Go')}
         </Button>
       </form>
     </Dialog>
@@ -212,7 +213,7 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
   if (!e)
     return (
       <div className="rp-bar" data-testid="replay-bar">
-        <span className="muted">Loading replay…</span>
+        <span className="muted">{tl('Loading replay…')}</span>
       </div>
     );
   const group = replaySession()?.group;
@@ -220,28 +221,28 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
   return (
     <div className="rp-bar" data-testid="replay-bar" onMouseDown={(ev) => ev.stopPropagation()}>
       <div className="rp-clock">
-        <span className="rp-tag">REPLAY</span>
+        <span className="rp-tag">{tl('REPLAY')}</span>
         <span className="tnum" data-testid="replay-clock">
           {fmtClock(e.time)}
         </span>
         <span className="muted tnum">
-          {e.tradeIndex.toLocaleString()} / {e.dataset.trades.length.toLocaleString()} ticks
+          {e.tradeIndex.toLocaleString()} / {e.dataset.trades.length.toLocaleString()} {tl('ticks')}
         </span>
       </div>
       <Timeline id={id} e={e} />
       <div className="rp-row">
         <button
           className="rp-btn"
-          aria-label="Jump to start"
-          title="Jump to start"
+          aria-label={tl('Jump to start')}
+          title={tl('Jump to start')}
           onClick={() => replayControls.seek(id, e.loop?.from ?? e.start)}
         >
           <SkipBack size={13} />
         </button>
         <button
           className="rp-btn"
-          aria-label="Step back bar"
-          title="Step back bar (←)"
+          aria-label={tl('Step back bar')}
+          title={tl('Step back bar (←)')}
           onClick={() => replayControls.stepBack(id, spec)}
         >
           <StepBack size={13} />
@@ -249,7 +250,7 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
         <button
           className="rp-btn rp-play"
           aria-label={e.playing ? 'Pause' : 'Play'}
-          title="Play / pause (Space)"
+          title={tl('Play / pause (Space)')}
           data-testid="replay-play"
           onClick={() => replayControls.toggle(id)}
         >
@@ -258,8 +259,8 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
         </button>
         <button
           className="rp-btn"
-          aria-label="Step bar"
-          title="Step forward bar (→)"
+          aria-label={tl('Step bar')}
+          title={tl('Step forward bar (→)')}
           data-testid="replay-step-bar"
           onClick={() => replayControls.stepBar(id, spec)}
         >
@@ -267,13 +268,13 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
         </button>
         <button
           className="rp-btn"
-          title="Step tick (Shift+→)"
+          title={tl('Step tick (Shift+→)')}
           data-testid="replay-step-tick"
           onClick={() => replayControls.stepTick(id)}
         >
-          Step tick
+          {tl('Step tick')}
         </button>
-        <div className="ht-seg rp-speeds" role="group" aria-label="Replay speed">
+        <div className="ht-seg rp-speeds" role="group" aria-label={tl('Replay speed')}>
           {REPLAY_SPEEDS.map((x, i) => (
             <button
               key={x}
@@ -288,17 +289,17 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
         </div>
         <button
           className="rp-btn"
-          aria-label="Stop replay"
-          title="Stop replay and go back to the live chart"
+          aria-label={tl('Stop replay')}
+          title={tl('Stop replay and go back to the live chart')}
           data-testid="replay-stop"
           onClick={exitReplay}
         >
           <Square size={12} />
-          Stop
+          {tl('Stop')}
         </button>
         <div className="grow" />
         <button className="rp-btn" onClick={() => setGoto(true)}>
-          Go to time…
+          {tl('Go to time…')}
         </button>
         <button
           className="rp-btn"
@@ -306,7 +307,7 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
             group?.addBookmark(e.time, `Bookmark ${e.bookmarks.length + 1}`, e);
           }}
         >
-          + Bookmark
+          {tl('+ Bookmark')}
         </button>
         <Checkbox
           checked={group?.sync ?? true}
@@ -314,12 +315,12 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
             if (group) group.sync = v;
             e.setBookmarks(e.bookmarks); // re-render
           }}
-          label="Sync all windows"
+          label={tl('Sync all windows')}
         />
         <Checkbox
           checked={hideFuture()}
           onChange={(v) => setHideFuture(v)}
-          label="Hide future bars"
+          label={tl('Hide future bars')}
         />
         <Checkbox
           checked={!!e.loop}
@@ -331,7 +332,7 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
                 : { from: e.time, to: Math.min(e.end, e.time + 15 * 60_000) };
             group?.setLoop(v ? range : null, e);
           }}
-          label="Loop range"
+          label={tl('Loop range')}
         />
       </div>
       {goto && <GoToDialog id={id} e={e} open={goto} onOpenChange={setGoto} />}
@@ -514,7 +515,7 @@ registerChartExtension({
           const name = `${sym} ${fmtHm(cfg.from)}–${fmtHm(cfg.to)}`;
           const eng = replayEngine(s.instrumentId);
           addTemplate(name, cfg, eng ? savedStateOf(eng.bookmarks, eng.loop) : undefined);
-          toast('success', 'Replay template saved', name);
+          toast('success', tl('Replay template saved'), name);
         });
       },
     },
@@ -600,7 +601,7 @@ export function showReplayOn(replayIds: string[]): void {
   const first =
     (activeId && windows[activeId]?.kind === 'chart' ? activeId : null) ?? charts[0]?.[0];
   if (!first || !replayIds[0]) {
-    toast('info', 'Open a chart to show the replay');
+    toast('info', tl('Open a chart to show the replay'));
     return;
   }
   patch(first, { instrumentId: replayIds[0] } as Partial<WindowState>);
@@ -638,5 +639,5 @@ export function exitReplay(): void {
       patch(t.id, { instrumentId: t.instrumentId } as Partial<WindowState>);
   }
   if (targets[0] && !activeId) setActive(targets[0].id);
-  if (targets.length) toast('info', 'Replay stopped', 'Back on the live chart');
+  if (targets.length) toast('info', tl('Replay stopped'), tl('Back on the live chart'));
 }

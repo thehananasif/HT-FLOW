@@ -12,7 +12,7 @@ import {
   toast,
   type MenuEntry,
 } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import {
   analyzeStrategy,
   buildTemplate,
@@ -144,7 +144,7 @@ function tradeLegs(legs: readonly Leg[], chain: OptionsChain, account: string, u
     if (!req) continue;
     const r = paper.tradeOption(req);
     if (typeof r === 'string') {
-      toast('error', 'Options order rejected', `${l.name ?? ''}: ${r}`);
+      toast('error', tl('Options order rejected'), `${l.name ?? ''}: ${r}`);
       continue;
     }
     ok++;
@@ -290,7 +290,7 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
         <b>{t('options.title')}</b>
         <Select
           small
-          aria-label="Underlying"
+          aria-label={tl('Underlying')}
           value={p.underlying}
           options={UNDERLYINGS.map((u) => ({ value: u.id, label: u.label }))}
           onChange={(v) => set({ underlying: v, expiries: [], legs: [] })}
@@ -323,7 +323,7 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                 <span className="muted">{t('options.accountSeries')}</span>
                 <Select
                   small
-                  aria-label="Account"
+                  aria-label={tl('Account')}
                   value={p.account}
                   options={accounts.length ? accounts : [{ value: PAPER_ACCOUNT, label: 'Paper' }]}
                   onChange={(v) => set({ account: v })}
@@ -334,13 +334,17 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                       ? seriesItems
                       : [{ kind: 'label', id: 'n', label: 'No series' }]
                   }
-                  trigger={<MenuTrigger aria-label="Series">{shown.length} series</MenuTrigger>}
+                  trigger={
+                    <MenuTrigger aria-label={tl('Series')}>
+                      {shown.length} {tl('series')}
+                    </MenuTrigger>
+                  }
                 />
                 <span className="grow" />
-                <span className="muted">Series type</span>
+                <span className="muted">{tl('Series type')}</span>
                 <Select
                   small
-                  aria-label="Series type"
+                  aria-label={tl('Series type')}
                   value={p.series}
                   options={[
                     { value: 'all', label: 'All' },
@@ -354,7 +358,7 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                 <span className="muted">{t('options.clickMode')}</span>
                 <Select
                   small
-                  aria-label="Click a quote"
+                  aria-label={tl('Click a quote')}
                   value={p.click}
                   options={[
                     { value: 'build', label: 'Add leg' },
@@ -362,9 +366,9 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                   ]}
                   onChange={(v) => set({ click: v })}
                 />
-                <span className="muted">Contracts</span>
+                <span className="muted">{tl('Contracts')}</span>
                 <NumberInput
-                  aria-label="Contracts"
+                  aria-label={tl('Contracts')}
                   className="ob-num"
                   value={p.qty}
                   step={isDeribit(p.underlying) ? 0.1 : 1}
@@ -372,9 +376,9 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                   max={10000}
                   onChange={(v) => set({ qty: v })}
                 />
-                <span className="muted">Strikes</span>
+                <span className="muted">{tl('Strikes')}</span>
                 <NumberInput
-                  aria-label="Strikes"
+                  aria-label={tl('Strikes')}
                   className="ob-num"
                   value={p.strikes}
                   min={1}
@@ -384,15 +388,15 @@ function OptionsBoard({ state, setParams }: ModuleViewProps) {
                 <DropdownMenu
                   items={colItems}
                   align="end"
-                  trigger={<MenuTrigger aria-label="Columns">Columns</MenuTrigger>}
+                  trigger={<MenuTrigger aria-label={tl('Columns')}>{tl('Columns')}</MenuTrigger>}
                 />
               </div>
               {error && (
                 <div className="ob-error">
-                  Could not load {p.underlying.replace('deribit:', 'Deribit ')}: {error}
+                  {tl('Could not load')} {p.underlying.replace('deribit:', 'Deribit ')}: {error}
                 </div>
               )}
-              {!chain && loading && <div className="ob-empty">Loading option chain…</div>}
+              {!chain && loading && <div className="ob-empty">{tl('Loading option chain…')}</div>}
               {chain && (
                 <div className="ob-scroll">
                   <UnderlyingTable chain={chain} expiries={shown} />
@@ -434,13 +438,13 @@ function UnderlyingTable({ chain, expiries }: { chain: OptionsChain; expiries: C
       <table className="ob-tbl tnum">
         <thead>
           <tr>
-            <th className="l">Symbol</th>
-            <th className="l">Expiration</th>
-            <th>Bid</th>
-            <th>BidSz</th>
-            <th>Ask</th>
-            <th>AskSz</th>
-            <th>Last</th>
+            <th className="l">{tl('Symbol')}</th>
+            <th className="l">{tl('Expiration')}</th>
+            <th>{tl('Bid')}</th>
+            <th>{tl('BidSz')}</th>
+            <th>{tl('Ask')}</th>
+            <th>{tl('AskSz')}</th>
+            <th>{tl('Last')}</th>
           </tr>
         </thead>
         <tbody>
@@ -579,12 +583,12 @@ function ExpiryBlock({
   return (
     <div className="ob-exp" data-testid="options-expiry">
       <button className="ob-exp-head" onClick={onToggle} aria-expanded={!collapsed}>
-        <span className="ob-exp-calls">Calls</span>
+        <span className="ob-exp-calls">{tl('Calls')}</span>
         <span className="ob-exp-title tnum">
           {expiryLabel(e.expiry)} · {e.underlying.symbol} · {fmtPx(S, Math.max(0, d))}
           <span className="ob-days">{daysToExpiry(e.expiry, now)}d</span>
         </span>
-        <span className="ob-exp-puts">Puts</span>
+        <span className="ob-exp-puts">{tl('Puts')}</span>
       </button>
       {!collapsed && (
         <table className="ob-tbl ob-chain tnum">
@@ -593,8 +597,8 @@ function ExpiryBlock({
               {callHead.map((h) => (
                 <th key={'c' + h}>{h}</th>
               ))}
-              <th className="ob-strike">Strike</th>
-              <th className="ob-strike">IV</th>
+              <th className="ob-strike">{tl('Strike')}</th>
+              <th className="ob-strike">{tl('IV')}</th>
               {putHead.map((h) => (
                 <th key={'p' + h}>{h}</th>
               ))}
@@ -619,7 +623,7 @@ function ExpiryBlock({
                   {sideCells(row.call, true)}
                   <td className="ob-strike">
                     {fmtPx(row.strike, row.strike % 1 ? Math.max(1, d) : 0)}
-                    {row.strike === atm && <span className="ob-atm" title="At the money" />}
+                    {row.strike === atm && <span className="ob-atm" title={tl('At the money')} />}
                   </td>
                   <td className="ob-strike ob-iv">{fmtIv(iv)}</td>
                   {sideCells(row.put, false)}
@@ -693,7 +697,7 @@ function Builder({
         <span className="grow" />
         <Select<TemplateId | ''>
           small
-          aria-label="Template"
+          aria-label={tl('Template')}
           value=""
           options={[
             { value: '', label: 'Template…' },
@@ -708,13 +712,13 @@ function Builder({
           <div className="ob-leg" key={l.id} data-testid="strategy-leg">
             <button
               className={l.qty > 0 ? 'ob-side up' : 'ob-side down'}
-              title="Switch buy / sell"
+              title={tl('Switch buy / sell')}
               onClick={() => patchLeg(l.id, { qty: -l.qty })}
             >
               {l.qty > 0 ? 'BUY' : 'SELL'}
             </button>
             <NumberInput
-              aria-label="Leg quantity"
+              aria-label={tl('Leg quantity')}
               className="ob-leg-qty"
               value={Math.abs(l.qty)}
               step={isDeribit(p.underlying) ? 0.1 : 1}
@@ -725,7 +729,7 @@ function Builder({
               {l.name}
             </span>
             <NumberInput
-              aria-label="Leg price"
+              aria-label={tl('Leg price')}
               className="ob-leg-px"
               value={l.premium}
               step={10 ** -Math.max(0, d)}
@@ -734,7 +738,7 @@ function Builder({
             />
             <button
               className="ht-icon-btn"
-              aria-label="Remove leg"
+              aria-label={tl('Remove leg')}
               onClick={() => set({ legs: legs.filter((x) => x.id !== l.id) })}
             >
               <X size={12} />
@@ -751,9 +755,12 @@ function Builder({
         />
       </div>
       <div className="ob-row">
-        <span className="muted">Valuation T+{tPlus}d</span>
+        <span className="muted">
+          {tl('Valuation T+')}
+          {tPlus}d
+        </span>
         <Slider
-          label="Days forward"
+          label={tl('Days forward')}
           value={tPlus}
           min={0}
           max={Math.max(0, maxDays)}
@@ -770,7 +777,7 @@ function Builder({
         {stat('Max loss', analysis ? fmtMoney(analysis.maxLoss) : '—', 'down')}
         {stat('Prob. of profit', analysis ? `${(analysis.pop * 100).toFixed(0)}%` : '—')}
         <div className="ob-stat ob-wide">
-          <span>Breakevens</span>
+          <span>{tl('Breakevens')}</span>
           <b data-testid="breakevens">
             {analysis
               ? analysis.breakevens.length
@@ -785,9 +792,9 @@ function Builder({
         {stat('V Vega', g ? `${fmtMoney(g.vega)} / 1%` : '—', g && g.vega >= 0 ? 'up' : 'down')}
         {stat('ρ Rho', g ? `${fmtMoney(g.rho)} / 1%` : '—')}
         <div className="ob-stat">
-          <span>Risk-free rate %</span>
+          <span>{tl('Risk-free rate %')}</span>
           <NumberInput
-            aria-label="Risk-free rate"
+            aria-label={tl('Risk-free rate')}
             value={p.ratePct}
             step={0.25}
             min={0}
@@ -807,16 +814,16 @@ function Builder({
           {t('options.send')}
         </Button>
         <Button size="md" disabled={!legs.length} onClick={() => set({ legs: [] })}>
-          Clear
+          {tl('Clear')}
         </Button>
       </div>
       <p className="ob-note">
         {chain?.simulated
           ? 'Sim: simulated chain (smile, term structure, spreads) on the MockFeed underlying. '
           : 'Data: Deribit public options (free). '}
-        Model {chain?.model === 'b76' ? 'Black-76' : 'Black-Scholes'}
-        {isDeribit(p.underlying) ? ' at the venue rate' : ` · r ${p.ratePct}%`}. CME options appear
-        when a broker feed is connected. {t('options.paperNote')}
+        {tl('Model')} {chain?.model === 'b76' ? 'Black-76' : 'Black-Scholes'}
+        {isDeribit(p.underlying) ? ' at the venue rate' : ` · r ${p.ratePct}%`}
+        {tl('. CME options appear when a broker feed is connected.')} {t('options.paperNote')}
       </p>
     </aside>
   );
@@ -853,7 +860,9 @@ function PositionsTab({
   if (!open.length && !legacy.length)
     return (
       <div className="ob-empty">
-        No options positions. Click a quote or build a strategy and send it as a paper order.
+        {tl(
+          'No options positions. Click a quote or build a strategy and send it as a paper order.',
+        )}
       </div>
     );
   const byUnderlying = new Map<string, OptionPosition[]>();
@@ -867,14 +876,14 @@ function PositionsTab({
         <table className="ob-tbl tnum ob-pos" data-testid="paper-options-positions">
           <thead>
             <tr>
-              <th className="l">Contract</th>
-              <th className="l">Account</th>
-              <th>Qty</th>
-              <th>Avg premium</th>
-              <th>Premium</th>
-              <th>Mark</th>
+              <th className="l">{tl('Contract')}</th>
+              <th className="l">{tl('Account')}</th>
+              <th>{tl('Qty')}</th>
+              <th>{tl('Avg premium')}</th>
+              <th>{tl('Premium')}</th>
+              <th>{tl('Mark')}</th>
               <th>Open P&amp;L</th>
-              <th>Expires</th>
+              <th>{tl('Expires')}</th>
               <th />
             </tr>
           </thead>
@@ -910,22 +919,24 @@ function PositionsTab({
                   <td className="ob-pos-actions">
                     <Button
                       size="xs"
-                      title="Load the account's positions on this underlying into the strategy builder"
+                      title={tl(
+                        "Load the account's positions on this underlying into the strategy builder",
+                      )}
                       onClick={() =>
                         analyse(byUnderlying.get(`${o.accountId}|${o.underlyingId}`) ?? [o])
                       }
                     >
-                      Analyse
+                      {tl('Analyse')}
                     </Button>
                     <Button
                       size="xs"
                       data-testid="close-option"
                       onClick={() => {
                         const r = paper.closeOption(o.id);
-                        if (typeof r === 'string') toast('error', 'Could not close', r);
+                        if (typeof r === 'string') toast('error', tl('Could not close'), r);
                       }}
                     >
-                      Close
+                      {tl('Close')}
                     </Button>
                   </td>
                 </tr>
@@ -936,14 +947,14 @@ function PositionsTab({
       )}
       {legacy.length > 0 && (
         <>
-          <div className="ob-section">Saved strategies (before paper options)</div>
+          <div className="ob-section">{tl('Saved strategies (before paper options)')}</div>
           <table className="ob-tbl tnum ob-pos">
             <thead>
               <tr>
-                <th className="l">Opened</th>
-                <th className="l">Underlying</th>
-                <th className="l">Legs</th>
-                <th>Entry</th>
+                <th className="l">{tl('Opened')}</th>
+                <th className="l">{tl('Underlying')}</th>
+                <th className="l">{tl('Legs')}</th>
+                <th>{tl('Entry')}</th>
                 <th>Open P&amp;L</th>
                 <th />
               </tr>
@@ -972,7 +983,7 @@ function PositionsTab({
                       {new Date(pos.createdAt).toLocaleString('en-GB', { hour12: false })}
                     </td>
                     <td className="l">
-                      {pos.root} {pos.simulated && <Badge kind="replay">Sim</Badge>}
+                      {pos.root} {pos.simulated && <Badge kind="replay">{tl('Sim')}</Badge>}
                     </td>
                     <td className="l mono">
                       {pos.legs
@@ -985,7 +996,7 @@ function PositionsTab({
                     </td>
                     <td>
                       <Button size="xs" onClick={() => remove(pos.id)}>
-                        Remove
+                        {tl('Remove')}
                       </Button>
                     </td>
                   </tr>

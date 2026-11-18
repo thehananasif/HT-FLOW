@@ -23,6 +23,7 @@ import {
 import { IntervalMenu } from './IntervalMenu';
 import './timeframes.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type Session = BarSpec['session'];
 
 function capsFor(instrumentId: string): FeedCapabilities {
@@ -81,7 +82,7 @@ export function SessionSelect({ windowId, s }: { windowId: string; s: ChartWindo
     <>
       <Select
         small
-        aria-label="Trading session"
+        aria-label={tl('Trading session')}
         value={sessionValue(cur.session)}
         onChange={(v) => {
           if (v === 'custom') setCustom(true);
@@ -132,28 +133,38 @@ function CustomSessionDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Custom session"
-      description="Exchange-local hours; leave the time zone empty to use the instrument's exchange zone."
+      title={tl('Custom session')}
+      description={tl(
+        "Exchange-local hours; leave the time zone empty to use the instrument's exchange zone.",
+      )}
       width={380}
     >
       <div className="col gap12">
         <div className="row gap8">
           <label className="tf-field">
-            Open
-            <Input value={o} onChange={(e) => setO(e.target.value)} aria-label="Session open" />
+            {tl('Open')}
+            <Input
+              value={o}
+              onChange={(e) => setO(e.target.value)}
+              aria-label={tl('Session open')}
+            />
           </label>
           <label className="tf-field">
-            Close
-            <Input value={c} onChange={(e) => setC(e.target.value)} aria-label="Session close" />
+            {tl('Close')}
+            <Input
+              value={c}
+              onChange={(e) => setC(e.target.value)}
+              aria-label={tl('Session close')}
+            />
           </label>
         </div>
         <label className="tf-field">
-          Time zone (IANA)
+          {tl('Time zone (IANA)')}
           <Input
             value={tz}
-            placeholder="e.g. America/New_York"
+            placeholder={tl('e.g. America/New_York')}
             onChange={(e) => setTz(e.target.value)}
-            aria-label="Session time zone"
+            aria-label={tl('Session time zone')}
           />
         </label>
         <div className="row gap8 wrap">
@@ -167,12 +178,14 @@ function CustomSessionDialog({
           ))}
         </div>
         {!ok && (
-          <span className="ht-error">Use HH:MM times, a valid time zone and at least one day.</span>
+          <span className="ht-error">
+            {tl('Use HH:MM times, a valid time zone and at least one day.')}
+          </span>
         )}
         <div className="row gap8">
           <div className="grow" />
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -182,7 +195,7 @@ function CustomSessionDialog({
               onOpenChange(false);
             }}
           >
-            Apply
+            {tl('Apply')}
           </Button>
         </div>
       </div>
@@ -244,14 +257,14 @@ export function TimeframeDialogHost({ windowId, s }: { windowId: string; s: Char
       <div className="row gap8 tf-foot">
         <span
           className="muted tf-dates"
-          title="History range selection arrives with the tick store (P06)"
+          title={tl('History range selection arrives with the tick store (P06)')}
         >
-          Set dates: Auto <Lock size={11} />
+          {tl('Set dates: Auto')} <Lock size={11} />
         </span>
         <div className="grow" />
         {configure && (
           <Button variant="ghost" onClick={reset}>
-            Reset to defaults
+            {tl('Reset to defaults')}
           </Button>
         )}
         <Button
@@ -262,7 +275,7 @@ export function TimeframeDialogHost({ windowId, s }: { windowId: string; s: Char
           {configure ? 'Done' : 'Configure'}
         </Button>
         <Button variant="primary" onClick={() => apply(pending)} data-testid="tf-apply">
-          Apply
+          {tl('Apply')}
         </Button>
       </div>
     </Dialog>
@@ -315,7 +328,7 @@ function TfRowView({
                 onDoubleClick={() => !configure && !why && onApply(sp)}
               >
                 {specLabel(sp)}
-                {isPinned && <Pin size={9} className="tf-pin" aria-label="Pinned" />}
+                {isPinned && <Pin size={9} className="tf-pin" aria-label={tl('Pinned')} />}
               </Chip>
               {configure && (
                 <button
@@ -352,10 +365,10 @@ function TfRowView({
                   setAdding(false);
                 }}
               >
-                Add
+                {tl('Add')}
               </Button>
               <Button size="xs" variant="ghost" onClick={() => setAdding(false)}>
-                Cancel
+                {tl('Cancel')}
               </Button>
             </span>
           ) : (

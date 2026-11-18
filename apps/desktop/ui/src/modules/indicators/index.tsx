@@ -25,7 +25,7 @@ import {
 } from '@htflow/indicator-sdk';
 import { CATALOG, indicatorById, poolable } from '@htflow/indicators';
 import type { BarSpec, MarketStore } from '@htflow/market-data';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import { Chip, toast } from '@htflow/ui-kit';
 import { createCotFeed } from '../../state/cotFeed';
 import { createOptionsFeed } from '../../state/optionsFeed';
@@ -438,7 +438,11 @@ registerChartExtension({
     return (
       <>
         {/* Accessible mirror of the canvas legend (screen readers, tests). */}
-        <ul className="ind-sr" data-testid="indicator-legend" aria-label="Indicators on chart">
+        <ul
+          className="ind-sr"
+          data-testid="indicator-legend"
+          aria-label={tl('Indicators on chart')}
+        >
           {items.map((c) => {
             const d = indicatorById(c.type);
             return d ? (
@@ -490,7 +494,7 @@ registerCommands([
 registerPaletteProvider(() =>
   indicatorPaletteItems(CATALOG, (e) => {
     const id = targetChart();
-    if (!id) toast('error', 'Open a chart first to add an indicator');
+    if (!id) toast('error', tl('Open a chart first to add an indicator'));
     else addIndicatorToChart(id, e);
   }),
 );

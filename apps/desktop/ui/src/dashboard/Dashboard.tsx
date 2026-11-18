@@ -107,6 +107,7 @@ import {
   restoreMainWindow,
 } from '../modules/layout-settings/display';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
 const components = { chart: ChartWindow, dom: DomWindow, module: ModuleWindow };
 
@@ -515,7 +516,7 @@ export function Dashboard({ version }: { version: string }) {
       const api = apiRef.current;
       const target = targetPanel();
       if (!api || !target) {
-        toast('info', 'Nothing to split', 'Open or select a window first.');
+        toast('info', tl('Nothing to split'), tl('Open or select a window first.'));
         return;
       }
       const state = cloneWindowState(useWindows.getState().windows[target.id]!);
@@ -585,13 +586,13 @@ export function Dashboard({ version }: { version: string }) {
       const api = apiRef.current;
       const target = targetPanel();
       if (!api || !target) {
-        toast('info', 'Nothing to detach', 'Open or select a window first.');
+        toast('info', tl('Nothing to detach'), tl('Open or select a window first.'));
         return;
       }
       const os = mode === 'os' ? osWindowsAvailable() : mode === 'auto' && detachUsesOsWindow();
       if (os && detachToOsWindow(target.id)) return;
       if (mode === 'os' && !osWindowsAvailable())
-        toast('info', 'Floating instead', 'Separate OS windows need the desktop app.');
+        toast('info', tl('Floating instead'), tl('Separate OS windows need the desktop app.'));
       if (target.group.api.location.type === 'floating') {
         target.api.setActive();
         return; // already floating
@@ -671,7 +672,8 @@ export function Dashboard({ version }: { version: string }) {
         keywords: 'dock back monitor',
         run: () => {
           const id = useWindows.getState().activeId;
-          if (!id || !reattachWindow(id)) toast('info', 'The active window is not in an OS window');
+          if (!id || !reattachWindow(id))
+            toast('info', tl('The active window is not in an OS window'));
         },
       },
       {
@@ -815,22 +817,22 @@ export function Dashboard({ version }: { version: string }) {
         <div className="titlebar-brand">
           <BrandIcon size={16} />
           <span className="tb-logo">
-            HT
+            {tl('HT')}
             <br />
-            FLOW
+            {tl('FLOW')}
           </span>
         </div>
         <WorkspaceMenu
           trigger={
             <button className="tb-workspace" data-testid="workspace-menu">
-              <span className="muted">Workspace:</span> {doc.name} ▾
+              <span className="muted">{tl('Workspace:')}</span> {doc.name} ▾
             </button>
           }
         />
         <div className="tb-group">
-          <span className="muted">Layout</span>
+          <span className="muted">{tl('Layout')}</span>
           <SegmentedControl
-            aria-label="Layout presets"
+            aria-label={tl('Layout presets')}
             value={preset}
             onChange={(v) => applyPreset(v)}
             options={LAYOUT_PRESETS.map((p) => ({
@@ -846,7 +848,7 @@ export function Dashboard({ version }: { version: string }) {
         </div>
         {singleChart && firstChart?.kind === 'chart' && (
           <div className="tb-group">
-            <span className="muted">Main chart</span>
+            <span className="muted">{tl('Main chart')}</span>
             {CHART_TEMPLATES.filter((t) => !t.more).map((t) => (
               <Chip
                 key={t.id}
@@ -860,13 +862,13 @@ export function Dashboard({ version }: { version: string }) {
         )}
         <div className="tb-group">
           <Button size="xs" variant="ghost" onClick={() => split('right')}>
-            <ArrowRightToLine size={13} /> Split right
+            <ArrowRightToLine size={13} /> {tl('Split right')}
           </Button>
           <Button size="xs" variant="ghost" onClick={() => split('below')}>
-            <ArrowDownToLine size={13} /> Split down
+            <ArrowDownToLine size={13} /> {tl('Split down')}
           </Button>
           <Button size="xs" variant="ghost" onClick={() => detach()}>
-            <ExternalLink size={13} /> Detach window
+            <ExternalLink size={13} /> {tl('Detach window')}
           </Button>
           <Button
             size="xs"
@@ -874,7 +876,7 @@ export function Dashboard({ version }: { version: string }) {
             aria-pressed={tradingPanel}
             onClick={() => useWindows.getState().setTradingPanel(!tradingPanel)}
           >
-            <PanelRight size={13} /> Panel
+            <PanelRight size={13} /> {tl('Panel')}
           </Button>
         </div>
         <HelpMenu />
@@ -902,7 +904,7 @@ export function Dashboard({ version }: { version: string }) {
       </div>
       <div className="ws-tabs">
         {/* Tabs: roving focus (← / →, Home / End), Enter / Space opens, F2 renames, Delete closes. */}
-        <div className="ws-tablist" role="tablist" aria-label="Workspace layouts">
+        <div className="ws-tablist" role="tablist" aria-label={tl('Workspace layouts')}>
           {doc.tabs.map((t, i) => (
             <div
               key={t.id}
@@ -949,7 +951,7 @@ export function Dashboard({ version }: { version: string }) {
             </div>
           ))}
         </div>
-        <button className="ws-tab ws-tab-add" aria-label="Add layout" onClick={addTab}>
+        <button className="ws-tab ws-tab-add" aria-label={tl('Add layout')} onClick={addTab}>
           <Plus size={13} />
         </button>
       </div>
@@ -1027,7 +1029,7 @@ function HelpMenu() {
       align="end"
       items={items}
       trigger={
-        <button className="ht-icon-btn" aria-label="Help menu" data-testid="help-menu">
+        <button className="ht-icon-btn" aria-label={tl('Help menu')} data-testid="help-menu">
           <CircleHelp size={15} />
         </button>
       }
@@ -1047,11 +1049,11 @@ function AccountMenu({ name }: { name: string }) {
       a.click();
       toast(
         'success',
-        'Profile exported',
-        'The .htprofile file stays encrypted with your password.',
+        tl('Profile exported'),
+        tl('The .htprofile file stays encrypted with your password.'),
       );
     } catch (e) {
-      toast('error', 'Export failed', e instanceof Error ? e.message : String(e));
+      toast('error', tl('Export failed'), e instanceof Error ? e.message : String(e));
     }
   };
   const items: MenuEntry[] = [
@@ -1075,7 +1077,7 @@ function AccountMenu({ name }: { name: string }) {
         align="end"
         items={items}
         trigger={
-          <button className="avatar" aria-label="Account menu" data-testid="account-menu">
+          <button className="avatar" aria-label={tl('Account menu')} data-testid="account-menu">
             {name.slice(0, 1).toUpperCase()}
           </button>
         }
@@ -1097,28 +1099,28 @@ function ChangePasswordDialog({
   const [b, setB] = useState('');
   const [err, setErr] = useState<string | null>(null);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Change password" width={400}>
+    <Dialog open={open} onOpenChange={onOpenChange} title={tl('Change password')} width={400}>
       <form
         className="col gap12"
         onSubmit={async (e) => {
           e.preventDefault();
           try {
             await backend.changePassword(a, b);
-            toast('success', 'Password changed');
+            toast('success', tl('Password changed'));
             onOpenChange(false);
           } catch (x) {
             setErr(x instanceof BackendError ? x.message : String(x));
           }
         }}
       >
-        <Field label="Current password">
+        <Field label={tl('Current password')}>
           <Input type="password" value={a} onChange={(e) => setA(e.target.value)} />
         </Field>
-        <Field label="New password (min 10)" error={err}>
+        <Field label={tl('New password (min 10)')} error={err}>
           <Input type="password" value={b} onChange={(e) => setB(e.target.value)} />
         </Field>
         <Button type="submit" variant="primary" disabled={b.length < 10}>
-          Change password
+          {tl('Change password')}
         </Button>
       </form>
     </Dialog>
@@ -1131,8 +1133,8 @@ function PinDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Quick-unlock PIN"
-      description="6 digits. Leave empty to remove the PIN."
+      title={tl('Quick-unlock PIN')}
+      description={tl('6 digits. Leave empty to remove the PIN.')}
       width={380}
     >
       <form
@@ -1152,7 +1154,7 @@ function PinDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
         />
         <Button type="submit" variant="primary" disabled={pin.length !== 0 && pin.length !== 6}>
-          Save
+          {tl('Save')}
         </Button>
       </form>
     </Dialog>

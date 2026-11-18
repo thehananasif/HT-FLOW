@@ -19,6 +19,7 @@ import { CommandPalette } from '../shell/CommandPalette';
 import { installHotkeys, registerCommands } from '../shell/commands';
 import { requestReattach, sendLayout, startSecondary, useSecondary } from './secondary';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
 const components = { chart: ChartWindow, dom: DomWindow, module: ModuleWindow };
 
@@ -165,18 +166,18 @@ export function SecondaryApp({ label }: { label: string }) {
           variant="ghost"
           onClick={requestReattach}
           data-testid="os-window-reattach"
-          title="Put these windows back into the main window"
+          title={tl('Put these windows back into the main window')}
         >
-          <PanelTopClose size={13} /> Re-attach
+          <PanelTopClose size={13} /> {tl('Re-attach')}
         </Button>
         <div className="win-controls">
-          <button aria-label="Minimize" onClick={() => backend.window.minimize()}>
+          <button aria-label={tl('Minimize')} onClick={() => backend.window.minimize()}>
             <Minus size={15} />
           </button>
-          <button aria-label="Maximize" onClick={() => backend.window.toggleMaximize()}>
+          <button aria-label={tl('Maximize')} onClick={() => backend.window.toggleMaximize()}>
             <Square size={12} />
           </button>
-          <button aria-label="Close" className="win-close" onClick={requestReattach}>
+          <button aria-label={tl('Close')} className="win-close" onClick={requestReattach}>
             <X size={16} />
           </button>
         </div>
@@ -196,8 +197,9 @@ export function SecondaryApp({ label }: { label: string }) {
               icon={<LogoBars size={28} />}
               title={st.phase === 'closing' ? 'Closing…' : 'Waiting for the main window…'}
             >
-              This window shows windows detached from the main HT Flow window. It connects when the
-              main window is open; in a browser, detached windows float inside the main window.
+              {tl(
+                'This window shows windows detached from the main HT Flow window. It connects when the main window is open; in a browser, detached windows float inside the main window.',
+              )}
             </EmptyState>
           )}
         </div>

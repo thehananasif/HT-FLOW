@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Star, X } from 'lucide-react';
 import { create } from 'zustand';
-import { t, type Strings } from '@htflow/i18n';
+import { t, type Strings, translateLiteral as tl } from '@htflow/i18n';
 import { Button, Dialog, Input, MenuTrigger, Popover, Select } from '@htflow/ui-kit';
 import {
   FULL_CAPABILITIES,
@@ -91,7 +91,7 @@ export function IntervalMenu({ windowId, s }: { windowId: string; s: ChartWindow
       testId="interval-menu"
       trigger={
         <MenuTrigger aria-label={`TF: ${t('tf.menu')}`} onClick={() => setOpen(!open)}>
-          TF
+          {tl('TF')}
         </MenuTrigger>
       }
     >

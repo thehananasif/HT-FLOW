@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { risk, riskStore } from '../../modules/risk/engine';
 import { domActions } from './actions';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const money = (v: number) =>
   (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
@@ -23,22 +24,22 @@ export function RiskStrip({ instrumentId }: { instrumentId: string }) {
   const maxPos = r.maxPositionSize.perInstrument[instrumentId] ?? r.maxPositionSize.value;
   const cls = (used: number) => (used >= 1 ? 'bad' : used >= 0.8 ? 'warn' : '');
   return (
-    <div className="sdom-risk" data-testid="dom-risk" title="Risk limits (Risk window)">
+    <div className="sdom-risk" data-testid="dom-risk" title={tl('Risk limits (Risk window)')}>
       <span className={cls(st.dailyLossUsed)}>
-        Day {money(st.dayPnl)}
+        {tl('Day')} {money(st.dayPnl)}
         {r.dailyLossLimit.enabled && <em> / {money(-r.dailyLossLimit.value)}</em>}
       </span>
       <span className={r.maxPositionSize.enabled ? cls(pos / Math.max(1, maxPos)) : ''}>
-        Pos {pos}
+        {tl('Pos')} {pos}
         {r.maxPositionSize.enabled && <em> / {maxPos}</em>}
       </span>
       <span
         className={r.maxTradesPerDay.enabled ? cls(st.tradesToday / r.maxTradesPerDay.value) : ''}
       >
-        Trades {st.tradesToday}
+        {tl('Trades')} {st.tradesToday}
         {r.maxTradesPerDay.enabled && <em> / {r.maxTradesPerDay.value}</em>}
       </span>
-      {st.locked && <span className="bad">Locked</span>}
+      {st.locked && <span className="bad">{tl('Locked')}</span>}
     </div>
   );
 }

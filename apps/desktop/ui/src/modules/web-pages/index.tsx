@@ -34,6 +34,7 @@ import { listenNative, nativePage, type Bounds } from './native';
 import { checkAddress, normalizeAllowList, parseAllowText, urlPermitted } from './policy';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const BOOKMARKS_KEY = 'web-pages.bookmarks';
 
 /** Links from other windows (RSS, News) arrive as the cancelable `htflow:open-url` event. */
@@ -120,7 +121,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
         .catch((e) => {
           setShown(false);
           log.error('web-pages', `Opening the page window failed: ${errText(e)}`);
-          toast('error', 'Could not open the page window', errText(e));
+          toast('error', tl('Could not open the page window'), errText(e));
         });
     },
     [windowId],
@@ -174,14 +175,14 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
     setBookmarks(next);
     void backend.saveSettings(BOOKMARKS_KEY, next).catch((e) => {
       log.error('web-pages', `Saving bookmarks failed: ${String(e)}`);
-      toast('error', 'Could not save bookmarks');
+      toast('error', tl('Could not save bookmarks'));
     });
   };
 
   const openInNewTab = useCallback(
     (u: string) => {
       if (!urlPermitted(u, cfg.current.allow)) {
-        toast('warning', 'Blocked by the allow-list', u);
+        toast('warning', tl('Blocked by the allow-list'), u);
         return;
       }
       const t = navigate(newTab(nextTabId()), u);
@@ -203,7 +204,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
   const go = (input: string) => {
     const r = checkAddress(input, allow);
     if (!r.ok) {
-      toast('warning', 'Not opened', r.reason);
+      toast('warning', tl('Not opened'), r.reason);
       return;
     }
     update((t) => navigate(t, r.url));
@@ -212,13 +213,15 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
 
   const systemBrowser = (u: string) => {
     if (isTauri)
-      void nativePage.openExternal(u).catch((e) => toast('error', 'Could not open', errText(e)));
+      void nativePage
+        .openExternal(u)
+        .catch((e) => toast('error', tl('Could not open'), errText(e)));
     else window.open(u, '_blank', 'noopener,noreferrer');
   };
 
   const saveAllow = () => {
     const { list, rejected } = parseAllowText(allowText);
-    if (rejected.length) toast('warning', 'Ignored invalid entries', rejected.join(', '));
+    if (rejected.length) toast('warning', tl('Ignored invalid entries'), rejected.join(', '));
     setParams({ allow: list });
     setAllowText(list.join('\n'));
     cfg.current = { ...cfg.current, allow: list };
@@ -280,7 +283,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
 
   return (
     <div className="web-win col" data-testid="web-pages">
-      <div className="web-tabs" role="tablist" aria-label="Browser tabs">
+      <div className="web-tabs" role="tablist" aria-label={tl('Browser tabs')}>
         {tabs.map((t) => (
           <div
             key={t.id}
@@ -304,7 +307,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
         ))}
         <button
           className="web-tab-add"
-          aria-label="New tab"
+          aria-label={tl('New tab')}
           onClick={() => {
             const t = newTab(nextTabId());
             commit([...tabs, t], t.id);
@@ -325,7 +328,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           type="button"
           size="sm"
           variant="ghost"
-          aria-label="Back"
+          aria-label={tl('Back')}
           disabled={isTauri ? !shown : !canBack(tab)}
           onClick={() =>
             isTauri ? void nativePage.back(windowId).catch(() => undefined) : update(back)
@@ -337,7 +340,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           type="button"
           size="sm"
           variant="ghost"
-          aria-label="Forward"
+          aria-label={tl('Forward')}
           disabled={isTauri ? !shown : !canForward(tab)}
           onClick={() =>
             isTauri ? void nativePage.forward(windowId).catch(() => undefined) : update(forward)
@@ -349,16 +352,16 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           type="button"
           size="sm"
           variant="ghost"
-          aria-label="Reload"
+          aria-label={tl('Reload')}
           disabled={!url}
           onClick={doReload}
         >
           <RotateCw size={14} />
         </Button>
         <Input
-          aria-label="Address"
+          aria-label={tl('Address')}
           className="web-address"
-          placeholder="Enter a web address"
+          placeholder={tl('Enter a web address')}
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           onFocus={(e) => e.currentTarget.select()}
@@ -378,7 +381,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           type="button"
           size="sm"
           variant="ghost"
-          aria-label="Open in system browser"
+          aria-label={tl('Open in system browser')}
           disabled={!url}
           onClick={() => url && systemBrowser(url)}
         >
@@ -388,7 +391,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           type="button"
           size="sm"
           variant="ghost"
-          aria-label="Panel settings"
+          aria-label={tl('Panel settings')}
           aria-pressed={showSettings}
           onClick={() => setShowSettings((v) => !v)}
         >
@@ -400,20 +403,21 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
         <div className="web-settings" data-testid="web-settings">
           <label className="web-set-row">
             <span>
-              Allowed sites <span className="muted">(one per line; empty allows every site)</span>
+              {tl('Allowed sites')}{' '}
+              <span className="muted">{tl('(one per line; empty allows every site)')}</span>
             </span>
             <textarea
-              aria-label="Allowed sites"
+              aria-label={tl('Allowed sites')}
               className="web-allow"
               rows={3}
-              placeholder={'example.com\n*.example.org'}
+              placeholder={tl('example.com\n*.example.org')}
               value={allowText}
               onChange={(e) => setAllowText(e.target.value)}
             />
           </label>
           <div className="web-set-row inline">
             <Button type="button" size="sm" onClick={saveAllow}>
-              Save allow-list
+              {tl('Save allow-list')}
             </Button>
             <label className="web-chk">
               <input
@@ -421,7 +425,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
                 checked={newWindowExternal}
                 onChange={(e) => setNewWindow(e.target.checked)}
               />
-              Open new-window links in the system browser
+              {tl('Open new-window links in the system browser')}
             </label>
             {isTauri && (
               <label className="web-chk">
@@ -430,16 +434,18 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
                   checked={alwaysOnTop}
                   onChange={(e) => setOnTop(e.target.checked)}
                 />
-                Keep page window on top
+                {tl('Keep page window on top')}
               </label>
             )}
           </div>
         </div>
       )}
 
-      <div className="web-bookmarks" aria-label="Bookmarks">
+      <div className="web-bookmarks" aria-label={tl('Bookmarks')}>
         {!loaded ? null : bookmarks.length === 0 ? (
-          <span className="muted">No bookmarks yet. Press the star to save the current page.</span>
+          <span className="muted">
+            {tl('No bookmarks yet. Press the star to save the current page.')}
+          </span>
         ) : (
           bookmarks.map((b) => (
             <span key={b.url} className="web-bm">
@@ -461,10 +467,11 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
       <div className="web-view">
         {url && !isTauri && (
           <div className="web-notice" role="note" data-testid="web-frame-hint">
-            Blank page or a refusal message? Many sites forbid being shown inside other pages
-            (X-Frame-Options / frame-ancestors) and a browser cannot tell us when that happens.{' '}
+            {tl(
+              'Blank page or a refusal message? Many sites forbid being shown inside other pages (X-Frame-Options / frame-ancestors) and a browser cannot tell us when that happens.',
+            )}{' '}
             <button className="web-link" onClick={() => systemBrowser(url)}>
-              Open in system browser
+              {tl('Open in system browser')}
             </button>
           </div>
         )}

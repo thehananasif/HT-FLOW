@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import {
   Button,
   Checkbox,
@@ -96,13 +96,13 @@ function RecoveryDialog({ words, onDone }: { words: string[]; onDone: () => void
           size="sm"
           onClick={() => {
             void navigator.clipboard?.writeText(words.join(' '));
-            toast('success', 'Recovery code copied');
+            toast('success', tl('Recovery code copied'));
           }}
         >
-          Copy
+          {tl('Copy')}
         </Button>
         <Button size="sm" onClick={() => window.print()}>
-          Print
+          {tl('Print')}
         </Button>
       </div>
       <div style={{ marginTop: 16 }}>
@@ -116,7 +116,7 @@ function RecoveryDialog({ words, onDone }: { words: string[]; onDone: () => void
         disabled={!ok}
         onClick={onDone}
       >
-        Continue
+        {tl('Continue')}
       </Button>
     </Dialog>
   );
@@ -173,11 +173,11 @@ export function LoginScreen() {
       if (!f) return;
       try {
         const p = await backend.importProfile(await f.text());
-        toast('success', 'Profile imported', p.username);
+        toast('success', tl('Profile imported'), p.username);
         setUsername(p.username);
         refresh();
       } catch (err) {
-        toast('error', 'Import failed', errMsg(err));
+        toast('error', tl('Import failed'), errMsg(err));
       }
     };
     inp.click();
@@ -192,7 +192,7 @@ export function LoginScreen() {
           <div className="row gap12 center-y">
             <BrandIcon size={44} />
             <div>
-              <div className="login-brand">HT FLOW</div>
+              <div className="login-brand">{tl('HT FLOW')}</div>
               <div className="login-brand-sub">{t('app.tagline')}</div>
             </div>
           </div>
@@ -215,7 +215,7 @@ export function LoginScreen() {
             </div>
           </div>
           <div className="login-foot">
-            <span className="ht-dot" data-state="live" /> Your data stays on this PC ·{' '}
+            <span className="ht-dot" data-state="live" /> {tl('Your data stays on this PC ·')}{' '}
             {version && `v${version}`} · <AnimToggle />
           </div>
         </section>
@@ -223,7 +223,7 @@ export function LoginScreen() {
           <div className="login-card">
             <SegmentedControl
               block
-              aria-label="Account"
+              aria-label={tl('Account')}
               value={tab}
               onChange={(v) => {
                 setTab(v);
@@ -421,7 +421,7 @@ function CreateForm({
             value={tz}
             onChange={setTz}
             options={TIMEZONES.map((z) => ({ value: z, label: z }))}
-            aria-label="Timezone"
+            aria-label={tl('Timezone')}
           />
         </Field>
         <Field label={t('create.pin')}>
@@ -474,8 +474,8 @@ function PinDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Unlock with PIN"
-      description="Quick unlock for a profile that has a 6-digit PIN."
+      title={tl('Unlock with PIN')}
+      description={tl('Quick unlock for a profile that has a 6-digit PIN.')}
       width={400}
     >
       <form
@@ -489,10 +489,10 @@ function PinDialog({
           }
         }}
       >
-        <Field label="Username">
+        <Field label={tl('Username')}>
           <Input value={user} onChange={(e) => setUser(e.target.value)} />
         </Field>
-        <Field label="PIN" error={err}>
+        <Field label={tl('PIN')} error={err}>
           <Input
             large
             inputMode="numeric"
@@ -503,7 +503,7 @@ function PinDialog({
           />
         </Field>
         <Button type="submit" variant="primary" block disabled={pin.length !== 6}>
-          Unlock
+          {tl('Unlock')}
         </Button>
       </form>
     </Dialog>
@@ -538,17 +538,17 @@ function ForgotDialog({
           e.preventDefault();
           try {
             await backend.recover(user, words.trim().toLowerCase().split(/\s+/), pw);
-            toast('success', 'Password reset', 'Log in with your new password.');
+            toast('success', tl('Password reset'), tl('Log in with your new password.'));
             onOpenChange(false);
           } catch (x) {
             setErr(errMsg(x));
           }
         }}
       >
-        <Field label="Username">
+        <Field label={tl('Username')}>
           <Input value={user} onChange={(e) => setUser(e.target.value)} />
         </Field>
-        <Field label="24-word recovery code">
+        <Field label={tl('24-word recovery code')}>
           <textarea
             className="ht-input mono"
             style={{ height: 90, padding: 10 }}
@@ -556,7 +556,7 @@ function ForgotDialog({
             onChange={(e) => setWords(e.target.value)}
           />
         </Field>
-        <Field label="New password" error={err}>
+        <Field label={tl('New password')} error={err}>
           <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
         </Field>
         <Button
@@ -565,7 +565,7 @@ function ForgotDialog({
           block
           disabled={pw.length < 10 || words.trim().split(/\s+/).length !== 24}
         >
-          Reset password
+          {tl('Reset password')}
         </Button>
       </form>
     </Dialog>
@@ -586,7 +586,7 @@ function AnimToggle() {
       data-testid="login-anim-toggle"
       onClick={() => setLoginAnimationEnabled(!on)}
     >
-      Animated background: {on ? 'on' : 'off'}
+      {tl('Animated background:')} {on ? 'on' : 'off'}
     </button>
   );
 }

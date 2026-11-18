@@ -9,6 +9,7 @@ import { HEATMAP_TOOLS } from './drawings';
 import { HeatmapView } from './HeatmapView';
 import { COLUMN_WIDTHS, columnLabel, type HeatmapModuleSettings } from './model';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** P11 Heatmap / Liquidity map — standalone window (ribbon → Heatmap). */
 registerModule({ id: 'heatmap', view: HeatmapView });
 
@@ -24,7 +25,7 @@ function withHeatmap(fn: (api: HeatmapApi) => void) {
       const a = targetHeatmap();
       if (a) fn(a);
       else if (tries++ < 20) setTimeout(retry, 50);
-      else toast('info', 'Open a Heatmap window first');
+      else toast('info', tl('Open a Heatmap window first'));
     };
     setTimeout(retry, 50);
   };

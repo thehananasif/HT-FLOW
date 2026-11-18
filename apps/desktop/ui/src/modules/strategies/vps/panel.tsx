@@ -60,6 +60,7 @@ import {
   type VpsHost,
 } from './service';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const POLL_MS = 10_000;
 /** Commands from the palette reach the mounted panel through this event. */
 export const VPS_EVENT = 'htflow:vps';
@@ -156,7 +157,7 @@ export function VpsPanel() {
           /* the status poll reports connection problems */
         }
       }
-      if (!quiet) toast('success', 'Journal updated', `${added} new VPS trade(s) imported`);
+      if (!quiet) toast('success', tl('Journal updated'), `${added} new VPS trade(s) imported`);
     },
     [native, patchHost],
   );
@@ -271,18 +272,22 @@ export function VpsPanel() {
     <div className="stg-vps" data-testid="strategy-vps">
       {native.kind === 'none' && (
         <div className="stg-banner" role="note" data-testid="vps-desktop-only">
-          <b>Desktop app needed.</b> The browser build cannot open SSH connections. Install HT Flow
-          on Windows to connect your VPS.
+          <b>{tl('Desktop app needed.')}</b>{' '}
+          {tl(
+            'The browser build cannot open SSH connections. Install HT Flow on Windows to connect your VPS.',
+          )}
         </div>
       )}
       <div className="stg-vps-intro stg-muted">
-        Run strategies 24/7 on <b>your own VPS</b> over SSH — no HT Flow server, $0. The runner
-        streams public market data ({SUPPORTED_FEEDS}) and trades <b>paper only</b>.
+        {tl('Run strategies 24/7 on')} <b>{tl('your own VPS')}</b>{' '}
+        {tl('over SSH — no HT Flow server, $0. The runner streams public market data (')}
+        {SUPPORTED_FEEDS}
+        {tl(') and trades')} <b>{tl('paper only')}</b>.
       </div>
       <div className="stg-vps-grid">
         <section className="stg-card">
           <div className="stg-card-head">
-            <b>My VPS</b>
+            <b>{tl('My VPS')}</b>
             <span className="grow" />
             <Button
               size="xs"
@@ -290,12 +295,12 @@ export function VpsPanel() {
               onClick={() => setDialog('add')}
               data-testid="vps-add"
             >
-              + Add VPS
+              {tl('+ Add VPS')}
             </Button>
           </div>
           {hosts.length ? (
             <Table
-              aria-label="VPS hosts"
+              aria-label={tl('VPS hosts')}
               rows={hosts}
               rowId={(h) => h.id}
               height={170}
@@ -332,7 +337,7 @@ export function VpsPanel() {
             />
           ) : (
             <p className="stg-muted" data-testid="vps-empty">
-              No VPS yet. Add one with its SSH host, user and key (or password).
+              {tl('No VPS yet. Add one with its SSH host, user and key (or password).')}
             </p>
           )}
         </section>
@@ -340,7 +345,7 @@ export function VpsPanel() {
           <section className="stg-card" data-testid="vps-status">
             <div className="stg-card-head">
               <b>{cur.name}</b>
-              {native.kind === 'mock' && <span className="stg-tag">mock VPS</span>}
+              {native.kind === 'mock' && <span className="stg-tag">{tl('mock VPS')}</span>}
               <span className="grow" />
               {st.busy && (
                 <span className="stg-muted" data-testid="vps-busy">
@@ -349,21 +354,21 @@ export function VpsPanel() {
               )}
             </div>
             <div className="stg-kv tnum">
-              <span>Connection</span>
+              <span>{tl('Connection')}</span>
               <b className={st.connected ? 'up' : st.error ? 'down' : ''} data-testid="vps-conn">
                 {st.connected ? 'Connected' : st.error ? 'Error' : 'Not connected'}
               </b>
-              <span>Host</span>
+              <span>{tl('Host')}</span>
               <b>{`${cur.user}@${cur.host}:${cur.port}`}</b>
-              <span>Auth</span>
+              <span>{tl('Auth')}</span>
               <b>{cur.auth === 'key' ? 'SSH key (vault)' : 'Password (vault)'}</b>
-              <span>Host key</span>
+              <span>{tl('Host key')}</span>
               <b className="vps-fp" title={cur.fingerprint} data-testid="vps-fingerprint">
                 {cur.pinHostKey ? cur.fingerprint || '—' : 'not pinned (any key accepted)'}
               </b>
-              <span>System</span>
+              <span>{tl('System')}</span>
               <b>{cur.probe ? `${cur.probe.osName} ${cur.probe.arch}` : '—'}</b>
-              <span>Node.js</span>
+              <span>{tl('Node.js')}</span>
               <b
                 className={cur.probe ? (cur.probe.nodeOk ? 'up' : 'down') : ''}
                 data-testid="vps-node"
@@ -379,8 +384,10 @@ export function VpsPanel() {
             {cur.probe && !cur.probe.nodeOk && <NodeHelp host={cur} />}
             {cur.probe?.os === 'linux' && cur.probe.systemd && cur.probe.linger === 'no' && (
               <p className="stg-muted">
-                Tip: systemd user services stop when you log out unless lingering is on:{' '}
-                <code>sudo loginctl enable-linger {cur.user}</code>
+                {tl('Tip: systemd user services stop when you log out unless lingering is on:')}{' '}
+                <code>
+                  {tl('sudo loginctl enable-linger')} {cur.user}
+                </code>
               </p>
             )}
             <div className="stg-actions">
@@ -390,7 +397,7 @@ export function VpsPanel() {
                 onClick={() => void test(cur)}
                 data-testid="vps-test"
               >
-                Test connection
+                {tl('Test connection')}
               </Button>
               <Button
                 size="sm"
@@ -399,7 +406,7 @@ export function VpsPanel() {
                 onClick={() => void refresh(cur)}
                 data-testid="vps-refresh"
               >
-                Refresh
+                {tl('Refresh')}
               </Button>
               <Button
                 size="sm"
@@ -410,7 +417,7 @@ export function VpsPanel() {
                 }}
                 data-testid="vps-deploy"
               >
-                Deploy strategy…
+                {tl('Deploy strategy…')}
               </Button>
               <span className="grow" />
               <Button
@@ -421,7 +428,7 @@ export function VpsPanel() {
                   setL(cur.id, { connected: false });
                 }}
               >
-                Disconnect
+                {tl('Disconnect')}
               </Button>
               <Button
                 size="sm"
@@ -429,7 +436,7 @@ export function VpsPanel() {
                 onClick={() => void removeHost(cur)}
                 data-testid="vps-remove-host"
               >
-                Remove VPS
+                {tl('Remove VPS')}
               </Button>
             </div>
           </section>
@@ -438,8 +445,10 @@ export function VpsPanel() {
       {cur && (
         <section className="stg-card" data-testid="vps-runners">
           <div className="stg-card-head">
-            <b>Runners on {cur.name}</b>
-            <span className="stg-tag">paper</span>
+            <b>
+              {tl('Runners on')} {cur.name}
+            </b>
+            <span className="stg-tag">{tl('paper')}</span>
             <span className="grow" />
             <Button
               size="xs"
@@ -448,12 +457,12 @@ export function VpsPanel() {
               onClick={() => void importAll(cur, false)}
               data-testid="vps-import"
             >
-              Import fills to Journal
+              {tl('Import fills to Journal')}
             </Button>
           </div>
           {rows.length ? (
             <Table
-              aria-label="VPS runners"
+              aria-label={tl('VPS runners')}
               rows={rows}
               rowId={(x) => x.id}
               height={180}
@@ -534,7 +543,7 @@ export function VpsPanel() {
               ]}
             />
           ) : (
-            <p className="stg-muted">Nothing deployed yet.</p>
+            <p className="stg-muted">{tl('Nothing deployed yet.')}</p>
           )}
           {selRow && (
             <div className="vps-runner-detail" data-testid="vps-runner-detail">
@@ -548,7 +557,7 @@ export function VpsPanel() {
                       onClick={() => void act(cur, selRow.d!, 'start')}
                       data-testid="vps-start"
                     >
-                      Start
+                      {tl('Start')}
                     </Button>
                     <Button
                       size="sm"
@@ -557,7 +566,7 @@ export function VpsPanel() {
                       onClick={() => void act(cur, selRow.d!, 'stop')}
                       data-testid="vps-stop"
                     >
-                      Stop
+                      {tl('Stop')}
                     </Button>
                     <Button
                       size="sm"
@@ -569,7 +578,7 @@ export function VpsPanel() {
                       }}
                       data-testid="vps-redeploy"
                     >
-                      Redeploy…
+                      {tl('Redeploy…')}
                     </Button>
                   </>
                 )}
@@ -587,18 +596,19 @@ export function VpsPanel() {
                   }
                   data-testid="vps-remove-runner"
                 >
-                  Remove runner
+                  {tl('Remove runner')}
                 </Button>
               </div>
               {selRow.r?.state?.error && <div className="stg-banner">{selRow.r.state.error}</div>}
               {selRow.d && (
                 <p className="stg-muted tnum">
-                  Bundle {selRow.d.sha256.slice(0, 12)} · {(selRow.d.bytes / 1024).toFixed(0)} KB ·
-                  deployed {new Date(selRow.d.deployedAt).toLocaleString()} ·{' '}
+                  {tl('Bundle')} {selRow.d.sha256.slice(0, 12)} ·{' '}
+                  {(selRow.d.bytes / 1024).toFixed(0)} {tl('KB · deployed')}{' '}
+                  {new Date(selRow.d.deployedAt).toLocaleString()} ·{' '}
                   {START_MODE_LABEL[selRow.d.startMode]}
                 </p>
               )}
-              <div className="stg-subhead">Last log lines</div>
+              <div className="stg-subhead">{tl('Last log lines')}</div>
               <pre className="vps-log" data-testid="vps-log">
                 {(selRow.r?.logs ?? [])
                   .map(
@@ -648,8 +658,9 @@ function NodeHelp({ host }: { host: VpsHost }) {
   const s = nodeInstallSteps({ os: host.probe!.os, distro: host.probe!.distro });
   return (
     <div className="stg-banner" role="note" data-testid="vps-node-help">
-      <b>Node.js 22+ is required on the VPS</b> (found: {host.probe?.node ?? 'none'}). Install it
-      yourself — {s.title}:<pre className="vps-log">{s.commands.join('\n')}</pre>
+      <b>{tl('Node.js 22+ is required on the VPS')}</b> {tl('(found:')} {host.probe?.node ?? 'none'}
+      {tl('). Install it yourself —')} {s.title}:
+      <pre className="vps-log">{s.commands.join('\n')}</pre>
       <span className="stg-muted">{s.note}</span>
     </div>
   );
@@ -676,10 +687,10 @@ function Console({ host }: { host: VpsHost }) {
   };
   return (
     <details className="stg-card" data-testid="vps-console">
-      <summary>Remote command</summary>
+      <summary>{tl('Remote command')}</summary>
       <div className="stg-dialog-row">
         <Input
-          aria-label="Remote command"
+          aria-label={tl('Remote command')}
           value={cmd}
           onChange={(e) => setCmd(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !busy && void run()}
@@ -691,7 +702,7 @@ function Console({ host }: { host: VpsHost }) {
           onClick={() => void run()}
           data-testid="vps-run"
         >
-          Run
+          {tl('Run')}
         </Button>
       </div>
       <pre className="vps-log" data-testid="vps-console-out">
@@ -779,30 +790,35 @@ function AddVps({
 
   if (confirm)
     return (
-      <Dialog open onOpenChange={(o) => !o && onClose()} title="Trust this server?" width={480}>
+      <Dialog
+        open
+        onOpenChange={(o) => !o && onClose()}
+        title={tl('Trust this server?')}
+        width={480}
+      >
         <div className="stg-form" data-testid="vps-trust-dialog">
           <p>
-            First connection to{' '}
+            {tl('First connection to')}{' '}
             <b>
               {host}:{port}
             </b>
-            . Its SSH host key fingerprint is:
+            {tl('. Its SSH host key fingerprint is:')}
           </p>
           <code className="vps-fp-big" data-testid="vps-trust-fp">
             {confirm}
           </code>
           <p className="stg-muted">
-            Compare it with the one your VPS provider shows (or run{' '}
-            <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the server). HT Flow
-            pins it and refuses to connect if it ever changes.
+            {tl('Compare it with the one your VPS provider shows (or run')}{' '}
+            <code>{tl('ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub')}</code>{' '}
+            {tl('on the server). HT Flow pins it and refuses to connect if it ever changes.')}
           </p>
           <div className="stg-dialog-foot">
             <span className="grow" />
             <Button variant="ghost" onClick={onClose}>
-              Cancel
+              {tl('Cancel')}
             </Button>
             <Button disabled={busy} onClick={() => void finish(confirm)} data-testid="vps-trust">
-              Trust and save
+              {tl('Trust and save')}
             </Button>
           </div>
         </div>
@@ -810,32 +826,32 @@ function AddVps({
     );
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} title="Add VPS" width={460}>
+    <Dialog open onOpenChange={(o) => !o && onClose()} title={tl('Add VPS')} width={460}>
       <div className="stg-form" data-testid="vps-add-dialog">
-        <Field label="Name">
+        <Field label={tl('Name')}>
           <Input
-            aria-label="Name"
+            aria-label={tl('Name')}
             value={name}
             onChange={(e) => setName(e.target.value.slice(0, 40))}
           />
         </Field>
-        <Field label="Host" error={host && !hostOk ? 'Host name or IP address' : undefined}>
+        <Field label={tl('Host')} error={host && !hostOk ? 'Host name or IP address' : undefined}>
           <Input
-            aria-label="Host"
+            aria-label={tl('Host')}
             value={host}
-            placeholder="vps.example.com"
+            placeholder={tl('vps.example.com')}
             onChange={(e) => setHost(e.target.value.trim())}
           />
         </Field>
         <div className="stg-dialog-row">
-          <Field label="SSH port">
+          <Field label={tl('SSH port')}>
             <NumberInput value={port} min={1} max={65535} onChange={setPort} />
           </Field>
-          <Field label="User" error={user && !userOk ? 'Letters, digits, . _ -' : undefined}>
+          <Field label={tl('User')} error={user && !userOk ? 'Letters, digits, . _ -' : undefined}>
             <Input
-              aria-label="User"
+              aria-label={tl('User')}
               value={user}
-              placeholder="trader"
+              placeholder={tl('trader')}
               onChange={(e) => setUser(e.target.value.trim().slice(0, 64))}
             />
           </Field>
@@ -845,24 +861,24 @@ function AddVps({
             radio
             checked={auth === 'key'}
             onChange={() => setAuth('key')}
-            label="SSH private key"
+            label={tl('SSH private key')}
           />
           <Checkbox
             radio
             checked={auth === 'password'}
             onChange={() => setAuth('password')}
-            label="Password"
+            label={tl('Password')}
           />
         </div>
         {auth === 'key' ? (
           <>
             <Field
-              label="Private key"
-              hint="OpenSSH, PEM or PuTTY .ppk. Stored only in the encrypted vault."
+              label={tl('Private key')}
+              hint={tl('OpenSSH, PEM or PuTTY .ppk. Stored only in the encrypted vault.')}
             >
               <input
                 type="file"
-                aria-label="Private key file"
+                aria-label={tl('Private key file')}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f && f.size < 64 * 1024) void f.text().then(setKey);
@@ -870,17 +886,17 @@ function AddVps({
               />
               <textarea
                 className="vps-key"
-                aria-label="Private key text"
-                placeholder="…or paste -----BEGIN OPENSSH PRIVATE KEY-----"
+                aria-label={tl('Private key text')}
+                placeholder={tl('…or paste -----BEGIN OPENSSH PRIVATE KEY-----')}
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
                 rows={4}
                 spellCheck={false}
               />
             </Field>
-            <Field label="Key passphrase (if any)">
+            <Field label={tl('Key passphrase (if any)')}>
               <Input
-                aria-label="Key passphrase"
+                aria-label={tl('Key passphrase')}
                 type="password"
                 value={pass}
                 onChange={(e) => setPass(e.target.value)}
@@ -888,9 +904,12 @@ function AddVps({
             </Field>
           </>
         ) : (
-          <Field label="Password" hint="Stored only in the encrypted vault. A key is safer.">
+          <Field
+            label={tl('Password')}
+            hint={tl('Stored only in the encrypted vault. A key is safer.')}
+          >
             <Input
-              aria-label="Password"
+              aria-label={tl('Password')}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -900,12 +919,13 @@ function AddVps({
         <Checkbox
           checked={pin}
           onChange={setPin}
-          label="Pin the server's host key (trust on first use — recommended)"
+          label={tl("Pin the server's host key (trust on first use — recommended)")}
         />
         {!pin && (
           <div className="stg-banner">
-            Without pinning, a man-in-the-middle could impersonate your VPS. Only turn this off on a
-            trusted private network.
+            {tl(
+              'Without pinning, a man-in-the-middle could impersonate your VPS. Only turn this off on a trusted private network.',
+            )}
           </div>
         )}
         {err && (
@@ -916,7 +936,7 @@ function AddVps({
         <div className="stg-dialog-foot">
           <span className="grow" />
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button disabled={!valid || busy} onClick={() => void next()} data-testid="vps-add-next">
             {pin ? 'Next: check host key' : 'Save'}
@@ -972,7 +992,7 @@ function DeployDialog({
     if (script) {
       const c = compileProject(script.files);
       if (!c.project) {
-        toast('error', 'The strategy does not compile', c.diagnostics[0]?.message);
+        toast('error', tl('The strategy does not compile'), c.diagnostics[0]?.message);
         return;
       }
       scriptCfg = { project: c.project, params: script.params };
@@ -1025,7 +1045,7 @@ function DeployDialog({
       );
     } catch (e) {
       setBusy(null);
-      toast('error', 'Deploy failed', errorText(e), 8000);
+      toast('error', tl('Deploy failed'), errorText(e), 8000);
     }
   };
 
@@ -1038,10 +1058,12 @@ function DeployDialog({
     >
       <div className="stg-form" data-testid="vps-deploy-dialog">
         <div className="stg-banner" role="note">
-          <b>Paper trading.</b> The runner simulates fills with the HT Flow paper engine on live
-          public data. Live order routing from a VPS needs a broker connector (not available yet).
+          <b>{tl('Paper trading.')}</b>{' '}
+          {tl(
+            'The runner simulates fills with the HT Flow paper engine on live public data. Live order routing from a VPS needs a broker connector (not available yet).',
+          )}
         </div>
-        <Field label="Strategy">
+        <Field label={tl('Strategy')}>
           <Select
             value={strategyId}
             options={[
@@ -1055,7 +1077,7 @@ function DeployDialog({
           />
         </Field>
         <Field
-          label="Instrument"
+          label={tl('Instrument')}
           hint={
             insts.length ? undefined : `No supported instrument. Supported: ${SUPPORTED_FEEDS}.`
           }
@@ -1070,19 +1092,19 @@ function DeployDialog({
           />
         </Field>
         <div className="stg-dialog-row">
-          <Field label="Bars">
+          <Field label={tl('Bars')}>
             <Select
               value={bars}
               options={BAR_SPECS.map((b) => ({ value: b.value, label: b.label }))}
               onChange={setBars}
             />
           </Field>
-          <Field label="Max position (risk cap)">
+          <Field label={tl('Max position (risk cap)')}>
             <NumberInput value={maxPos} min={1} max={10_000} onChange={setMaxPos} />
           </Field>
         </div>
         {def && Object.keys(def.inputs).length > 0 && (
-          <Field label="Inputs">
+          <Field label={tl('Inputs')}>
             <InputsForm
               defs={def.inputs}
               values={inputs}
@@ -1091,7 +1113,7 @@ function DeployDialog({
             />
           </Field>
         )}
-        <Field label="Keep running with">
+        <Field label={tl('Keep running with')}>
           <Select
             value={mode}
             options={modes.map((m) => ({ value: m, label: START_MODE_LABEL[m] }))}
@@ -1099,14 +1121,15 @@ function DeployDialog({
           />
         </Field>
         <p className="stg-muted">
-          Starting balance {money(50_000)} (paper). The bundle (SDK + strategy + inputs) is uploaded
-          to <code>~/.htflow-runner/runners/</code>.
+          {tl('Starting balance')} {money(50_000)}{' '}
+          {tl('(paper). The bundle (SDK + strategy + inputs) is uploaded to')}{' '}
+          <code>{tl('~/.htflow-runner/runners/')}</code>.
         </p>
         <div className="stg-dialog-foot">
           {busy && <span className="stg-muted">{busy}</span>}
           <span className="grow" />
           <Button variant="ghost" disabled={!!busy} onClick={onClose}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button
             disabled={!!busy || !def || !inst || !feed}

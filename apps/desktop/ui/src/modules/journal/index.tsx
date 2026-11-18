@@ -32,6 +32,7 @@ import { useSetting } from '../../state/settings';
 import { journalStore, type JournalTag, type TagKind } from './store';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const PERIODS: { id: JournalPeriod; label: string }[] = [
   { id: 'today', label: 'Today' },
   { id: 'week', label: 'Week' },
@@ -190,12 +191,16 @@ function Calendar({ trips }: { trips: RoundTrip[] }) {
         <span className="grow" />
         <button
           className="jr-nav"
-          aria-label="Previous month"
+          aria-label={tl('Previous month')}
           onClick={() => setOffset(offset - 1)}
         >
           ‹
         </button>
-        <button className="jr-nav" aria-label="Next month" onClick={() => setOffset(offset + 1)}>
+        <button
+          className="jr-nav"
+          aria-label={tl('Next month')}
+          onClick={() => setOffset(offset + 1)}
+        >
           ›
         </button>
       </div>
@@ -254,7 +259,7 @@ function Detail({ trip }: { trip: RoundTrip }) {
     for (const f of Array.from(files ?? [])) {
       if (!f.type.startsWith('image/')) continue;
       if (f.size > 1_500_000) {
-        toast('warning', 'Image too large', 'Attachments are limited to 1.5 MB each.');
+        toast('warning', tl('Image too large'), tl('Attachments are limited to 1.5 MB each.'));
         continue;
       }
       const r = new FileReader();
@@ -269,32 +274,32 @@ function Detail({ trip }: { trip: RoundTrip }) {
     <div className="jr-panel jr-detail" data-testid="journal-detail">
       <div className="jr-panel-head">
         <b>
-          Trade · {sym(trip.instrumentId)} · {trip.side.toUpperCase()} {trip.qty}
+          {tl('Trade ·')} {sym(trip.instrumentId)} · {trip.side.toUpperCase()} {trip.qty}
         </b>
         <span className="grow" />
         <b className={`tnum ${cls(net)}`}>{signed(net, 2)}</b>
       </div>
       <div className="jr-kpis">
         <div>
-          <span className="muted">MAE</span>
+          <span className="muted">{tl('MAE')}</span>
           <b className="tnum">{ex.samples ? `${ex.maeTicks.toFixed(0)} ticks` : '—'}</b>
         </div>
         <div>
-          <span className="muted">MFE</span>
+          <span className="muted">{tl('MFE')}</span>
           <b className="tnum">{ex.samples ? `+${ex.mfeTicks.toFixed(0)} ticks` : '—'}</b>
         </div>
         <div>
-          <span className="muted">Hold</span>
+          <span className="muted">{tl('Hold')}</span>
           <b className="tnum">{hold(trip.exitTs - trip.entryTs)}</b>
         </div>
       </div>
-      <span className="muted">Setup / mistake / emotion</span>
+      <span className="muted">{tl('Setup / mistake / emotion')}</span>
       <div className="jr-tags">
         {m.tags.map((t: JournalTag) => (
           <button
             key={t.text}
             className={`jr-tag jr-tag--${t.kind}`}
-            title="Remove tag"
+            title={tl('Remove tag')}
             onClick={() =>
               journalStore.setMeta(trip.id, { tags: m.tags.filter((x) => x.text !== t.text) })
             }
@@ -306,7 +311,7 @@ function Detail({ trip }: { trip: RoundTrip }) {
       <div className="row gap6">
         <select
           className="ht-select ht-select--sm"
-          aria-label="Tag kind"
+          aria-label={tl('Tag kind')}
           value={kind}
           onChange={(e) => setKind(e.target.value as TagKind)}
         >
@@ -318,8 +323,8 @@ function Detail({ trip }: { trip: RoundTrip }) {
         </select>
         <input
           className="ht-input jr-in grow"
-          placeholder="+ tag"
-          aria-label="New tag"
+          placeholder={tl('+ tag')}
+          aria-label={tl('New tag')}
           list="jr-all-tags"
           value={tag}
           onChange={(e) => setTag(e.target.value)}
@@ -331,19 +336,19 @@ function Detail({ trip }: { trip: RoundTrip }) {
           ))}
         </datalist>
         <Button size="xs" onClick={addTag}>
-          Add
+          {tl('Add')}
         </Button>
       </div>
-      <span className="muted">Notes</span>
+      <span className="muted">{tl('Notes')}</span>
       <textarea
         className="jr-notes"
-        aria-label="Notes"
+        aria-label={tl('Notes')}
         value={m.notes}
         onChange={(e) => journalStore.setMeta(trip.id, { notes: e.target.value })}
       />
       <div className="row gap8 center-y">
-        <span className="muted">Rating</span>
-        <span role="radiogroup" aria-label="Rating">
+        <span className="muted">{tl('Rating')}</span>
+        <span role="radiogroup" aria-label={tl('Rating')}>
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
@@ -358,12 +363,12 @@ function Detail({ trip }: { trip: RoundTrip }) {
           ))}
         </span>
       </div>
-      <span className="muted">Attachments</span>
+      <span className="muted">{tl('Attachments')}</span>
       <div className="jr-att">
         {m.attachments.map((a, i) => (
           <button
             key={i}
-            title="Remove attachment"
+            title={tl('Remove attachment')}
             onClick={() =>
               journalStore.setMeta(trip.id, {
                 attachments: m.attachments.filter((_, k) => k !== i),
@@ -374,7 +379,7 @@ function Detail({ trip }: { trip: RoundTrip }) {
           </button>
         ))}
         <label className="jr-att-add">
-          + image
+          {tl('+ image')}
           <input
             type="file"
             accept="image/*"
@@ -386,7 +391,7 @@ function Detail({ trip }: { trip: RoundTrip }) {
       </div>
       {trip.manual && (
         <Button size="xs" variant="destructive" onClick={() => journalStore.remove(trip.id)}>
-          Delete manual entry
+          {tl('Delete manual entry')}
         </Button>
       )}
     </div>
@@ -411,7 +416,7 @@ function ManualDialog({ open, onClose }: { open: boolean; onClose(): void }) {
     <Dialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="Manual journal entry"
+      title={tl('Manual journal entry')}
       width={420}
     >
       <form
@@ -440,7 +445,7 @@ function ManualDialog({ open, onClose }: { open: boolean; onClose(): void }) {
         }}
       >
         <div className="grid2">
-          <Field label="Instrument">
+          <Field label={tl('Instrument')}>
             <select className="ht-select" value={inst} onChange={(e) => setInst(e.target.value)}>
               {insts.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -449,34 +454,34 @@ function ManualDialog({ open, onClose }: { open: boolean; onClose(): void }) {
               ))}
             </select>
           </Field>
-          <Field label="Side">
+          <Field label={tl('Side')}>
             <select
               className="ht-select"
               value={side}
               onChange={(e) => setSide(e.target.value as 'long' | 'short')}
             >
-              <option value="long">Long</option>
-              <option value="short">Short</option>
+              <option value="long">{tl('Long')}</option>
+              <option value="short">{tl('Short')}</option>
             </select>
           </Field>
-          <Field label="Quantity">
+          <Field label={tl('Quantity')}>
             <Input value={qty} inputMode="decimal" onChange={(e) => setQty(e.target.value)} />
           </Field>
-          <Field label="Commission ($)">
+          <Field label={tl('Commission ($)')}>
             <Input value={comm} inputMode="decimal" onChange={(e) => setComm(e.target.value)} />
           </Field>
-          <Field label="Entry price">
+          <Field label={tl('Entry price')}>
             <Input value={entry} inputMode="decimal" onChange={(e) => setEntry(e.target.value)} />
           </Field>
-          <Field label="Exit price">
+          <Field label={tl('Exit price')}>
             <Input value={exit} inputMode="decimal" onChange={(e) => setExit(e.target.value)} />
           </Field>
-          <Field label="Risk ($, optional)" hint="Used for the R multiple">
+          <Field label={tl('Risk ($, optional)')} hint={tl('Used for the R multiple')}>
             <Input value={risk} inputMode="decimal" onChange={(e) => setRisk(e.target.value)} />
           </Field>
         </div>
         <Button type="submit" variant="primary" disabled={!valid}>
-          Add entry
+          {tl('Add entry')}
         </Button>
       </form>
     </Dialog>
@@ -606,21 +611,21 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
       <div className="jr-toolbar">
         <select
           className="ht-select ht-select--sm"
-          aria-label="Account"
+          aria-label={tl('Account')}
           value={params.account}
           onChange={(e) => setParams({ account: e.target.value })}
         >
-          <option value="all">All accounts</option>
+          <option value="all">{tl('All accounts')}</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
             </option>
           ))}
-          <option value="replay">Replay</option>
-          <option value="vps">VPS</option>
-          <option value="manual">Manual entries</option>
+          <option value="replay">{tl('Replay')}</option>
+          <option value="vps">{tl('VPS')}</option>
+          <option value="manual">{tl('Manual entries')}</option>
         </select>
-        <div className="ht-seg" role="group" aria-label="Period">
+        <div className="ht-seg" role="group" aria-label={tl('Period')}>
           {PERIODS.map((p) => (
             <button
               key={p.id}
@@ -633,11 +638,11 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
         </div>
         <select
           className="ht-select ht-select--sm"
-          aria-label="Tag filter"
+          aria-label={tl('Tag filter')}
           value={params.tag}
           onChange={(e) => setParams({ tag: e.target.value })}
         >
-          <option value="all">Tags: all</option>
+          <option value="all">{tl('Tags: all')}</option>
           {journalStore.allTags().map((t) => (
             <option key={t} value={t}>
               {t}
@@ -646,11 +651,11 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
         </select>
         <select
           className="ht-select ht-select--sm"
-          aria-label="Instrument filter"
+          aria-label={tl('Instrument filter')}
           value={params.instrument}
           onChange={(e) => setParams({ instrument: e.target.value })}
         >
-          <option value="all">Instrument: all</option>
+          <option value="all">{tl('Instrument: all')}</option>
           {instruments.map((i) => (
             <option key={i} value={i}>
               {sym(i)}
@@ -659,10 +664,10 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
         </select>
         <span className="grow" />
         <Button size="sm" variant="outline" onClick={exportCsv}>
-          Export CSV
+          {tl('Export CSV')}
         </Button>
         <Button size="sm" variant="primary" onClick={() => setManual(true)}>
-          + Manual entry
+          {tl('+ Manual entry')}
         </Button>
       </div>
       <div className="jr-body">
@@ -722,11 +727,11 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
         <div className="jr-row">
           <div className="jr-panel jr-eq">
             <div className="jr-panel-head">
-              <b>Equity curve</b>
+              <b>{tl('Equity curve')}</b>
               <span className="grow" />
               <span className="muted">
-                net of commission · <span className="up">— Equity</span>{' '}
-                <span className="down">┄ Drawdown</span>
+                {tl('net of commission ·')} <span className="up">{tl('— Equity')}</span>{' '}
+                <span className="down">{tl('┄ Drawdown')}</span>
               </span>
             </div>
             <EquityChart points={curve} />
@@ -793,7 +798,7 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
             </table>
             {!sorted.length && (
               <div className="tbl-empty">
-                No trades in this period. Closed paper trades are logged here automatically.
+                {tl('No trades in this period. Closed paper trades are logged here automatically.')}
               </div>
             )}
           </div>

@@ -28,6 +28,7 @@ import {
   type UserChartTemplate,
 } from '../../charts/templates';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export function TemplatesTab({ windowId, state }: { windowId: string; state: ChartWindowState }) {
   const lib = useChartTemplates((s) => s.lib);
   const update = useChartTemplates((s) => s.update);
@@ -47,7 +48,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
       update((l) => importTemplates(l, templates));
       toast('success', `Imported ${templates.length} template${templates.length > 1 ? 's' : ''}`);
     }
-    if (errors.length) toast('error', 'Some templates were skipped', errors.join('\n'));
+    if (errors.length) toast('error', tl('Some templates were skipped'), errors.join('\n'));
   };
 
   const row = (t: UserChartTemplate) => (
@@ -75,7 +76,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
         >
           <Input
             autoFocus
-            aria-label="New template name"
+            aria-label={tl('New template name')}
             value={renameText}
             onChange={(e) => setRenameText(e.target.value)}
             onBlur={() => setRenaming(null)}
@@ -94,13 +95,13 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
         </span>
       )}
       <Button size="xs" variant="outline" onClick={() => applyTemplateTo(windowId, t.id)}>
-        Load
+        {tl('Load')}
       </Button>
       {!t.preset && (
         <button
           className="ht-icon-btn"
           aria-label={`Overwrite ${t.name} with this chart`}
-          title="Save this chart over the template"
+          title={tl('Save this chart over the template')}
           onClick={() => {
             update((l) => updateTemplate(l, t.id, state));
             toast('success', `Template “${t.name}” updated`);
@@ -163,25 +164,27 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
   return (
     <div className="cs-templates">
       <section className="cs-section">
-        <div className="cs-sec-head cs-sec-static">Current chart</div>
+        <div className="cs-sec-head cs-sec-static">{tl('Current chart')}</div>
         <div className="cs-grid">
           <div className="cs-row">
-            <span className="cs-name">Active template</span>
+            <span className="cs-name">{tl('Active template')}</span>
             <span className="cs-editor">{active ? active.name : `${builtIn} (built-in)`}</span>
           </div>
           <div className="cs-row">
-            <span className="cs-name">Apply template on instrument change</span>
+            <span className="cs-name">{tl('Apply template on instrument change')}</span>
             <span className="cs-editor">
               <Checkbox
                 checked={lib.applyOnInstrumentChange}
                 onChange={(v) => update((l) => ({ ...l, applyOnInstrumentChange: v }))}
-                label="Use the class default"
+                label={tl('Use the class default')}
               />
             </span>
           </div>
           {ASSET_CLASSES.map((c) => (
             <div className="cs-row" key={c.value}>
-              <span className="cs-name">Default for {c.label.toLowerCase()}</span>
+              <span className="cs-name">
+                {tl('Default for')} {c.label.toLowerCase()}
+              </span>
               <span className="cs-editor">
                 <Select
                   small
@@ -197,7 +200,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
       </section>
       <section className="cs-section">
         <div className="cs-sec-head cs-sec-static">
-          My templates <span className="cs-count">{lib.templates.length}</span>
+          {tl('My templates')} <span className="cs-count">{lib.templates.length}</span>
         </div>
         <form
           className="cs-tpl-new"
@@ -209,16 +212,16 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
           }}
         >
           <Input
-            aria-label="New template name"
-            placeholder="Save current chart as…"
+            aria-label={tl('New template name')}
+            placeholder={tl('Save current chart as…')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
           <Button type="submit" size="sm" variant="primary" disabled={!newName.trim()}>
-            Save as
+            {tl('Save as')}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => void doImport()}>
-            Import {TEMPLATE_EXT}
+            {tl('Import')} {TEMPLATE_EXT}
           </Button>
           <Button
             type="button"
@@ -229,18 +232,18 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
               downloadText(`htflow-templates${TEMPLATE_EXT}`, serializeTemplates(lib.templates))
             }
           >
-            Export all
+            {tl('Export all')}
           </Button>
         </form>
         {lib.templates.length === 0 && (
           <p className="muted cs-empty">
-            No templates yet. Save the current chart as a template above.
+            {tl('No templates yet. Save the current chart as a template above.')}
           </p>
         )}
         {lib.templates.map(row)}
       </section>
       <section className="cs-section">
-        <div className="cs-sec-head cs-sec-static">Style presets</div>
+        <div className="cs-sec-head cs-sec-static">{tl('Style presets')}</div>
         {all.filter((t) => t.preset).map(row)}
       </section>
     </div>

@@ -20,7 +20,7 @@ import {
   Slider,
   toast,
 } from '@htflow/ui-kit';
-import { plural, t } from '@htflow/i18n';
+import { plural, t, translateLiteral as tl } from '@htflow/i18n';
 import { formatPrice, specKey, specLabel, TIMEFRAME_PRESETS } from '@htflow/market-data';
 import {
   ALERT_TRIGGERS,
@@ -121,7 +121,7 @@ export function DrawingsOverlay({
       {def && (
         <div className="dr-hint">
           {toolLabel(def.id)}
-          {toolNote(def.id) ? ` — ${toolNote(def.id)}` : ''} · Esc to cancel
+          {toolNote(def.id) ? ` — ${toolNote(def.id)}` : ''} {tl('· Esc to cancel')}
         </div>
       )}
       {d && showBar && !def && (

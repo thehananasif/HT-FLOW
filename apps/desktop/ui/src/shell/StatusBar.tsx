@@ -10,6 +10,7 @@ import { HIDDEN_MONEY, usePrivacy } from '../state/format';
 import { runCommand } from './commands';
 import { classifyDelay, useSetting } from '../state/settings';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Settings → Data delays: amber above the warning latency, red above the critical one. */
 const DELAY_STATE = { ok: 'live', warning: 'delayed', critical: 'error' } as const;
 
@@ -56,7 +57,7 @@ function PnlItem() {
       <b className={cls(s.open)} data-testid="status-pnl-open">
         {f(s.open)}
       </b>
-      <span className="muted"> · Day </span>
+      <span className="muted"> {tl('· Day')} </span>
       <b className={cls(s.net)}>{f(s.net)}</b>
     </button>
   );
@@ -85,7 +86,7 @@ export function StatusBar({ version, timezone }: { version: string; timezone: st
   }
   return (
     <footer className="statusbar">
-      <StatusPill state="live" label="Local core" title="All data stays on this PC" />
+      <StatusPill state="live" label={tl('Local core')} title={tl('All data stays on this PC')} />
       {[...pills.values()].map((p) => (
         <StatusPill
           key={p.key}
@@ -97,16 +98,20 @@ export function StatusBar({ version, timezone }: { version: string; timezone: st
       ))}
       <button
         className="ht-icon-btn"
-        aria-label="Connections"
+        aria-label={tl('Connections')}
         onClick={() => runCommand('open.connections')}
       >
         <Settings size={13} />
       </button>
       <div className="grow" />
       <PnlItem />
-      <span className="sb-item tnum">Latency {latency.toFixed(0)} ms</span>
+      <span className="sb-item tnum">
+        {tl('Latency')} {latency.toFixed(0)} {tl('ms')}
+      </span>
       {mem && (
-        <span className="sb-item tnum">RAM {(mem.usedJSHeapSize / 1048576).toFixed(0)} MB</span>
+        <span className="sb-item tnum">
+          {tl('RAM')} {(mem.usedJSHeapSize / 1048576).toFixed(0)} {tl('MB')}
+        </span>
       )}
       <span className="sb-item tnum" title={timezone}>
         {clock} {timezone.split('/').pop()?.replace('_', ' ')}

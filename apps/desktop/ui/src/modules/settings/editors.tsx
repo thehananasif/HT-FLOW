@@ -36,6 +36,7 @@ import { allInstruments } from '../../state/instruments';
 import { isTauri } from '../../backend';
 import { EXCHANGES, exchangeStatus, formatDuration, resolveCommission } from './model';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export interface EditorProps<T> {
   value: T;
   onChange(v: T): void;
@@ -164,8 +165,8 @@ export function ThemePreview({ draft }: { draft: SettingsValues }) {
       style={{ background: t.surface1, borderColor: t.border, color: t.textPrimary }}
     >
       <div className="row between center-y" style={{ background: t.surface2, padding: '6px 8px' }}>
-        <b>ESZ6</b>
-        <span style={{ color: t.textSecondary }}>5m · Footprint</span>
+        <b>{tl('ESZ6')}</b>
+        <span style={{ color: t.textSecondary }}>{tl('5m · Footprint')}</span>
       </div>
       <svg
         viewBox="0 0 160 70"
@@ -197,16 +198,16 @@ export function ThemePreview({ draft }: { draft: SettingsValues }) {
       </svg>
       <div className="row gap6" style={{ padding: 8 }}>
         <span className="st-pv-btn" style={{ background: t.up, color: '#000' }}>
-          Buy
+          {tl('Buy')}
         </span>
         <span className="st-pv-btn" style={{ background: t.down, color: '#fff' }}>
-          Sell
+          {tl('Sell')}
         </span>
         <span className="st-pv-btn" style={{ background: t.accent, color: t.accentText }}>
-          Primary
+          {tl('Primary')}
         </span>
         <span className="st-pv-btn" style={{ background: t.surface3, color: t.textSoft }}>
-          Secondary
+          {tl('Secondary')}
         </span>
       </div>
     </div>
@@ -241,7 +242,7 @@ function Recorder({
       className="st-rec"
       data-recording={rec || undefined}
       aria-label={`Shortcut for ${label}`}
-      title="Click, then press the new key combination (Esc cancels, Backspace clears)"
+      title={tl('Click, then press the new key combination (Esc cancels, Backspace clears)')}
       onClick={() => setRec(true)}
       onBlur={() => setRec(false)}
       onKeyDown={(e) => {
@@ -315,16 +316,16 @@ export function HotkeysEditor({
     <div className="st-hotkeys">
       {conflicts.size > 0 && (
         <div className="st-warn">
-          {conflicts.size} commands share a shortcut in overlapping scopes (amber rows).
+          {conflicts.size} {tl('commands share a shortcut in overlapping scopes (amber rows).')}
         </div>
       )}
       <table className="tbl st-hk-table">
         <thead>
           <tr>
-            <th>Command</th>
-            <th>Shortcut</th>
-            <th>Scope</th>
-            <th>Default</th>
+            <th>{tl('Command')}</th>
+            <th>{tl('Shortcut')}</th>
+            <th>{tl('Scope')}</th>
+            <th>{tl('Default')}</th>
             <th />
           </tr>
         </thead>
@@ -351,7 +352,7 @@ export function HotkeysEditor({
                       {conf && (
                         <span className="st-conflict">
                           {' '}
-                          — conflicts with {conf.map(label).join(', ')}
+                          {tl('— conflicts with')} {conf.map(label).join(', ')}
                         </span>
                       )}
                     </td>
@@ -398,7 +399,7 @@ export function HotkeysEditor({
           </tbody>
         ))}
       </table>
-      {!shown.length && <div className="tbl-empty">No commands match</div>}
+      {!shown.length && <div className="tbl-empty">{tl('No commands match')}</div>}
     </div>
   );
 }
@@ -477,9 +478,9 @@ export function CustomSoundsEditor({ value, onChange, draft }: EditorProps<Custo
   const fileRef = useRef<HTMLInputElement>(null);
   const add = (f: File) => {
     if (f.size > MAX_CUSTOM_SOUND_BYTES)
-      return toast('error', 'File too large', 'Max 2 MB per sound.');
+      return toast('error', tl('File too large'), tl('Max 2 MB per sound.'));
     if (value.length >= MAX_CUSTOM_SOUNDS)
-      return toast('error', 'Too many sounds', 'Max 20 files.');
+      return toast('error', tl('Too many sounds'), tl('Max 20 files.'));
     const r = new FileReader();
     r.onload = () => {
       const url = String(r.result).replace(/^data:(?!audio\/)[^;]*;/, 'data:audio/mpeg;');
@@ -515,7 +516,7 @@ export function CustomSoundsEditor({ value, onChange, draft }: EditorProps<Custo
       ))}
       <div className="st-row">
         <Button size="xs" onClick={() => fileRef.current?.click()}>
-          <Plus size={12} /> Add .wav / .mp3…
+          <Plus size={12} /> {tl('Add .wav / .mp3…')}
         </Button>
         <input
           ref={fileRef}
@@ -570,12 +571,12 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
       <table className="tbl">
         <thead>
           <tr>
-            <th>Account</th>
-            <th>Instrument</th>
-            <th>Maker %</th>
-            <th>Taker %</th>
-            <th>Per contract RT</th>
-            <th>Source</th>
+            <th>{tl('Account')}</th>
+            <th>{tl('Instrument')}</th>
+            <th>{tl('Maker %')}</th>
+            <th>{tl('Taker %')}</th>
+            <th>{tl('Per contract RT')}</th>
+            <th>{tl('Source')}</th>
             <th />
           </tr>
         </thead>
@@ -585,11 +586,11 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
               <td>
                 <select
                   className="ht-select ht-select--sm"
-                  aria-label="Rule account"
+                  aria-label={tl('Rule account')}
                   value={r.accountId}
                   onChange={(e) => set(r.id, { accountId: e.target.value })}
                 >
-                  <option value="*">All accounts</option>
+                  <option value="*">{tl('All accounts')}</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -600,11 +601,11 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
               <td>
                 <select
                   className="ht-select ht-select--sm"
-                  aria-label="Rule instrument"
+                  aria-label={tl('Rule instrument')}
                   value={r.instrumentId}
                   onChange={(e) => set(r.id, { instrumentId: e.target.value })}
                 >
-                  <option value="*">All instruments</option>
+                  <option value="*">{tl('All instruments')}</option>
                   {instruments.map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.symbol} — {i.exchange}
@@ -618,23 +619,23 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
               <td>
                 <select
                   className="ht-select ht-select--sm"
-                  aria-label="Rule source"
+                  aria-label={tl('Rule source')}
                   value={r.source}
                   onChange={(e) =>
                     set(r.id, { source: e.target.value as CommissionRule['source'] })
                   }
                 >
-                  <option value="manual">Manual</option>
-                  <option value="default">Default</option>
+                  <option value="manual">{tl('Manual')}</option>
+                  <option value="default">{tl('Default')}</option>
                   <option value="detected" disabled>
-                    Detected (needs broker API)
+                    {tl('Detected (needs broker API)')}
                   </option>
                 </select>
               </td>
               <td>
                 <button
                   className="ht-icon-btn"
-                  aria-label="Remove rule"
+                  aria-label={tl('Remove rule')}
                   onClick={() => onChange(value.filter((x) => x.id !== r.id))}
                 >
                   <Trash2 size={12} />
@@ -645,7 +646,9 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
         </tbody>
       </table>
       {!value.length && (
-        <div className="muted">No rules — the defaults apply to every account and instrument.</div>
+        <div className="muted">
+          {tl('No rules — the defaults apply to every account and instrument.')}
+        </div>
       )}
       <div className="row gap8">
         <Button
@@ -663,17 +666,19 @@ export function CommissionRulesEditor({ value, onChange, draft }: EditorProps<Co
             ])
           }
         >
-          <Plus size={12} /> Add rule
+          <Plus size={12} /> {tl('Add rule')}
         </Button>
         <Button
           size="xs"
           disabled
-          title="Reading fee tiers from exchange / broker APIs arrives with the connectors (P05)"
+          title={tl(
+            'Reading fee tiers from exchange / broker APIs arrives with the connectors (P05)',
+          )}
         >
-          Refresh from exchanges
+          {tl('Refresh from exchanges')}
         </Button>
       </div>
-      <div className="st-subhead">Effective commission (first paper account)</div>
+      <div className="st-subhead">{tl('Effective commission (first paper account)')}</div>
       <table className="tbl">
         <tbody>
           {instruments.slice(0, 12).map((i) => {
@@ -711,11 +716,11 @@ export function ClocksEditor({ value, onChange, draft }: EditorProps<string[]>) 
     <table className="tbl">
       <thead>
         <tr>
-          <th>Follow</th>
-          <th>Exchange</th>
-          <th>Local time</th>
-          <th>Status</th>
-          <th>Hours</th>
+          <th>{tl('Follow')}</th>
+          <th>{tl('Exchange')}</th>
+          <th>{tl('Local time')}</th>
+          <th>{tl('Status')}</th>
+          <th>{tl('Hours')}</th>
         </tr>
       </thead>
       <tbody>

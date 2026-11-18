@@ -3,6 +3,7 @@ import { isTauri } from '../../backend';
 import { runCommand } from '../../shell/commands';
 import { discoverySummary, refreshSymbolLists, useDiscovery } from '../../state/discovery';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 function ago(ms: number): string {
   if (!ms) return 'never';
   const s = Math.max(0, (Date.now() - ms) / 1000);
@@ -20,7 +21,7 @@ export function SymbolLists() {
   return (
     <section className="col gap8" data-testid="symbol-lists">
       <div className="row gap12" style={{ alignItems: 'center' }}>
-        <strong>Symbol lists</strong>
+        <strong>{tl('Symbol lists')}</strong>
         <span className="muted" data-testid="symbol-lists-total">
           {rows.length
             ? `${total.toLocaleString()} symbols · refreshed ${ago(report?.refreshedAtMs ?? 0)}`
@@ -36,15 +37,19 @@ export function SymbolLists() {
           {loading ? 'Refreshing…' : 'Refresh symbol list'}
         </Button>
       </div>
-      {error && <div className="muted">Last refresh failed: {error}</div>}
+      {error && (
+        <div className="muted">
+          {tl('Last refresh failed:')} {error}
+        </div>
+      )}
       {rows.length > 0 && (
         <table className="tbl tnum dm-table">
           <thead>
             <tr>
-              <th>Venue</th>
-              <th>Symbols</th>
-              <th>Updated</th>
-              <th>Status</th>
+              <th>{tl('Venue')}</th>
+              <th>{tl('Symbols')}</th>
+              <th>{tl('Updated')}</th>
+              <th>{tl('Status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -65,7 +70,7 @@ export function SymbolLists() {
                       onClick={() => void refreshSymbolLists(r.id)}
                       style={{ marginLeft: 8 }}
                     >
-                      Retry
+                      {tl('Retry')}
                     </Button>
                   )}
                 </td>

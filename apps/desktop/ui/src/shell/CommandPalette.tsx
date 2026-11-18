@@ -3,6 +3,7 @@ import { Kbd } from '@htflow/ui-kit';
 import { commands, onCommandsChange, paletteItems, type Command } from './commands';
 import { rowKey, searchPalette, type PaletteRow } from './paletteSearch';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Ctrl+K — searches commands, indicators, settings, instruments, layouts and modules. */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState('');
@@ -41,15 +42,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         className="palette"
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={tl('Command palette')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <input
           ref={inputRef}
           className="palette-input"
-          placeholder="Search commands, symbols, layouts…"
+          placeholder={tl('Search commands, symbols, layouts…')}
           role="combobox"
-          aria-label="Search commands, symbols, layouts"
+          aria-label={tl('Search commands, symbols, layouts')}
           aria-expanded={list.length > 0}
           aria-controls="palette-list"
           aria-autocomplete="list"
@@ -76,7 +77,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           className="palette-list"
           id="palette-list"
           role="listbox"
-          aria-label="Results"
+          aria-label={tl('Results')}
           tabIndex={-1}
         >
           {list.map((row, i) => {
@@ -114,7 +115,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               </Fragment>
             );
           })}
-          {!list.length && <div className="palette-empty">No matches</div>}
+          {!list.length && <div className="palette-empty">{tl('No matches')}</div>}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-/**
+import { translateLiteral as tl } from '@htflow/i18n'; /**
  * Brand artwork supplied by the owner (sources in apps/desktop/branding, optimised copies in
  * ui/public/brand): the HT Flow app icon and the "HANAN TRADE" bull-head logo. The product name in
  * text stays "HT Flow"; the logo is the owner's brand mark.
@@ -48,7 +48,7 @@ export function BrandLogo({
       className={`brand-logo${card ? ' brand-logo-card' : ''}${className ? ` ${className}` : ''}`}
       src={card ? BRAND_URLS.logo : BRAND_URLS.logoTransparent}
       height={height}
-      alt="HANAN TRADE"
+      alt={tl('HANAN TRADE')}
       draggable={false}
       data-testid={testId}
       style={{ height, width: card ? height : 'auto' }}

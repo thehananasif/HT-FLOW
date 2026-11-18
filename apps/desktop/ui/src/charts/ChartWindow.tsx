@@ -62,6 +62,7 @@ import './chart-core.css';
 installChartCommands();
 import { SessionSelect } from './timeframes/TimeframeDialog';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 const COMPARE_COLORS = ['#4FA3F7', '#B07CF0', '#E8B04B', '#BDBDBD', '#64C8D8'];
 
@@ -328,7 +329,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
       const item =
         typeof ClipboardItem !== 'undefined' ? new ClipboardItem({ 'image/png': blob }) : null;
       if (item && navigator.clipboard?.write)
-        void navigator.clipboard.write([item]).then(() => toast('success', 'Chart copied as PNG'));
+        void navigator.clipboard
+          .write([item])
+          .then(() => toast('success', tl('Chart copied as PNG')));
       else {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -360,14 +363,15 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
       if (!n) break;
     }
     setOlderNote(null);
-    if (!h.main.scrollToTime(t)) toast('warning', 'Date is before the available history');
+    if (!h.main.scrollToTime(t)) toast('warning', tl('Date is before the available history'));
   };
 
   const fullscreen = () => {
     const el = rootRef.current;
     if (!el) return;
     if (document.fullscreenElement) void document.exitFullscreen();
-    else void el.requestFullscreen?.().catch(() => toast('error', 'Full screen is not available'));
+    else
+      void el.requestFullscreen?.().catch(() => toast('error', tl('Full screen is not available')));
   };
 
   const bars = () => handle.current?.series()?.bars ?? [];
@@ -390,14 +394,14 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             return setSaveOpen(true);
           case 'refresh':
             setRebuild((x) => x + 1);
-            return toast('info', 'Chart refreshed');
+            return toast('info', tl('Chart refreshed'));
           case 'reload-history':
             store.historyExhausted = false;
             store.rebuildSeries();
             setOlderNote(null);
             return toast(
               'info',
-              'Historical data reloaded',
+              tl('Historical data reloaded'),
               `${store.trades.length.toLocaleString()} ticks`,
             );
           case 'load-older':
@@ -577,9 +581,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
                 className="chart-backfill"
                 data-testid="chart-backfill"
                 role="status"
-                title="Loading older history in the background"
+                title={tl('Loading older history in the background')}
               >
-                <span className="chart-loading-spin" aria-hidden /> history
+                <span className="chart-loading-spin" aria-hidden /> {tl('history')}
               </div>
             )}
             <div ref={hostA} className="chart-host" />
@@ -591,9 +595,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               <div
                 className={`lots-filter ${isSplit ? 'lots-filter--split' : ''}`}
                 role="radiogroup"
-                aria-label="Lots filter"
+                aria-label={tl('Lots filter')}
               >
-                <div className="lots-filter-title">Lots ≥</div>
+                <div className="lots-filter-title">{tl('Lots ≥')}</div>
                 {LOT_FILTERS.map((n) => (
                   <button
                     key={n}
@@ -611,9 +615,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             {ext.pinned && (
               <span
                 className="chart-pin-badge"
-                title="Pinned: keeps its instrument when the link group changes"
+                title={tl('Pinned: keeps its instrument when the link group changes')}
               >
-                Pinned
+                {tl('Pinned')}
               </span>
             )}
           </div>
@@ -639,15 +643,15 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           <button
             className="ht-chip ht-chip--ghost"
             onClick={() => handle.current?.cores.forEach((c) => c.reset())}
-            title="Go to latest"
+            title={tl('Go to latest')}
           >
             ◂▸
           </button>
           <SessionSelect windowId={id} s={s} />
           <button
             className="ht-chip ht-chip--ghost"
-            aria-label="Go to date"
-            title="Go to date (Ctrl+G)"
+            aria-label={tl('Go to date')}
+            title={tl('Go to date (Ctrl+G)')}
             onClick={() => setGotoOpen(true)}
           >
             📅
@@ -666,14 +670,14 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             aria-pressed={showData}
             onClick={() => setChartSetting(id, 'crosshair.dataWindow', !showData)}
           >
-            Data window
+            {tl('Data window')}
           </button>
           <button
             className="ht-chip ht-chip--ghost"
             aria-pressed={domTrader}
             onClick={() => setDomTrader((x) => !x)}
           >
-            DOM Trader
+            {tl('DOM Trader')}
           </button>
           <button
             className="ht-chip ht-chip--ghost"
@@ -681,7 +685,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               useWindows.getState().setTradingPanel(!useWindows.getState().tradingPanel)
             }
           >
-            Trading Panel
+            {tl('Trading Panel')}
           </button>
         </div>
       )}
@@ -791,7 +795,7 @@ function DelayChip({ store, settings }: { store: MarketStore; settings: ChartSet
   return (
     <span
       className="chart-delay tnum"
-      title="Feed delay (Chart settings → Data delays)"
+      title={tl('Feed delay (Chart settings → Data delays)')}
       style={{ background: sStr(settings, keys[0]!), color: sStr(settings, keys[1]!) }}
     >
       {test ? ['Good', 'Warning', 'Critical'][phase] : `${Math.round(ms)} ms`}
@@ -815,7 +819,7 @@ function ChartScrollbar({
     <input
       type="range"
       className="chart-scrollbar"
-      aria-label="Scroll chart"
+      aria-label={tl('Scroll chart')}
       min={-(core?.options.rightMargin ?? 0) - 1}
       max={Math.max(1, n)}
       value={value}

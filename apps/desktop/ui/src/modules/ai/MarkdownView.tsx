@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { toast } from '@htflow/ui-kit';
 import { parseMarkdown, type Block, type Inline } from './markdown';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 function inl(nodes: Inline[], key = ''): ReactNode[] {
   return nodes.map((n, i) => {
     const k = `${key}${i}`;
@@ -29,15 +30,15 @@ function inl(nodes: Inline[], key = ''): ReactNode[] {
 function CodeBlock({ lang, value }: { lang: string; value: string }) {
   const copy = () =>
     navigator.clipboard.writeText(value).then(
-      () => toast('success', 'Code copied'),
-      () => toast('error', 'Copy failed'),
+      () => toast('success', tl('Code copied')),
+      () => toast('error', tl('Copy failed')),
     );
   return (
     <div className="ai-code">
       <div className="ai-code-head">
         <span>{lang || 'code'}</span>
-        <button type="button" onClick={copy} aria-label="Copy code">
-          Copy
+        <button type="button" onClick={copy} aria-label={tl('Copy code')}>
+          {tl('Copy')}
         </button>
       </div>
       <pre>

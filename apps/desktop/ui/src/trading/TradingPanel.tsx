@@ -24,6 +24,7 @@ import { openTradingSetup } from './setupNav';
 import { nextOcoGroup, ocoGroupState, useOco } from './oco';
 import './trading.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Local midnight (epoch ms): start of "today" for daily P&L. */
 export function startOfLocalDay(now = Date.now()): number {
   const d = new Date(now);
@@ -80,14 +81,14 @@ function AccountPicker({ instrumentId }: { instrumentId: string | null }) {
     `${a.name.replace(/\s*·\s*••••\w+$/, '')} · ${showId ? a.id : maskId(a.id)}`;
   return (
     <>
-      <label className="tp-label">Account</label>
+      <label className="tp-label">{tl('Account')}</label>
       <div className="row gap6">
         <Select
           className="grow"
           value={accounts.some((a) => a.id === prefs.activeAccount) ? prefs.activeAccount : ''}
           onChange={selectAccount}
           options={accounts.map((a) => ({ value: a.id, label: label(a) }))}
-          aria-label="Account"
+          aria-label={tl('Account')}
         />
         <button
           className="ht-icon-btn"
@@ -98,15 +99,15 @@ function AccountPicker({ instrumentId }: { instrumentId: string | null }) {
         </button>
         <button
           className="ht-icon-btn"
-          aria-label="Manage paper accounts"
-          title="Paper accounts…"
+          aria-label={tl('Manage paper accounts')}
+          title={tl('Paper accounts…')}
           onClick={() => openTradingSetup('accounts')}
         >
           <Settings2 size={13} />
         </button>
       </div>
       <div className="ot-acct tnum" data-testid="account-balance" data-account={routed.id}>
-        {isRouted && <span className="ot-badge ot-badge--special">Routed</span>}
+        {isRouted && <span className="ot-badge ot-badge--special">{tl('Routed')}</span>}
         <span className="ot-acct-name">{isRouted ? routed.name : ''}</span>
         <span className="grow" />
         <b>
@@ -115,7 +116,7 @@ function AccountPicker({ instrumentId }: { instrumentId: string | null }) {
         </b>
       </div>
       <button className="ot-link" onClick={() => openTradingSetup('accounts')}>
-        Connect an account…
+        {tl('Connect an account…')}
       </button>
     </>
   );
@@ -189,10 +190,10 @@ function OrderEntry({
           value={type}
           onChange={setType}
           options={ENTRY_TYPES}
-          aria-label="Order type"
+          aria-label={tl('Order type')}
         />
-        <button className="ht-chip" onClick={fillLast} title="Set prices to the last trade">
-          Last
+        <button className="ht-chip" onClick={fillLast} title={tl('Set prices to the last trade')}>
+          {tl('Last')}
         </button>
       </div>
       {needsStop && (
@@ -209,19 +210,19 @@ function OrderEntry({
       )}
       {needsLimit && (
         <div className="ot-field">
-          <span>Limit</span>
+          <span>{tl('Limit')}</span>
           <NumberInput
             value={Number.isNaN(limit) ? 0 : limit}
             onChange={setLimit}
             step={tick}
             precision={prec}
-            aria-label="Limit price"
+            aria-label={tl('Limit price')}
           />
         </div>
       )}
       {type === 'trailing-stop' && (
         <div className="ot-field">
-          <span>Trail</span>
+          <span>{tl('Trail')}</span>
           <div className="row gap6">
             <NumberInput
               className="grow"
@@ -229,7 +230,7 @@ function OrderEntry({
               onChange={setTrail}
               step={trailKind === 'ticks' ? 1 : 0.1}
               min={trailKind === 'ticks' ? 1 : 0.1}
-              aria-label="Trail distance"
+              aria-label={tl('Trail distance')}
             />
             <Select
               small
@@ -240,21 +241,21 @@ function OrderEntry({
                 { value: 'percent', label: '%' },
                 { value: 'atr', label: 'ATR' },
               ]}
-              aria-label="Trail unit"
+              aria-label={tl('Trail unit')}
             />
           </div>
         </div>
       )}
       {type === 'iceberg' && (
         <div className="ot-field">
-          <span>Show</span>
+          <span>{tl('Show')}</span>
           <NumberInput
             value={display}
             onChange={setDisplay}
             min={inst && inst.qtyPrecision > 0 ? Math.pow(10, -inst.qtyPrecision) : 1}
             step={inst && inst.qtyPrecision > 0 ? Math.pow(10, -inst.qtyPrecision) : 1}
             unit="Lots"
-            aria-label="Display quantity"
+            aria-label={tl('Display quantity')}
           />
         </div>
       )}
@@ -265,7 +266,7 @@ function OrderEntry({
           onClick={() => place('buy')}
           data-testid="place-buy"
         >
-          BUY {type === 'iceberg' ? 'ICE' : type.toUpperCase().replace('-STOP', '')}
+          {tl('BUY')} {type === 'iceberg' ? 'ICE' : type.toUpperCase().replace('-STOP', '')}
         </Button>
         <Button
           variant="sell-outline"
@@ -273,7 +274,7 @@ function OrderEntry({
           onClick={() => place('sell')}
           data-testid="place-sell"
         >
-          SELL {type === 'iceberg' ? 'ICE' : type.toUpperCase().replace('-STOP', '')}
+          {tl('SELL')} {type === 'iceberg' ? 'ICE' : type.toUpperCase().replace('-STOP', '')}
         </Button>
       </div>
     </div>
@@ -298,11 +299,15 @@ function WorkingOrders({ instrumentId, accountId }: { instrumentId: string; acco
           <span className="grow tnum">{orderLineLabel(o, inst)}</span>
           {o.oco && !o.parentId && (
             <span className="ot-badge" title={`OCO group ${o.oco}`} data-testid="tp-oco-badge">
-              OCO
+              {tl('OCO')}
             </span>
           )}
           {o.atm && <span className="ot-badge">{o.atm}</span>}
-          <button className="ot-x" aria-label="Cancel order" onClick={() => void cancelOrder(o)}>
+          <button
+            className="ot-x"
+            aria-label={tl('Cancel order')}
+            onClick={() => void cancelOrder(o)}
+          >
             ✕
           </button>
         </div>
@@ -363,24 +368,24 @@ export function TradingPanel() {
   return (
     <aside
       className="trading-panel"
-      aria-label="Trading Panel"
+      aria-label={tl('Trading Panel')}
       data-testid="trading-panel"
       data-hotkey-scope="trading"
     >
       <div className="tp-head">
-        <h3>Trading Panel</h3>
+        <h3>{tl('Trading Panel')}</h3>
         <span className="muted">T</span>
         <button
           className="ht-icon-btn"
-          aria-label="Trading setup"
-          title="ATM templates, accounts, confirmations, chart trading"
+          aria-label={tl('Trading setup')}
+          title={tl('ATM templates, accounts, confirmations, chart trading')}
           onClick={() => openTradingSetup('atm')}
         >
           <Settings2 size={14} />
         </button>
         <button
           className="ht-icon-btn"
-          aria-label="Close trading panel"
+          aria-label={tl('Close trading panel')}
           onClick={() => useWindows.getState().setTradingPanel(false)}
         >
           <X size={14} />
@@ -390,14 +395,14 @@ export function TradingPanel() {
       <div className="tp-inst muted">
         {inst ? `${inst.symbol} · ${inst.exchange}` : 'Select a chart or DOM window'}
       </div>
-      <label className="tp-label">Qty</label>
+      <label className="tp-label">{tl('Qty')}</label>
       <NumberInput
         value={qty}
         onChange={setQty}
         step={inst && inst.qtyPrecision > 0 ? Math.pow(10, -inst.qtyPrecision) : 1}
         min={0}
         unit="Lots"
-        aria-label="Quantity"
+        aria-label={tl('Quantity')}
       />
       <div className="row gap6 wrap tp-presets">
         {presets.map((n) => (
@@ -408,66 +413,66 @@ export function TradingPanel() {
       </div>
       <fieldset className="tp-grid" disabled={!instrumentId || acc.locked}>
         <Button variant="buy" onClick={() => send('buy', 'market')} data-testid="buy-market">
-          BUY MARKET
+          {tl('BUY MARKET')}
         </Button>
         <Button variant="sell" onClick={() => send('sell', 'market')} data-testid="sell-market">
-          SELL MARKET
+          {tl('SELL MARKET')}
         </Button>
         <Button
           variant="buy-outline"
           size="sm"
           onClick={() => book && send('buy', 'limit', book.bestAsk)}
         >
-          BUY ASK
+          {tl('BUY ASK')}
         </Button>
         <Button
           variant="sell-outline"
           size="sm"
           onClick={() => book && send('sell', 'limit', book.bestAsk)}
         >
-          SELL ASK
+          {tl('SELL ASK')}
         </Button>
         <Button
           variant="buy-outline"
           size="sm"
           onClick={() => book && send('buy', 'limit', book.bestBid)}
         >
-          BUY BID
+          {tl('BUY BID')}
         </Button>
         <Button
           variant="sell-outline"
           size="sm"
           onClick={() => book && send('sell', 'limit', book.bestBid)}
         >
-          SELL BID
+          {tl('SELL BID')}
         </Button>
         <Button
           size="sm"
           onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId, 'buy')}
         >
-          Cancel Bids
+          {tl('Cancel Bids')}
         </Button>
         <Button
           size="sm"
           onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId, 'sell')}
         >
-          Cancel Asks
+          {tl('Cancel Asks')}
         </Button>
         <Button size="sm" onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId)}>
-          Cancel All
+          {tl('Cancel All')}
         </Button>
         <Button
           size="sm"
           onClick={() => instrumentId && void reversePosition(instrumentId, acc.id)}
         >
-          Reverse
+          {tl('Reverse')}
         </Button>
         <Button
           size="sm"
           className="span2"
           onClick={() => instrumentId && paper.breakeven(acc.id, instrumentId)}
         >
-          Breakeven (H)
+          {tl('Breakeven (H)')}
         </Button>
         <Button
           variant="primary"
@@ -475,21 +480,21 @@ export function TradingPanel() {
           onClick={() => instrumentId && void closePosition(instrumentId, acc.id)}
           data-testid="close-position"
         >
-          Close
+          {tl('Close')}
         </Button>
       </fieldset>
       <div
         className={`tp-pnl ${upnl >= 0 ? 'up' : 'down'}`}
         data-testid="pnl"
         data-value={upnl.toFixed(2)}
-        title="Open (unrealized) P&L of this instrument at the last price"
+        title={tl('Open (unrealized) P&L of this instrument at the last price')}
       >
-        PnL {upnl >= 0 ? '+' : ''}
+        {tl('PnL')} {upnl >= 0 ? '+' : ''}
         {upnl.toFixed(2)} {cur}
       </div>
       <div className="tp-day tnum" data-testid="pnl-day">
-        <span title="Gross realized P&L of today's fills on this account">
-          <span className="muted">Realized</span>{' '}
+        <span title={tl("Gross realized P&L of today's fills on this account")}>
+          <span className="muted">{tl('Realized')}</span>{' '}
           <b
             className={day.realized > 0 ? 'up' : day.realized < 0 ? 'down' : ''}
             data-testid="pnl-realized"
@@ -498,11 +503,11 @@ export function TradingPanel() {
             {signed(day.realized)}
           </b>
         </span>
-        <span title="Commissions and fees of today's fills">
-          <span className="muted">Fees</span> <b>{day.fees.toFixed(2)}</b>
+        <span title={tl("Commissions and fees of today's fills")}>
+          <span className="muted">{tl('Fees')}</span> <b>{day.fees.toFixed(2)}</b>
         </span>
-        <span title="Realized − fees + open P&L of every position on this account">
-          <span className="muted">Net</span>{' '}
+        <span title={tl('Realized − fees + open P&L of every position on this account')}>
+          <span className="muted">{tl('Net')}</span>{' '}
           <b className={day.net > 0 ? 'up' : day.net < 0 ? 'down' : ''} data-testid="pnl-net">
             {signed(day.net)}
           </b>
@@ -516,13 +521,17 @@ export function TradingPanel() {
           </b>
         </div>
         <div className="tp-stat">
-          <span className="muted">Entry</span>
+          <span className="muted">{tl('Entry')}</span>
           <b className="tnum">{pos && pos.qty && inst ? formatPrice(pos.avgPx, inst) : '—'}</b>
         </div>
       </div>
       <div className="row between center-y tp-row">
-        <span title="One-cancels-other: resting orders placed while ticked form one group; the first fill or cancel cancels the others">
-          <Checkbox checked={oco.enabled} onChange={oco.setEnabled} label="OCO" />
+        <span
+          title={tl(
+            'One-cancels-other: resting orders placed while ticked form one group; the first fill or cancel cancels the others',
+          )}
+        >
+          <Checkbox checked={oco.enabled} onChange={oco.setEnabled} label={tl('OCO')} />
         </span>
         <Select
           small
@@ -532,7 +541,7 @@ export function TradingPanel() {
             value: v,
             label: v,
           }))}
-          aria-label="Time in force"
+          aria-label={tl('Time in force')}
         />
       </div>
       {oco.enabled && (
@@ -543,15 +552,15 @@ export function TradingPanel() {
               : `OCO group: ${ocoWorking} working · the next order joins`}
           </span>
           <button className="ht-chip" onClick={oco.newGroup} disabled={ocoWorking === 0}>
-            New group
+            {tl('New group')}
           </button>
         </div>
       )}
       <div className="tp-row">
-        <Checkbox checked={reduceOnly} onChange={setReduceOnly} label="Reduce-Only" />
+        <Checkbox checked={reduceOnly} onChange={setReduceOnly} label={tl('Reduce-Only')} />
       </div>
       <div className="row between center-y tp-row tp-section">
-        <b>Order</b>
+        <b>{tl('Order')}</b>
       </div>
       {instrumentId && (
         <fieldset className="ot-fieldset" disabled={acc.locked}>
@@ -565,13 +574,13 @@ export function TradingPanel() {
         </fieldset>
       )}
       <div className="row between center-y tp-row tp-section">
-        <b>SL/TP</b>
+        <b>{tl('SL/TP')}</b>
         <span className="row gap6 center-y muted">
           {prefs.bracketOn ? 'On' : 'Off'}{' '}
           <Toggle
             checked={prefs.bracketOn}
             onChange={(v) => setPrefs({ bracketOn: v })}
-            label="SL/TP bracket"
+            label={tl('SL/TP bracket')}
           />
         </span>
       </div>
@@ -585,10 +594,10 @@ export function TradingPanel() {
             { value: '', label: 'Custom SL / TP' },
             ...templates.map((t) => ({ value: t.id, label: `ATM · ${t.name}` })),
           ]}
-          aria-label="ATM template"
+          aria-label={tl('ATM template')}
         />
         <button className="ht-chip" onClick={() => openTradingSetup('atm')}>
-          Edit templates
+          {tl('Edit templates')}
         </button>
       </div>
       {template ? (
@@ -597,7 +606,7 @@ export function TradingPanel() {
         </div>
       ) : (
         <div className="tp-bracket ot-bracket">
-          <span className="up">TP</span>
+          <span className="up">{tl('TP')}</span>
           <div className="row gap6">
             <NumberInput
               className="grow"
@@ -605,17 +614,17 @@ export function TradingPanel() {
               onChange={(v) => v > 0 && setPrefs({ tp: v })}
               min={prefs.tpUnit === 'ticks' ? 1 : 0.01}
               step={prefs.tpUnit === 'ticks' ? 1 : 0.25}
-              aria-label="Take profit"
+              aria-label={tl('Take profit')}
             />
             <Select
               small
               value={prefs.tpUnit}
               onChange={(v) => setPrefs({ tpUnit: v })}
               options={TP_UNITS}
-              aria-label="Take profit unit"
+              aria-label={tl('Take profit unit')}
             />
           </div>
-          <span className="down">SL</span>
+          <span className="down">{tl('SL')}</span>
           <div className="row gap6">
             <NumberInput
               className="grow"
@@ -624,38 +633,38 @@ export function TradingPanel() {
               min={prefs.slKind === 'atr' ? 0.1 : 1}
               step={prefs.slKind === 'atr' ? 0.1 : 1}
               unit={prefs.slKind === 'atr' ? 'ATR' : 'T'}
-              aria-label="Stop loss"
+              aria-label={tl('Stop loss')}
             />
             <Select
               small
               value={prefs.slKind}
               onChange={(v) => setPrefs({ slKind: v })}
               options={SL_KINDS}
-              aria-label="Stop loss type"
+              aria-label={tl('Stop loss type')}
             />
           </div>
         </div>
       )}
       <div className="row between center-y tp-row tp-section">
-        <span>Trading on chart</span>
+        <span>{tl('Trading on chart')}</span>
         <Toggle
           checked={prefs.chart.enabled}
           onChange={(v) => setPrefs({ chart: { ...prefs.chart, enabled: v } })}
-          label="Trading on chart"
+          label={tl('Trading on chart')}
         />
       </div>
       {instrumentId && <WorkingOrders instrumentId={instrumentId} accountId={acc.id} />}
       <div className="tp-foot muted tnum" data-testid="tp-foot">
         <span>
-          Balance {acc.balance.toFixed(2)} {acc.currency}
+          {tl('Balance')} {acc.balance.toFixed(2)} {acc.currency}
         </span>
         <span>
-          Equity {day.equity.toFixed(2)} {acc.currency}
+          {tl('Equity')} {day.equity.toFixed(2)} {acc.currency}
         </span>
-        <span title="Balance change since the account was reset (realized P&L after fees)">
-          Since reset {signed(acc.balance - acc.startingBalance)}
+        <span title={tl('Balance change since the account was reset (realized P&L after fees)')}>
+          {tl('Since reset')} {signed(acc.balance - acc.startingBalance)}
         </span>
-        {acc.locked && <span className="down">LOCKED</span>}
+        {acc.locked && <span className="down">{tl('LOCKED')}</span>}
       </div>
     </aside>
   );

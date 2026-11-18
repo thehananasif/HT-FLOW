@@ -33,6 +33,7 @@ import { domControllers, smartDomExt, setWindowTemplate } from './dom/controller
 import './dom/commands';
 import './dom/dom.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type Drag =
   | { kind: 'resize'; id: DomColumnId; startX: number; startW: number; scale: number }
   | { kind: 'reorder'; id: DomColumnId; startX: number; x: number; moved: boolean }
@@ -475,8 +476,8 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
       <DropdownMenu
         items={tplItems}
         trigger={
-          <button className="sdom-hbtn" data-testid="dom-template-menu" title="DOM template">
-            <span className="sdom-hbtn-k">Template:</span> {template.name}
+          <button className="sdom-hbtn" data-testid="dom-template-menu" title={tl('DOM template')}>
+            <span className="sdom-hbtn-k">{tl('Template:')}</span> {template.name}
             <ChevronDown size={12} />
           </button>
         }
@@ -484,8 +485,8 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
       <DropdownMenu
         items={colItems}
         trigger={
-          <button className="sdom-hbtn" data-testid="dom-columns-menu" title="Columns">
-            <Columns3 size={13} /> Columns
+          <button className="sdom-hbtn" data-testid="dom-columns-menu" title={tl('Columns')}>
+            <Columns3 size={13} /> {tl('Columns')}
           </button>
         }
       />
@@ -503,7 +504,7 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
       />
       <Select
         small
-        aria-label="Price grouping"
+        aria-label={tl('Price grouping')}
         value={String(s.grouping)}
         onChange={(v) => patch({ grouping: Number(v) })}
         options={[1, 2, 5, 10].map((g) => ({
@@ -511,7 +512,7 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
           label: `${g} tick${g > 1 ? 's' : ''}`,
         }))}
       />
-      <div className="sdom-lots" role="group" aria-label="Lot presets">
+      <div className="sdom-lots" role="group" aria-label={tl('Lot presets')}>
         {b.lotPresets.map((q) => (
           <button
             key={q}
@@ -526,16 +527,16 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
       <span className="grow" />
       <button
         className="ht-icon-btn"
-        aria-label="Clear notes"
-        title="Clear all price notes for this instrument"
+        aria-label={tl('Clear notes')}
+        title={tl('Clear all price notes for this instrument')}
         onClick={() => domStore.clearNotes(s.instrumentId)}
       >
         <StickyNote size={13} />
       </button>
       <button
         className="ht-icon-btn"
-        aria-label="Template designer"
-        title="Template designer"
+        aria-label={tl('Template designer')}
+        title={tl('Template designer')}
         onClick={() => openDesigner({ windowId: id, templateId: template.id })}
       >
         <Pencil size={13} />
@@ -580,43 +581,49 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
         windowId={id}
       />
       <div className="dom-foot-row">
-        <button title="Reverse position" onClick={act(() => domActions.reverse(inst))}>
+        <button title={tl('Reverse position')} onClick={act(() => domActions.reverse(inst))}>
           × R
         </button>
         <button
-          title="Open P&L of the position at the last price"
+          title={tl('Open P&L of the position at the last price')}
           disabled
           data-testid="dom-pnl"
           className={upnl > 0 ? 'up' : upnl < 0 ? 'down' : undefined}
         >
           {pos.qty ? `${upnl >= 0 ? '+' : '−'}${Math.abs(upnl).toFixed(2)}` : 'PnL'}
         </button>
-        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
+        <button title={tl('Cancel all orders')} onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
-        <button title="Buy market" onClick={act(() => market('buy'))}>
-          MKT
+        <button title={tl('Buy market')} onClick={act(() => market('buy'))}>
+          {tl('MKT')}
         </button>
-        <button title="Cancel buy orders" onClick={act(() => domActions.cancelAll(inst, 'buy'))}>
+        <button
+          title={tl('Cancel buy orders')}
+          onClick={act(() => domActions.cancelAll(inst, 'buy'))}
+        >
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
+        <button title={tl('Cancel all orders')} onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
-        <button title="Sell market" onClick={act(() => market('sell'))}>
-          MKT
+        <button title={tl('Sell market')} onClick={act(() => market('sell'))}>
+          {tl('MKT')}
         </button>
-        <button title="Cancel sell orders" onClick={act(() => domActions.cancelAll(inst, 'sell'))}>
+        <button
+          title={tl('Cancel sell orders')}
+          onClick={act(() => domActions.cancelAll(inst, 'sell'))}
+        >
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
+        <button title={tl('Cancel all orders')} onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
       </div>
       <div className="dom-foot">
         <button
           className="ht-btn ht-btn--sm"
-          title="Centre (C)"
+          title={tl('Centre (C)')}
           onClick={() => domControllers.get(id)?.recenter()}
         >
           C
@@ -626,18 +633,18 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
           onClick={() => domActions.flatten(inst)}
           disabled={!pos.qty && !paper.workingOrders(account).length}
         >
-          Flatten all
+          {tl('Flatten all')}
         </button>
         <button
           className="ht-btn ht-btn--sm"
           onClick={() => useWindows.getState().setTradingPanel(!useWindows.getState().tradingPanel)}
         >
-          Trading Panel
+          {tl('Trading Panel')}
         </button>
         <button
           className="ht-icon-btn"
-          aria-label="Lock trading"
-          title="Lock trading"
+          aria-label={tl('Lock trading')}
+          title={tl('Lock trading')}
           onClick={() => domActions.toggleLock(inst)}
         >
           <Lock size={13} />
@@ -664,12 +671,12 @@ function AtmStrip({ compact }: { compact?: boolean }) {
   const templates = useAtmTemplates();
   return (
     <div className="ot-dom-atm" data-testid="dom-atm">
-      <label className="row gap6 center-y" title="Attach SL / TP to new orders">
+      <label className="row gap6 center-y" title={tl('Attach SL / TP to new orders')}>
         <input
           type="checkbox"
           checked={prefs.bracketOn}
           onChange={(e) => setPrefs({ bracketOn: e.target.checked })}
-          aria-label="SL/TP on DOM orders"
+          aria-label={tl('SL/TP on DOM orders')}
         />
         {compact ? 'ATM' : 'SL/TP'}
       </label>
@@ -681,7 +688,7 @@ function AtmStrip({ compact }: { compact?: boolean }) {
           { value: '', label: 'Custom' },
           ...templates.map((t) => ({ value: t.id, label: t.name })),
         ]}
-        aria-label="DOM ATM template"
+        aria-label={tl('DOM ATM template')}
       />
     </div>
   );

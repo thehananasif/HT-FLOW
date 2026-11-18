@@ -21,6 +21,7 @@ import {
   type RowDef,
 } from '../../charts/settings/schema';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Effective theme colour shown for an empty ("Theme") colour value. */
 function themeFallback(key: string): string {
   const t = theme();
@@ -70,13 +71,13 @@ function ColorEditor({
         <button
           className="ht-icon-btn"
           aria-label={`${label}: use theme colour`}
-          title="Use theme colour"
+          title={tl('Use theme colour')}
           onClick={() => onChange('')}
         >
           <RotateCcw size={11} />
         </button>
       ) : (
-        <span className="cs-theme-tag">Theme</span>
+        <span className="cs-theme-tag">{tl('Theme')}</span>
       )}
     </span>
   );
@@ -200,7 +201,7 @@ export function RowEditor({
       if (!cols.length)
         return (
           <button className="ht-chip" onClick={() => onChange('#1A1A1A,#000000')}>
-            Use a gradient
+            {tl('Use a gradient')}
           </button>
         );
       return (
@@ -240,7 +241,7 @@ export function RowEditor({
             <div key={i} className="cs-rule">
               <Select
                 small
-                aria-label="Field"
+                aria-label={tl('Field')}
                 value={r.field}
                 options={(['volume', 'delta', 'trades', 'bid', 'ask'] as const).map((v) => ({
                   value: v,
@@ -250,7 +251,7 @@ export function RowEditor({
               />
               <Select
                 small
-                aria-label="Condition"
+                aria-label={tl('Condition')}
                 value={r.op}
                 options={[
                   { value: '>=', label: '≥' },
@@ -259,18 +260,18 @@ export function RowEditor({
                 onChange={(op) => upd(i, { op })}
               />
               <NumberInput
-                aria-label="Value"
+                aria-label={tl('Value')}
                 value={r.value}
                 onChange={(v) => upd(i, { value: v })}
               />
               <ColorPicker
-                label="Highlight colour"
+                label={tl('Highlight colour')}
                 value={r.color}
                 onChange={(c) => upd(i, { color: c.slice(0, 7).toUpperCase() })}
               />
               <button
                 className="ht-icon-btn"
-                aria-label="Remove rule"
+                aria-label={tl('Remove rule')}
                 onClick={() => onChange(rules.filter((_, j) => j !== i))}
               >
                 <Trash2 size={11} />
@@ -283,7 +284,7 @@ export function RowEditor({
               onChange([...rules, { field: 'volume', op: '>=', value: 100, color: '#E8B04B' }])
             }
           >
-            <Plus size={11} /> Add filter
+            <Plus size={11} /> {tl('Add filter')}
           </button>
         </div>
       );

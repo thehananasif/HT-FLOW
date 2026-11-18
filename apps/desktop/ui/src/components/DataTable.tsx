@@ -16,6 +16,7 @@ import {
 import { buildXlsx, XLSX_MIME } from './xlsx';
 import './DataTable.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export type { SavedView, TableView } from './DataTable.utils';
 
 export interface DataColumn<T> {
@@ -211,14 +212,18 @@ export function DataTable<T>(props: DataTableProps<T>) {
       <div className="dt-bar">
         {props.title && <b>{props.title}</b>}
         {props.subtitle && <span className="muted">· {props.subtitle}</span>}
-        {hasFilters && <span className="dt-filtered">filtered</span>}
+        {hasFilters && <span className="dt-filtered">{tl('filtered')}</span>}
         <span className="grow" />
         {props.actions}
         <DropdownMenu
           align="end"
           items={menu}
           trigger={
-            <button className="dt-menu" aria-label="Columns" title="Columns, grouping, views">
+            <button
+              className="dt-menu"
+              aria-label={tl('Columns')}
+              title={tl('Columns, grouping, views')}
+            >
               ☰
             </button>
           }
@@ -259,7 +264,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               {!c.action && (
                 <input
                   aria-label={`Filter ${c.header}`}
-                  placeholder="filter"
+                  placeholder={tl('filter')}
                   value={view.filters[c.id] ?? ''}
                   onChange={(e) =>
                     setView({ ...view, filters: { ...view.filters, [c.id]: e.target.value } })

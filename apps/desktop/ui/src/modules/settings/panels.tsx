@@ -26,6 +26,7 @@ import { DEFAULT_FEEDS } from '../rss/store';
 import { openUrl, useStore } from '../rss/shared';
 import { nativeAvailable, nativeFeedAllowList } from '../rss/native';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 // ------------------------------------------------------------------ news data sources
 
 const CALENDAR_PAGE = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
@@ -46,10 +47,10 @@ export function DataSourcesEditor() {
       <table className="tbl">
         <thead>
           <tr>
-            <th>Source</th>
-            <th>Host</th>
-            <th>Used for</th>
-            <th>Status</th>
+            <th>{tl('Source')}</th>
+            <th>{tl('Host')}</th>
+            <th>{tl('Used for')}</th>
+            <th>{tl('Status')}</th>
           </tr>
         </thead>
         <tbody>
@@ -60,17 +61,19 @@ export function DataSourcesEditor() {
                   type="checkbox"
                   checked={cal.publicOn}
                   onChange={(e) => calendar.set({ ...calendar.get(), publicOn: e.target.checked })}
-                  aria-label="Fetch the public economic calendar"
+                  aria-label={tl('Fetch the public economic calendar')}
                 />
-                Public economic calendar
+                {tl('Public economic calendar')}
               </label>
             </td>
             <td>
               <button className="link" onClick={() => openUrl(CALENDAR_PAGE)}>
-                nfs.faireconomy.media
+                {tl('nfs.faireconomy.media')}
               </button>
             </td>
-            <td>Calendar window, chart event markers, calendar alerts, news-flatten rule</td>
+            <td>
+              {tl('Calendar window, chart event markers, calendar alerts, news-flatten rule')}
+            </td>
             <td>
               {!cal.publicOn
                 ? 'Off'
@@ -89,23 +92,27 @@ export function DataSourcesEditor() {
                   {new URL(f.url).hostname}
                 </button>
               </td>
-              <td>RSS Reader and News ({f.folder})</td>
-              <td>Default feed</td>
+              <td>
+                {tl('RSS Reader and News (')}
+                {f.folder})
+              </td>
+              <td>{tl('Default feed')}</td>
             </tr>
           ))}
           {custom.map((h) => (
             <tr key={h}>
-              <td>Your feed host</td>
+              <td>{tl('Your feed host')}</td>
               <td>{h}</td>
-              <td>RSS Reader and News</td>
-              <td>Added by you</td>
+              <td>{tl('RSS Reader and News')}</td>
+              <td>{tl('Added by you')}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="muted">
-        All requests are made by the HT Flow core over https, without cookies or keys; feeds you add
-        in the RSS Reader are allowed after URL validation. Add or remove feeds in the RSS Reader.
+        {tl(
+          'All requests are made by the HT Flow core over https, without cookies or keys; feeds you add in the RSS Reader are allowed after URL validation. Add or remove feeds in the RSS Reader.',
+        )}
       </p>
     </div>
   );
@@ -141,8 +148,8 @@ export function ProvidersEditor({ value, onChange }: EditorProps<string[]>) {
       <thead>
         <tr>
           <th>#</th>
-          <th>Provider</th>
-          <th>Id</th>
+          <th>{tl('Provider')}</th>
+          <th>{tl('Id')}</th>
           <th />
         </tr>
       </thead>
@@ -194,11 +201,11 @@ export function ModuleTogglesEditor({ value, onChange }: EditorProps<string[]>) 
       <table className="tbl" data-testid="module-list">
         <thead>
           <tr>
-            <th>Enabled</th>
-            <th>Module</th>
-            <th>Kind</th>
-            <th>Version</th>
-            <th>Source</th>
+            <th>{tl('Enabled')}</th>
+            <th>{tl('Module')}</th>
+            <th>{tl('Kind')}</th>
+            <th>{tl('Version')}</th>
+            <th>{tl('Source')}</th>
           </tr>
         </thead>
         <tbody>
@@ -223,21 +230,25 @@ export function ModuleTogglesEditor({ value, onChange }: EditorProps<string[]>) 
                   />
                 </td>
                 <td>{m.name}</td>
-                <td className="muted">Panel · {m.group}</td>
-                <td className="tnum muted">built-in</td>
-                <td className="muted">HT Flow {m.phase && `(${m.phase})`}</td>
+                <td className="muted">
+                  {tl('Panel ·')} {m.group}
+                </td>
+                <td className="tnum muted">{tl('built-in')}</td>
+                <td className="muted">
+                  {tl('HT Flow')} {m.phase && `(${m.phase})`}
+                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <div className="st-sub-head">Connectors</div>
+      <div className="st-sub-head">{tl('Connectors')}</div>
       <table className="tbl" data-testid="connector-list">
         <thead>
           <tr>
-            <th>Connector</th>
-            <th>Id prefix</th>
-            <th>Runs in</th>
+            <th>{tl('Connector')}</th>
+            <th>{tl('Id prefix')}</th>
+            <th>{tl('Runs in')}</th>
           </tr>
         </thead>
         <tbody>
@@ -251,8 +262,9 @@ export function ModuleTogglesEditor({ value, onChange }: EditorProps<string[]>) 
         </tbody>
       </table>
       <p className="muted st-note">
-        Installed indicators and strategies appear here once the module SDK loads packages from
-        module folders. Removing a module means deleting its folder.
+        {tl(
+          'Installed indicators and strategies appear here once the module SDK loads packages from module folders. Removing a module means deleting its folder.',
+        )}
       </p>
     </div>
   );
@@ -276,19 +288,19 @@ export function ModuleFoldersEditor({ value, onChange }: EditorProps<string[]>) 
       <div className="row gap8 center-y">
         <input
           className="ht-input st-text"
-          aria-label="Module folder path"
-          placeholder="C:\HTFlow\modules"
+          aria-label={tl('Module folder path')}
+          placeholder={tl('C:\\HTFlow\\modules')}
           value={path}
           onChange={(e) => setPath(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <Button size="sm" onClick={add}>
-          <Plus size={13} /> Add module folder
+          <Plus size={13} /> {tl('Add module folder')}
         </Button>
       </div>
       {error && <span className="ht-error st-err">{error}</span>}
       {value.length === 0 ? (
-        <p className="muted st-note">No extra folders. The built-in modules always load.</p>
+        <p className="muted st-note">{tl('No extra folders. The built-in modules always load.')}</p>
       ) : (
         <ul className="st-folder-list">
           {value.map((f) => (
@@ -306,8 +318,9 @@ export function ModuleFoldersEditor({ value, onChange }: EditorProps<string[]>) 
         </ul>
       )}
       <p className="muted st-note">
-        Placeholder: folders are stored with your profile. Loading code from them (sandboxed, with
-        permissions) needs the native core and is not built yet.
+        {tl(
+          'Placeholder: folders are stored with your profile. Loading code from them (sandboxed, with permissions) needs the native core and is not built yet.',
+        )}
       </p>
     </div>
   );
@@ -331,9 +344,11 @@ export function AboutPanel() {
     <div className="st-about" data-testid="about-panel">
       <div className="st-about-head">
         <BrandIcon size={28} />
-        <b>HT Flow</b>
+        <b>{tl('HT Flow')}</b>
         <Badge kind="default">v{version}</Badge>
-        <span className="muted">Order-flow trading platform · local-first · MIT licence</span>
+        <span className="muted">
+          {tl('Order-flow trading platform · local-first · MIT licence')}
+        </span>
       </div>
       <div className="st-about-links">
         {ABOUT_LINKS.map((l) => (
@@ -344,20 +359,20 @@ export function AboutPanel() {
       </div>
       <div className="row gap8">
         <Button size="sm" onClick={() => void checkForUpdates()} data-testid="about-check-updates">
-          Check for updates
+          {tl('Check for updates')}
         </Button>
         <Button size="sm" onClick={() => useReportDialog.getState().show()}>
-          Report a problem…
+          {tl('Report a problem…')}
         </Button>
       </div>
-      <div className="st-sub-head">Open-source libraries bundled with HT Flow</div>
+      <div className="st-sub-head">{tl('Open-source libraries bundled with HT Flow')}</div>
       <table className="tbl" data-testid="licence-table">
         <thead>
           <tr>
-            <th>Library</th>
-            <th>Licence</th>
-            <th>Part</th>
-            <th>Homepage</th>
+            <th>{tl('Library')}</th>
+            <th>{tl('Licence')}</th>
+            <th>{tl('Part')}</th>
+            <th>{tl('Homepage')}</th>
           </tr>
         </thead>
         <tbody>
@@ -399,7 +414,7 @@ export function LogPanel({ level }: { level: LogLevel }) {
       <div className="row gap8 center-y">
         <select
           className="ht-select ht-select--sm"
-          aria-label="Show log level"
+          aria-label={tl('Show log level')}
           value={filter}
           onChange={(e) => setFilter(e.target.value as LogLevel)}
         >
@@ -411,24 +426,24 @@ export function LogPanel({ level }: { level: LogLevel }) {
         </select>
         <input
           className="ht-input st-text"
-          aria-label="Search log"
-          placeholder="Search the log…"
+          aria-label={tl('Search log')}
+          placeholder={tl('Search the log…')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <span className="grow" />
         <span className="muted">
-          {entries.length} entries · recording {level}
+          {entries.length} {tl('entries · recording')} {level}
         </span>
         <Button
           size="xs"
           variant="outline"
           onClick={() => {
             void navigator.clipboard?.writeText(logText(shown.slice().reverse()));
-            toast('success', 'Log copied', `${shown.length} entries`);
+            toast('success', tl('Log copied'), `${shown.length} entries`);
           }}
         >
-          <Copy size={12} /> Copy
+          <Copy size={12} /> {tl('Copy')}
         </Button>
         <Button
           size="xs"
@@ -441,15 +456,15 @@ export function LogPanel({ level }: { level: LogLevel }) {
             setTimeout(() => URL.revokeObjectURL(a.href), 1000);
           }}
         >
-          <Download size={12} /> Export
+          <Download size={12} /> {tl('Export')}
         </Button>
         <Button size="xs" variant="outline" onClick={clearLog}>
-          <Trash2 size={12} /> Clear
+          <Trash2 size={12} /> {tl('Clear')}
         </Button>
       </div>
       <div className="st-log-rows">
         {shown.length === 0 ? (
-          <div className="tbl-empty">No log entries at this level</div>
+          <div className="tbl-empty">{tl('No log entries at this level')}</div>
         ) : (
           shown.map((e, i) => (
             <div key={`${e.ts}-${i}`} className="st-log-row" data-level={e.level}>
@@ -473,16 +488,17 @@ export function TableLayoutsEditor({ value, onChange }: EditorProps<Record<strin
     <div className="st-folders" data-testid="table-layouts">
       {ids.length === 0 ? (
         <p className="muted st-note">
-          No saved layouts. Drag a table header edge to resize a column, or drag a header to
-          reorder.
+          {tl(
+            'No saved layouts. Drag a table header edge to resize a column, or drag a header to reorder.',
+          )}
         </p>
       ) : (
         <ul className="st-folder-list">
           {ids.map((id) => (
             <li key={id}>
               <span className="grow">
-                {id} · {value[id]!.order.length} ordered · {Object.keys(value[id]!.widths).length}{' '}
-                resized
+                {id} · {value[id]!.order.length} {tl('ordered ·')}{' '}
+                {Object.keys(value[id]!.widths).length} {tl('resized')}
               </span>
               <button
                 className="ht-icon-btn"
@@ -501,7 +517,7 @@ export function TableLayoutsEditor({ value, onChange }: EditorProps<Record<strin
       )}
       {ids.length > 0 && (
         <Button size="sm" variant="outline" onClick={() => onChange({})}>
-          Reset all table layouts
+          {tl('Reset all table layouts')}
         </Button>
       )}
     </div>

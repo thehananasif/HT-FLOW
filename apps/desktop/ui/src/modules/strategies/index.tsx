@@ -74,6 +74,7 @@ import { SCRIPT_TEMPLATES } from '@htflow/strategy';
 import { Summary, TradesTable, fmtTime } from './results';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type MainTab = 'backtest' | 'editor' | 'live' | 'vps';
 type ResultTab = 'summary' | 'equity' | 'trades' | 'optimise' | 'log';
 
@@ -339,7 +340,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
 
   const exportCsv = () => {
     const r = useRuns.getState().runs[windowId]?.result;
-    if (!r) return toast('info', 'Run a backtest first');
+    if (!r) return toast('info', tl('Run a backtest first'));
     const name = `${r.strategyId}-${r.config.instrument.symbol}`;
     downloadText(`${name}-trades.csv`, tradesCsv(r));
     downloadText(`${name}-summary.csv`, summaryCsv(r));
@@ -347,7 +348,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
 
   const sendToJournal = () => {
     const r = useRuns.getState().runs[windowId]?.result;
-    if (!r || !r.trades.length) return toast('info', 'No backtest trades to send');
+    if (!r || !r.trades.length) return toast('info', tl('No backtest trades to send'));
     const stamp = Date.now().toString(36);
     const trips = r.trades.map((t) => ({
       id: `bt-${stamp}-${t.n}`,
@@ -368,7 +369,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       { text: def.name, kind: 'setup' },
     ]);
     setRun({ sentToJournal: true });
-    toast('success', `${n} trades sent to the Journal`, 'Tagged “backtest”.');
+    toast('success', `${n} trades sent to the Journal`, tl('Tagged “backtest”.'));
   };
 
   const actions: WindowActions = {
@@ -405,7 +406,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   return (
     <div className="module-window stg-win" data-testid="strategies-window">
       <div className="stg-top">
-        <b>Strategies</b>
+        <b>{tl('Strategies')}</b>
         <Tabs
           value={tab}
           onChange={(t) => setParams({ tab: t })}
@@ -435,7 +436,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       )}
       {tab === 'backtest' && (
         <div className="stg-body">
-          <aside className="stg-list" aria-label="Strategy list">
+          <aside className="stg-list" aria-label={tl('Strategy list')}>
             {STRATEGIES.map((s) => (
               <button
                 key={s.id}
@@ -455,25 +456,26 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </button>
             ))}
             <p className="stg-muted stg-list-note">
-              Write your own with <code>defineStrategy</code> from <code>@htflow/strategy</code>.
+              {tl('Write your own with')} <code>{tl('defineStrategy')}</code> {tl('from')}{' '}
+              <code>{tl('@htflow/strategy')}</code>.
             </p>
           </aside>
-          <section className="stg-setup" aria-label="Backtest setup">
+          <section className="stg-setup" aria-label={tl('Backtest setup')}>
             <p className="stg-desc">{def.description}</p>
-            <div className="stg-subhead">Inputs</div>
+            <div className="stg-subhead">{tl('Inputs')}</div>
             <InputsForm
               defs={def.inputs}
               values={inputs}
               onChange={setInputs}
               testId="strategy-inputs"
             />
-            <div className="stg-subhead">Data</div>
+            <div className="stg-subhead">{tl('Data')}</div>
             <div className="stg-inputs">
               <label className="stg-input-row">
-                <span>Instrument</span>
+                <span>{tl('Instrument')}</span>
                 <Select
                   small
-                  aria-label="Instrument"
+                  aria-label={tl('Instrument')}
                   value={data.instrumentId}
                   options={instruments.map((i) => ({
                     value: i.id,
@@ -483,10 +485,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Source</span>
+                <span>{tl('Source')}</span>
                 <Select
                   small
-                  aria-label="Data source"
+                  aria-label={tl('Data source')}
                   value={data.source}
                   options={[
                     { value: '', label: sources[0] ? `Auto (${sources[0].label})` : 'No data' },
@@ -496,19 +498,19 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Day (UTC)</span>
+                <span>{tl('Day (UTC)')}</span>
                 <input
                   type="date"
                   className="ht-input"
-                  aria-label="Day"
+                  aria-label={tl('Day')}
                   value={data.day || new Date(range.from).toISOString().slice(0, 10)}
                   onChange={(e) => setData({ day: e.target.value })}
                 />
               </label>
               <label className="stg-input-row">
-                <span>From hour</span>
+                <span>{tl('From hour')}</span>
                 <NumberInput
-                  aria-label="From hour"
+                  aria-label={tl('From hour')}
                   value={data.fromHour}
                   min={0}
                   max={23}
@@ -517,9 +519,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Length</span>
+                <span>{tl('Length')}</span>
                 <NumberInput
-                  aria-label="Hours"
+                  aria-label={tl('Hours')}
                   value={data.hours}
                   min={1}
                   max={720}
@@ -528,10 +530,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Bars</span>
+                <span>{tl('Bars')}</span>
                 <Select
                   small
-                  aria-label="Bars"
+                  aria-label={tl('Bars')}
                   value={cost.bars}
                   options={BAR_SPECS.map((b) => ({ value: b.value, label: b.label }))}
                   onChange={(bars) => setCost({ bars })}
@@ -541,10 +543,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
             <div className="stg-subhead">Fills &amp; costs</div>
             <div className="stg-inputs">
               <label className="stg-input-row">
-                <span>Fill model</span>
+                <span>{tl('Fill model')}</span>
                 <Select
                   small
-                  aria-label="Fill model"
+                  aria-label={tl('Fill model')}
                   value={cost.fillModel}
                   options={[
                     { value: 'book', label: 'Recorded book + tape' },
@@ -555,12 +557,14 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </label>
               <label
                 className="stg-input-row"
-                title="ATM template from the trading panel replaces the strategy's stop / targets"
+                title={tl(
+                  "ATM template from the trading panel replaces the strategy's stop / targets",
+                )}
               >
-                <span>Exit management</span>
+                <span>{tl('Exit management')}</span>
                 <Select
                   small
-                  aria-label="Exit management"
+                  aria-label={tl('Exit management')}
                   value={allTemplates().some((t) => t.id === cost.atm) ? cost.atm : ''}
                   options={[
                     { value: '', label: 'Strategy bracket' },
@@ -570,9 +574,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Commission</span>
+                <span>{tl('Commission')}</span>
                 <NumberInput
-                  aria-label="Commission"
+                  aria-label={tl('Commission')}
                   value={cost.commissionPerUnit}
                   step={0.01}
                   min={0}
@@ -582,9 +586,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Taker fee</span>
+                <span>{tl('Taker fee')}</span>
                 <NumberInput
-                  aria-label="Taker fee"
+                  aria-label={tl('Taker fee')}
                   value={cost.takerFee}
                   step={0.0001}
                   min={0}
@@ -593,9 +597,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Slippage</span>
+                <span>{tl('Slippage')}</span>
                 <NumberInput
-                  aria-label="Slippage"
+                  aria-label={tl('Slippage')}
                   value={cost.slippageTicks}
                   min={0}
                   max={100}
@@ -604,9 +608,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Start balance</span>
+                <span>{tl('Start balance')}</span>
                 <NumberInput
-                  aria-label="Start balance"
+                  aria-label={tl('Start balance')}
                   value={cost.startingBalance}
                   step={1000}
                   min={100}
@@ -621,11 +625,11 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 disabled={busy || !inst}
                 onClick={() => void runBacktest()}
               >
-                ▶ Run backtest
+                {tl('▶ Run backtest')}
               </Button>
               {busy && (
                 <Button variant="ghost" onClick={() => abort.current?.abort()}>
-                  Cancel
+                  {tl('Cancel')}
                 </Button>
               )}
             </div>
@@ -645,7 +649,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </p>
             )}
           </section>
-          <section className="stg-results" aria-label="Results">
+          <section className="stg-results" aria-label={tl('Results')}>
             <div className="stg-results-head">
               <Tabs
                 value={rtab}
@@ -666,7 +670,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 onClick={exportCsv}
                 data-testid="strategy-export"
               >
-                Export CSV
+                {tl('Export CSV')}
               </Button>
               <Button
                 size="xs"
@@ -694,7 +698,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                     setInputs(resolveInputs(def.inputs, { ...inputs, ...v }) as RawInputs);
                     toast(
                       'info',
-                      'Inputs applied',
+                      tl('Inputs applied'),
                       Object.entries(v)
                         .map(([k, x]) => `${k} = ${x}`)
                         .join(', '),
@@ -703,8 +707,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               ) : !res ? (
                 <div className="stg-empty">
-                  Pick a strategy, check the inputs and press <b>Run backtest</b>. Simulated history
-                  is generated offline; recorded tick-store data is used when available.
+                  {tl('Pick a strategy, check the inputs and press')} <b>{tl('Run backtest')}</b>
+                  {tl(
+                    '. Simulated history is generated offline; recorded tick-store data is used when available.',
+                  )}
                 </div>
               ) : rtab === 'summary' ? (
                 <Summary r={res} />
@@ -713,12 +719,12 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   <EquityCanvas result={res} style={style} />
                   <div className="stg-style-row">
                     <ColorSwatch
-                      label="Equity"
+                      label={tl('Equity')}
                       value={style.equity}
                       onChange={(equity) => setParams({ style: { ...style, equity } })}
                     />
                     <ColorSwatch
-                      label="Drawdown"
+                      label={tl('Drawdown')}
                       value={style.drawdown}
                       onChange={(drawdown) => setParams({ style: { ...style, drawdown } })}
                     />
@@ -802,7 +808,7 @@ function OptimisePanel({
           step={step}
           onChange={(to) => setOpt({ [which]: { ...a, to } })}
         />
-        <span className="stg-muted">step</span>
+        <span className="stg-muted">{tl('step')}</span>
         <NumberInput
           aria-label={`${which} step`}
           value={a.step}
@@ -817,28 +823,28 @@ function OptimisePanel({
     <div className="stg-opt" data-testid="strategy-optimise">
       <div className="stg-opt-setup">
         <label className="stg-input-row">
-          <span>X axis</span>
+          <span>{tl('X axis')}</span>
           {axis('x')}
         </label>
         <label className="stg-input-row">
-          <span>Y axis</span>
+          <span>{tl('Y axis')}</span>
           {axis('y')}
         </label>
         <div className="stg-opt-row">
           <label className="stg-input-row">
-            <span>Objective</span>
+            <span>{tl('Objective')}</span>
             <Select
               small
-              aria-label="Objective"
+              aria-label={tl('Objective')}
               value={opt.objective}
               options={OBJECTIVES}
               onChange={(objective) => setOpt({ objective })}
             />
           </label>
           <label className="stg-input-row">
-            <span>Walk-forward folds</span>
+            <span>{tl('Walk-forward folds')}</span>
             <NumberInput
-              aria-label="Walk-forward folds"
+              aria-label={tl('Walk-forward folds')}
               value={opt.folds}
               min={0}
               max={10}
@@ -846,9 +852,9 @@ function OptimisePanel({
             />
           </label>
           <label className="stg-input-row">
-            <span>In-sample</span>
+            <span>{tl('In-sample')}</span>
             <NumberInput
-              aria-label="In-sample share"
+              aria-label={tl('In-sample share')}
               value={opt.inSample}
               step={0.05}
               min={0.5}
@@ -859,11 +865,11 @@ function OptimisePanel({
           <Checkbox
             checked={opt.folds > 0}
             onChange={(v) => setOpt({ folds: v ? Math.max(2, opt.folds) : 0 })}
-            label="Walk-forward"
+            label={tl('Walk-forward')}
           />
           <span className="grow" />
           <span className="stg-muted tnum">
-            {combos} combinations (max {GRID_LIMITS.combos})
+            {combos} {tl('combinations (max')} {GRID_LIMITS.combos})
           </span>
           <Button
             size="sm"
@@ -871,7 +877,7 @@ function OptimisePanel({
             onClick={onRun}
             data-testid="strategy-optimise-run"
           >
-            Optimise
+            {tl('Optimise')}
           </Button>
         </div>
       </div>
@@ -884,11 +890,11 @@ function OptimisePanel({
             onPick={(x, y) => onPick({ [map.xKey]: x, [map.yKey]: y })}
           />
           <div className="stg-opt-side">
-            <div className="stg-subhead">Best combinations</div>
+            <div className="stg-subhead">{tl('Best combinations')}</div>
             <table className="stg-mini tnum">
               <tbody>
                 {ranked.map((r, i) => (
-                  <tr key={i} onClick={() => onPick(r.inputs)} title="Use these inputs">
+                  <tr key={i} onClick={() => onPick(r.inputs)} title={tl('Use these inputs')}>
                     <td>
                       {o.xKey}={String(r.inputs[o.xKey])}
                     </td>
@@ -896,7 +902,9 @@ function OptimisePanel({
                       {o.yKey}={String(r.inputs[o.yKey])}
                     </td>
                     <td className={tone(r.stats.netPnl)}>{signedMoney(r.stats.netPnl)}</td>
-                    <td>{r.stats.trades} tr</td>
+                    <td>
+                      {r.stats.trades} {tl('tr')}
+                    </td>
                     <td>{Number.isFinite(r.score) ? fmt(r.score) : '—'}</td>
                   </tr>
                 ))}
@@ -904,7 +912,7 @@ function OptimisePanel({
             </table>
             {o.folds && (
               <>
-                <div className="stg-subhead">Walk-forward (out of sample)</div>
+                <div className="stg-subhead">{tl('Walk-forward (out of sample)')}</div>
                 <table className="stg-mini tnum" data-testid="strategy-walkforward">
                   <tbody>
                     {o.folds.map((f, i) => (
@@ -919,7 +927,9 @@ function OptimisePanel({
                         <td className={tone(f.oos?.stats.netPnl ?? 0)}>
                           {f.oos ? signedMoney(f.oos.stats.netPnl) : '—'}
                         </td>
-                        <td>{f.oos?.stats.trades ?? 0} tr</td>
+                        <td>
+                          {f.oos?.stats.trades ?? 0} {tl('tr')}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -928,12 +938,12 @@ function OptimisePanel({
             )}
             <div className="stg-style-row">
               <ColorSwatch
-                label="Low"
+                label={tl('Low')}
                 value={style.heatLow}
                 onChange={(heatLow) => setStyle({ ...style, heatLow })}
               />
               <ColorSwatch
-                label="High"
+                label={tl('High')}
                 value={style.heatHigh}
                 onChange={(heatHigh) => setStyle({ ...style, heatHigh })}
               />
@@ -942,9 +952,10 @@ function OptimisePanel({
         </div>
       ) : (
         <div className="stg-empty">
-          Choose two numeric inputs and their ranges, then press <b>Optimise</b>. Each combination
-          is a full backtest on the selected data (in a Web Worker); walk-forward re-optimises on
-          each in-sample window and trades the winner out of sample.
+          {tl('Choose two numeric inputs and their ranges, then press')} <b>{tl('Optimise')}</b>
+          {tl(
+            '. Each combination is a full backtest on the selected data (in a Web Worker); walk-forward re-optimises on each in-sample window and trades the winner out of sample.',
+          )}
         </div>
       )}
     </div>
@@ -971,11 +982,11 @@ function LivePanel() {
     <div className="stg-live" data-testid="strategy-live">
       <div className="stg-card-head">
         <span className="stg-muted">
-          Strategies attached to charts. Live ones trade the paper account on This PC.
+          {tl('Strategies attached to charts. Live ones trade the paper account on This PC.')}
         </span>
         <span className="grow" />
         <Button size="sm" variant="secondary" onClick={() => attachToActiveChart()}>
-          + Attach to active chart
+          {tl('+ Attach to active chart')}
         </Button>
         <Button
           size="sm"
@@ -983,15 +994,17 @@ function LivePanel() {
           disabled={!liveRuns.list().length}
           onClick={() => stopAll()}
         >
-          Stop all
+          {tl('Stop all')}
         </Button>
       </div>
       <Table
-        aria-label="Chart strategies"
+        aria-label={tl('Chart strategies')}
         rows={rows}
         rowId={(r) => r.id}
         height={260}
-        empty="No strategy attached to a chart. Use “Attach to active chart” or the chart's Strategy chip."
+        empty={tl(
+          "No strategy attached to a chart. Use “Attach to active chart” or the chart's Strategy chip.",
+        )}
         columns={[
           { key: 'name', header: 'Strategy', render: (r) => strategyById(r.ext.strategyId!)?.name },
           {
@@ -1016,7 +1029,7 @@ function LivePanel() {
                   {run.status === 'error' ? 'Error' : 'Running'}
                 </span>
               ) : (
-                <span className="stg-muted">Backtest</span>
+                <span className="stg-muted">{tl('Backtest')}</span>
               );
             },
           },
@@ -1061,7 +1074,7 @@ function LivePanel() {
                   variant="ghost"
                   onClick={() => useStrategyDialog.getState().open(r.id)}
                 >
-                  Edit
+                  {tl('Edit')}
                 </Button>
               </span>
             ),
@@ -1075,7 +1088,7 @@ function LivePanel() {
 function attachToActiveChart(strategyId?: string): void {
   const id = activeChartId();
   if (!id) {
-    toast('info', 'Open a chart first');
+    toast('info', tl('Open a chart first'));
     return;
   }
   if (strategyId) writeStrategyExt(id, { strategyId, inputs: {} });
