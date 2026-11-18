@@ -110,6 +110,7 @@ export class IndicatorRuntime {
       state: undefined,
       derivatives: undefined,
       depth: undefined,
+      cot: undefined,
       notice: (text) => {
         this.pendingNotice = text;
       },
@@ -117,7 +118,11 @@ export class IndicatorRuntime {
   }
 
   private feedKey(data: BarData): number {
-    return (data.derivatives?.version ?? 0) * 1e6 + (data.depth?.version ?? 0);
+    return (
+      (data.derivatives?.version ?? 0) * 1e6 +
+      (data.depth?.version ?? 0) +
+      (data.cot?.version ?? 0) * 7919
+    );
   }
 
   /** Brings results up to date with `data`. Cheap when nothing changed. */
@@ -178,6 +183,7 @@ export class IndicatorRuntime {
     ctx.state = this.state;
     ctx.derivatives = data.derivatives;
     ctx.depth = data.depth;
+    ctx.cot = data.cot;
     const outs = Object.values(this.outputs);
     for (const o of outs) if (o instanceof ListOut) o.truncate(from);
     for (let i = from; i < to; i++) {
@@ -267,6 +273,7 @@ export function computeIndicator(
     tradesBetween?: BarData['tradesBetween'];
     derivatives?: BarData['derivatives'];
     depth?: BarData['depth'];
+    cot?: BarData['cot'];
   } = {},
 ): IndicatorRuntime {
   const rt = new IndicatorRuntime(def, raw);
@@ -277,6 +284,7 @@ export function computeIndicator(
     tradesBetween: opts.tradesBetween,
     derivatives: opts.derivatives,
     depth: opts.depth,
+    cot: opts.cot,
   });
   return rt;
 }

@@ -1,6 +1,6 @@
 import type { Bar, Trade } from '@htflow/market-data';
 import type { ListOut, SeriesOut } from './buffers';
-import type { DepthData, DerivativesData } from './feeds';
+import type { CotData, DepthData, DerivativesData } from './feeds';
 
 /** Appendix B categories (plus user scripts). */
 export type IndicatorCategory =
@@ -294,6 +294,8 @@ export interface BarData {
   derivatives?: DerivativesData;
   /** Resting-depth columns (store.depth) for order-book indicators. */
   depth?: DepthData;
+  /** Weekly CFTC Commitments of Traders history (COT indicators). */
+  cot?: CotData;
 }
 
 export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = undefined> {
@@ -320,6 +322,8 @@ export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = unde
   derivatives: DerivativesData | undefined;
   /** Resting-depth columns (undefined when the host has none). */
   depth: DepthData | undefined;
+  /** Weekly COT history (undefined when the host has none). */
+  cot: CotData | undefined;
   /** Shows a short note next to the legend title (e.g. "no data from this feed"); null clears it. */
   notice(text: string | null): void;
 }

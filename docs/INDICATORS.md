@@ -2,8 +2,8 @@
 
 Status of every Appendix B entry. **implemented** = available in the Indicators dialog (chart header "Indicators", chart right-click menu, command "Indicators…" / Ctrl+I), built on `@htflow/indicator-sdk` with a Vitest reference test in `packages/indicators/src/*.test.ts`. **pending** = listed in the dialog (greyed, cannot be added) but not built; the note says why (blocked data source, ambiguous spec entry).
 
-- Catalog entries: 281 (264 implemented, 17 pending)
-- Distinct indicator implementations: 183
+- Catalog entries: 281 (268 implemented, 13 pending)
+- Distinct indicator implementations: 187
 - Variants (Appendix B: "parameter variants … to reach 222") are presets of an implementation, e.g. RSI of CVD = RSI with source = Cumulative delta.
 - Multi-timeframe (MTF) entries wrap their base indicator: it is computed on the chart's own bars merged per higher-timeframe period (identical to a BarSeries of that timeframe built from the same trades) and mapped back to the chart; "last closed bar" (default, never repaints) or "forming bar" per input.
 - Crypto Metrics and OI entries read funding / open interest / liquidations from the market store (`DerivativesLog` in the SDK). Simulated and spot feeds have none: the legend then says "no data from this feed".
@@ -78,12 +78,12 @@ Regenerate this file from `packages/indicators/src/catalog.ts` when the catalog 
 
 ## Commitments of Traders (4)
 
-| #   | Indicator                         | Status  | Implementation | Formula / note                                                                                              |
-| --- | --------------------------------- | ------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
-| 1   | COT                               | pending |                | No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data |
-| 2   | COT Commercials / Non-Commercials | pending |                | No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data |
-| 3   | COT Institutional Net Positions   | pending |                | No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data |
-| 4   | COT High/Low                      | pending |                | No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data |
+| #   | Indicator                         | Status      | Implementation      | Formula / note                                                                                                                                       |
+| --- | --------------------------------- | ----------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | COT                               | implemented | `cot`               | net = long - short per trader category; hedgers = commercials / producers / dealers; speculators = non-commercials / managed money / leveraged funds |
+| 2   | COT Commercials / Non-Commercials | implemented | `cot-comm-noncomm`  | commercials net = long - short; non-commercials net = long - short; spread = difference                                                              |
+| 3   | COT Institutional Net Positions   | implemented | `cot-institutional` | net = long - short; change = net - net of the previous report                                                                                        |
+| 4   | COT High/Low                      | implemented | `cot-high-low`      | index = 100 × (net - low) / (high - low) over the last N reports                                                                                     |
 
 ## Technical (222)
 

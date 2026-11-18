@@ -133,4 +133,36 @@ export class DerivativesLog implements DerivativesData {
   }
 }
 
+/** One trader category of a weekly CFTC Commitments of Traders row. */
+export interface CotGroupData {
+  /** Stable key: commercial, noncommercial, nonreportable, producer, swap, managed, other, dealer, assetmgr, levmoney. */
+  key: string;
+  label: string;
+  long: number;
+  short: number;
+  net: number;
+  netChange: number;
+}
+
+/** One weekly report (positions as of Tuesday `t`, published the Friday after). */
+export interface CotWeekData {
+  /** Report date (Tuesday 00:00 UTC), ms. */
+  t: number;
+  openInterest: number;
+  groups: readonly CotGroupData[];
+}
+
+/** Weekly COT history for the chart's instrument (undefined when the host has none yet). */
+export interface CotData {
+  /** Bumped when the rows change. */
+  readonly version: number;
+  readonly report: 'legacy' | 'disagg' | 'tff';
+  readonly market: string;
+  /** Oldest first. */
+  readonly weeks: readonly CotWeekData[];
+}
+
+/** Ms after the Tuesday report date when the data became public (Friday 20:30 UTC). */
+export const COT_RELEASE_LAG_MS = (3 * 24 + 20.5) * 3_600_000;
+
 export const NO_FEED_NOTICE = 'no data from this feed';
