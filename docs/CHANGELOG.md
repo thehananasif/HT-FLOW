@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — round 7
+
+- Fixed "not all coins are shown" (Binance and other exchanges): symbol downloads now use gzip and a 45 s budget (was 10 s for multi-MB exchange-info bodies; Binance spot also drops its permission lists), a venue that failed is retried at start and with a 30 s / 2 min / 10 min backoff instead of staying empty for 24 h (only missing / failed / stale venues download; disabled venues are skipped), the instrument picker search no longer caps results at 400, and the picker shows per-venue counts with the error and a Retry for a failed venue (also in Data manager → Symbol lists). Link-group instrument lists refresh when discovery lands.
+- Removed "Load days" / "◂ Load 1 more day" (menu item, footer button and input, palette command, Settings → Common → Default load days). Charts now load history automatically: the first paint spends at most 3 newest-first requests (was up to 60 rate-limited forward pages, ≈ 25 s on busy Binance symbols), then older history backfills in the background as far back as the venue provides (klines for long ranges, real trades for the recent day), bounded by Max candles per chart, yielding to the UI between steps and step-capped (no loop on coarse timeframes). New setting Common → "Load all available history automatically". A spinner replaces the blank chart while it loads. "Chart: Load older history" loads one more day on demand (simulated feeds).
+
 ## Unreleased — round 6
 
 ### Security

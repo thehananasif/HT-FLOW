@@ -401,9 +401,16 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               `${store.trades.length.toLocaleString()} ticks`,
             );
           case 'load-older':
+            // Explicit request (palette / hot key): one more day before the first bar.
             store.historyExhausted = false;
+            setOlderNote('Loading older history…');
             void store
-              .loadOlder()
+              .loadOlder(DAY_MS)
+              .then((n) => {
+                setOlderNote(null);
+                handle.current?.cores.forEach((c) => c.invalidate());
+                return n;
+              })
               .then((n) =>
                 toast(
                   'info',

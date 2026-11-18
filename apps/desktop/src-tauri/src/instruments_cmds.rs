@@ -469,7 +469,8 @@ mod tests {
         };
         assert!(is_stale(&r, 10_001), "a failed source makes the list stale");
         let wanted = select(Some("binance")).unwrap();
-        let ids = |v: Vec<(&'static str, &'static str)>| v.into_iter().map(|s| s.0).collect::<Vec<_>>();
+        let ids =
+            |v: Vec<(&'static str, &'static str)>| v.into_iter().map(|s| s.0).collect::<Vec<_>>();
         // Spot failed, COIN-M never fetched; USD-M is fresh.
         assert_eq!(
             ids(due(&r, &wanted, 20_000, false)),

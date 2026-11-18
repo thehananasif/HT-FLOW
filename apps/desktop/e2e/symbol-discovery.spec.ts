@@ -79,6 +79,13 @@ test('symbol discovery: a symbol only in the discovered list is found and counte
   await expect(opt).toContainText('Bitget');
   // Streams through the Bitget connector: desktop app only in the browser preview.
   await expect(opt).toContainText('Desktop app');
+  // Per-venue counts and a visible error + retry for the venue that failed.
+  const lists = picker.getByTestId('picker-symbol-lists');
+  await expect(lists.getByTestId('picker-list-bitget')).toContainText('2');
+  const failed = lists.getByTestId('picker-list-bybit-spot');
+  await expect(failed).toContainText('failed: HTTP 403');
+  await failed.getByRole('button', { name: 'retry' }).click();
+  await expect(failed.getByRole('button', { name: 'retry' })).toBeEnabled();
   await page.keyboard.press('Escape');
 
   // Command palette: "Refresh symbol list" exists and runs.
@@ -93,10 +100,13 @@ test('symbol discovery: a symbol only in the discovered list is found and counte
   await page.keyboard.press('Control+k');
   await palette.getByPlaceholder('Search commands, symbols, layouts…').fill('open data manager');
   await palette.getByRole('option').filter({ hasText: 'Data manager' }).first().click();
-  const lists = page.getByTestId('symbol-lists');
-  await expect(lists).toBeVisible();
-  await expect(lists.getByTestId('symbol-lists-total')).toContainText('2 symbols');
-  await expect(lists.getByTestId('symbols-bitget')).toContainText('2');
-  await expect(lists.getByTestId('symbols-bybit-spot')).toContainText('Kept last list: HTTP 403');
+  const dm = page.getByTestId('symbol-lists');
+  await expect(dm).toBeVisible();
+  await expect(dm.getByTestId('symbol-lists-total')).toContainText('2 symbols');
+  await expect(dm.getByTestId('symbols-bitget')).toContainText('2');
+  await expect(dm.getByTestId('symbols-bybit-spot')).toContainText('Kept last list: HTTP 403');
+  await expect(
+    dm.getByTestId('symbols-bybit-spot').getByRole('button', { name: 'Retry' }),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });
