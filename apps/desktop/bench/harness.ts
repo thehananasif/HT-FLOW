@@ -26,7 +26,7 @@ export interface BenchResult {
   target: string;
   /** Budget in `unit` derived from the target (16.7 ms for 60 fps). */
   budget: number;
-  unit: 'ms' | 'ms/frame' | 'prints/s';
+  unit: 'ms' | 'ms/frame' | 'prints/s' | 'ticks/s';
   /** Median of the timed runs (or the throughput for prints/s). */
   median: number;
   p95: number;

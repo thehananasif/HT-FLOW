@@ -16,6 +16,14 @@ import { resolveInputs } from './inputs';
 import { defineMtf } from './mtf';
 import { IndicatorRuntime, type UpdateKind } from './runtime';
 import { scriptIndicator } from './script/compile';
+import {
+  packBarsCached,
+  packList,
+  unpackBars,
+  unpackList,
+  type PackedBars,
+  type PackedList,
+} from './wire';
 import type {
   AnyIndicator,
   BarData,
@@ -62,7 +70,10 @@ export type ToEngine =
       /** First index of `bars`; 0 with reset. */
       from: number;
       reset: boolean;
-      bars: Bar[];
+      /** Bar objects (legacy / tests); hosts accept either this or `packed`. */
+      bars?: Bar[];
+      /** Columnar bars (what RemoteRuntime sends: typed arrays clone ~100× faster than Bar objects). */
+      packed?: PackedBars;
       version: number;
       tickSize: number;
     }
@@ -84,7 +95,9 @@ export type FromEngine =
       from: number;
       count: number;
       series: Record<string, SeriesSlice>;
-      lists: Record<string, (Marker | Level | Zone)[]>;
+      /** List items from index `listFrom[k]` on (items before it are unchanged; absent = 0). */
+      lists: Record<string, (Marker | Level | Zone)[] | PackedList>;
+      listFrom?: Record<string, number>;
       notice: string | null;
       kind: UpdateKind;
     }
@@ -131,11 +144,36 @@ function sliceSeries(o: SeriesOut, from: number, to: number): SeriesSlice {
   };
 }
 
-const same = (a: number, b: number) => a === b || (Number.isNaN(a) && Number.isNaN(b));
+/** Last values sent for one series output (persistent; updated in place, never reallocated per tick). */
+interface Shadow {
+  cols: Float64Array[];
+  tone: Uint8Array;
+}
 
-/** First bar index < limit where a series output differs from what was last sent. */
+/** First index < limit where `a` and `b` differ (NaN equals NaN). */
+function firstDiff(a: ArrayLike<number>, b: ArrayLike<number>, limit: number): number {
+  const n = Math.min(limit, a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    const x = a[i]!;
+    const y = b[i]!;
+    if (x !== y && !(x !== x && y !== y)) return i;
+  }
+  return limit;
+}
+
+/** Columns a series kind actually uses (v, v2, v3, v4). */
+function usedCols(o: SeriesOut): Float64Array[] {
+  const k = o.kind;
+  const n = k === 'bars' ? 4 : k === 'histogram' ? 3 : k === 'band' ? 2 : 1;
+  return [o.v, o.v2, o.v3, o.v4].slice(0, n);
+}
+
+/**
+ * First bar index < limit where a series output differs from what was last sent (indicators such
+ * as zigzag / pivots revise earlier bars). Allocation-free: compares against persistent shadows.
+ */
 function firstChange(
-  shadow: Map<string, Float64Array[]>,
+  shadow: Map<string, Shadow>,
   outputs: Record<string, SeriesOut | AnyList>,
   limit: number,
 ): number {
@@ -144,26 +182,83 @@ function firstChange(
     if (!(o instanceof SeriesOut)) continue;
     const prev = shadow.get(k);
     if (!prev) return 0;
-    const cur = [o.v, o.v2, o.v3, o.v4];
-    for (let c = 0; c < 4; c++) {
-      const a = prev[c]!;
-      const b = cur[c]!;
-      const n = Math.min(first, a.length, b.length);
-      for (let i = 0; i < n; i++)
-        if (!same(a[i]!, b[i]!)) {
-          first = i;
-          break;
-        }
-    }
+    const cur = usedCols(o);
+    for (let c = 0; c < cur.length; c++) first = firstDiff(prev.cols[c]!, cur[c]!, first);
+    first = firstDiff(prev.tone, o.tone, first);
+    if (first === 0) return 0;
   }
   return first;
+}
+
+/** Copies outputs [from, count) into the shadows (growing them when needed). */
+function saveShadow(
+  shadow: Map<string, Shadow>,
+  outputs: Record<string, SeriesOut | AnyList>,
+  from: number,
+  count: number,
+): void {
+  for (const [k, o] of Object.entries(outputs)) {
+    if (!(o instanceof SeriesOut)) continue;
+    const cur = usedCols(o);
+    let s = shadow.get(k);
+    if (!s || s.tone.length < count) {
+      const cap = Math.max(256, Math.ceil(count * 1.5));
+      const cols = cur.map((a, c) => {
+        const b = new Float64Array(cap).fill(Number.NaN);
+        if (s) b.set(s.cols[c]!.subarray(0, Math.min(from, s.cols[c]!.length)));
+        return b;
+      });
+      const tone = new Uint8Array(cap);
+      if (s) tone.set(s.tone.subarray(0, Math.min(from, s.tone.length)));
+      s = { cols, tone };
+      shadow.set(k, s);
+    }
+    for (let c = 0; c < cur.length; c++) {
+      s.cols[c]!.set(cur[c]!.subarray(from, count), from);
+      s.cols[c]!.fill(Number.NaN, count);
+    }
+    s.tone.set(o.tone.subarray(from, count), from);
+    s.tone.fill(0, count);
+  }
+}
+
+type AnyItem = Marker | Level | Zone;
+
+function sameItem(a: AnyItem, b: AnyItem): boolean {
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  for (const k of ka) {
+    const x = (a as unknown as Record<string, unknown>)[k];
+    const y = (b as unknown as Record<string, unknown>)[k];
+    if (x !== y && !(Number.isNaN(x) && Number.isNaN(y))) return false;
+  }
+  return true;
+}
+
+/**
+ * Index of the first list item that differs from what was last sent (items are plain records and
+ * may be edited in place by later bars, e.g. a level extended to the right), and refreshes the
+ * shadow copies from there.
+ */
+function listDiff(prev: AnyItem[], items: readonly AnyItem[]): number {
+  const n = Math.min(prev.length, items.length);
+  let k = 0;
+  while (k < n && sameItem(prev[k]!, items[k]!)) k++;
+  prev.length = k;
+  for (let i = k; i < items.length; i++) prev.push({ ...items[i]! });
+  return k;
 }
 
 /** Message handler that owns runtimes; runs in a worker (or in-thread as the fallback). */
 export class EngineHost {
   private rts = new Map<
     number,
-    { rt: IndicatorRuntime; bars: Bar[]; shadow: Map<string, Float64Array[]> }
+    {
+      rt: IndicatorRuntime;
+      bars: Bar[];
+      shadow: Map<string, Shadow>;
+      lists: Map<string, AnyItem[]>;
+    }
   >();
   constructor(private lookup: (id: string) => AnyIndicator | undefined) {}
 
@@ -177,6 +272,7 @@ export class EngineHost {
             rt: new IndicatorRuntime(def, specInputs(msg.spec)),
             bars: [],
             shadow: new Map(),
+            lists: new Map(),
           });
         } catch (e) {
           this.errors.set(msg.rid, e instanceof Error ? e.message : String(e));
@@ -196,10 +292,11 @@ export class EngineHost {
             seq: msg.seq,
             message: this.errors.get(msg.rid) ?? 'Indicator not created',
           };
-        if (msg.reset) e.bars = msg.bars;
+        const incoming = msg.packed ? unpackBars(msg.packed) : (msg.bars ?? []);
+        if (msg.reset) e.bars = incoming;
         else {
           e.bars.length = Math.min(e.bars.length, msg.from);
-          for (const b of msg.bars) e.bars.push(b);
+          for (const b of incoming) e.bars.push(b);
         }
         try {
           const kind = e.rt.update({ bars: e.bars, version: msg.version, tickSize: msg.tickSize });
@@ -207,17 +304,20 @@ export class EngineHost {
           let from = kind === 'full' ? 0 : Math.max(0, Math.min(msg.from, count));
           // Some indicators revise earlier bars (zigzag, pivots): send from the first change.
           if (from > 0) from = Math.min(from, firstChange(e.shadow, e.rt.outputs, from));
-          for (const [k, o] of Object.entries(e.rt.outputs))
-            if (o instanceof SeriesOut)
-              e.shadow.set(
-                k,
-                [o.v, o.v2, o.v3, o.v4].map((a) => a.slice(0, count)),
-              );
+          saveShadow(e.shadow, e.rt.outputs, from, count);
           const series: Record<string, SeriesSlice> = {};
-          const lists: Record<string, (Marker | Level | Zone)[]> = {};
+          const lists: Record<string, (Marker | Level | Zone)[] | PackedList> = {};
+          const listFrom: Record<string, number> = {};
           for (const [k, o] of Object.entries(e.rt.outputs)) {
             if (o instanceof SeriesOut) series[k] = sliceSeries(o, from, count);
-            else lists[k] = o.items.slice();
+            else {
+              let prev = e.lists.get(k);
+              if (!prev || kind === 'full') e.lists.set(k, (prev = []));
+              const at = listDiff(prev, o.items);
+              listFrom[k] = at;
+              // Long tails (a full result) go columnar; a tick's few changed items stay plain.
+              lists[k] = o.items.length - at > 64 ? packList(o.items.slice(at)) : o.items.slice(at);
+            }
           }
           return {
             op: 'result',
@@ -227,6 +327,7 @@ export class EngineHost {
             count,
             series,
             lists,
+            listFrom,
             notice: e.rt.notice,
             kind,
           };
@@ -251,6 +352,9 @@ export function transferables(m: FromEngine): ArrayBuffer[] {
   for (const s of Object.values(m.series))
     for (const a of [s.v, s.v2, s.v3, s.v4, s.tone])
       if (a.byteLength) out.push(a.buffer as ArrayBuffer);
+  for (const l of Object.values(m.lists))
+    if (!Array.isArray(l))
+      for (const a of [l.sig, l.kind, l.num]) if (a.byteLength) out.push(a.buffer as ArrayBuffer);
   return out;
 }
 
@@ -323,6 +427,8 @@ export class RemoteRuntime implements RuntimeLike {
   private anchor: Bar | undefined;
   private seq = 0;
   private disposed = false;
+  /** Data of an update skipped while a message was in flight (sent when the reply arrives). */
+  private deferred: BarData | null = null;
 
   constructor(
     readonly def: AnyIndicator,
@@ -339,6 +445,14 @@ export class RemoteRuntime implements RuntimeLike {
 
   update(data: BarData): UpdateKind {
     if (this.disposed) return 'none';
+    // Backpressure: one message in flight per runtime. Updates while the worker is busy coalesce
+    // into the next message (sent when the reply arrives and the chart redraws), so a burst of
+    // ticks never builds a queue of stale work.
+    if (this.pending > 0) {
+      this.deferred = data;
+      return 'none';
+    }
+    this.deferred = null;
     const bars = data.bars;
     const n = bars.length;
     const m = this.sent;
@@ -357,7 +471,7 @@ export class RemoteRuntime implements RuntimeLike {
       seq: ++this.seq,
       from,
       reset: !appendOnly,
-      bars: bars.slice(from) as Bar[],
+      packed: packBarsCached(bars, from, data.version),
       version: data.version,
       tickSize: data.tickSize,
     });
@@ -368,11 +482,14 @@ export class RemoteRuntime implements RuntimeLike {
   apply(msg: FromEngine): void {
     if (this.disposed) return;
     this.pending = Math.max(0, this.pending - 1);
-    if (msg.op === 'error') {
-      this.notice = msg.message;
-      this.onChange();
-      return;
-    }
+    if (msg.op === 'error') this.notice = msg.message;
+    else this.applyResult(msg);
+    const d = this.deferred;
+    if (d && this.pending === 0) this.update(d);
+    this.onChange();
+  }
+
+  private applyResult(msg: Extract<FromEngine, { op: 'result' }>): void {
     const cap = Math.max(256, msg.count);
     for (const [k, o] of Object.entries(this.outputs)) {
       if (o instanceof SeriesOut) {
@@ -387,13 +504,12 @@ export class RemoteRuntime implements RuntimeLike {
         o.tone.set(s.tone, msg.from);
         if (msg.count < o.capacity) o.clear(msg.count);
       } else {
-        o.clear();
-        for (const it of msg.lists[k] ?? []) o.add(it);
+        const l = msg.lists[k] ?? [];
+        o.replaceFrom(msg.listFrom?.[k] ?? 0, Array.isArray(l) ? l : unpackList(l));
       }
     }
     this.count = msg.count;
     this.notice = msg.notice;
-    this.onChange();
   }
 
   series(id: string): SeriesOut | undefined {

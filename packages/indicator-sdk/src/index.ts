@@ -12,4 +12,5 @@ export * from './mtf';
 export * from './script';
 export * from './alerts';
 export * from './engine';
+export * from './wire';
 export * from './foreign';
