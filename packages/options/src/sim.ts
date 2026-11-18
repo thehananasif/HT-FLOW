@@ -157,6 +157,48 @@ export function simUnderlying(id: string): SimUnderlying | undefined {
   return SIM_UNDERLYINGS.find((u) => u.id === id);
 }
 
+/** Smallest of 1 / 2 / 2.5 / 5 × 10^k that is >= x (strike steps and option ticks). */
+export function niceStep(x: number): number {
+  if (!(x > 0) || !Number.isFinite(x)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= x * (1 - 1e-9)) return +(m * p).toPrecision(12);
+  return 10 * p;
+}
+
+/**
+ * A simulated option market for an instrument without a built-in one (any chart symbol): the
+ * futures-style (Black-76) ES template rescaled to the price level. Always labelled "Sim".
+ */
+export function genericSimUnderlying(
+  id: string,
+  symbol: string,
+  price: number,
+  tickSize = 0.01,
+): SimUnderlying {
+  const base = SIM_UNDERLYINGS.find((u) => u.id === 'mock:ESZ6')!;
+  const strikeStep = niceStep(price / 90);
+  const optionTick = Math.max(tickSize, niceStep(price / 6000));
+  const decimals = Math.max(0, Math.min(8, Math.ceil(-Math.log10(optionTick) - 1e-9)));
+  return {
+    ...base,
+    id,
+    root: symbol,
+    symbol,
+    style: 'future',
+    model: 'b76',
+    multiplier: 1,
+    strikeStep,
+    optionTick,
+    priceDecimals: decimals,
+    currency: 'USD',
+    refPrice: price,
+    shortVol: 0.3,
+    longVol: 0.32,
+    skew: -0.06,
+    curvature: 0.04,
+  };
+}
+
 /* ------------------------------------------------------------------ seeded randomness */
 
 function hashString(s: string): number {

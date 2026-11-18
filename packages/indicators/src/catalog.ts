@@ -32,8 +32,6 @@ function rows(category: IndicatorCategory, group: string | undefined, list: Row[
   }));
 }
 
-const OPTIONS_NOTE =
-  'Needs an options chain (strikes, open interest, IV per expiry) in the indicator context: the simulated and Deribit chain sources exist in @htflow/options but are not wired into the indicator feeds yet';
 export const CATALOG: CatalogEntry[] = [
   ...rows('volume-orderflow', undefined, [
     ['Active Volume', 'active-volume'],
@@ -50,7 +48,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Dynamic Levels', 'dynamic-levels'],
     ['Dynamic Levels Channel', 'dynamic-levels-channel'],
     ['Maximum Levels', 'maximum-levels'],
-    ['Market Profile & TPO', undefined, undefined, 'TPO chart template (P09)'],
+    ['Market Profile & TPO', 'market-profile'],
     ['OI Analyzer', 'oi-analyzer'],
     ['Balance OI', 'balance-oi'],
     ['Order Flow', 'order-flow-tape'],
@@ -82,9 +80,9 @@ export const CATALOG: CatalogEntry[] = [
     ['Sweeps Tracker', 'sweeps-tracker'],
   ]),
   ...rows('options', undefined, [
-    ['Options Board (on-chart strikes/OI)', undefined, undefined, OPTIONS_NOTE],
+    ['Options Board (on-chart strikes/OI)', 'options-board'],
     ['Options Position', 'options-position'],
-    ['Volatility Smile', undefined, undefined, OPTIONS_NOTE],
+    ['Volatility Smile', 'volatility-smile'],
     ['Options Risk Profile', 'options-risk-profile'],
   ]),
   ...rows('cot', undefined, [
@@ -186,12 +184,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Accelerator Oscillator', 'accelerator'],
     ['CMO', 'cmo'],
     ['CFO', 'cfo'],
-    [
-      'CMS',
-      undefined,
-      undefined,
-      'Not defined in Appendix B (abbreviation is ambiguous); needs a spec decision',
-    ],
+    ['CMS', 'cms'],
     ['Coppock Curve', 'coppock'],
     ['DeMarker', 'demarker'],
     ['Detrended Price Oscillator', 'dpo'],
@@ -245,12 +238,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Fair Value Gaps (FVG)', 'fvg'],
     ['Order Blocks', 'order-blocks'],
     ['Liquidity Sweeps', 'liquidity-sweeps'],
-    [
-      'Margin Zones',
-      undefined,
-      undefined,
-      'Not defined in Appendix B (no formula given); needs a spec decision',
-    ],
+    ['Margin Zones', 'margin-zones'],
     ['Daily Lines', 'daily-lines'],
     ['Daily/Weekly/Monthly High-Low', 'period-high-low'],
     ['Previous Session OHLC', 'prev-session-ohlc'],

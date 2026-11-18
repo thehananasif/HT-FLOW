@@ -1,6 +1,6 @@
 import type { Bar, Trade } from '@htflow/market-data';
 import type { ListOut, SeriesOut } from './buffers';
-import type { CotData, DepthData, DerivativesData } from './feeds';
+import type { CotData, DepthData, DerivativesData, OptionsData } from './feeds';
 
 /** Appendix B categories (plus user scripts). */
 export type IndicatorCategory =
@@ -374,6 +374,8 @@ export interface BarData {
   account?: () => AccountSnapshot | null;
   /** Weekly CFTC Commitments of Traders history (COT indicators). */
   cot?: CotData;
+  /** Options chain of the underlying (Options Board, Volatility Smile). */
+  options?: OptionsData;
 }
 
 export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = undefined> {
@@ -409,6 +411,8 @@ export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = unde
   account: AccountSnapshot | null;
   /** Weekly COT history (undefined when the host has none). */
   cot: CotData | undefined;
+  /** Options chain (undefined while loading or when the host has none). */
+  options: OptionsData | undefined;
   /** Shows a short note next to the legend title (e.g. "no data from this feed"); null clears it. */
   notice(text: string | null): void;
 }
@@ -437,6 +441,8 @@ export interface IndicatorMeta {
   needsTrades?: boolean;
   /** Reads another instrument or the account: computed on the main thread, not in a worker. */
   needsHost?: boolean;
+  /** Reads `ctx.options`: the host loads the options chain lazily once such an indicator is on the chart. */
+  needsOptions?: boolean;
   /**
    * Performance hint: list items (markers / levels / zones) are never edited after the calc that
    * added them, so the worker sends only items added from the recomputed bar on (default false:
