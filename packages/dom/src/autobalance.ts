@@ -62,14 +62,14 @@ export const fitFontSize = (fontSize: number, rowHeight: number): number =>
 
 /** Characters the widest value of a column needs (generous, for the minimum width). */
 const COLUMN_CHARS: Record<string, number> = {
-  price: 8,
-  bid: 5,
-  ask: 5,
-  orders: 7,
-  limits: 9,
-  markers: 9,
-  notes: 8,
-  pnl: 6,
+  price: 7,
+  bid: 4,
+  ask: 4,
+  orders: 6,
+  limits: 7,
+  markers: 6,
+  notes: 4,
+  pnl: 5,
   vapoc: 3,
 };
 
@@ -94,7 +94,7 @@ const DROP_ORDER = [
 
 /** Minimum readable width of a column at this font size. */
 export const columnMinWidth = (id: string, fontSize: number): number =>
-  Math.ceil((COLUMN_CHARS[id] ?? 5) * fontSize * 0.62 + 8);
+  Math.ceil((COLUMN_CHARS[id] ?? 4) * fontSize * 0.6 + 6);
 
 /**
  * Columns that fit `width` without horizontal scroll: lowest-priority columns are hidden until the
