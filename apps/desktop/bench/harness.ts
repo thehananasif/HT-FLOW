@@ -109,13 +109,40 @@ export function headlessContext(): CanvasRenderingContext2D {
 }
 
 /**
+ * A WebGL2 context whose every call is a no-op: the WebGL2 backend's CPU cost (instance buffers,
+ * strips, uniform / draw-call stream) without GPU time — the same convention as `headlessContext`.
+ */
+export function headlessWebGL2(): WebGL2RenderingContext {
+  const obj = () => ({});
+  const fns: Record<string, unknown> = {
+    createShader: obj,
+    createProgram: obj,
+    createBuffer: obj,
+    createVertexArray: obj,
+    createTexture: obj,
+    getUniformLocation: obj,
+    getShaderParameter: () => true,
+    getProgramParameter: () => true,
+    getExtension: () => null,
+    getParameter: () => 'headless',
+    isContextLost: () => false,
+  };
+  const store: Record<string | symbol, unknown> = { drawingBufferWidth: 1, drawingBufferHeight: 1 };
+  const noop = () => {};
+  return new Proxy(store, {
+    get: (t, k) => (typeof k === 'string' && k in fns ? fns[k] : k in t ? t[k] : noop),
+  }) as unknown as WebGL2RenderingContext;
+}
+
+/**
  * Installs the browser APIs ChartCore and the canvas modules need on top of jsdom: a headless 2D
  * context, ResizeObserver, manual requestAnimationFrame and ImageData.
  */
 export function installHeadlessDom(): void {
   const g = globalThis as unknown as Record<string, unknown>;
-  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement) {
-    const self = this as unknown as { __ctx?: CanvasRenderingContext2D };
+  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string) {
+    const self = this as unknown as { __ctx?: unknown; __gl?: unknown };
+    if (type === 'webgl2') return (self.__gl ??= headlessWebGL2());
     return (self.__ctx ??= headlessContext());
   } as unknown as HTMLCanvasElement['getContext'];
   HTMLCanvasElement.prototype.toDataURL = () => 'data:,';
