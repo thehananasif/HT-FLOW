@@ -340,7 +340,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   const snapshot = () => {
     const core = handle.current?.cores[handle.current.cores.length - 1];
     if (!core) return;
-    core.canvas.toBlob((blob) => {
+    core.snapshotCanvas().toBlob((blob) => {
       if (!blob) return;
       const item =
         typeof ClipboardItem !== 'undefined' ? new ClipboardItem({ 'image/png': blob }) : null;

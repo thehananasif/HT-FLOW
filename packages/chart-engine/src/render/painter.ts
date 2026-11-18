@@ -33,12 +33,7 @@ export interface Painter {
   /** Solid polyline through `n` points (x, y pairs). */
   polyline(pts: ArrayLike<number>, n: number, color: string, width: number, alpha?: number): void;
   /** Draws pixel rows [sx, sx+sw) × [sy, sy+sh) of `img` into the destination rect. */
-  image(
-    img: PixelImage,
-    src: Rect,
-    dst: Rect,
-    smoothing: boolean,
-  ): void;
+  image(img: PixelImage, src: Rect, dst: Rect, smoothing: boolean): void;
 }
 
 /** Canvas2D backend: replays batches with fillRect / stroke on the chart context. */

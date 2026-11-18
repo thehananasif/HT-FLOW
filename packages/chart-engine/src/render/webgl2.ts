@@ -295,7 +295,11 @@ export class WebGL2Painter implements Painter {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, t.tex);
     if (t.version !== img.version || t.w !== img.width || t.h !== img.height) {
-      const px = new Uint8Array(img.pixels.buffer, img.pixels.byteOffset, img.width * img.height * 4);
+      const px = new Uint8Array(
+        img.pixels.buffer,
+        img.pixels.byteOffset,
+        img.width * img.height * 4,
+      );
       gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
       if (t.w !== img.width || t.h !== img.height)

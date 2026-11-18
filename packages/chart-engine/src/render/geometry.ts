@@ -174,13 +174,7 @@ export function buildProfileRows(
     const y = L.yOf(k + st.rowTicks - 0.5);
     if (y > st.bottom || y + st.rowH < st.top) continue;
     const inVa = k >= st.val - st.rowTicks + 1 && k <= st.vah;
-    out.rect(
-      st.x0,
-      y,
-      (vol / rowMax) * st.maxW,
-      st.rowH,
-      k === st.pocRow ? cp : inVa ? ci : co,
-    );
+    out.rect(st.x0, y, (vol / rowMax) * st.maxW, st.rowH, k === st.pocRow ? cp : inVa ? ci : co);
   }
   return out;
 }

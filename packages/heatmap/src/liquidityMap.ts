@@ -427,7 +427,12 @@ export class LiquidityMapLayer implements ChartLayer {
     const rowTicks = Math.max(1, Math.ceil(rowsRaw / 1200));
     this.lastRowTicks = rowTicks;
     const rows = Math.ceil(rowsRaw / rowTicks);
-    if (this.buf.resize(cols, rows) || !this.img || this.img.width !== cols || this.img.height !== rows) {
+    if (
+      this.buf.resize(cols, rows) ||
+      !this.img ||
+      this.img.width !== cols ||
+      this.img.height !== rows
+    ) {
       this.img = {
         key: this,
         version: 0,

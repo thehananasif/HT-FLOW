@@ -45,8 +45,7 @@ function parseUncached(css: string): Rgba {
       .map((p) => (p.endsWith('%') ? (parseFloat(p) / 100) * 255 : parseFloat(p)));
     if (parts.length < 3 || parts.some((p) => !Number.isFinite(p))) return BLACK;
     const raw = m[1]!.split(/[\s,/]+/).filter(Boolean)[3];
-    const a =
-      raw === undefined ? 1 : raw.endsWith('%') ? parseFloat(raw) / 100 : parseFloat(raw);
+    const a = raw === undefined ? 1 : raw.endsWith('%') ? parseFloat(raw) / 100 : parseFloat(raw);
     const c = (x: number) => Math.max(0, Math.min(1, x / 255));
     return [c(parts[0]!), c(parts[1]!), c(parts[2]!), Math.max(0, Math.min(1, a))];
   }

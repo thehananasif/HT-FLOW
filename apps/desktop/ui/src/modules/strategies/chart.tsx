@@ -340,7 +340,7 @@ registerChartExtension({
       const ours =
         ext.snapshots === 'all' || (ext.snapshots === 'strategy' && !!tag && f.tag === tag);
       if (!ours) return;
-      const url = capture(ctx.cores.map((c) => c.canvas));
+      const url = capture(ctx.cores.map((c) => c.snapshotCanvas()));
       if (!url) return;
       if (f.realized !== 0) pendingExit.set(f.orderId, url);
       else pendingEntry.set(f.orderId, url);

@@ -63,7 +63,12 @@ import {
 } from './model';
 import { QuickSettings } from './QuickSettings';
 import { FullSettings, heatFpsCap } from './FullSettings';
-import { gpuPreference, heatmapRenderer } from '../../charts/settings/performance';
+import {
+  chartPowerPreference,
+  chartRenderer,
+  gpuPreference,
+  heatmapRenderer,
+} from '../../charts/settings/performance';
 import { View3D } from './View3D';
 import { HeatDrawings, HEATMAP_TOOLS } from './drawings';
 import { StressFeed, type StressResult } from './stress';
@@ -197,6 +202,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
       priceAxisWidth: cur.priceAxisWidth,
       rightMargin: 30,
       minSlotWidth: 0.5,
+      renderer: chartRenderer(),
+      powerPreference: chartPowerPreference(),
     });
     core.slotWidth = 2.5;
     core.rightOffset = 30;
@@ -358,7 +365,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
   const snapshot = useCallback(() => {
     const canvas =
       (wrap.current?.querySelector('.hm-3d canvas') as HTMLCanvasElement | null) ??
-      coreRef.current?.canvas;
+      coreRef.current?.snapshotCanvas();
     canvas?.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
