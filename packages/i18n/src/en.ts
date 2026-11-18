@@ -3761,6 +3761,9 @@ export const en = {
   'tmpl2.0-reset-to-default.3c9b': '“{0}” reset to default',
   'tmpl2.template-0-deleted.c1af': 'Template “{0}” deleted',
   'tmpl2.centre-band-0.087f': 'Centre band {0} %',
+  // ---- guide
+  'guide.tip.d19c': 'Tip',
+  'guide.warning.e9c4': 'Warning',
 } as const;
 
 export type Strings = { [K in keyof typeof en]: string };

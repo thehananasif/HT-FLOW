@@ -3755,4 +3755,7 @@ export const ur: Strings = {
   'tmpl2.0-reset-to-default.3c9b': '“{0}” ڈیفالٹ پر ری سیٹ ہو گیا',
   'tmpl2.template-0-deleted.c1af': 'ٹیمپلیٹ “{0}” حذف ہو گیا',
   'tmpl2.centre-band-0.087f': 'مرکزی پٹی {0} %',
+  // ---- guide
+  'guide.tip.d19c': 'ٹِپ',
+  'guide.warning.e9c4': 'انتباہ',
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MODULES } from '../../shell/modules';
-import { ARTICLES, buildArticles, guideImage } from './content';
+import { ARTICLES, articlesFor, buildArticles, guideImage } from './content';
 import {
   parseFrontMatter,
   parseInline,
@@ -185,6 +185,41 @@ describe('guide content', () => {
     };
     expect(buildArticles(raw, 'en').map((a) => a.title)).toEqual(['A']);
     expect(buildArticles(raw, 'de').map((a) => a.title)).toEqual(['Ä']);
+  });
+});
+
+describe('Urdu guide articles', () => {
+  const ur = articlesFor('ur');
+
+  it('translates the first two articles and falls back to English for the rest', () => {
+    const byId = new Map(ur.map((a) => [a.id, a]));
+    expect(byId.get('getting-started')!.title).toBe('آغاز کرنا');
+    expect(byId.get('interface')!.title).toBe('انٹرفیس کا ٹور');
+    expect(ur.map((a) => a.id)).toEqual(ARTICLES.map((a) => a.id));
+    expect(byId.get('charts')!.title).toBe(ARTICLES.find((a) => a.id === 'charts')!.title);
+  });
+
+  it('keeps ids, "opens" targets, images and links of the English article', () => {
+    for (const id of ['getting-started', 'interface']) {
+      const en = ARTICLES.find((a) => a.id === id)!;
+      const u = ur.find((a) => a.id === id)!;
+      expect(u.opens).toEqual(en.opens);
+      const imgs = (a: typeof en) => {
+        const out: string[] = [];
+        walk(a.blocks ?? [], (b) => {
+          if (b.t === 'img') out.push(b.src);
+        });
+        return out;
+      };
+      expect(imgs(u)).toEqual(imgs(en));
+      for (const src of imgs(u)) expect(guideImage(src), src).toBeTruthy();
+      expect(u.parts?.length).toBe(en.parts?.length);
+    }
+  });
+
+  it('recognises translated callout labels', () => {
+    const b = parseMarkdown('> **ٹِپ** استعمال کریں\n\n> **انتباہ** احتیاط\n\n> **نوٹ** یاد رکھیں');
+    expect(b.map((x) => (x.t === 'quote' ? x.kind : null))).toEqual(['tip', 'warning', 'note']);
   });
 });
 

@@ -208,7 +208,7 @@ function Blocks({ blocks, article, nav }: { blocks: Block[]; article: Article; n
           case 'quote':
             return (
               <aside key={i} className={`ug-callout ug-callout-${b.kind ?? 'plain'}`}>
-                {b.kind && <div className="ug-callout-title">{CALLOUT_TITLE[b.kind]}</div>}
+                {b.kind && <div className="ug-callout-title">{tl(CALLOUT_TITLE[b.kind])}</div>}
                 <Blocks blocks={b.blocks} article={article} nav={nav} />
               </aside>
             );

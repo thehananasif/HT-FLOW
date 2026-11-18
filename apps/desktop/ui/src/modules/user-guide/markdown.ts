@@ -116,7 +116,14 @@ function parseList(lines: string[], start: number): { block: Block; next: number
   return { block: { t: ordered ? 'ol' : 'ul', items }, next: i };
 }
 
-const CALLOUT = /^\*\*(Tip|Note|Warning|New)\*\*[:.]?\s*/i;
+const CALLOUT = /^\*\*(Tip|Note|Warning|New|ٹِپ|نوٹ|انتباہ|نیا)\*\*[:.]?\s*/i;
+/** Translated callout labels (docs/user-guide/<lang>/) mapped to the callout kind. */
+const CALLOUT_ALIASES: Record<string, CalloutKind> = {
+  ٹِپ: 'tip',
+  نوٹ: 'note',
+  انتباہ: 'warning',
+  نیا: 'new',
+};
 
 export function parseMarkdown(src: string): Block[] {
   const lines = src.replace(/\r/g, '').split('\n');
@@ -187,7 +194,7 @@ export function parseMarkdown(src: string): Block[] {
       const first = CALLOUT.exec(inner[0] ?? '');
       let kind: CalloutKind | null = null;
       if (first) {
-        kind = first[1]!.toLowerCase() as CalloutKind;
+        kind = CALLOUT_ALIASES[first[1]!] ?? (first[1]!.toLowerCase() as CalloutKind);
         inner[0] = inner[0]!.replace(CALLOUT, '');
       }
       out.push({ t: 'quote', kind, blocks: parseMarkdown(inner.join('\n')) });
