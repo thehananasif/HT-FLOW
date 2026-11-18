@@ -292,6 +292,7 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
             <div className="muted ug-count">
               {hits.length} result{hits.length === 1 ? '' : 's'}
             </div>
+            {hits.length === 0 && <div className="muted ug-count">No articles match</div>}
             {hits.map((h) => (
               <button
                 key={`${h.article.id}#${h.anchor}`}

@@ -59,7 +59,9 @@ test('User Guide: search "footprint", open the section, image loads; F1, Help me
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+k');
   await page.getByPlaceholder(/search commands/i).fill('Open User Guide');
-  await expect(page.getByRole('option').first()).toContainText('User Guide');
+  await expect(
+    page.getByRole('dialog', { name: 'Command palette' }).getByRole('option').first(),
+  ).toContainText('User Guide');
   await page.keyboard.press('Escape');
 
   await page
