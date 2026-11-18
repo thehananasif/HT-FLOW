@@ -9,6 +9,7 @@ import {
   ArrowDownToLine,
   ArrowRightToLine,
   Columns2,
+  CircleHelp,
   ExternalLink,
   Grid2x2,
   Layout,
@@ -58,6 +59,7 @@ import { CommandPalette } from '../shell/CommandPalette';
 import {
   installHotkeys,
   registerCommands,
+  runCommand,
   setActiveWindowElement,
   type Command,
 } from '../shell/commands';
@@ -698,6 +700,7 @@ export function Dashboard({ version }: { version: string }) {
             <PanelRight size={13} /> Panel
           </Button>
         </div>
+        <HelpMenu />
         <RiskMeter />
         <AccountMenu name={session.displayName} />
       </TitleBar>
@@ -819,6 +822,34 @@ function RiskMeter() {
         />
       </div>
     </div>
+  );
+}
+
+function HelpMenu() {
+  const items: MenuEntry[] = [
+    { id: 'guide', label: 'User Guide', shortcut: 'F1', onSelect: () => runCommand('user-guide.open') },
+    {
+      id: 'panel',
+      label: 'Help for this window',
+      shortcut: 'Shift+F1',
+      onSelect: () => runCommand('user-guide.help-panel'),
+    },
+    { id: 'keys', label: 'Keyboard shortcuts', onSelect: () => runCommand('user-guide.shortcuts') },
+    { id: 'tour', label: 'Start guided tour', onSelect: () => runCommand('tour.start') },
+    { kind: 'separator', id: 'hs' },
+    { id: 'upd', label: 'Check for updates', onSelect: () => runCommand('platform.checkUpdates') },
+    { id: 'rep', label: 'Report a problem…', onSelect: () => runCommand('platform.reportProblem') },
+  ];
+  return (
+    <DropdownMenu
+      align="end"
+      items={items}
+      trigger={
+        <button className="ht-icon-btn" aria-label="Help menu" data-testid="help-menu">
+          <CircleHelp size={15} />
+        </button>
+      }
+    />
   );
 }
 

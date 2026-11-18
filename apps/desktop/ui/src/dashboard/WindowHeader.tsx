@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { IDockviewPanelHeaderProps } from 'dockview';
-import { Camera, Maximize2, Settings2, X } from 'lucide-react';
+import { Camera, CircleHelp, Maximize2, Settings2, X } from 'lucide-react';
+import { helpTopicFor, openGuide } from '../modules/user-guide/topics';
 import { Badge, Chip, DropdownMenu, IconButton, MenuTrigger } from '@htflow/ui-kit';
 import {
   CHART_TEMPLATES,
@@ -234,6 +235,13 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
           <Camera size={13} />
         </IconButton>
       )}
+      <IconButton
+        label="Help for this panel"
+        data-testid={`help-${id}`}
+        onClick={() => openGuide(helpTopicFor(s))}
+      >
+        <CircleHelp size={13} />
+      </IconButton>
       <WindowMenuButton id={id} />
       <IconButton
         label="Maximize"
