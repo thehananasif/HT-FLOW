@@ -135,7 +135,9 @@ for (const size of SIZES) {
     await page.waitForTimeout(1000);
 
     const modules = await page.evaluate(async () => {
-      const m = await import(/* @vite-ignore */ '/src/shell/modules.ts');
+      // Dev-server module (the path is not resolvable by the test's TypeScript).
+      const load = (p: string) => import(/* @vite-ignore */ p);
+      const m = await load('/src/shell/modules.ts');
       return (m.MODULES as { id: string; label: string }[]).map((x) => ({
         id: x.id,
         label: x.label,
