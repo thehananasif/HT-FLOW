@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "HT Flow",
         "width": 1600,
         "height": 900,

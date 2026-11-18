@@ -475,3 +475,12 @@
 :root[dir='rtl'] .ht-toasts {
   text-align: right;
 }
+.st-restart {
+  margin-left: 6px;
+  font-size: 10px;
+  font-style: normal;
+  color: var(--ht-warn, var(--ht-text-tertiary));
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+}

@@ -3,6 +3,7 @@ import { useSession } from '../state/session';
 import { registerCommands } from '../shell/commands';
 import { installGlobalCrashHandlers, useReportDialog } from './crash';
 import { flushWaitingFiles, startOpenFileBridge } from './openFile';
+import { runBackupNow, runOpenBackupsFolder, runOpenLogFolder } from './nativeOps';
 import { ReportProblemDialog } from './ReportProblem';
 import { UpdateDialog } from './UpdateDialog';
 import { checkForUpdates, startupUpdateCheck } from './updates';
@@ -22,6 +23,27 @@ registerCommands([
     group: 'Platform',
     keywords: 'bug crash error log feedback issue support',
     run: () => useReportDialog.getState().show(),
+  },
+  {
+    id: 'platform.openLogFolder',
+    label: 'Open log folder',
+    group: 'Platform',
+    keywords: 'logs files explorer diagnostics',
+    run: () => void runOpenLogFolder(),
+  },
+  {
+    id: 'platform.backupNow',
+    label: 'Back up profile now',
+    group: 'Platform',
+    keywords: 'backup copy profile settings save snapshot',
+    run: () => void runBackupNow(),
+  },
+  {
+    id: 'platform.openBackupsFolder',
+    label: 'Open backups folder',
+    group: 'Platform',
+    keywords: 'backup backups explorer restore',
+    run: () => void runOpenBackupsFolder(),
   },
 ]);
 

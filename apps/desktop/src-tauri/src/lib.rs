@@ -2,14 +2,17 @@
 //! allow-list: local accounts + encrypted settings/vault (P03) and live market data (P05/P06).
 
 mod auth_cmds;
+mod backup;
 mod crash;
 mod custom_ws;
 mod data_cmds;
 mod error;
+mod file_log;
 mod history;
 mod history_cache;
 mod instruments_cmds;
 mod market_cmds;
+mod native_prefs;
 mod net_cmds;
 mod openfile;
 mod paths;
@@ -20,17 +23,32 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use htflow_auth::{KdfParams, ProfileStore};
-use tauri::Manager;
+use tauri::{Manager, WebviewWindowBuilder};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 pub fn run() {
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(
+    // Settings the native side needs before any profile is unlocked (native-prefs.json).
+    let boot_root = paths::data_root(None);
+    let prefs = native_prefs::load(&boot_root);
+    let log_dir =
+        file_log::resolve_log_dir(&boot_root, &prefs.logs_folder, |k| std::env::var(k).ok());
+    file_log::sweep(&log_dir, prefs.logs_keep_days);
+    let file_layer = file_log::maker(&log_dir).map(|m| {
+        tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_writer(m)
+    });
+    let _ = tracing_subscriber::registry()
+        .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
+        .with(tracing_subscriber::fmt::layer())
+        .with(file_layer)
         .try_init();
 
     // Local-only crash reports (<data>/crashes/), also for panics during start-up.
-    crash::install_panic_hook(paths::data_root(None));
+    crash::install_panic_hook(boot_root.clone());
 
     tauri::Builder::default()
         // A second launch (e.g. double-clicking a .htprofile) hands its arguments to this instance.
@@ -38,10 +56,28 @@ pub fn run() {
             openfile::dispatch(app, openfile::paths_from_args(args));
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
             let root = paths::data_root(app.path().app_data_dir().ok());
             std::fs::create_dir_all(&root)?;
             app.manage(crash::CrashState(crash::crash_dir(&root)));
+            app.manage(native_prefs::NativeState {
+                root: root.clone(),
+                log_dir: log_dir.clone(),
+                prefs: Mutex::new(prefs.clone()),
+            });
+            backup::spawn_scheduler(app.handle().clone());
+            // The main window is built here (not from tauri.conf.json alone) so the WebView2
+            // GPU adapter chosen in Settings -> Performance can be passed as a browser argument.
+            if let Some(cfg) = app.config().app.windows.first() {
+                #[allow(unused_mut)]
+                let mut win = WebviewWindowBuilder::from_config(app.handle(), cfg)?;
+                #[cfg(windows)]
+                {
+                    win = win
+                        .additional_browser_args(&native_prefs::browser_args(&prefs.video_adapter));
+                }
+                win.build()?;
+            }
             app.manage(openfile::OpenFileState::default());
             openfile::dispatch(
                 app.handle(),
@@ -114,6 +150,11 @@ pub fn run() {
             crash::crash_list,
             crash::crash_summary,
             crash::crash_open_folder,
+            file_log::open_log_folder,
+            backup::profile_backup_now,
+            backup::profile_backup_prune,
+            backup::open_backups_folder,
+            native_prefs::native_prefs_set,
             openfile::open_file_ready,
             updater_cmds::update_status,
             updater_cmds::update_check,

@@ -28,6 +28,7 @@ import {
   Volume2,
   Rows3,
 } from 'lucide-react';
+import { runBackupNow, runOpenBackupsFolder, runOpenLogFolder } from '../../platform/nativeOps';
 import { Button, NumberInput, Toggle, Tooltip, toast } from '@htflow/ui-kit';
 import {
   SCHEMA,
@@ -271,6 +272,11 @@ function Row({
           {modified && <span className="st-mod" title="Modified" />}
         </span>
         {d.label}
+        {d.restartRequired && (
+          <em className="st-restart" data-testid={`restart-note-${k}`}>
+            restart required
+          </em>
+        )}
         <Tooltip
           content={
             <span className="st-tip">
@@ -548,6 +554,22 @@ export function SettingsView({
             <Button
               size="sm"
               variant="outline"
+              data-testid="settings-backup-now"
+              onClick={() => void runBackupNow()}
+            >
+              Back up now
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="settings-open-backups"
+              onClick={() => void runOpenBackupsFolder()}
+            >
+              Open backups folder
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() =>
                 toast(
                   'info',
@@ -613,14 +635,8 @@ export function SettingsView({
           <Button
             size="sm"
             variant="outline"
-            onClick={() =>
-              toast(
-                'info',
-                'Log folder',
-                `${draft['logs.folder']} — opening Explorer needs the native shell command (not available yet).`,
-                8000,
-              )
-            }
+            data-testid="settings-open-logs"
+            onClick={() => void runOpenLogFolder()}
           >
             Open log folder
           </Button>
