@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 base64.workspace = true
+htflow-ai.workspace = true
 htflow-auth.workspace = true
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 htflow-connector-binance.workspace = true

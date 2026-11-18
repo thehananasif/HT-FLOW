@@ -1,6 +1,7 @@
 //! HT Flow desktop shell (Tauri 2). Exposes the Rust core to the UI through a typed IPC
 //! allow-list: local accounts + encrypted settings/vault (P03) and live market data (P05/P06).
 
+mod ai_cmds;
 mod auth_cmds;
 mod backup;
 mod cot_cmds;
@@ -111,6 +112,7 @@ pub fn run() {
             app.manage(custom_ws::CustomWsState::default());
             app.manage(feed_cmds::FeedState::new(&root));
             app.manage(vps_cmds::VpsState::default());
+            app.manage(ai_cmds::AiState::default());
             app.manage(webpage_cmds::WebpageState::default());
             app.manage(os_windows::OsWindowsState::new(&root));
             Ok(())
@@ -187,6 +189,11 @@ pub fn run() {
             vps_cmds::vps_probe,
             vps_cmds::vps_op,
             vps_cmds::vps_exec,
+            ai_cmds::ai_chat,
+            ai_cmds::ai_cancel,
+            ai_cmds::ai_list_models,
+            ai_cmds::ai_key_status,
+            ai_cmds::ai_check_url,
             webpage_cmds::webpage_open,
             webpage_cmds::webpage_navigate,
             webpage_cmds::webpage_back,

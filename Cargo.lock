@@ -2070,6 +2070,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "htflow-ai"
+version = "0.1.0"
+dependencies = [
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "htflow-auth"
 version = "0.1.0"
 dependencies = [
@@ -2248,6 +2261,7 @@ dependencies = [
  "chrono",
  "feed-rs",
  "futures-util",
+ "htflow-ai",
  "htflow-auth",
  "htflow-connector-binance",
  "htflow-connector-bitfinex",

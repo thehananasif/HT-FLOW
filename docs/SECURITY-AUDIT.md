@@ -241,6 +241,16 @@ User-written strategies (HT Editor, docs/STRATEGY-API.md) are untrusted code. De
   (its own response) is expected to allow it — verify on Windows (WebView2) before release
   (BLOCKERS). Side channels such as timing (`performance.now`, `Date`) remain available.
 
+## Round 7 addition — AI assistant (bring your own key)
+
+- **New outbound hosts (https only, native core):** `api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`, `api.x.ai`, `api.mistral.ai`, `api.deepseek.com`, `dashscope-intl.aliyuncs.com`, `dashscope.aliyuncs.com`. A hosted provider may only be reached on its own host (port 443). _Custom OpenAI-compatible_ endpoints: https to a public host, or http(s) to loopback; private / link-local / CGNAT literals (incl. `169.254.169.254`) refused. Ollama / LM Studio: loopback only. No redirects are followed (a key is never forwarded), no cookies, system proxy except for loopback. The CSP is unchanged: the WebView still cannot reach the internet. Checked in `crates/ai/src/provider.rs` (tests) and mirrored in the form for early feedback.
+- **Key storage:** keys are written with `vault_put` to `ai/<configId>/key` (XChaCha20-Poly1305 vault of the profile). `ai_chat` / `ai_list_models` read them inside the core (`Zeroizing`) and put them in one header (`x-api-key`, `x-goog-api-key` or `Authorization: Bearer`; Gemini keys never go in the URL). No command returns a key (`ai_key_status` returns a boolean). Provider error texts are scrubbed of the key before reaching the UI; logs record provider, model and error code only. Crash-report redaction now also hides `sk-…`, `sk-ant-…`, `xai-…`, `AIza…`, `gsk_…` keys, `Bearer` tokens and `*api-key` headers.
+- **Limits:** 24 MB request, 10 MB per base64 image (PNG / JPEG / WebP only), 400 messages, 64 tools, 16 MB streamed response, 4 MB model list, 15 s connect / 120 s idle / 10 min per turn; `config_id` restricted to `[a-z0-9-]{1,48}`.
+- **Screenshots** are rendered from the app's own DOM and canvases (other windows / apps are never captured), sent only after consent (default _always ask_), never saved with conversations.
+- **Model output** is rendered as React text nodes (no `innerHTML`); links only for absolute http(s) URLs with `rel="noopener noreferrer"`.
+- **Agent safety:** the model can only call the app's tool list; trade tools exist only in agent mode. Agent orders are tagged `ai-agent` and checked by a paper-engine pre-trade check (kill switch, live arming, max quantity, orders / hour, daily loss stop, allowed symbols) in addition to the account risk rules, so an order cannot bypass limits through the tool layer. Live accounts require arming per app session (never persisted, cleared on log-out and by the kill switch); per-trade confirmation is on by default; each run has a step limit; every tool call is audited.
+- **Residual risk:** prompt injection through market data or news text could steer the model; mitigated by the hard limits, confirmations and paper default rather than by the prompt. Conversations (text and screen context) are stored in the encrypted profile and sent to the provider the user chose, under that provider's data policy.
+
 ## Remaining (not changed, with rationale)
 
 - **`vault_get` returns secrets to the WebView.** By design (alert delivery runs in the UI). An

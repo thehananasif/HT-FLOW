@@ -375,6 +375,17 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Binance Futures connector + history merge → live bus (desktop app)
 - [ ] Acceptance: 4 charts on BTCUSDT with 4 days of history + live at 60 fps (needs tick store + Windows benchmark)
 
+## R7 — AI assistant (bring your own key)
+
+- [x] Providers: Anthropic Claude, OpenAI, Google Gemini, xAI Grok, Mistral, DeepSeek, Qwen (DashScope), custom OpenAI-compatible base URL, Ollama / LM Studio on localhost; model list fetched from the provider (editable)
+- [x] Keys only in the encrypted vault (never in settings JSON, logs or crash reports; redaction extended); the UI never reads a key back
+- [x] Native streaming `ai_chat` (https allow-list, custom URL validation, loopback for local models, no redirects, timeouts, size caps, cancellation); adapters for Anthropic Messages, Gemini generateContent and OpenAI-compatible chat completions with tools and images
+- [x] Screen-aware chat: screenshot of the HT Flow window (chart canvases + DOM snapshot) for vision models with consent (always ask / auto / never) and a visible indicator; structured text context
+- [x] Chat UI: conversation list, sanitized Markdown, code blocks, stop, regenerate, copy, per-conversation provider / model, system prompt presets, saved locally
+- [x] Agent mode: market / order-flow / account / order / alert tools; paper by default, per-session live arming, per-trade confirmation, hard limits in the paper engine's pre-trade checks, audit log, kill switch, interval schedule and max steps
+- [x] Command Palette entries (Open AI, Ask about this chart, Start / Stop agent, Kill switch)
+- [~] Live (broker) accounts: arming and limits are built, but no broker connector exists yet (see BLOCKERS: broker SDKs), so the agent trades paper accounts in practice; OS-level WebView2 capture (`CapturePreview`) not used — the in-app renderer draws the window instead
+
 ## Appendix C — Default shortcuts
 
 - [x] Ctrl+K command palette · T Trading Panel · Ctrl+L lock · H breakeven · Alt+V / T / B / D footprint modes
