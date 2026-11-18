@@ -1174,3 +1174,26 @@
     display: none;
   }
 }
+
+/* Round 7: small windows (e.g. 1366 × 700). The title bar shrinks its contents and never pushes
+   the window controls off-screen; the main column and side panels keep everything reachable by
+   scrolling instead of cutting it off at the bottom. */
+.titlebar {
+  min-width: 0;
+  overflow: hidden;
+}
+.titlebar > :not(.win-controls) {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.titlebar > .tb-group,
+.titlebar > .titlebar-brand {
+  overflow: hidden;
+}
+.titlebar > .win-controls {
+  flex: none;
+  margin-left: auto;
+}
+.sidetools {
+  min-height: 0;
+}

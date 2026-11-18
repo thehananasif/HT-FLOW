@@ -470,3 +470,8 @@
 .vps-runner-detail .stg-actions {
   margin-top: 6px;
 }
+
+/* Round 7: a narrow or short Strategies window scrolls instead of clipping its result tabs. */
+.stg-body {
+  overflow: auto;
+}

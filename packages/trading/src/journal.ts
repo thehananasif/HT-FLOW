@@ -101,6 +101,17 @@ export function roundTrips(
     }
     let rem = f.qty;
     const commPerUnit = f.commission / f.qty;
+    // A fill that closed a position whose opening fills are not in the list (e.g. a position
+    // restored after a restart): book the missing part as a lot at the engine's average entry.
+    if (f.closedQty && f.entryAvg !== undefined) {
+      const have = book.side === -dir ? book.lots.reduce((a, l) => a + l.qty, 0) : 0;
+      const missing = f.closedQty - have;
+      if (missing > 1e-12) {
+        if (book.side !== -dir) book = { side: -dir as 1 | -1, lots: [] };
+        open.set(key, book);
+        book.lots.push({ qty: missing, px: f.entryAvg, ts: f.ts, comm: 0, orderId: '' });
+      }
+    }
     if (book.side === dir) {
       book.lots.push({ qty: rem, px: f.px, ts: f.ts, comm: commPerUnit, orderId: f.orderId });
       continue;
@@ -122,7 +133,7 @@ export function roundTrips(
         exitTs: f.ts,
         pnl,
         commission: (lot.comm + commPerUnit) * q,
-        entryOrderId: lot.orderId,
+        entryOrderId: lot.orderId || undefined,
         exitOrderId: f.orderId,
       });
       lot.qty -= q;

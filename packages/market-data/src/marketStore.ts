@@ -313,7 +313,8 @@ export class MarketHub {
       dispose: ReturnType<typeof setTimeout> | null;
     }
   >();
-  private created = new Set<(s: MarketStore) => void>();
+  /** Called with the store and the id it was requested under (a fallback feed's instrument id can differ). */
+  private created = new Set<(s: MarketStore, instrumentId: string) => void>();
 
   constructor(
     private factory: FeedFactory,
@@ -347,7 +348,7 @@ export class MarketHub {
       unsub: () => (u1(), u2(), u3()),
       dispose: null,
     });
-    for (const fn of this.created) fn(store);
+    for (const fn of this.created) fn(store, instrumentId);
     feed
       .history()
       .then((h) => {
@@ -403,12 +404,17 @@ export class MarketHub {
     return [...this.entries.values()].map((e) => e.store);
   }
 
+  /** The feed behind an instrument's store (diagnostics, tests: e.g. pause a simulator). */
+  feed(instrumentId: string): FeedSource | undefined {
+    return this.entries.get(instrumentId)?.feed;
+  }
+
   peek(instrumentId: string): MarketStore | undefined {
     return this.entries.get(instrumentId)?.store;
   }
 
   /** Notified when a new instrument store is created. */
-  onStore(fn: (s: MarketStore) => void): () => void {
+  onStore(fn: (s: MarketStore, instrumentId: string) => void): () => void {
     this.created.add(fn);
     return () => this.created.delete(fn);
   }

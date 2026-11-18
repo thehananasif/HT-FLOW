@@ -1,5 +1,5 @@
 import type { AccountState } from './paperEngine';
-import type { BracketSpec, OptionPosition, Order, Position } from './types';
+import type { BracketSpec, Fill, OptionPosition, Order, Position } from './types';
 
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const str = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
@@ -71,6 +71,29 @@ function option(v: unknown): OptionPosition | null {
   return p;
 }
 
+function fill(v: unknown): Fill | null {
+  if (!obj(v) || !str(v.id) || !str(v.orderId) || !str(v.instrumentId)) return null;
+  if (v.side !== 'buy' && v.side !== 'sell') return null;
+  if (!num(v.qty) || !(v.qty > 0) || !num(v.px) || !num(v.ts)) return null;
+  const f: Fill = {
+    id: v.id,
+    orderId: v.orderId,
+    accountId: str(v.accountId) ? v.accountId : '',
+    instrumentId: v.instrumentId,
+    side: v.side,
+    qty: v.qty,
+    px: v.px,
+    ts: v.ts,
+    commission: num(v.commission) ? v.commission : 0,
+    liquidity: v.liquidity === 'maker' ? 'maker' : 'taker',
+    realized: num(v.realized) ? v.realized : 0,
+  };
+  if (num(v.closedQty) && v.closedQty > 0) f.closedQty = v.closedQty;
+  if (num(v.entryAvg)) f.entryAvg = v.entryAvg;
+  if (str(v.tag)) f.tag = v.tag;
+  return f;
+}
+
 const list = <T>(v: unknown, f: (x: unknown) => T | null): T[] =>
   Array.isArray(v) ? v.map(f).filter((x): x is T => x !== null) : [];
 
@@ -86,6 +109,7 @@ export function normalizeAccountState(raw: unknown): AccountState {
     brackets: [],
     managed: [],
     options: [],
+    fills: [],
   };
   if (!obj(raw) || raw.v !== 1) return empty;
   const orders = list(raw.orders, order);
@@ -128,5 +152,6 @@ export function normalizeAccountState(raw: unknown): AccountState {
         : null,
     ),
     options: list(raw.options, option),
+    fills: list(raw.fills, fill),
   };
 }

@@ -24,6 +24,13 @@ import { openTradingSetup } from './setupNav';
 import { nextOcoGroup, ocoGroupState, useOco } from './oco';
 import './trading.css';
 
+/** Local midnight (epoch ms): start of "today" for daily P&L. */
+export function startOfLocalDay(now = Date.now()): number {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
 export function usePaperTick() {
   const [, set] = useState(0);
   useEffect(() => {
@@ -329,9 +336,11 @@ export function TradingPanel() {
   useEffect(() => setTif(tifOf(defTif)), [defTif]);
   const acc = routedAccount(instrumentId);
   const pos = instrumentId ? paper.position(acc.id, instrumentId) : null;
-  const mark = store?.lastTrade?.px ?? Number.NaN;
-  const upnl =
-    instrumentId && !Number.isNaN(mark) ? paper.unrealized(acc.id, instrumentId, mark) : 0;
+  // Marks come from the engine (last trade it saw, else the store's last trade / mid).
+  const upnl = instrumentId ? paper.unrealized(acc.id, instrumentId) : 0;
+  const day = paper.pnlSummary(acc.id, startOfLocalDay());
+  const cur = acc.currency === 'USD' ? '$' : acc.currency;
+  const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}`;
   const template = templates.find((t) => t.id === prefs.atmId);
   const summary = useMemo(() => (template ? describeAtm(template) : ''), [template]);
 
@@ -469,9 +478,35 @@ export function TradingPanel() {
           Close
         </Button>
       </fieldset>
-      <div className={`tp-pnl ${upnl >= 0 ? 'up' : 'down'}`} data-testid="pnl">
+      <div
+        className={`tp-pnl ${upnl >= 0 ? 'up' : 'down'}`}
+        data-testid="pnl"
+        data-value={upnl.toFixed(2)}
+        title="Open (unrealized) P&L of this instrument at the last price"
+      >
         PnL {upnl >= 0 ? '+' : ''}
-        {upnl.toFixed(2)} {acc.currency === 'USD' ? '$' : acc.currency}
+        {upnl.toFixed(2)} {cur}
+      </div>
+      <div className="tp-day tnum" data-testid="pnl-day">
+        <span title="Gross realized P&L of today's fills on this account">
+          <span className="muted">Realized</span>{' '}
+          <b
+            className={day.realized > 0 ? 'up' : day.realized < 0 ? 'down' : ''}
+            data-testid="pnl-realized"
+            data-value={day.realized.toFixed(2)}
+          >
+            {signed(day.realized)}
+          </b>
+        </span>
+        <span title="Commissions and fees of today's fills">
+          <span className="muted">Fees</span> <b>{day.fees.toFixed(2)}</b>
+        </span>
+        <span title="Realized − fees + open P&L of every position on this account">
+          <span className="muted">Net</span>{' '}
+          <b className={day.net > 0 ? 'up' : day.net < 0 ? 'down' : ''} data-testid="pnl-net">
+            {signed(day.net)}
+          </b>
+        </span>
       </div>
       <div className="tp-grid">
         <div className="tp-stat">
@@ -610,10 +645,17 @@ export function TradingPanel() {
         />
       </div>
       {instrumentId && <WorkingOrders instrumentId={instrumentId} accountId={acc.id} />}
-      <div className="tp-foot muted tnum">
-        Balance {acc.balance.toFixed(2)} {acc.currency} · Realized{' '}
-        {(acc.balance - acc.startingBalance).toFixed(2)}
-        {acc.locked && <span className="down"> · LOCKED</span>}
+      <div className="tp-foot muted tnum" data-testid="tp-foot">
+        <span>
+          Balance {acc.balance.toFixed(2)} {acc.currency}
+        </span>
+        <span>
+          Equity {day.equity.toFixed(2)} {acc.currency}
+        </span>
+        <span title="Balance change since the account was reset (realized P&L after fees)">
+          Since reset {signed(acc.balance - acc.startingBalance)}
+        </span>
+        {acc.locked && <span className="down">LOCKED</span>}
       </div>
     </aside>
   );
