@@ -13,6 +13,8 @@ import { openTimeframeDialog, withSession } from '../../charts/timeframes/preset
 import { useWindows } from '../../state/windows';
 import { registerCommands } from '../../shell/commands';
 import { ChartTypeSettingsDialog, hasTypeSettings } from './SettingsDialog';
+import { CotBar } from './CotBar';
+import { useCot } from '../../state/cot';
 import '../../charts/timeframes/timeframes.css';
 
 function activeChart(): string | null {
@@ -58,12 +60,22 @@ function Overlay({ windowId, state }: { windowId: string; state: ChartWindowStat
           onClick={() => setOpen(true)}
         >
           <SlidersHorizontal size={12} />
-          {state.template === 'cot' ? (
-            <span className="ct-sample-badge">Sample data</span>
-          ) : (
-            'Style'
-          )}
+          Style
         </button>
+      )}
+      {state.template === 'cot' && (
+        <CotBar
+          state={state}
+          onChange={(fn) => {
+            const cur = useWindows.getState().windows[windowId];
+            if (cur?.kind !== 'chart') return;
+            const next = readChartTypeSettings(cur);
+            fn(next.cot);
+            useWindows.getState().patch(windowId, {
+              ext: { ...(cur.ext ?? {}), [CT_EXT]: next },
+            } as Partial<WindowState>);
+          }}
+        />
       )}
       {open && (
         <ChartTypeSettingsDialog
@@ -102,6 +114,21 @@ const DEFAULT_TF: Partial<Record<string, BarSpec>> = {
 };
 
 registerCommands([
+  {
+    id: 'data.cot-refresh',
+    label: 'Refresh COT data',
+    group: 'Analysis',
+    keywords: 'cot cftc commitments of traders download update refresh',
+    run: () => {
+      const years = Math.max(
+        1,
+        ...Object.values(useWindows.getState().windows).map((w) =>
+          w.kind === 'chart' && w.template === 'cot' ? readChartTypeSettings(w).cot.years : 1,
+        ),
+      );
+      void useCot.getState().refreshAll(years);
+    },
+  },
   {
     id: 'chart.timeframe-dialog',
     label: 'Chart: Timeframe dialog',

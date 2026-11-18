@@ -1,98 +1,114 @@
 import type { ChartLayer, ChartView, SlotSource } from '@htflow/chart-engine';
 import { formatCompact } from '@htflow/market-data';
 import { alpha } from '@htflow/ui-kit';
-import { COT_SAMPLE, type CotRow } from './cotSample';
+import type { CotRow } from '../../state/cot';
+import type { CotData } from './cotModel';
 import { withColors, type ChartTypeSettings } from './settings';
 
-export interface CotWeek {
-  t: number;
-  /** Price in ticks (sample relative price × anchor). */
-  px: number;
-  commercials: number;
-  nonCommercials: number;
-  nonReportable: number;
-  openInterest: number;
+const weekT = (r: CotRow) => Date.parse(r.date + 'T00:00:00Z');
+
+export function cotSource(data: () => CotData): SlotSource {
+  return { count: () => data().rows.length, timeAt: (i) => weekT(data().rows[i]!) || 0 };
 }
 
-/** Weekly rows of the bundled sample, priced around `anchorPx` (ticks). */
-export function cotWeeks(anchorPx: number, rows: readonly CotRow[] = COT_SAMPLE): CotWeek[] {
-  const lastRel = rows[rows.length - 1]?.[1] ?? 1;
-  return rows.map((r) => ({
-    t: Date.parse(r[0] + 'T00:00:00Z'),
-    px: Math.round((anchorPx * r[1]) / lastRel),
-    commercials: r[2] - r[3],
-    nonCommercials: r[4] - r[5],
-    nonReportable: r[6] - r[7],
-    openInterest: r[8],
-  }));
-}
+const sgn = (n: number) => (n > 0 ? '+' : '') + formatCompact(n);
 
-export function cotSource(weeks: () => CotWeek[]): SlotSource {
-  return { count: () => weeks().length, timeAt: (i) => weeks()[i]?.t ?? 0 };
-}
-
-/** Weekly price line with a "Sample data" watermark (no COT feed exists yet). */
-export class CotPriceLayer implements ChartLayer {
-  readonly id = 'cot-price';
+/**
+ * Main plot: a positioning table of the newest visible week (long / short / net / change / share
+ * of open interest per trader category). CFTC publishes no prices, so there is no price line. A
+ * "SAMPLE DATA" watermark is drawn whenever the rows are the bundled offline sample.
+ */
+export class CotTableLayer implements ChartLayer {
+  readonly id = 'cot-table';
   constructor(
-    private weeks: () => CotWeek[],
+    private data: () => CotData,
     private get: () => ChartTypeSettings,
   ) {}
 
-  priceRange(i0: number, i1: number): [number, number] | null {
-    const w = this.weeks();
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (let i = Math.max(0, i0); i <= i1 && i < w.length; i++) {
-      lo = Math.min(lo, w[i]!.px);
-      hi = Math.max(hi, w[i]!.px);
-    }
-    return Number.isFinite(lo) ? [lo, hi] : null;
+  priceRange(): [number, number] | null {
+    return [0, 1];
   }
 
   draw(v: ChartView): void {
     const p = withColors(v.palette, this.get().colors);
     const ctx = v.ctx;
-    const w = this.weeks();
-    ctx.font = v.font(40, 700);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = alpha(p.textPrimary, 0.06);
-    ctx.fillText('SAMPLE DATA', v.plot.x + v.plot.w / 2, v.plot.h / 2);
-    ctx.strokeStyle = p.textPrimary;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = Math.max(0, v.i0); i <= v.i1 && i < w.length; i++) {
-      const x = v.xOf(i);
-      const y = v.yOf(w[i]!.px);
-      if (i === Math.max(0, v.i0)) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    const d = this.data();
+    const cx = v.plot.x + v.plot.w / 2;
+    if (d.sample) {
+      ctx.font = v.font(40, 700);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = alpha(p.warning, 0.12);
+      ctx.fillText('SAMPLE DATA', cx, v.plot.h / 2);
     }
-    ctx.stroke();
+    if (!d.rows.length) {
+      ctx.font = v.font(13);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = d.status === 'error' || d.status === 'empty' ? p.warning : p.textSecondary;
+      ctx.fillText(d.message, cx, v.plot.h / 2 + (d.sample ? 0 : -6));
+      return;
+    }
+    const row = d.rows[Math.min(d.rows.length - 1, Math.max(0, Math.floor(v.i1)))]!;
+    ctx.font = v.font(12, 600);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = p.textPrimary;
+    const x0 = v.plot.x + 12;
+    let y = v.plot.y + 22;
+    const lh = 18;
+    ctx.fillText(`Week of ${row.date} · open interest ${formatCompact(row.openInterest)}`, x0, y);
+    y += lh + 4;
+    const cols = [0, 150, 230, 310, 400, 490];
+    ctx.font = v.font(11, 600);
+    ctx.fillStyle = p.textSecondary;
+    ['Category', 'Long', 'Short', 'Net', 'Δ net', '% OI net'].forEach((h, i) =>
+      ctx.fillText(h, x0 + cols[i]!, y),
+    );
+    ctx.font = v.font(11);
+    for (const g of row.groups) {
+      y += lh;
+      ctx.fillStyle = p.textPrimary;
+      ctx.fillText(g.label, x0 + cols[0]!, y);
+      ctx.fillText(formatCompact(g.long), x0 + cols[1]!, y);
+      ctx.fillText(formatCompact(g.short), x0 + cols[2]!, y);
+      ctx.fillStyle = g.net >= 0 ? p.up : p.down;
+      ctx.fillText(sgn(g.net), x0 + cols[3]!, y);
+      ctx.fillStyle = g.netChange >= 0 ? p.up : p.down;
+      ctx.fillText(sgn(g.netChange), x0 + cols[4]!, y);
+      ctx.fillStyle = p.textSecondary;
+      ctx.fillText(
+        row.openInterest ? `${((g.net / row.openInterest) * 100).toFixed(1)}%` : '–',
+        x0 + cols[5]!,
+        y,
+      );
+    }
   }
 }
 
-type Key = 'commercials' | 'nonCommercials' | 'nonReportable' | 'openInterest';
-const LABEL: Record<Key, string> = {
-  commercials: 'Commercials net',
-  nonCommercials: 'Non-commercials net',
-  nonReportable: 'Non-reportable net',
-  openInterest: 'Open interest',
-};
-
-/** One weekly COT sub-pane (histogram of net positions, or OI line). */
+/** Pane slot: net positions of the i-th trader category (or open interest when `slot` is -1). */
 export class CotPaneLayer implements ChartLayer {
   readonly id: string;
   height = 84;
   constructor(
-    private key: Key,
-    private weeks: () => CotWeek[],
+    private slot: number,
+    private data: () => CotData,
     private get: () => ChartTypeSettings,
   ) {
-    this.id = `cot-${key}`;
+    this.id = slot < 0 ? 'cot-oi' : `cot-g${slot}`;
+  }
+
+  private group() {
+    const d = this.data();
+    return d.rows[d.rows.length - 1]?.groups[this.slot];
   }
 
   private on(): boolean {
-    return this.get().cot[this.key];
+    if (!this.data().rows.length) return false;
+    if (this.slot < 0) return this.get().cot.openInterest;
+    const g = this.group();
+    return !!g && !this.get().cot.hidden.includes(g.key);
+  }
+
+  private val(r: CotRow): number {
+    return this.slot < 0 ? r.openInterest : (r.groups[this.slot]?.net ?? 0);
   }
 
   bottomHeight(): number {
@@ -104,7 +120,7 @@ export class CotPaneLayer implements ChartLayer {
     const p = withColors(v.palette, this.get().colors);
     const r = v.bottom;
     const ctx = v.ctx;
-    const w = this.weeks();
+    const w = this.data().rows;
     ctx.fillStyle = p.chartBg;
     ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.strokeStyle = p.divider;
@@ -116,8 +132,9 @@ export class CotPaneLayer implements ChartLayer {
     let hi = 0;
     const i0 = Math.max(0, v.i0);
     for (let i = i0; i <= v.i1 && i < w.length; i++) {
-      lo = Math.min(lo, w[i]![this.key]);
-      hi = Math.max(hi, w[i]![this.key]);
+      const x = this.val(w[i]!);
+      lo = Math.min(lo, x);
+      hi = Math.max(hi, x);
     }
     if (hi === lo) hi = lo + 1;
     const y = (x: number) => r.y + 14 + (1 - (x - lo) / (hi - lo)) * (r.h - 20);
@@ -125,19 +142,20 @@ export class CotPaneLayer implements ChartLayer {
     ctx.beginPath();
     ctx.rect(r.x, r.y, r.w, r.h);
     ctx.clip();
-    if (this.key === 'openInterest') {
+    if (this.slot < 0) {
       ctx.strokeStyle = p.info;
       ctx.beginPath();
       for (let i = i0; i <= v.i1 && i < w.length; i++) {
-        if (i === i0) ctx.moveTo(v.xOf(i), y(w[i]!.openInterest));
-        else ctx.lineTo(v.xOf(i), y(w[i]!.openInterest));
+        const yy = y(this.val(w[i]!));
+        if (i === i0) ctx.moveTo(v.xOf(i), yy);
+        else ctx.lineTo(v.xOf(i), yy);
       }
       ctx.stroke();
     } else {
       const bw = Math.max(1, v.slotWidth * 0.7);
       const y0 = y(0);
       for (let i = i0; i <= v.i1 && i < w.length; i++) {
-        const val = w[i]![this.key];
+        const val = this.val(w[i]!);
         ctx.fillStyle = val >= 0 ? p.up : p.down;
         const yy = y(val);
         ctx.fillRect(v.xOf(i) - bw / 2, Math.min(yy, y0), bw, Math.max(1, Math.abs(y0 - yy)));
@@ -145,11 +163,12 @@ export class CotPaneLayer implements ChartLayer {
     }
     ctx.restore();
     const last = w[Math.min(v.i1, w.length - 1)];
+    const label = this.slot < 0 ? 'Open interest' : `${this.group()?.label ?? ''} net`;
     ctx.font = v.font(10);
     ctx.textAlign = 'left';
     ctx.fillStyle = p.textSecondary;
     ctx.fillText(
-      `${LABEL[this.key]} ${last ? formatCompact(last[this.key]) : ''} · sample`,
+      `${label} ${last ? formatCompact(this.val(last)) : ''}${this.data().sample ? ' · sample' : ''}`,
       r.x + 6,
       r.y + 8,
     );

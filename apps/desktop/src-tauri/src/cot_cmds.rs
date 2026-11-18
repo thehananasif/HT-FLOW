@@ -118,6 +118,7 @@ pub async fn cot_fetch(
     market_code: String,
     from_date: String,
     force: Option<bool>,
+    cache_only: Option<bool>,
 ) -> CmdResult<CotResult> {
     let rep = Report::parse(&report)?;
     let url = build_url(rep, &market_code, &from_date)?;
@@ -125,7 +126,9 @@ pub async fn cot_fetch(
     let cached = read_cache(&path);
     let now = now_ms();
     if let Some(c) = &cached {
-        if !force.unwrap_or(false) && is_fresh(c, &from_date, now) {
+        let usable = c.from_date.as_str() <= from_date.as_str()
+            && (cache_only.unwrap_or(false) || is_fresh(c, &from_date, now));
+        if !force.unwrap_or(false) && usable {
             return Ok(CotResult {
                 rows: c.rows.clone(),
                 fetched_at: c.fetched_at,

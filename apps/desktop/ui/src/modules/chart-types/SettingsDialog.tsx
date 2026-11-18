@@ -324,22 +324,46 @@ export function ChartTypeSettingsDialog({
         )}
 
         {state.template === 'cot' && (
-          <Section title="COT panes (sample data — no COT feed connected)">
+          <Section title="COT (CFTC Commitments of Traders)">
+            <Field label="Weekly history (years)">
+              <NumberInput
+                value={st.cot.years}
+                min={1}
+                max={25}
+                step={1}
+                onChange={(v) => set((x) => (x.cot.years = v))}
+              />
+            </Field>
             {(
               [
-                ['commercials', 'Commercials net'],
-                ['nonCommercials', 'Non-commercials net'],
-                ['nonReportable', 'Non-reportable net'],
-                ['openInterest', 'Open interest'],
+                ['commercial', 'Commercials net'],
+                ['noncommercial', 'Non-commercials net'],
+                ['producer', 'Producers / merchants net'],
+                ['swap', 'Swap dealers net'],
+                ['managed', 'Managed money net'],
+                ['dealer', 'Dealers / intermediaries net'],
+                ['assetmgr', 'Asset managers net'],
+                ['levmoney', 'Leveraged funds net'],
+                ['other', 'Other reportables net'],
+                ['nonreportable', 'Non-reportable net'],
               ] as const
             ).map(([k, label]) => (
               <Checkbox
                 key={k}
                 label={label}
-                checked={st.cot[k]}
-                onChange={(v) => set((x) => (x.cot[k] = v))}
+                checked={!st.cot.hidden.includes(k)}
+                onChange={(v) =>
+                  set((x) => {
+                    x.cot.hidden = v ? x.cot.hidden.filter((h) => h !== k) : [...x.cot.hidden, k];
+                  })
+                }
               />
             ))}
+            <Checkbox
+              label="Open interest"
+              checked={st.cot.openInterest}
+              onChange={(v) => set((x) => (x.cot.openInterest = v))}
+            />
           </Section>
         )}
 
