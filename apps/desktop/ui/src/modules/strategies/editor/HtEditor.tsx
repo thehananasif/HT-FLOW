@@ -49,6 +49,7 @@ import {
 } from '../shared';
 import { CodeEditor } from './CodeEditor';
 import { compileProject, type Diagnostic } from './compile';
+import { plotOverlay } from './plotOverlay';
 import { liveRouters, runStats, scriptRuns, type LiveOrderRouter, type ScriptRun } from './runs';
 import {
   deleteProject,
@@ -913,6 +914,7 @@ function RunsPanel({
   logRun: string | null;
   setLogRun(id: string | null): void;
 }) {
+  useSyncExternalStore(plotOverlay.subscribe, plotOverlay.version);
   const sel = runs.find((r) => r.id === logRun) ?? runs[0];
   return (
     <div className="hte-runs" data-testid="hte-runs">
@@ -981,9 +983,22 @@ function RunsPanel({
             render: (r) => (
               <span className="stg-row-actions">
                 {r.status === 'running' || r.status === 'starting' ? (
-                  <Button size="xs" variant="secondary" onClick={() => scriptRuns.stop(r.id)}>
-                    Stop
-                  </Button>
+                  <>
+                    <Button size="xs" variant="secondary" onClick={() => scriptRuns.stop(r.id)}>
+                      Stop
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      data-testid="hte-run-plots"
+                      title="Draw this run's plot() lines on the chart of its instrument"
+                      onClick={() =>
+                        plotOverlay.setRunVisible(r.id, !plotOverlay.isRunVisible(r.id))
+                      }
+                    >
+                      {plotOverlay.isRunVisible(r.id) ? 'Hide plots' : 'Show plots'}
+                    </Button>
+                  </>
                 ) : (
                   <Button size="xs" variant="ghost" onClick={() => scriptRuns.remove(r.id)}>
                     Remove

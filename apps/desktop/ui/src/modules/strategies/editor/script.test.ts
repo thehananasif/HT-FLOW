@@ -353,3 +353,23 @@ describe('.htstrat', () => {
     ).toThrow(/Invalid file name/);
   });
 });
+
+describe('.htstrat file association', () => {
+  it('opens a file as a project and re-ids it when the id is already saved', async () => {
+    const { projectFromHtstratFile } = await import('./store');
+    const proj = {
+      id: 'stg-abc',
+      name: 'From disk',
+      files: [file('export function onBar() {}')],
+      params: {},
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const text = serializeHtstrat(proj);
+    expect(projectFromHtstratFile(text, []).id).toBe('stg-abc');
+    const again = projectFromHtstratFile(text, [proj]);
+    expect(again.id).not.toBe('stg-abc');
+    expect(again.name).toBe('From disk');
+    expect(() => projectFromHtstratFile('not json', [])).toThrow();
+  });
+});

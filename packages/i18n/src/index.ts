@@ -1,6 +1,7 @@
 import { en, type Strings } from './en';
 import { ur } from './ur';
 
+export { en };
 export type { Strings };
 export type Locale = 'en' | 'ur';
 

@@ -9,6 +9,7 @@ import { cancelOrder, closePosition, reversePosition, submitOrder } from './orde
 import { setChartPrefs, setPrefs, tradingPrefs } from './prefs';
 import { openTradingSetup } from './setupNav';
 import { linkLastTwo, useOco } from './oco';
+import { setPanelWidth } from './panelWidth';
 
 /** Every P17 trading action in the Command Palette (Ctrl+K) and the hot-key editor. */
 const withInst = (fn: (id: string) => void) => () => {
@@ -22,6 +23,13 @@ function hotkeysOff(): void {
 }
 
 const base: Command[] = [
+  {
+    id: 'trading.panel.reset-width',
+    label: 'Trading Panel: Reset width',
+    group: 'Trading',
+    keywords: 'resize trading panel width default',
+    run: () => setPanelWidth('trading', null),
+  },
   {
     id: 'trading.oco.toggle',
     label: 'Toggle OCO (one-cancels-other) for new orders',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Eye, EyeOff, Settings2, X } from 'lucide-react';
 import { Button, Checkbox, NumberInput, Select, Toggle } from '@htflow/ui-kit';
 import { formatPrice, type Side } from '@htflow/market-data';
@@ -21,6 +21,8 @@ import {
 } from './orders';
 import { setPrefs, useTradingPrefs, type SlKind, type TpUnit } from './prefs';
 import { openTradingSetup } from './setupNav';
+import { PanelResizeHandle } from './PanelResizeHandle';
+import { panelWidthOf, usePanelWidths } from './panelWidth';
 import { nextOcoGroup, ocoGroupState, useOco } from './oco';
 import './trading.css';
 
@@ -314,6 +316,7 @@ function WorkingOrders({ instrumentId, accountId }: { instrumentId: string; acco
 /** Right-side Trading Panel (P17, board 02). Toggle with T. */
 export function TradingPanel() {
   usePaperTick();
+  const width = panelWidthOf(usePanelWidths(), 'trading');
   useWindows((s) => s.activeId);
   useWindows((s) => s.windows);
   const prefs = useTradingPrefs();
@@ -361,302 +364,306 @@ export function TradingPanel() {
   const book = store?.book;
 
   return (
-    <aside
-      className="trading-panel"
-      aria-label="Trading Panel"
-      data-testid="trading-panel"
-      data-hotkey-scope="trading"
-    >
-      <div className="tp-head">
-        <h3>Trading Panel</h3>
-        <span className="muted">T</span>
-        <button
-          className="ht-icon-btn"
-          aria-label="Trading setup"
-          title="ATM templates, accounts, confirmations, chart trading"
-          onClick={() => openTradingSetup('atm')}
-        >
-          <Settings2 size={14} />
-        </button>
-        <button
-          className="ht-icon-btn"
-          aria-label="Close trading panel"
-          onClick={() => useWindows.getState().setTradingPanel(false)}
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <AccountPicker instrumentId={instrumentId} />
-      <div className="tp-inst muted">
-        {inst ? `${inst.symbol} · ${inst.exchange}` : 'Select a chart or DOM window'}
-      </div>
-      <label className="tp-label">Qty</label>
-      <NumberInput
-        value={qty}
-        onChange={setQty}
-        step={inst && inst.qtyPrecision > 0 ? Math.pow(10, -inst.qtyPrecision) : 1}
-        min={0}
-        unit="Lots"
-        aria-label="Quantity"
-      />
-      <div className="row gap6 wrap tp-presets">
-        {presets.map((n) => (
-          <button key={n} className="ht-chip" aria-pressed={qty === n} onClick={() => setQty(n)}>
-            {n}
-          </button>
-        ))}
-      </div>
-      <fieldset className="tp-grid" disabled={!instrumentId || acc.locked}>
-        <Button variant="buy" onClick={() => send('buy', 'market')} data-testid="buy-market">
-          BUY MARKET
-        </Button>
-        <Button variant="sell" onClick={() => send('sell', 'market')} data-testid="sell-market">
-          SELL MARKET
-        </Button>
-        <Button
-          variant="buy-outline"
-          size="sm"
-          onClick={() => book && send('buy', 'limit', book.bestAsk)}
-        >
-          BUY ASK
-        </Button>
-        <Button
-          variant="sell-outline"
-          size="sm"
-          onClick={() => book && send('sell', 'limit', book.bestAsk)}
-        >
-          SELL ASK
-        </Button>
-        <Button
-          variant="buy-outline"
-          size="sm"
-          onClick={() => book && send('buy', 'limit', book.bestBid)}
-        >
-          BUY BID
-        </Button>
-        <Button
-          variant="sell-outline"
-          size="sm"
-          onClick={() => book && send('sell', 'limit', book.bestBid)}
-        >
-          SELL BID
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId, 'buy')}
-        >
-          Cancel Bids
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId, 'sell')}
-        >
-          Cancel Asks
-        </Button>
-        <Button size="sm" onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId)}>
-          Cancel All
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => instrumentId && void reversePosition(instrumentId, acc.id)}
-        >
-          Reverse
-        </Button>
-        <Button
-          size="sm"
-          className="span2"
-          onClick={() => instrumentId && paper.breakeven(acc.id, instrumentId)}
-        >
-          Breakeven (H)
-        </Button>
-        <Button
-          variant="primary"
-          className="span2"
-          onClick={() => instrumentId && void closePosition(instrumentId, acc.id)}
-          data-testid="close-position"
-        >
-          Close
-        </Button>
-      </fieldset>
-      <div
-        className={`tp-pnl ${upnl >= 0 ? 'up' : 'down'}`}
-        data-testid="pnl"
-        data-value={upnl.toFixed(2)}
-        title="Open (unrealized) P&L of this instrument at the last price"
+    <>
+      <PanelResizeHandle panelId="trading" />
+      <aside
+        className="trading-panel"
+        aria-label="Trading Panel"
+        data-testid="trading-panel"
+        data-hotkey-scope="trading"
+        style={{ '--tp-width': `${width}px` } as CSSProperties}
       >
-        PnL {upnl >= 0 ? '+' : ''}
-        {upnl.toFixed(2)} {cur}
-      </div>
-      <div className="tp-day tnum" data-testid="pnl-day">
-        <span title="Gross realized P&L of today's fills on this account">
-          <span className="muted">Realized</span>{' '}
-          <b
-            className={day.realized > 0 ? 'up' : day.realized < 0 ? 'down' : ''}
-            data-testid="pnl-realized"
-            data-value={day.realized.toFixed(2)}
+        <div className="tp-head">
+          <h3>Trading Panel</h3>
+          <span className="muted">T</span>
+          <button
+            className="ht-icon-btn"
+            aria-label="Trading setup"
+            title="ATM templates, accounts, confirmations, chart trading"
+            onClick={() => openTradingSetup('atm')}
           >
-            {signed(day.realized)}
-          </b>
-        </span>
-        <span title="Commissions and fees of today's fills">
-          <span className="muted">Fees</span> <b>{day.fees.toFixed(2)}</b>
-        </span>
-        <span title="Realized − fees + open P&L of every position on this account">
-          <span className="muted">Net</span>{' '}
-          <b className={day.net > 0 ? 'up' : day.net < 0 ? 'down' : ''} data-testid="pnl-net">
-            {signed(day.net)}
-          </b>
-        </span>
-      </div>
-      <div className="tp-grid">
-        <div className="tp-stat">
-          <span className="muted">{pos?.qty ? (pos.qty > 0 ? 'Long' : 'Short') : 'Flat'}</span>
-          <b className="tnum" data-testid="position-qty">
-            {pos?.qty ?? 0}
-          </b>
-        </div>
-        <div className="tp-stat">
-          <span className="muted">Entry</span>
-          <b className="tnum">{pos && pos.qty && inst ? formatPrice(pos.avgPx, inst) : '—'}</b>
-        </div>
-      </div>
-      <div className="row between center-y tp-row">
-        <span title="One-cancels-other: resting orders placed while ticked form one group; the first fill or cancel cancels the others">
-          <Checkbox checked={oco.enabled} onChange={oco.setEnabled} label="OCO" />
-        </span>
-        <Select
-          small
-          value={tif}
-          onChange={setTif}
-          options={(['GTC', 'DAY', 'IOC', 'FOK', 'GTD'] as TimeInForce[]).map((v) => ({
-            value: v,
-            label: v,
-          }))}
-          aria-label="Time in force"
-        />
-      </div>
-      {oco.enabled && (
-        <div className="row between center-y tp-row muted" data-testid="oco-status">
-          <span>
-            {ocoWorking === 0
-              ? 'OCO: the next resting order starts a group'
-              : `OCO group: ${ocoWorking} working · the next order joins`}
-          </span>
-          <button className="ht-chip" onClick={oco.newGroup} disabled={ocoWorking === 0}>
-            New group
+            <Settings2 size={14} />
+          </button>
+          <button
+            className="ht-icon-btn"
+            aria-label="Close trading panel"
+            onClick={() => useWindows.getState().setTradingPanel(false)}
+          >
+            <X size={14} />
           </button>
         </div>
-      )}
-      <div className="tp-row">
-        <Checkbox checked={reduceOnly} onChange={setReduceOnly} label="Reduce-Only" />
-      </div>
-      <div className="row between center-y tp-row tp-section">
-        <b>Order</b>
-      </div>
-      {instrumentId && (
-        <fieldset className="ot-fieldset" disabled={acc.locked}>
-          <OrderEntry
-            instrumentId={instrumentId}
-            qty={qty}
-            tif={tif}
-            reduceOnly={reduceOnly}
-            ocoFor={nextOcoGroup}
-          />
+        <AccountPicker instrumentId={instrumentId} />
+        <div className="tp-inst muted">
+          {inst ? `${inst.symbol} · ${inst.exchange}` : 'Select a chart or DOM window'}
+        </div>
+        <label className="tp-label">Qty</label>
+        <NumberInput
+          value={qty}
+          onChange={setQty}
+          step={inst && inst.qtyPrecision > 0 ? Math.pow(10, -inst.qtyPrecision) : 1}
+          min={0}
+          unit="Lots"
+          aria-label="Quantity"
+        />
+        <div className="row gap6 wrap tp-presets">
+          {presets.map((n) => (
+            <button key={n} className="ht-chip" aria-pressed={qty === n} onClick={() => setQty(n)}>
+              {n}
+            </button>
+          ))}
+        </div>
+        <fieldset className="tp-grid" disabled={!instrumentId || acc.locked}>
+          <Button variant="buy" onClick={() => send('buy', 'market')} data-testid="buy-market">
+            BUY MARKET
+          </Button>
+          <Button variant="sell" onClick={() => send('sell', 'market')} data-testid="sell-market">
+            SELL MARKET
+          </Button>
+          <Button
+            variant="buy-outline"
+            size="sm"
+            onClick={() => book && send('buy', 'limit', book.bestAsk)}
+          >
+            BUY ASK
+          </Button>
+          <Button
+            variant="sell-outline"
+            size="sm"
+            onClick={() => book && send('sell', 'limit', book.bestAsk)}
+          >
+            SELL ASK
+          </Button>
+          <Button
+            variant="buy-outline"
+            size="sm"
+            onClick={() => book && send('buy', 'limit', book.bestBid)}
+          >
+            BUY BID
+          </Button>
+          <Button
+            variant="sell-outline"
+            size="sm"
+            onClick={() => book && send('sell', 'limit', book.bestBid)}
+          >
+            SELL BID
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId, 'buy')}
+          >
+            Cancel Bids
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId, 'sell')}
+          >
+            Cancel Asks
+          </Button>
+          <Button size="sm" onClick={() => instrumentId && paper.cancelAll(acc.id, instrumentId)}>
+            Cancel All
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => instrumentId && void reversePosition(instrumentId, acc.id)}
+          >
+            Reverse
+          </Button>
+          <Button
+            size="sm"
+            className="span2"
+            onClick={() => instrumentId && paper.breakeven(acc.id, instrumentId)}
+          >
+            Breakeven (H)
+          </Button>
+          <Button
+            variant="primary"
+            className="span2"
+            onClick={() => instrumentId && void closePosition(instrumentId, acc.id)}
+            data-testid="close-position"
+          >
+            Close
+          </Button>
         </fieldset>
-      )}
-      <div className="row between center-y tp-row tp-section">
-        <b>SL/TP</b>
-        <span className="row gap6 center-y muted">
-          {prefs.bracketOn ? 'On' : 'Off'}{' '}
-          <Toggle
-            checked={prefs.bracketOn}
-            onChange={(v) => setPrefs({ bracketOn: v })}
-            label="SL/TP bracket"
+        <div
+          className={`tp-pnl ${upnl >= 0 ? 'up' : 'down'}`}
+          data-testid="pnl"
+          data-value={upnl.toFixed(2)}
+          title="Open (unrealized) P&L of this instrument at the last price"
+        >
+          PnL {upnl >= 0 ? '+' : ''}
+          {upnl.toFixed(2)} {cur}
+        </div>
+        <div className="tp-day tnum" data-testid="pnl-day">
+          <span title="Gross realized P&L of today's fills on this account">
+            <span className="muted">Realized</span>{' '}
+            <b
+              className={day.realized > 0 ? 'up' : day.realized < 0 ? 'down' : ''}
+              data-testid="pnl-realized"
+              data-value={day.realized.toFixed(2)}
+            >
+              {signed(day.realized)}
+            </b>
+          </span>
+          <span title="Commissions and fees of today's fills">
+            <span className="muted">Fees</span> <b>{day.fees.toFixed(2)}</b>
+          </span>
+          <span title="Realized − fees + open P&L of every position on this account">
+            <span className="muted">Net</span>{' '}
+            <b className={day.net > 0 ? 'up' : day.net < 0 ? 'down' : ''} data-testid="pnl-net">
+              {signed(day.net)}
+            </b>
+          </span>
+        </div>
+        <div className="tp-grid">
+          <div className="tp-stat">
+            <span className="muted">{pos?.qty ? (pos.qty > 0 ? 'Long' : 'Short') : 'Flat'}</span>
+            <b className="tnum" data-testid="position-qty">
+              {pos?.qty ?? 0}
+            </b>
+          </div>
+          <div className="tp-stat">
+            <span className="muted">Entry</span>
+            <b className="tnum">{pos && pos.qty && inst ? formatPrice(pos.avgPx, inst) : '—'}</b>
+          </div>
+        </div>
+        <div className="row between center-y tp-row">
+          <span title="One-cancels-other: resting orders placed while ticked form one group; the first fill or cancel cancels the others">
+            <Checkbox checked={oco.enabled} onChange={oco.setEnabled} label="OCO" />
+          </span>
+          <Select
+            small
+            value={tif}
+            onChange={setTif}
+            options={(['GTC', 'DAY', 'IOC', 'FOK', 'GTD'] as TimeInForce[]).map((v) => ({
+              value: v,
+              label: v,
+            }))}
+            aria-label="Time in force"
           />
-        </span>
-      </div>
-      <div className="row gap6 center-y">
-        <Select
-          small
-          className="grow"
-          value={template ? template.id : ''}
-          onChange={(v) => setPrefs({ atmId: v })}
-          options={[
-            { value: '', label: 'Custom SL / TP' },
-            ...templates.map((t) => ({ value: t.id, label: `ATM · ${t.name}` })),
-          ]}
-          aria-label="ATM template"
-        />
-        <button className="ht-chip" onClick={() => openTradingSetup('atm')}>
-          Edit templates
-        </button>
-      </div>
-      {template ? (
-        <div className="ot-atm-summary muted tnum" data-testid="atm-summary">
-          {summary}
         </div>
-      ) : (
-        <div className="tp-bracket ot-bracket">
-          <span className="up">TP</span>
-          <div className="row gap6">
-            <NumberInput
-              className="grow"
-              value={prefs.tp}
-              onChange={(v) => v > 0 && setPrefs({ tp: v })}
-              min={prefs.tpUnit === 'ticks' ? 1 : 0.01}
-              step={prefs.tpUnit === 'ticks' ? 1 : 0.25}
-              aria-label="Take profit"
-            />
-            <Select
-              small
-              value={prefs.tpUnit}
-              onChange={(v) => setPrefs({ tpUnit: v })}
-              options={TP_UNITS}
-              aria-label="Take profit unit"
-            />
+        {oco.enabled && (
+          <div className="row between center-y tp-row muted" data-testid="oco-status">
+            <span>
+              {ocoWorking === 0
+                ? 'OCO: the next resting order starts a group'
+                : `OCO group: ${ocoWorking} working · the next order joins`}
+            </span>
+            <button className="ht-chip" onClick={oco.newGroup} disabled={ocoWorking === 0}>
+              New group
+            </button>
           </div>
-          <span className="down">SL</span>
-          <div className="row gap6">
-            <NumberInput
-              className="grow"
-              value={prefs.sl}
-              onChange={(v) => v > 0 && setPrefs({ sl: v })}
-              min={prefs.slKind === 'atr' ? 0.1 : 1}
-              step={prefs.slKind === 'atr' ? 0.1 : 1}
-              unit={prefs.slKind === 'atr' ? 'ATR' : 'T'}
-              aria-label="Stop loss"
-            />
-            <Select
-              small
-              value={prefs.slKind}
-              onChange={(v) => setPrefs({ slKind: v })}
-              options={SL_KINDS}
-              aria-label="Stop loss type"
-            />
-          </div>
+        )}
+        <div className="tp-row">
+          <Checkbox checked={reduceOnly} onChange={setReduceOnly} label="Reduce-Only" />
         </div>
-      )}
-      <div className="row between center-y tp-row tp-section">
-        <span>Trading on chart</span>
-        <Toggle
-          checked={prefs.chart.enabled}
-          onChange={(v) => setPrefs({ chart: { ...prefs.chart, enabled: v } })}
-          label="Trading on chart"
-        />
-      </div>
-      {instrumentId && <WorkingOrders instrumentId={instrumentId} accountId={acc.id} />}
-      <div className="tp-foot muted tnum" data-testid="tp-foot">
-        <span>
-          Balance {acc.balance.toFixed(2)} {acc.currency}
-        </span>
-        <span>
-          Equity {day.equity.toFixed(2)} {acc.currency}
-        </span>
-        <span title="Balance change since the account was reset (realized P&L after fees)">
-          Since reset {signed(acc.balance - acc.startingBalance)}
-        </span>
-        {acc.locked && <span className="down">LOCKED</span>}
-      </div>
-    </aside>
+        <div className="row between center-y tp-row tp-section">
+          <b>Order</b>
+        </div>
+        {instrumentId && (
+          <fieldset className="ot-fieldset" disabled={acc.locked}>
+            <OrderEntry
+              instrumentId={instrumentId}
+              qty={qty}
+              tif={tif}
+              reduceOnly={reduceOnly}
+              ocoFor={nextOcoGroup}
+            />
+          </fieldset>
+        )}
+        <div className="row between center-y tp-row tp-section">
+          <b>SL/TP</b>
+          <span className="row gap6 center-y muted">
+            {prefs.bracketOn ? 'On' : 'Off'}{' '}
+            <Toggle
+              checked={prefs.bracketOn}
+              onChange={(v) => setPrefs({ bracketOn: v })}
+              label="SL/TP bracket"
+            />
+          </span>
+        </div>
+        <div className="row gap6 center-y">
+          <Select
+            small
+            className="grow"
+            value={template ? template.id : ''}
+            onChange={(v) => setPrefs({ atmId: v })}
+            options={[
+              { value: '', label: 'Custom SL / TP' },
+              ...templates.map((t) => ({ value: t.id, label: `ATM · ${t.name}` })),
+            ]}
+            aria-label="ATM template"
+          />
+          <button className="ht-chip" onClick={() => openTradingSetup('atm')}>
+            Edit templates
+          </button>
+        </div>
+        {template ? (
+          <div className="ot-atm-summary muted tnum" data-testid="atm-summary">
+            {summary}
+          </div>
+        ) : (
+          <div className="tp-bracket ot-bracket">
+            <span className="up">TP</span>
+            <div className="row gap6">
+              <NumberInput
+                className="grow"
+                value={prefs.tp}
+                onChange={(v) => v > 0 && setPrefs({ tp: v })}
+                min={prefs.tpUnit === 'ticks' ? 1 : 0.01}
+                step={prefs.tpUnit === 'ticks' ? 1 : 0.25}
+                aria-label="Take profit"
+              />
+              <Select
+                small
+                value={prefs.tpUnit}
+                onChange={(v) => setPrefs({ tpUnit: v })}
+                options={TP_UNITS}
+                aria-label="Take profit unit"
+              />
+            </div>
+            <span className="down">SL</span>
+            <div className="row gap6">
+              <NumberInput
+                className="grow"
+                value={prefs.sl}
+                onChange={(v) => v > 0 && setPrefs({ sl: v })}
+                min={prefs.slKind === 'atr' ? 0.1 : 1}
+                step={prefs.slKind === 'atr' ? 0.1 : 1}
+                unit={prefs.slKind === 'atr' ? 'ATR' : 'T'}
+                aria-label="Stop loss"
+              />
+              <Select
+                small
+                value={prefs.slKind}
+                onChange={(v) => setPrefs({ slKind: v })}
+                options={SL_KINDS}
+                aria-label="Stop loss type"
+              />
+            </div>
+          </div>
+        )}
+        <div className="row between center-y tp-row tp-section">
+          <span>Trading on chart</span>
+          <Toggle
+            checked={prefs.chart.enabled}
+            onChange={(v) => setPrefs({ chart: { ...prefs.chart, enabled: v } })}
+            label="Trading on chart"
+          />
+        </div>
+        {instrumentId && <WorkingOrders instrumentId={instrumentId} accountId={acc.id} />}
+        <div className="tp-foot muted tnum" data-testid="tp-foot">
+          <span>
+            Balance {acc.balance.toFixed(2)} {acc.currency}
+          </span>
+          <span>
+            Equity {day.equity.toFixed(2)} {acc.currency}
+          </span>
+          <span title="Balance change since the account was reset (realized P&L after fees)">
+            Since reset {signed(acc.balance - acc.startingBalance)}
+          </span>
+          {acc.locked && <span className="down">LOCKED</span>}
+        </div>
+      </aside>
+    </>
   );
 }
