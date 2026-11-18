@@ -15,7 +15,7 @@ import { registerCommands } from '../../shell/commands';
 import { askConfirm } from '../../state/confirm';
 import { useSetting } from '../../state/settings';
 import { paper } from '../../state/market';
-import { Markdown } from './Markdown';
+import { Markdown } from './MarkdownView';
 import { PRESETS, type ChatMsg, type Conversation } from './chat';
 import { parseSymbols } from './guard';
 import { aiNative, errorText } from './native';
