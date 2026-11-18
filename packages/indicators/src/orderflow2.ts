@@ -740,6 +740,7 @@ export const ClusterStatistic = defineIndicator({
   name: 'Cluster Statistic',
   short: 'Cluster Stat',
   ...of,
+  listsAppendOnly: true,
   pane: 'new',
   range: [0, 5],
   description:

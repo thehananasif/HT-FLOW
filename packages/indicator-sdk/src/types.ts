@@ -437,6 +437,18 @@ export interface IndicatorMeta {
   needsTrades?: boolean;
   /** Reads another instrument or the account: computed on the main thread, not in a worker. */
   needsHost?: boolean;
+  /**
+   * Performance hint: list items (markers / levels / zones) are never edited after the calc that
+   * added them, so the worker sends only items added from the recomputed bar on (default false:
+   * every item is compared with what was sent, which also catches zones extended in place).
+   */
+  listsAppendOnly?: boolean;
+  /**
+   * Performance hint: calc() of bar i writes series values of bar i only (never earlier bars), so
+   * the worker skips diffing the whole history after each tick. Leave unset when the indicator
+   * revises the past (zigzag, displaced lines): the safe default diffs everything.
+   */
+  stableHistory?: boolean;
 }
 
 export interface IndicatorDefinition<

@@ -71,6 +71,17 @@ function dash(ctx: CanvasRenderingContext2D, s: OutputStyle): void {
 const toneColor = (s: OutputStyle, t: number) =>
   t === 1 ? s.color2 : t === 2 ? s.color3 : s.color;
 
+const orderCache = new WeakMap<AnyIndicator, [string, OutputDef][]>();
+/** Outputs in paint order (computed once per definition, not on every frame). */
+function drawOrder(def: AnyIndicator): [string, OutputDef][] {
+  let e = orderCache.get(def);
+  if (!e) {
+    e = Object.entries(def.outputs).sort((p, q) => ORDER[p[1].kind]! - ORDER[q[1].kind]!);
+    orderCache.set(def, e);
+  }
+  return e;
+}
+
 /** Draws every visible output of one indicator into `m.rect`. */
 export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
   const { ctx } = v;
@@ -80,9 +91,7 @@ export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
   const sw = v.slotWidth;
   const bw = Math.max(1, Math.floor(sw * 0.6));
   const right = m.rect.x + m.rect.w;
-  const entries = Object.entries(it.def.outputs).sort(
-    (p, q) => ORDER[p[1].kind]! - ORDER[q[1].kind]!,
-  );
+  const entries = drawOrder(it.def);
   const paint = painterOf(v);
   paint.setClip(m.rect);
   for (const [id, od] of entries) {

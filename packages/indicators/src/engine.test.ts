@@ -67,6 +67,9 @@ async function viaPool(def: AnyIndicator, spec: EngineSpec, transports: CloneTra
   for (let k = 0; k < trades.length; k++) {
     series.add(trades[k]!);
     if (k % 5 === 0 || k === trades.length - 1) kinds.add(rt.update(data));
+    // One message in flight per runtime (backpressure): let the worker answer now and then so
+    // the incremental path is exercised; updates in between coalesce.
+    if (k % 50 === 0) await Promise.all(transports.map((t) => t.idle()));
   }
   await Promise.all(transports.map((t) => t.idle()));
   return { rt, series, kinds };

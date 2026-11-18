@@ -55,7 +55,7 @@ export function renderTable(results: readonly BenchResult[]): string {
     out.push('| Measurement | Spec target | Budget | Median | p95 | Result |');
     out.push('| --- | --- | --- | --- | --- | --- |');
     for (const r of results.filter((x) => x.group === g)) {
-      const unit = r.unit === 'prints/s' ? ' prints/s' : ' ms';
+      const unit = r.unit === 'prints/s' || r.unit === 'ticks/s' ? ` ${r.unit}` : ' ms';
       const budget = `${r.higherIsBetter ? '≥ ' : '≤ '}${fmt(r.budget)}${unit}`;
       const res = passes(r) ? 'Pass' : '**Miss**';
       const note = r.notes ? ` — ${r.notes}` : '';
