@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://www.sec.gov/">
+  <channel>
+    <title>Press Releases</title>
+    <link>https://www.sec.gov/</link>
+    <description>Official announcements highlighting recent actions taken by the SEC and other newsworthy information.</description>
+    <language>en</language>
+    
+    <item>
+  <title>    SEC Proposes Executive and Director Compensation Disclosure Reforms
+</title>
+  <link>https://www.sec.gov/newsroom/press-releases/2026-114-sec-proposes-executive-director-compensation-disclosure-reforms</link>
+  <description>The Securities and Exchange Commission today proposed rule amendments to make its executive and director compensation disclosure requirements more principles-based and materiality-driven, providing investors with clearer, more concise, and less complex…</description>
+  <pubDate>Fri, 13 Nov 2026 11:57:00 -0500</pubDate>
+    <dc:creator> </dc:creator>
+    <guid isPermaLink="false">c63741dd-8d16-4965-a348-69fe89d93ced</guid>
+    </item>
+<item>
+  <title>  SEC Announces Enforcement Annual Results for Fiscal Year 2026
+</title>
+  <link>https://www.sec.gov/newsroom/press-releases/2026-113-sec-announces-enforcement-annual-results-fiscal-year-2026</link>
+  <description>The Securities and Exchange Commission today provided its enforcement results for the past fiscal year which ended September 30. Throughout the fiscal year, the SEC’s Division of Enforcement remained focused on its fundamental responsibility: protecting…</description>
+  <pubDate>Tue, 10 Nov 2026 11:15:35 -0500</pubDate>
+    <dc:creator> </dc:creator>
+    <guid isPermaLink="false">6342608c-3f9c-42b6-9641-743d75955586</guid>
+    </item>
+<item>
+  <title>  SEC Adopts Amendments to Update Definitions of Small Entity for Investment Companies and Investment Advisers
+</title>
+  <link>https://www.sec.gov/newsroom/press-releases/2026-112-sec-adopts-amendments-update-definitions-small-entity-investment-companies-investment-advisers</link>
+  <description>The Securities and Exchange Commission today adopted amendments to the rules that define which registered investment companies, investment advisers, and business development companies qualify as small entities for purposes of the Regulatory Flexibility…</description>
+  <pubDate>Wed, 04 Nov 2026 11:28:00 -0500</pubDate>
+    <dc:creator> </dc:creator>
+    <guid isPermaLink="false">7285d1d7-0cc4-41d3-8bc9-85d4c76a2c13</guid>
+    </item>
+</channel></rss>

@@ -42,6 +42,8 @@ tracing.workspace = true
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeroize.workspace = true
+feed-rs = "2"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

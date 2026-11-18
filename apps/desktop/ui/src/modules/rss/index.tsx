@@ -200,7 +200,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
       aria-pressed={sel.kind === 'feed' && sel.id === f.id}
       onClick={() => setSel({ kind: 'feed', id: f.id })}
       onDoubleClick={() => setDialog({ open: true, feed: f })}
-      title={`${f.url}${f.unverified ? '\nDefault feed — URL not verified' : ''}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
+      title={`${f.url}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
     >
       <span className="grow ellipsis">
         {f.title}
@@ -240,9 +240,29 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
         />
         <span className="grow" />
         {sampleShown && <Badge kind="delayed">Offline sample shown</Badge>}
-        {failing > 0 && (
-          <span className="muted">{failing} feed(s) unreachable — cached items shown</span>
+        {!sampleShown && s.items.length === 0 && !failing && (
+          <span className="muted" data-testid="rss-loading">
+            Loading feeds…
+          </span>
         )}
+        {failing > 0 && (
+          <span className="muted">{failing} feed(s) offline or failing — cached items shown</span>
+        )}
+        <Button
+          size="sm"
+          disabled={counts.total === 0}
+          onClick={() =>
+            reader.set(
+              setRead(
+                reader.get(),
+                s.items.filter((i) => !i.read).map((i) => i.id),
+                true,
+              ),
+            )
+          }
+        >
+          Mark all read
+        </Button>
         <Button
           size="sm"
           onClick={() =>

@@ -190,6 +190,10 @@ every Tauri command.
   WebView2 engine exploit is out of scope; keep Windows / WebView2 updated. Sub-frames and
   sub-resources are not filtered by the allow-list. Not exercised on Windows WebView2 in CI.
 
+## Round 7 — news / RSS / calendar network hosts
+
+New native commands (`apps/desktop/src-tauri/src/feed_cmds.rs`): `feed_fetch` accepts https URLs only, no credentials, no IP literals / localhost / `.local`, a host on the allow-list (built-in defaults: cointelegraph.com, decrypt.co, cryptoslate.com, www.theblock.co, www.coindesk.com, blog.kraken.com, www.federalreserve.gov, www.ecb.europa.eu, www.bankofengland.co.uk, www.sec.gov, www.cftc.gov, www.eia.gov, plus hosts the user added via `feed_allow_add`, persisted in `feed-hosts.json`); redirects only to allow-listed https hosts; 3 MB / 15 s caps; no cookies. Feed text is reduced to plain text in Rust and links must be http(s), so no raw HTML reaches the UI. `calendar_fetch` contacts only `nfs.faireconomy.media` (public weekly JSON, no key) at most every 15 minutes. `net_fetch_text` is unchanged and still used for ICS / browser preview.
+
 ## Remaining (not changed, with rationale)
 
 - **`vault_get` returns secrets to the WebView.** By design (alert delivery runs in the UI). An

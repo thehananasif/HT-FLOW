@@ -12,7 +12,7 @@ import {
 } from '@htflow/info';
 import { registerModule } from '../registry';
 import { useStore, useTick, useCalendarTimezone } from '../rss/shared';
-import { addSource, allEvents, calendar, refreshCalendars } from './store';
+import { addSource, allEvents, calendar, refreshCalendars, usingSample } from './store';
 import './chartLines';
 import '../rss/styles.css';
 
@@ -30,6 +30,18 @@ function EconomicCalendar() {
   const next = nextHighImpact(allEvents(s, now), now);
   const set = (p: Partial<typeof s>) => calendar.set({ ...calendar.get(), ...p });
   const hasSample = events.some((e) => e.sample);
+  const [busy, setBusy] = useState(false);
+  const status = !s.publicOn
+    ? 'Public calendar off'
+    : busy
+      ? 'Loading…'
+      : s.pub.error
+        ? s.pub.events.length
+          ? `Offline — cached calendar shown (${s.pub.error})`
+          : `Calendar unavailable: ${s.pub.error}`
+        : s.pub.fetchedAt
+          ? `Updated ${timeLabel(s.pub.fetchedAt, tz)}`
+          : 'Loading…';
 
   return (
     <div className="module-window" data-testid="economic-calendar">
@@ -39,6 +51,23 @@ function EconomicCalendar() {
           times in {tz} ({utcOffsetLabel(now, tz)})
         </span>
         <span className="grow" />
+        <span
+          className={s.pub.error ? 'down' : 'muted'}
+          data-testid="calendar-status"
+          title={s.pub.error}
+        >
+          {status}
+        </span>
+        <Button
+          size="sm"
+          disabled={busy || !s.publicOn}
+          onClick={() => {
+            setBusy(true);
+            void refreshCalendars(true).finally(() => setBusy(false));
+          }}
+        >
+          Refresh
+        </Button>
         {next && (
           <span className="cal-countdown tnum" title={`${next.currency} ${next.title}`}>
             Next high impact in {formatCountdown(next.t - now)}
@@ -91,13 +120,18 @@ function EconomicCalendar() {
             >
               Add ICS URL
             </Button>
-            <Button size="sm" onClick={() => void refreshCalendars()}>
-              Refresh
-            </Button>
+            <Checkbox
+              checked={s.publicOn}
+              onChange={(v) => {
+                set({ publicOn: v });
+                if (v) void refreshCalendars();
+              }}
+              label="Public economic calendar"
+            />
             <Checkbox
               checked={s.showSample}
               onChange={(v) => set({ showSample: v })}
-              label="Include bundled sample"
+              label="Sample events when offline with no cache"
             />
           </div>
           {err && <span className="down">{err}</span>}
@@ -199,9 +233,10 @@ function EconomicCalendar() {
         {!events.length && <div className="tbl-empty">No events for this filter</div>}
       </div>
       <div className="info-foot">
-        Source: public calendar feeds / ICS you add
-        {hasSample &&
-          ' · SAMPLE events bundled with HT Flow are shown (times and values are not real releases)'}
+        Source: Public economic calendar (weekly) · ICS feeds you add
+        {usingSample(s) &&
+          hasSample &&
+          ' · OFFLINE SAMPLE events shown: no real calendar data yet (times and values are not real releases)'}
       </div>
     </div>
   );

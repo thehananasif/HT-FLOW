@@ -25,7 +25,7 @@ fn validate_url(raw: &str) -> CmdResult<reqwest::Url> {
 /// True for hosts on this machine or the local network: `localhost`, loopback, private, link-local
 /// (incl. the 169.254.169.254 metadata address), CGNAT, unspecified and IPv6 ULA / link-local.
 /// Only literal addresses are classified (no DNS lookup).
-fn is_local_target(url: &reqwest::Url) -> bool {
+pub(crate) fn is_local_target(url: &reqwest::Url) -> bool {
     use std::net::{IpAddr, Ipv4Addr};
     let v4 = |ip: Ipv4Addr| {
         let o = ip.octets();

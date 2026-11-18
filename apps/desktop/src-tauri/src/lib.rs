@@ -7,6 +7,7 @@ mod crash;
 mod custom_ws;
 mod data_cmds;
 mod error;
+mod feed_cmds;
 mod file_log;
 mod history;
 mod history_cache;
@@ -105,6 +106,7 @@ pub fn run() {
             app.manage(instruments_cmds::InstrumentsState::new(&root.join("cache")));
             app.manage(market_cmds::MarketState::default());
             app.manage(custom_ws::CustomWsState::default());
+            app.manage(feed_cmds::FeedState::new(&root));
             app.manage(vps_cmds::VpsState::default());
             app.manage(webpage_cmds::WebpageState::default());
             Ok(())
@@ -141,6 +143,11 @@ pub fn run() {
             market_cmds::market_unsubscribe,
             net_cmds::net_fetch_text,
             net_cmds::net_post_json,
+            feed_cmds::feed_fetch,
+            feed_cmds::feed_allow_add,
+            feed_cmds::feed_allow_remove,
+            feed_cmds::feed_allow_list,
+            feed_cmds::calendar_fetch,
             custom_ws::custom_ws_open,
             custom_ws::custom_ws_send,
             custom_ws::custom_ws_close,

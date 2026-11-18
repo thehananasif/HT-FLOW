@@ -246,6 +246,7 @@ export interface CustomDef<T> extends BaseDef<T> {
     | 'commissionRules'
     | 'clocks'
     | 'providers'
+    | 'dataSources'
     | 'moduleToggles'
     | 'moduleFolders'
     | 'tableLayouts';
@@ -2284,6 +2285,17 @@ export const SCHEMA = {
     editor: 'providers',
     validate: validateProviders,
     keywords: 'connector feed source order priority',
+    wired: true,
+  }),
+  'data.newsSources': custom<boolean>({
+    section: 'data',
+    group: 'Data sources',
+    label: 'News, RSS and calendar sources',
+    help: 'Public, key-free sources fetched by the HT Flow core: the weekly economic calendar and the default RSS feeds. Toggle the calendar here; manage feeds in the RSS Reader.',
+    default: true,
+    editor: 'dataSources',
+    validate: (v) => (typeof v === 'boolean' ? v : undefined),
+    keywords: 'news rss calendar economic source feed public data',
     wired: true,
   }),
   'data.autoReconnect': bool({

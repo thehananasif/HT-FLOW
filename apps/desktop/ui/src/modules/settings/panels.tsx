@@ -21,6 +21,95 @@ import { BrandIcon } from '../../components/Brand';
 import { useReportDialog } from '../../platform/crash';
 import { checkForUpdates } from '../../platform/updates';
 import type { EditorProps } from './editors';
+import { calendar } from '../calendar/store';
+import { DEFAULT_FEEDS } from '../rss/store';
+import { openUrl, useStore } from '../rss/shared';
+import { nativeAvailable, nativeFeedAllowList } from '../rss/native';
+
+// ------------------------------------------------------------------ news data sources
+
+const CALENDAR_PAGE = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+
+/** Read-only list of the public hosts News / RSS / Calendar may contact, with a calendar toggle. */
+export function DataSourcesEditor() {
+  const cal = useStore(calendar);
+  const [custom, setCustom] = useState<string[]>([]);
+  useEffect(() => {
+    if (nativeAvailable())
+      void nativeFeedAllowList().then(
+        (l) => setCustom(l.custom),
+        () => {},
+      );
+  }, []);
+  return (
+    <div data-testid="data-sources">
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Host</th>
+            <th>Used for</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <label className="row gap6 center-y">
+                <input
+                  type="checkbox"
+                  checked={cal.publicOn}
+                  onChange={(e) => calendar.set({ ...calendar.get(), publicOn: e.target.checked })}
+                  aria-label="Fetch the public economic calendar"
+                />
+                Public economic calendar
+              </label>
+            </td>
+            <td>
+              <button className="link" onClick={() => openUrl(CALENDAR_PAGE)}>
+                nfs.faireconomy.media
+              </button>
+            </td>
+            <td>Calendar window, chart event markers, calendar alerts, news-flatten rule</td>
+            <td>
+              {!cal.publicOn
+                ? 'Off'
+                : cal.pub.error
+                  ? `Offline: ${cal.pub.error}`
+                  : cal.pub.fetchedAt
+                    ? `${cal.pub.events.length} events`
+                    : 'Not fetched yet'}
+            </td>
+          </tr>
+          {DEFAULT_FEEDS.map((f) => (
+            <tr key={f.id}>
+              <td>{f.title}</td>
+              <td>
+                <button className="link" onClick={() => openUrl(f.url)}>
+                  {new URL(f.url).hostname}
+                </button>
+              </td>
+              <td>RSS Reader and News ({f.folder})</td>
+              <td>Default feed</td>
+            </tr>
+          ))}
+          {custom.map((h) => (
+            <tr key={h}>
+              <td>Your feed host</td>
+              <td>{h}</td>
+              <td>RSS Reader and News</td>
+              <td>Added by you</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="muted">
+        All requests are made by the HT Flow core over https, without cookies or keys; feeds you add
+        in the RSS Reader are allowed after URL validation. Add or remove feeds in the RSS Reader.
+      </p>
+    </div>
+  );
+}
 
 // ------------------------------------------------------------------ data provider priority
 
