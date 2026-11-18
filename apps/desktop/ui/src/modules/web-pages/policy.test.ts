@@ -81,8 +81,17 @@ describe('Tauri capabilities', () => {
       'utf8',
     ),
   ) as { windows?: string[]; remote?: unknown; webviews?: string[] };
-  it('grant IPC to the main window only, never to webpage-* windows or remote origins', () => {
-    expect(cap.windows).toEqual(['main']);
+  it('grant IPC to our own windows only (main + ht-w-* OS windows), never to webpage-* windows or remote origins', () => {
+    expect(cap.windows).toEqual(['main', 'ht-w-*']);
+    // No pattern may match a Web Page window label (Tauri window globs: `*` = any characters).
+    const matches = (glob: string, label: string) =>
+      new RegExp(`^${glob.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`).test(
+        label,
+      );
+    for (const glob of cap.windows ?? []) {
+      expect(matches(glob, 'webpage-1')).toBe(false);
+      expect(matches(glob, 'webpage-abc')).toBe(false);
+    }
     expect(cap.remote).toBeUndefined();
     expect(cap.webviews).toBeUndefined();
   });
