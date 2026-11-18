@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 7
+
+- Separate OS windows (P02 / P25 / P44): "Detach window" moves the active dock group into its own Tauri `WebviewWindow` (Settings → Layout → New windows → "Detach window opens": OS window / floating). Panel ⋯ menu: Detach to OS window, Re-attach, Clone window / Create linked window ▸ in new OS window; Workspaces ▾ → Open workspace in new window. Palette: Detach window to a new OS window, Re-attach active / all OS windows, one "Open <workspace> in new window" per saved workspace. "New OS window" is now a valid choice for Charts / DOM / Tape / Other windows open.
+- Rust `os_windows` module: `os_window_open / close / focus / list`, label validation, bounds + monitor saved per label in `<data>/windows.json` and clamped to the connected monitors when a window opens again; secondary windows (`ht-w-*`) share the main capability file. OS windows are saved with the layout tab and reopen at start-up; they close with the main window and on lock.
+- Window bus (`ui/src/platform/windowBus.ts`, pure + tested): the main window owns window states, settings, the paper engine and the OS-window registry; secondary windows render only their windows (compact title bar, no ribbon), subscribe to market data themselves and send changes back; trading actions in a secondary window run in the main window's paper engine. The browser build falls back to in-app floating windows.
+- Fix: Split right / Split down on a floating window added a tab instead of a new window (the copy now floats beside it); Split / Detach act on the last focused window when dockview has no active panel and say so when there is nothing to act on; Detach of an already floating window no longer re-floats it.
+
 ## Unreleased — round 6
 
 ### Security

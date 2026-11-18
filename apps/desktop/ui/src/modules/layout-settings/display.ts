@@ -4,9 +4,9 @@
  * goes back to its monitor (desktop app) — or to the primary one, fully visible, when that monitor is
  * gone — and floating windows are clamped (or scaled, "Fit to screens") into today's docking area.
  *
- * Floating windows live inside the main window (dockview floating groups). True OS windows per
- * panel (Tauri WebviewWindow) are not built yet: each would need its own copy of the market-data
- * hub and window store, synchronised over IPC.
+ * Floating windows live inside the main window (dockview floating groups). Separate OS windows
+ * (Detach window → OS window) restore their own bounds natively: see `platform/osWindows.ts` and
+ * `src-tauri/src/os_windows.rs`.
  */
 import {
   fitFloatingGroups,

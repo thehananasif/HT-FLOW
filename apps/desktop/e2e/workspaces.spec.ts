@@ -111,7 +111,7 @@ test('workspaces: save, change layout, load back, export / import, clone a chart
   await expect(page.getByTestId('win-hdr-chart-2')).toBeVisible();
   const before = await tabs(page).count();
   await page.getByTestId('win-menu-chart-2').click();
-  await page.getByRole('menuitem', { name: 'Clone window' }).click();
+  await page.getByRole('menuitem', { name: 'Clone window', exact: true }).click();
   await expect(tabs(page)).toHaveCount(before + 1);
   await expect(page.locator('[data-testid^="win-hdr-chart-"]')).toHaveCount(5);
   await expect(page.getByTestId('template-menu').filter({ hasText: 'Footprint' })).toHaveCount(2);

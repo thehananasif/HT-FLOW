@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getSettings, sectionKeys, validateSetting } from '../../state/settings';
-import { floatingRect } from './apply';
+import { floatingRect, splitFloatingRect } from './apply';
 import { readOpenWindowDetail } from '../workspaces/windowActions';
 
 describe('layout settings', () => {
@@ -25,7 +25,9 @@ describe('layout settings', () => {
     expect(v['layout.gap']).toBe(4);
     expect(v['layout.openChart']).toBe('docked');
     expect(validateSetting('layout.gap', 99).ok).toBe(false);
-    expect(validateSetting('layout.openDom', 'window').ok).toBe(false); // "coming"
+    expect(validateSetting('layout.openDom', 'window').ok).toBe(true); // OS window (P44)
+    expect(validateSetting('layout.detachMode', 'float').ok).toBe(true);
+    expect(validateSetting('layout.detachMode', 'nope').ok).toBe(false);
     expect(validateSetting('layout.linkRed', '#abc')).toEqual({ ok: true, value: '#AABBCC' });
   });
 
@@ -61,5 +63,41 @@ describe('layout settings', () => {
     expect(readOpenWindowDetail({ state: s, ref: 'a', dir: 'right' })).toMatchObject({ ref: 'a' });
     expect(readOpenWindowDetail({ foo: 1 })).toBeNull();
     expect(readOpenWindowDetail(null)).toBeNull();
+  });
+});
+
+describe('split of a floating window', () => {
+  const area = { width: 1000, height: 600 };
+  it('places the copy beside the source, inside the docking area', () => {
+    const src = { x: 100, y: 50, width: 300, height: 200 };
+    expect(splitFloatingRect(src, 'right', area)).toEqual({
+      x: 408,
+      y: 50,
+      width: 300,
+      height: 200,
+    });
+    expect(splitFloatingRect(src, 'below', area)).toEqual({
+      x: 100,
+      y: 258,
+      width: 300,
+      height: 200,
+    });
+  });
+  it('overlaps with an offset when there is no room', () => {
+    const src = { x: 650, y: 380, width: 300, height: 200 };
+    expect(splitFloatingRect(src, 'right', area)).toEqual({
+      x: 682,
+      y: 380,
+      width: 300,
+      height: 200,
+    });
+    expect(splitFloatingRect(src, 'below', area)).toEqual({
+      x: 650,
+      y: 400,
+      width: 300,
+      height: 200,
+    });
+    const big = splitFloatingRect({ x: 0, y: 0, width: 2000, height: 900 }, 'right', area);
+    expect(big).toEqual({ x: 0, y: 0, width: 1000, height: 600 });
   });
 });

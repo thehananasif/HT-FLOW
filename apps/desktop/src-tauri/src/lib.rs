@@ -12,6 +12,7 @@ mod instruments_cmds;
 mod market_cmds;
 mod net_cmds;
 mod openfile;
+mod os_windows;
 mod paths;
 mod updater_cmds;
 mod vps_cmds;
@@ -69,7 +70,14 @@ pub fn run() {
             app.manage(market_cmds::MarketState::default());
             app.manage(custom_ws::CustomWsState::default());
             app.manage(vps_cmds::VpsState::default());
+            app.manage(os_windows::OsWindowsState::new(&root));
             Ok(())
+        })
+        // Secondary OS windows close with the main window (their bounds are saved on the way).
+        .on_window_event(|window, event| {
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                os_windows::close_all(window.app_handle());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             auth_cmds::auth_list_profiles,
@@ -125,6 +133,10 @@ pub fn run() {
             vps_cmds::vps_probe,
             vps_cmds::vps_op,
             vps_cmds::vps_exec,
+            os_windows::os_window_open,
+            os_windows::os_window_close,
+            os_windows::os_window_focus,
+            os_windows::os_window_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");

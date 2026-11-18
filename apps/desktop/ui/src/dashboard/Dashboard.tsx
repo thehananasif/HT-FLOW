@@ -41,6 +41,7 @@ import {
   type WorkspaceDoc,
   type WorkspaceTab,
   stripRemovedModules,
+  cloneWindowState,
 } from '@htflow/workspace';
 import { backend, BackendError } from '../backend';
 import { useSession } from '../state/session';
@@ -77,9 +78,26 @@ import {
   attachDockBehaviour,
   defaultFloatingRect,
   isFloating,
+  opensOsWindow,
   placeNewWindow,
+  splitFloatingRect,
   toggleFloating,
 } from '../modules/layout-settings/apply';
+import {
+  applyOsWindows,
+  detachToOsWindow,
+  detachUsesOsWindow,
+  focusOsWindowOf,
+  installOsWindowsMain,
+  isDetached,
+  openStateInOsWindow,
+  osEntries,
+  osWindowsAvailable,
+  reattachAll,
+  reattachWindow,
+  suspendOsWindows,
+} from '../platform/osWindows';
+import { sanitizeEntries } from '../platform/windowBus';
 import {
   captureDisplay,
   installDisplayTracking,
@@ -124,6 +142,7 @@ export function Dashboard({ version }: { version: string }) {
   const tradingPanel = useWindows((s) => s.tradingPanel);
   const windows = useWindows((s) => s.windows);
   const loading = useRef(false);
+  const detachRef = useRef<(mode?: 'auto' | 'float' | 'os') => void>(() => {});
 
   // ------------------------------------------------------------- layout helpers
 
@@ -158,6 +177,8 @@ export function Dashboard({ version }: { version: string }) {
       windows: useWindows.getState().windows,
       tradingPanel: useWindows.getState().tradingPanel,
       specs: undefined,
+      // Separate OS windows of this tab (their states are in `windows`).
+      osWindows: osEntries().length ? osEntries() : undefined,
     };
   };
 
@@ -231,6 +252,8 @@ export function Dashboard({ version }: { version: string }) {
           api.fromJSON(layout as Parameters<DockviewApi['fromJSON']>[0]);
         } else if (tab.specs?.length) buildSpecs(tab.specs);
         useWindows.getState().setTradingPanel(tab.tradingPanel);
+        // OS windows of this tab (desktop) — floating windows in the browser build.
+        applyOsWindows(sanitizeEntries(tab.osWindows, tab.windows));
       } catch (e) {
         console.warn('Workspace restore failed, applying default preset', e);
         loading.current = false;
@@ -278,13 +301,54 @@ export function Dashboard({ version }: { version: string }) {
           setDoc(next);
           void backend.saveSettings('workspace', next);
         },
-        focusWindow: (id) => e.api.getPanel(id)?.api.setActive(),
+        focusWindow: (id) => {
+          if (!focusOsWindowOf(id)) e.api.getPanel(id)?.api.setActive();
+        },
         closeWindow: (id) => e.api.getPanel(id)?.api.close(),
         isFloating: (id) => isFloating(e.api, id),
         toggleFloating: (id) => toggleFloating(e.api, id),
+        detachWindow: (id, mode) => {
+          useWindows.getState().setActive(id);
+          e.api.getPanel(id)?.api.setActive();
+          detachRef.current(mode);
+        },
       });
+      // A panel that moved into an OS window keeps its window state.
       e.api.onDidRemovePanel((p) => {
-        if (!loading.current) useWindows.getState().remove(p.id);
+        if (!loading.current && !isDetached(p.id)) useWindows.getState().remove(p.id);
+      });
+      installOsWindowsMain({
+        groupOf: (id) => e.api.getPanel(id)?.group.panels.map((x) => x.id) ?? [id],
+        takePanels: (ids) => {
+          for (const id of ids) {
+            const panel = e.api.getPanel(id);
+            if (panel) e.api.removePanel(panel);
+          }
+        },
+        putPanels: (ids, o) => {
+          let first: string | null = null;
+          for (const id of ids) {
+            const st = useWindows.getState().windows[id];
+            if (!st || e.api.getPanel(id)) continue;
+            const ref = first ? e.api.getPanel(first) : undefined;
+            if (ref)
+              e.api.addPanel({
+                id,
+                component: st.kind,
+                title: title(st),
+                position: { referencePanel: ref, direction: 'within' },
+              });
+            else placeNewWindow(e.api, { id, state: st, title: title(st), floating: o.floating });
+            first ??= id;
+          }
+          if (first) e.api.getPanel(first)?.api.setActive();
+        },
+        titleOf: (id) => {
+          const st = useWindows.getState().windows[id];
+          return st ? title(st) : 'HT Flow';
+        },
+        newId,
+        requestSave: () => setTimeout(save, 0),
       });
       e.api.onDidActivePanelChange((p) => p && useWindows.getState().setActive(p.id));
       let timer: ReturnType<typeof setTimeout> | null = null;
@@ -410,9 +474,17 @@ export function Dashboard({ version }: { version: string }) {
 
   /** New windows open docked or floating as Layout settings say (callers may override). */
   const openWindow = useCallback(
-    (state: WindowState, opts: { ref?: string; dir?: OpenDir; floating?: boolean } = {}) => {
+    (
+      state: WindowState,
+      opts: { ref?: string; dir?: OpenDir; floating?: boolean; osWindow?: boolean } = {},
+    ) => {
       const api = apiRef.current;
       if (!api) return;
+      // "In new OS window" (or Layout settings: open in New OS window); browser: floating.
+      const os =
+        opts.osWindow ?? (opts.floating === undefined && !opts.dir && opensOsWindow(state));
+      if (os && openStateInOsWindow(state)) return;
+      if (opts.osWindow) opts = { ...opts, floating: true };
       const id = newId(state.kind);
       useWindows.getState().add(id, state);
       placeNewWindow(api, { id, state, title: title(state), ...opts });
@@ -420,16 +492,57 @@ export function Dashboard({ version }: { version: string }) {
     [],
   );
 
+  /** The window commands act on: dockview's active panel, else the last focused, else any. */
+  const targetPanel = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return null;
+    const known = (id: string | null | undefined) =>
+      id && useWindows.getState().windows[id] ? api.getPanel(id) : undefined;
+    return (
+      known(api.activePanel?.id) ??
+      known(useWindows.getState().activeId) ??
+      api.panels.find((p) => known(p.id) && p.group.api.location.type === 'grid') ??
+      api.panels.find((p) => known(p.id)) ??
+      null
+    );
+  }, []);
+
+  /** Split right / down: a copy of the target window next to it (floating ones float beside). */
   const split = useCallback(
     (dir: 'right' | 'below') => {
       const api = apiRef.current;
-      const active = api?.activePanel;
-      if (!api || !active) return;
-      const s = useWindows.getState().windows[active.id];
-      if (!s) return;
-      addPanel(newId(s.kind), { ...s }, { ref: active.id, dir });
+      const target = targetPanel();
+      if (!api || !target) {
+        toast('info', 'Nothing to split', 'Open or select a window first.');
+        return;
+      }
+      const state = cloneWindowState(useWindows.getState().windows[target.id]!);
+      const id = newId(state.kind);
+      if (target.group.api.location.type === 'floating') {
+        // Floating groups cannot be split: the copy floats next to the source window.
+        const host = dockHostRef.current?.getBoundingClientRect();
+        const box = target.group.element.getBoundingClientRect();
+        const r = splitFloatingRect(
+          {
+            x: box.left - (host?.left ?? 0),
+            y: box.top - (host?.top ?? 0),
+            width: box.width,
+            height: box.height,
+          },
+          dir,
+          { width: api.width, height: api.height },
+        );
+        useWindows.getState().add(id, state);
+        api.addPanel({
+          id,
+          component: state.kind,
+          title: title(state),
+          floating: { position: { left: r.x, top: r.y }, width: r.width, height: r.height },
+        });
+      } else addPanel(id, state, { ref: target.id, dir });
+      api.getPanel(id)?.api.setActive();
     },
-    [addPanel],
+    [addPanel, targetPanel],
   );
 
   /** Window (dock group) under a screen point, or null over empty dock area. */
@@ -461,17 +574,37 @@ export function Dashboard({ version }: { version: string }) {
     [openWindow, windowAt],
   );
 
-  const detach = useCallback(() => {
-    const api = apiRef.current;
-    const active = api?.activePanel;
-    if (!api || !active) return;
-    const r = defaultFloatingRect(api); // Layout settings → default size / placement
-    api.addFloatingGroup(active, {
-      position: { left: r.x, top: r.y },
-      width: r.width,
-      height: r.height,
-    });
-  }, []);
+  /**
+   * Detach window: into its own OS window (desktop app, Layout settings: Detach window opens) or
+   * a floating window inside the main window (browser build, or when chosen).
+   */
+  const detach = useCallback(
+    (mode: 'auto' | 'float' | 'os' = 'auto') => {
+      const api = apiRef.current;
+      const target = targetPanel();
+      if (!api || !target) {
+        toast('info', 'Nothing to detach', 'Open or select a window first.');
+        return;
+      }
+      const os = mode === 'os' ? osWindowsAvailable() : mode === 'auto' && detachUsesOsWindow();
+      if (os && detachToOsWindow(target.id)) return;
+      if (mode === 'os' && !osWindowsAvailable())
+        toast('info', 'Floating instead', 'Separate OS windows need the desktop app.');
+      if (target.group.api.location.type === 'floating') {
+        target.api.setActive();
+        return; // already floating
+      }
+      const r = defaultFloatingRect(api); // Layout settings: default size / placement
+      api.addFloatingGroup(target, {
+        position: { left: r.x, top: r.y },
+        width: r.width,
+        height: r.height,
+      });
+      target.api.setActive();
+    },
+    [targetPanel],
+  );
+  detachRef.current = detach;
 
   const setMainChart = (tpl: ChartTemplateId) => {
     const api = apiRef.current;
@@ -508,7 +641,47 @@ export function Dashboard({ version }: { version: string }) {
       },
       { id: 'split-right', label: 'Split right', group: 'Layout', run: () => split('right') },
       { id: 'split-down', label: 'Split down', group: 'Layout', run: () => split('below') },
-      { id: 'detach', label: 'Detach window (floating)', group: 'Layout', run: detach },
+      {
+        id: 'detach',
+        label: 'Detach window',
+        group: 'Layout',
+        keywords: 'undock pop out monitor',
+        run: () => detach(),
+      },
+      {
+        id: 'detach-float',
+        label: 'Detach window: floating inside the main window',
+        group: 'Layout',
+        keywords: 'undock float',
+        run: () => detach('float'),
+      },
+      {
+        id: 'detach-os',
+        label: 'Detach window to a new OS window',
+        group: 'Layout',
+        keywords: 'undock pop out second monitor screen separate',
+        run: () => detach('os'),
+      },
+      {
+        id: 'window.reattach',
+        label: 'Re-attach active window from its OS window',
+        group: 'Layout',
+        keywords: 'dock back monitor',
+        run: () => {
+          const id = useWindows.getState().activeId;
+          if (!id || !reattachWindow(id)) toast('info', 'The active window is not in an OS window');
+        },
+      },
+      {
+        id: 'window.reattach-all',
+        label: 'Re-attach all OS windows',
+        group: 'Layout',
+        keywords: 'dock back monitor',
+        run: () => {
+          const n = reattachAll();
+          toast('info', n ? `Re-attached ${n} window${n > 1 ? 's' : ''}` : 'No OS windows open');
+        },
+      },
       {
         id: 'ribbon-compact',
         label: 'Ribbon: icons only',
@@ -599,7 +772,8 @@ export function Dashboard({ version }: { version: string }) {
     // Any window (chart, DOM, tape, module) — Clone / Create linked window use this (P25).
     const onOpenWindow = (e: Event) => {
       const d = readOpenWindowDetail((e as CustomEvent).detail);
-      if (d) openWindow(d.state, { ref: d.ref, dir: d.dir, floating: d.floating });
+      if (d)
+        openWindow(d.state, { ref: d.ref, dir: d.dir, floating: d.floating, osWindow: d.osWindow });
     };
     window.addEventListener('htflow:open-window', onOpenWindow);
     return () => {
@@ -609,6 +783,9 @@ export function Dashboard({ version }: { version: string }) {
       window.removeEventListener('htflow:open-window', onOpenWindow);
     };
   }, [applyPreset, openWindow, split, detach, addPanel]);
+
+  // Lock / sign-out unmounts the dashboard: its OS windows close (they come back on unlock).
+  useEffect(() => () => suspendOsWindows(), []);
 
   // Auto-lock after idle (P03 setting; default 30 min).
   useEffect(() => {
@@ -686,7 +863,7 @@ export function Dashboard({ version }: { version: string }) {
           <Button size="xs" variant="ghost" onClick={() => split('below')}>
             <ArrowDownToLine size={13} /> Split down
           </Button>
-          <Button size="xs" variant="ghost" onClick={detach}>
+          <Button size="xs" variant="ghost" onClick={() => detach()}>
             <ExternalLink size={13} /> Detach window
           </Button>
           <Button
