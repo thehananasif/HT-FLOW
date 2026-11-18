@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — round 7
+
+- WebGL2 chart renderer (raw WebGL2, no library): instanced quads for candles / OHLC bars / wicks, footprint cells, volume pane and session-profile bars and the grid; the heatmap's off-screen pixel buffer uploaded as a texture; solid indicator lines as triangle strips. Text, axes and the remaining overlays stay on a Canvas2D canvas layered above the GL canvas.
+- Shared geometry builders (`buildCandles`, `buildVolumeBars`, `buildProfileRows`, `buildGridLines`, `buildFootprintCell`, `polylineStrip`) turn data into `Float32Array` rect instances that both backends draw — Canvas2D replays them with `fillRect`, WebGL2 in one instanced draw — so the two paths keep pixel parity. Unit-tested.
+- New setting Chart → `chart.renderer` (Auto / WebGL2 / Canvas 2D, also on the Performance page); Auto picks WebGL2 on a hardware GPU and Canvas2D on software GL, context-creation failure or `webglcontextlost` (switches back on `webglcontextrestored`). The WebGL context uses Performance → Video adapter as its power preference. Command Palette: "Chart: Renderer — Auto / WebGL2 (GPU) / Canvas 2D".
+- Snapshots (camera, clipboard, strategy capture, heatmap) composite the GL canvas and the overlay; the debug overlay names the backend.
+- `pnpm bench`: Canvas2D vs WebGL2 frame time on a 2,000+-cell footprint (docs/PERFORMANCE.md). New e2e spec `webgl-renderer.spec.ts` switches to WebGL2 from the palette and checks the GL canvas draws.
+- docs/BLOCKERS.md: "WebGL2 renderer" row removed.
+
 ## Unreleased — round 6
 
 ### Security
