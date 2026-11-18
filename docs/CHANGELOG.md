@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Added
+
+- In-app **User Guide** rewritten as a documentation set: 17 Markdown articles in `docs/user-guide/*.md` (getting started, interface, data, charts, order flow, trading, replay, alerts, news, scanners, strategies, AI page (marked new), settings reference, data manager, backups / logs, keyboard shortcuts, troubleshooting) with screenshots in `docs/user-guide/images/` (WebP). Bundled at build time (`?raw` / `?url`), so it works offline; rendered as React elements from a typed parser (no HTML injection). Sidebar table of contents with per-article headings, section-level search with snippets, images, callouts, links between articles, previous / next, text size. Translations can be added as `docs/user-guide/<lang>/*.md`.
+- Opens with **F1**, the title-bar **Help** menu (User Guide, Help for this window, Keyboard shortcuts, tour, updates, report a problem), a ribbon **User Guide** button and the palette (`Open User Guide`, `Help: guide for the active window` = Shift+F1). Every window header has a **?** "Help for this panel" button that opens the matching topic.
+- The keyboard-shortcut article shows a live table of the command registry (includes your re-bindings); `pnpm guide:screenshots` also regenerates the static copy in the Markdown file.
+- `pnpm guide:screenshots` (`apps/desktop/e2e/guide-screenshots.spec.ts`, own Playwright config): drives the web build with the mock feed through every area at deviceScaleFactor 2, annotates with CSS overlay boxes and writes WebP images (encoded in the browser, no extra dependency). `GUIDE_ONLY=<part>` refreshes one part.
+- e2e `user-guide.spec.ts`: F1, search "footprint", open the section, image loads, next article, live shortcuts, Help menu, panel help.
+
 ## Unreleased — round 6
 
 ### Security

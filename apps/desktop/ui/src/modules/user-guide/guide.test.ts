@@ -140,17 +140,11 @@ describe('guide content', () => {
       walk(a.blocks ?? [], (b) => {
         if (b.t === 'img') expect(guideImage(b.src), `${a.id}: ${b.src}`).toBeTruthy();
         const inl =
-          b.t === 'p'
-            ? b.inl
-            : b.t === 'ul' || b.t === 'ol'
-              ? b.items.flatMap((i) => i.inl)
-              : [];
+          b.t === 'p' ? b.inl : b.t === 'ul' || b.t === 'ol' ? b.items.flatMap((i) => i.inl) : [];
         for (const p of inl)
           if (p.t === 'link' && !/^https?:/.test(p.href)) {
             const [f, h] = p.href.replace(/\.md/, '').split('#');
-            const id = f
-              ? ARTICLES.find((x) => x.file === f || x.id === f)?.id
-              : a.id;
+            const id = f ? ARTICLES.find((x) => x.file === f || x.id === f)?.id : a.id;
             expect(files.has(f || a.id) || !!id, `${a.id}: ${p.href}`).toBe(true);
             if (h && id) expect(anchors.get(id)!.has(h), `${a.id}: ${p.href}`).toBe(true);
           }
@@ -177,9 +171,10 @@ describe('guide content', () => {
       const a = ARTICLES.find((x) => x.id === t.article);
       expect(a, JSON.stringify(s)).toBeTruthy();
       if (t.anchor)
-        expect((a!.parts ?? []).some((p) => p.id === t.anchor), `${JSON.stringify(s)} → ${t.anchor}`).toBe(
-          true,
-        );
+        expect(
+          (a!.parts ?? []).some((p) => p.id === t.anchor),
+          `${JSON.stringify(s)} → ${t.anchor}`,
+        ).toBe(true);
     }
   });
   it('picks the language folder and falls back to English files', () => {

@@ -827,7 +827,12 @@ function RiskMeter() {
 
 function HelpMenu() {
   const items: MenuEntry[] = [
-    { id: 'guide', label: 'User Guide', shortcut: 'F1', onSelect: () => runCommand('user-guide.open') },
+    {
+      id: 'guide',
+      label: 'User Guide',
+      shortcut: 'F1',
+      onSelect: () => runCommand('user-guide.open'),
+    },
     {
       id: 'panel',
       label: 'Help for this window',

@@ -1,5 +1,7 @@
 # HT Flow — User guide (0.1.0)
 
+> The full, illustrated guide now lives in [`docs/user-guide/`](user-guide/01-getting-started.md) and inside the app (`F1`). This page is the short original.
+
 ## Install (Windows 10 / 11, x64)
 
 1. Download `HT Flow_0.1.0_x64-setup.exe` from the latest CI run (Actions → **Build Windows x64** → artifact `HTFlow-windows-x64`) or a GitHub Release.

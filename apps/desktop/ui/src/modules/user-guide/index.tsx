@@ -1,11 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { Button, EmptyState, Input } from '@htflow/ui-kit';
-import {
-  commands,
-  onCommandsChange,
-  registerCommands,
-  type Command,
-} from '../../shell/commands';
+import { commands, onCommandsChange, registerCommands, type Command } from '../../shell/commands';
 import { moduleDef } from '../../shell/modules';
 import { useWindows } from '../../state/windows';
 import { registerModule, type ModuleViewProps } from '../registry';
@@ -418,7 +413,9 @@ registerCommands([
     run: () => {
       const { windows, activeId } = useWindows.getState();
       const w = activeId ? windows[activeId] : undefined;
-      openGuide(w ? helpTopicFor(w as { kind: string; template?: string; module?: string }) : undefined);
+      openGuide(
+        w ? helpTopicFor(w as { kind: string; template?: string; module?: string }) : undefined,
+      );
     },
   },
   {
@@ -429,4 +426,3 @@ registerCommands([
     run: () => openGuide({ article: 'keyboard-shortcuts' }),
   },
 ]);
-

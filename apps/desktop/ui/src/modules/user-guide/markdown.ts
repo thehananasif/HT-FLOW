@@ -52,7 +52,8 @@ export function slugify(s: string): string {
 
 export function parseInline(s: string): Inline[] {
   const out: Inline[] = [];
-  const re = /(`[^`]+`|!\[[^\]]*\]\([^)\s]+\)|\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g;
+  const re =
+    /(`[^`]+`|!\[[^\]]*\]\([^)\s]+\)|\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g;
   let last = 0;
   for (let m = re.exec(s); m; m = re.exec(s)) {
     if (m.index > last) out.push({ t: 'text', v: s.slice(last, m.index) });
@@ -181,7 +182,8 @@ export function parseMarkdown(src: string): Block[] {
     }
     if (line.startsWith('>')) {
       const inner: string[] = [];
-      while (i < lines.length && lines[i]!.startsWith('>')) inner.push(lines[i++]!.replace(/^>\s?/, ''));
+      while (i < lines.length && lines[i]!.startsWith('>'))
+        inner.push(lines[i++]!.replace(/^>\s?/, ''));
       const first = CALLOUT.exec(inner[0] ?? '');
       let kind: CalloutKind | null = null;
       if (first) {

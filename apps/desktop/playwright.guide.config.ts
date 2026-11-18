@@ -11,6 +11,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: 'list',
   use: {
+    actionTimeout: 15_000,
     baseURL: `http://localhost:${port}`,
     viewport: { width: 1600, height: 900 },
     deviceScaleFactor: 2,

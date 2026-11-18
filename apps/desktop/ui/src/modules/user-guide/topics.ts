@@ -58,14 +58,9 @@ const CHART_TOPICS: Record<string, GuideTarget> = {
 };
 
 /** Guide target for a window state (chart template, DOM, or module id). */
-export function helpTopicFor(s: {
-  kind: string;
-  template?: string;
-  module?: string;
-}): GuideTarget {
+export function helpTopicFor(s: { kind: string; template?: string; module?: string }): GuideTarget {
   if (s.kind === 'dom') return { article: 'order-flow', anchor: 'smart-dom' };
-  if (s.kind === 'chart')
-    return (s.template && CHART_TOPICS[s.template]) || { article: 'charts' };
+  if (s.kind === 'chart') return (s.template && CHART_TOPICS[s.template]) || { article: 'charts' };
   return (s.module && MODULE_TOPICS[s.module]) || { article: 'getting-started' };
 }
 

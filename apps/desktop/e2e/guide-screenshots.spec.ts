@@ -60,7 +60,7 @@ async function overlay(page: Page, marks: Mark[]): Promise<() => Promise<void>> 
   for (const m of marks) {
     const b = await m.loc
       .first()
-      .boundingBox()
+      .boundingBox({ timeout: 2000 })
       .catch(() => null);
     if (!b) continue;
     n++;
@@ -104,7 +104,8 @@ async function shot(page: Page, name: string, opts: ShotOpts = {}): Promise<void
 
 /** Runs one named part of the tour; a failing part is recorded and the next one still runs. */
 async function part(name: string, fn: () => Promise<void>): Promise<void> {
-  if (ONLY && !name.includes(ONLY)) return;
+  // The first part creates the account every other part needs, so it always runs.
+  if (ONLY && name !== 'getting-started' && !name.includes(ONLY)) return;
   try {
     await fn();
   } catch (e) {
@@ -217,7 +218,9 @@ test('guide screenshots', async ({ page, context }) => {
     await page.keyboard.press('Escape');
     await page.keyboard.press('Control+k');
     await page.getByPlaceholder(/search commands/i).fill('footprint');
-    await shot(page, 'command-palette', { marks: [{ loc: page.getByPlaceholder(/search commands/i) }] });
+    await shot(page, 'command-palette', {
+      marks: [{ loc: page.getByPlaceholder(/search commands/i) }],
+    });
     await page.keyboard.press('Escape');
     await page.getByTitle('Grid 2×2').click();
     await page.waitForTimeout(800);
@@ -235,7 +238,11 @@ test('guide screenshots', async ({ page, context }) => {
     await page.getByTestId('workspace-menu').click();
     await shot(page, 'workspace-menu');
     await page.keyboard.press('Escape');
-    await page.locator('.dv-tab').first().click({ button: 'right' }).catch(() => undefined);
+    await page
+      .locator('.dv-tab')
+      .first()
+      .click({ button: 'right' })
+      .catch(() => undefined);
     await page.keyboard.press('Escape');
     await palette(page, 'Customize ribbon');
     await shot(page, 'ribbon-customize');
@@ -257,7 +264,11 @@ test('guide screenshots', async ({ page, context }) => {
   await part('data', async () => {
     await palette(page, 'Open Connections');
     await shot(page, 'connections');
-    await page.getByRole('button', { name: /add|new|connect/i }).first().click().catch(() => undefined);
+    await page
+      .getByRole('button', { name: /add|new|connect/i })
+      .first()
+      .click()
+      .catch(() => undefined);
     await shot(page, 'connections-wizard');
     await closeFloating(page);
     await reset(page);
@@ -269,7 +280,11 @@ test('guide screenshots', async ({ page, context }) => {
     await closeFloating(page);
     await reset(page);
     await page.getByTestId('chart-footprint').click();
-    await page.getByRole('button', { name: /TF/ }).first().click().catch(() => undefined);
+    await page
+      .getByRole('button', { name: /TF/ })
+      .first()
+      .click()
+      .catch(() => undefined);
     await shot(page, 'timeframes');
     await closeFloating(page);
     await page.keyboard.press('Escape');
@@ -312,7 +327,9 @@ test('guide screenshots', async ({ page, context }) => {
     await palette(page, 'RSI');
     await palette(page, 'Moving Average');
     await page.waitForTimeout(800);
-    await shot(page, 'indicator-on-chart', { marks: [{ loc: page.getByTestId('indicator-legend') }] });
+    await shot(page, 'indicator-on-chart', {
+      marks: [{ loc: page.getByTestId('indicator-legend') }],
+    });
     await page.keyboard.press('Control+s');
     await shot(page, 'chart-settings');
     await closeFloating(page);
@@ -335,7 +352,9 @@ test('guide screenshots', async ({ page, context }) => {
     await page.mouse.down();
     await page.mouse.move(box.x + 560, box.y + 400, { steps: 8 });
     await page.mouse.up();
-    await shot(page, 'drawings', { marks: [{ loc: page.locator('.side-tools, [data-testid="side-tools"]') }] });
+    await shot(page, 'drawings', {
+      marks: [{ loc: page.locator('.side-tools, [data-testid="side-tools"]') }],
+    });
     void chart;
     await palette(page, 'Open Objects List');
     await shot(page, 'objects-list');
@@ -357,7 +376,11 @@ test('guide screenshots', async ({ page, context }) => {
     await shot(page, 'heatmap-quick-settings');
     await page.keyboard.press('Escape');
     await reset(page);
-    await shot(page, 'smart-dom', { target: page.getByTestId('win-hdr-dom-1').locator('xpath=ancestor::*[contains(@class,"dv-groupview")]') });
+    await shot(page, 'smart-dom', {
+      target: page
+        .getByTestId('win-hdr-dom-1')
+        .locator('xpath=ancestor::*[contains(@class,"dv-groupview")]'),
+    });
     await palette(page, 'Open Smart Tape');
     await shot(page, 'smart-tape');
     await palette(page, 'Open Bid/Ask Tape');
@@ -397,7 +420,11 @@ test('guide screenshots', async ({ page, context }) => {
     await palette(page, 'Order confirmations');
     await shot(page, 'order-confirmations');
     await closeFloating(page);
-    await page.getByRole('button', { name: 'Flatten all' }).first().click().catch(() => undefined);
+    await page
+      .getByRole('button', { name: 'Flatten all' })
+      .first()
+      .click()
+      .catch(() => undefined);
   });
 
   // ------------------------------------------------------------------ replay
@@ -416,7 +443,10 @@ test('guide screenshots', async ({ page, context }) => {
   await part('alerts', async () => {
     await palette(page, 'Open Alerts');
     await shot(page, 'alerts-window');
-    await page.getByTestId('alert-create').click().catch(() => undefined);
+    await page
+      .getByTestId('alert-create')
+      .click()
+      .catch(() => undefined);
     await shot(page, 'alert-form');
     await closeFloating(page);
     await palette(page, 'Settings: Alerts');
@@ -461,7 +491,10 @@ test('guide screenshots', async ({ page, context }) => {
   await part('strategies', async () => {
     await palette(page, 'Open Strategies');
     await shot(page, 'strategies-window');
-    await page.getByTestId('strategy-run').click().catch(() => undefined);
+    await page
+      .getByTestId('strategy-run')
+      .click()
+      .catch(() => undefined);
     await page.waitForTimeout(6000);
     await shot(page, 'strategy-results');
     await reset(page);
@@ -495,8 +528,13 @@ test('guide screenshots', async ({ page, context }) => {
 
   // ------------------------------------------------------------------ generated shortcut table
   await part('shortcuts', async () => {
+    type Reg = {
+      registeredCommands(): { shortcut?: string; label: string; group: string; scope?: string }[];
+      normalizeShortcut(s: string): string;
+    };
     const cmds = await page.evaluate(async () => {
-      const m = await import('/src/shell/commands.ts');
+      const path = '/src/shell/commands.ts';
+      const m = (await import(/* @vite-ignore */ path)) as Reg;
       return m
         .registeredCommands()
         .filter((c) => c.shortcut)
