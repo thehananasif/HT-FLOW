@@ -8,6 +8,10 @@
 - Profile backups: `profile_backup_now()` / `profile_backup_prune(max)` copy the sealed profile folder into `backups\<YYYYMMDD-HHMMSS>\`; a timer checks at start-up and daily against `common.backupDays` and deletes the oldest beyond `common.maxBackups`. "Back up now" / "Open backups folder" buttons (Settings -> Common) and palette commands.
 - Video adapter now applies to the whole WebView2 (all charts, not only the 3D heatmap): chosen at start-up via `--force_high_performance_gpu` / `--force_low_power_gpu`; the setting shows a "restart required" note. The few settings the core needs before login (log folder, retention, backup schedule, adapter) are mirrored to `native-prefs.json` in the data folder.
 
+### Web Pages
+
+- Web Pages in the desktop app: each panel opens its page in a dedicated native `webpage-<id>` window (Rust `webpage_cmds.rs`, no `unstable` multi-webview). The window has no IPC or capabilities (the capability is scoped to `main` only, Tauri also rejects custom commands from remote origins), loads http / https only (an `on_navigation` handler cancels `file:`, `javascript:`, `data:`, `tauri:`, custom schemes and URLs with credentials), supports a per-panel domain allow-list (`example.com` incl. subdomains, `*.example.com`), and routes `window.open` / `target=_blank` to the same window or the system browser. Commands: open / navigate / back / forward / reload / close / set bounds / always-on-top / set policy / open external; size and position are remembered per panel. UI: allow-list editor, new-window and always-on-top options, "Open in system browser", six `Web Pages: …` palette commands; the web build keeps the iframe. Unit tests (Rust + TS) for URL validation, scheme blocking and allow-list matching, plus a Playwright spec. Security review in `docs/SECURITY-AUDIT.md`.
+
 ## Unreleased — round 6
 
 ### Security

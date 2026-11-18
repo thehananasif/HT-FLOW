@@ -159,6 +159,37 @@ Worker so a slow script cannot freeze the UI. Test: "HT Script sandbox" in `scri
   check is still refused.
 - `vault_put` caps keys at 256 bytes and values at 64 KB.
 
+## Web Pages native window (round 7)
+
+The desktop Web Pages panel shows remote sites in its own `webpage-<id>` Tauri window
+(`src-tauri/src/webpage_cmds.rs`). Remote content is the threat; the design keeps it away from
+every Tauri command.
+
+- **No IPC.** `capabilities/default.json` is scoped to `windows: ["main"]` with no `remote`
+  entry, so `webpage-*` windows hold no permissions. On top of that Tauri 2.12 rejects custom
+  commands from non-local origins unless a `remote` capability allows them, and none does. A
+  vitest guard (`policy.test.ts`) fails if the capability ever lists another window or a remote
+  context. The `unstable` multi-webview feature stays off.
+- **Scheme and host policy in Rust**, not only in the UI: `validate_url` / `url_permitted` accept
+  only `http` / `https` with a host and no `user:pass@` (phishing and credential-leak vector).
+  `on_navigation` cancels everything else (`file:`, `javascript:`, `data:`, `blob:`, `tauri:`,
+  `ipc:`, `about:`, custom protocols), redirects included, because it runs for every top-level
+  navigation. The same check guards `webpage_open`, `webpage_navigate` and
+  `webpage_open_external`.
+- **Allow-list** per panel (empty = any site). Matching is on label boundaries
+  (`evilexample.com` and `example.com.evil.io` do not match `example.com`), case-insensitive,
+  trailing dots stripped. It is applied to redirects and link clicks, and updated live.
+- **New windows.** `window.open` / `target=_blank` are always denied as windows; an allowed URL
+  loads in the same window or opens in the system browser (`explorer` / `open` / `xdg-open`
+  with the URL as one argument, never through a shell; http(s) only).
+- **Hardening of inputs.** Panel ids are restricted to `[A-Za-z0-9_-]{1,64}` before they become a
+  label; bounds are clamped; the window dies with the main window.
+- **Residual risks.** The page window shares the default WebView2 profile, so cookies and logins
+  persist between panels and sessions (intended for logging in to sites, but a malicious page
+  can see cookies it set earlier). It runs at the OS user's privilege like any browser tab, so a
+  WebView2 engine exploit is out of scope; keep Windows / WebView2 updated. Sub-frames and
+  sub-resources are not filtered by the allow-list. Not exercised on Windows WebView2 in CI.
+
 ## Remaining (not changed, with rationale)
 
 - **`vault_get` returns secrets to the WebView.** By design (alert delivery runs in the UI). An
