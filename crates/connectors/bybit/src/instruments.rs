@@ -23,7 +23,7 @@ impl Category {
             Category::Spot => "spot",
         }
     }
-    /// Feed provider id: only linear streams through the built-in connector today.
+    /// Feed provider id; every category streams through the built-in connector.
     pub fn venue(self) -> &'static str {
         match self {
             Category::Linear => "bybit-linear",

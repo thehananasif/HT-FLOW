@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::future::BoxFuture;
 use htflow_connector_binance::{now_ns, Binance, Market};
-use htflow_connector_bybit::BybitLinear;
+use htflow_connector_bybit::{Bybit, Category as BybitCategory};
 use htflow_connector_common::{
     BookLevels, ClockSkew, ConnectorError, Kline, MarketApi, SymbolSpec,
 };
@@ -49,9 +49,19 @@ impl From<htflow_connector_bybit::ConnectorError> for CmdError {
 }
 
 /// Bybit's crate predates the shared framework; this adapter gives it the common API.
+/// One instance per category (`bybit-linear`, `bybit-inverse`, `bybit-spot`).
 struct BybitApi {
-    client: BybitLinear,
+    client: Bybit,
     clock: ClockSkew,
+}
+
+impl BybitApi {
+    fn new(category: BybitCategory) -> Self {
+        Self {
+            client: Bybit::market(category),
+            clock: ClockSkew::default(),
+        }
+    }
 }
 
 fn bybit_spec(sp: &Spec) -> htflow_connector_bybit::SymbolSpec {
@@ -68,7 +78,7 @@ fn bybit_err(e: htflow_connector_bybit::ConnectorError) -> ConnectorError {
 
 impl MarketApi for BybitApi {
     fn venue(&self) -> &'static str {
-        "bybit-linear"
+        self.client.venue()
     }
     fn spec<'a>(&'a self, symbol: &'a str) -> BoxFuture<'a, Result<Spec, ConnectorError>> {
         Box::pin(async move {
@@ -92,7 +102,7 @@ impl MarketApi for BybitApi {
         _from_ms: i64,
         _to_ms: i64,
     ) -> BoxFuture<'a, Result<Vec<Trade>, ConnectorError>> {
-        // Bybit's public REST only serves the latest 1,000 trades.
+        // Bybit's public REST only serves the latest trades (1,000 derivatives / 60 spot).
         Box::pin(async move {
             self.client
                 .recent_trades(&bybit_spec(sp))
@@ -160,10 +170,9 @@ impl Default for Clients {
             Arc::new(Binance::market(Market::UsdM)),
             Arc::new(Binance::market(Market::CoinM)),
             Arc::new(Binance::market(Market::Spot)),
-            Arc::new(BybitApi {
-                client: BybitLinear::default(),
-                clock: ClockSkew::default(),
-            }),
+            Arc::new(BybitApi::new(BybitCategory::Linear)),
+            Arc::new(BybitApi::new(BybitCategory::Inverse)),
+            Arc::new(BybitApi::new(BybitCategory::Spot)),
             Arc::new(htflow_connector_okx::Okx::default()),
             Arc::new(htflow_connector_whitebit::Whitebit::default()),
             Arc::new(htflow_connector_phemex::Phemex::default()),
@@ -736,6 +745,8 @@ mod tests {
         let c = Clients::default();
         assert_eq!(c.parse("bybit-linear").unwrap().id(), "bybit-linear");
         for v in [
+            "bybit-inverse",
+            "bybit-spot",
             "binance-futures",
             "binance-coinm",
             "binance-spot",

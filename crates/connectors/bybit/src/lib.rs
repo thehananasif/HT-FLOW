@@ -1,14 +1,31 @@
-//! Bybit v5 linear perpetuals connector — free public data, no API key (P05).
+//! Bybit v5 public market data connector — free public data, no API key (P05).
+//!
+//! One client per product [`Category`]: `linear` (USDT / USDC perpetuals and futures),
+//! `inverse` (coin-margined perpetuals and futures) and `spot`. Every category uses the same
+//! public socket protocol on its own endpoint (`wss://stream.bybit.com/v5/public/<category>`).
 //!
 //! Same shape as the Binance connector: one task per connection (connect → subscribe
-//! `publicTrade.SYMBOL` + `orderbook.200.SYMBOL` → `{"op":"ping"}` every 20 s → reconnect with
-//! exponential backoff 0.5 s → 30 s plus jitter), normalisation to integer ticks, and a
-//! sequence-checked local book: a `snapshot` message resets the book, every `delta` must carry
-//! `u = previous u + 1` (Bybit's update id); a jump marks the book stale and the orderbook topic
-//! is re-subscribed, which makes Bybit push a fresh snapshot. A slow consumer never blocks the
-//! socket: when the output channel is full deltas are dropped and a snapshot is sent instead.
+//! `publicTrade.SYMBOL` + `orderbook.200.SYMBOL` (+ `tickers.SYMBOL` on derivatives) →
+//! `{"op":"ping"}` every 20 s → reconnect with exponential backoff 0.5 s → 30 s plus jitter),
+//! normalisation to integer ticks, and a sequence-checked local book: a `snapshot` message resets
+//! the book, every `delta` must carry `u = previous u + 1` (Bybit's update id); a jump marks the
+//! book stale and the orderbook topic is re-subscribed, which makes Bybit push a fresh snapshot.
+//! A slow consumer never blocks the socket: when the output channel is full deltas are dropped
+//! and a snapshot is sent instead.
+//!
+//! Sizes: `linear` and `spot` quantities are base units (BTC). `inverse` quantities are
+//! **contracts of 1 USD each** (Bybit's inverse contract value), so a trade of `"v":"2500"` is
+//! 2,500 USD of notional; they are kept as contract counts (the instrument's currency is USD),
+//! exactly like the Binance COIN-M and OKX inverse feeds — trades, book levels and kline volumes
+//! all use the same unit, so footprint / delta / volume profile stay consistent.
+//!
+//! Derivatives also stream `tickers.SYMBOL` (snapshot + partial deltas, merged by
+//! [`TickerState`]) for funding and open interest. Spot tickers carry neither, so spot does not
+//! subscribe to them.
 
 pub mod instruments;
+
+pub use instruments::Category;
 
 use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -16,7 +33,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use futures_util::{SinkExt, StreamExt};
 use htflow_core_types::{
     decimals_of, Aggressor, BookDelta, BookSnapshot, DecimalError, FeedState, FeedStatus,
-    MarketEvent, Side, TickSize, Trade,
+    MarketEvent, MarketStat, Side, TickSize, Trade,
 };
 use rand::Rng;
 use serde::Deserialize;
@@ -188,7 +205,28 @@ pub mod wire {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct LotSizeFilter {
-        pub qty_step: String,
+        /// Derivatives (`linear` / `inverse`).
+        #[serde(default)]
+        pub qty_step: Option<String>,
+        /// Spot gives the base-asset precision instead of a quantity step.
+        #[serde(default)]
+        pub base_precision: Option<String>,
+    }
+
+    /// `tickers.SYMBOL` data on derivatives: a snapshot, then deltas with only changed fields.
+    #[derive(Debug, Deserialize, Default)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TickerWire {
+        #[serde(default)]
+        pub funding_rate: Option<String>,
+        #[serde(default)]
+        pub next_funding_time: Option<String>,
+        #[serde(default)]
+        pub mark_price: Option<String>,
+        #[serde(default)]
+        pub open_interest: Option<String>,
+        #[serde(default)]
+        pub open_interest_value: Option<String>,
     }
 
     #[derive(Debug, Deserialize)]
@@ -213,6 +251,15 @@ pub enum Parsed {
         ts_ms: i64,
         bids: Vec<(i64, f64)>,
         asks: Vec<(i64, f64)>,
+    },
+    /// Funding / open interest from `tickers.SYMBOL` (only the fields this message carried).
+    Ticker {
+        ts_ms: i64,
+        funding_rate: Option<f64>,
+        next_funding_ms: Option<i64>,
+        mark_price: Option<f64>,
+        open_interest: Option<f64>,
+        open_interest_value: Option<f64>,
     },
     /// Reply to subscribe / ping.
     Reply {
@@ -275,7 +322,92 @@ pub fn parse_message(
             asks: parse_levels(&spec.tick, &b.asks)?,
         });
     }
+    if topic.starts_with("tickers.") {
+        let t: wire::TickerWire = serde_json::from_value(data)?;
+        let num = |v: &Option<String>| v.as_deref().and_then(|x| x.parse::<f64>().ok());
+        return Ok(Parsed::Ticker {
+            ts_ms: m.ts.unwrap_or(0),
+            funding_rate: num(&t.funding_rate),
+            next_funding_ms: t
+                .next_funding_time
+                .as_deref()
+                .and_then(|x| x.parse::<i64>().ok()),
+            mark_price: num(&t.mark_price),
+            open_interest: num(&t.open_interest),
+            open_interest_value: num(&t.open_interest_value),
+        });
+    }
     Ok(Parsed::Other)
+}
+
+/// Merged `tickers` state: Bybit deltas only carry the fields that changed.
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct TickerState {
+    pub funding_rate: Option<f64>,
+    pub next_funding_ms: i64,
+    pub mark_price: Option<f64>,
+    pub open_interest: Option<f64>,
+    pub open_interest_value: Option<f64>,
+}
+
+impl TickerState {
+    /// Folds one ticker message in; returns the stats that changed (funding when the rate or
+    /// the next funding time moved, open interest when it moved). Mark price alone does not
+    /// emit — it rides along with the next funding stat.
+    pub fn apply(&mut self, category: Category, p: &Parsed) -> Vec<MarketStat> {
+        let Parsed::Ticker {
+            ts_ms,
+            funding_rate,
+            next_funding_ms,
+            mark_price,
+            open_interest,
+            open_interest_value,
+        } = p
+        else {
+            return Vec::new();
+        };
+        let ts_ns = ts_ms * 1_000_000;
+        let mut out = Vec::new();
+        if mark_price.is_some() {
+            self.mark_price = *mark_price;
+        }
+        let mut funding_changed = false;
+        if funding_rate.is_some() && *funding_rate != self.funding_rate {
+            self.funding_rate = *funding_rate;
+            funding_changed = true;
+        }
+        if let Some(n) = next_funding_ms {
+            if *n != self.next_funding_ms {
+                self.next_funding_ms = *n;
+                funding_changed = true;
+            }
+        }
+        if let (true, Some(rate)) = (funding_changed, self.funding_rate) {
+            out.push(MarketStat::Funding {
+                ts_ns,
+                rate,
+                next_ts_ns: self.next_funding_ms * 1_000_000,
+                mark_price: self.mark_price.unwrap_or(f64::NAN),
+            });
+        }
+        if open_interest_value.is_some() {
+            self.open_interest_value = *open_interest_value;
+        }
+        if let Some(oi) = *open_interest {
+            if Some(oi) != self.open_interest {
+                self.open_interest = Some(oi);
+                // Inverse open interest is already USD (1 USD contracts) and
+                // `openInterestValue` is the coin amount there, so the quote-currency value is
+                // the contract count itself.
+                let value = match category {
+                    Category::Inverse => oi,
+                    _ => self.open_interest_value.unwrap_or(f64::NAN),
+                };
+                out.push(MarketStat::OpenInterest { ts_ns, oi, value });
+            }
+        }
+        out
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -365,23 +497,45 @@ impl BookSync {
     }
 }
 
-/// REST client for metadata, snapshots and recent trades.
+/// REST client for metadata, snapshots and recent trades of one [`Category`].
 #[derive(Clone)]
-pub struct BybitLinear {
+pub struct Bybit {
     http: reqwest::Client,
     pub endpoints: Endpoints,
+    pub category: Category,
     /// Klines go through the shared REST client (token bucket + `Retry-After` back-off).
     kline_rest: htflow_connector_common::Rest,
 }
 
-impl Default for BybitLinear {
+/// The original linear-only name; a [`Bybit`] client defaults to the linear category.
+pub type BybitLinear = Bybit;
+
+impl Default for Bybit {
     fn default() -> Self {
         Self::new(Endpoints::default())
     }
 }
 
-impl BybitLinear {
+/// Public REST `recent-trade` page size: spot serves at most 60, derivatives 1,000.
+pub fn recent_trade_limit(category: Category) -> u32 {
+    match category {
+        Category::Spot => 60,
+        _ => 1_000,
+    }
+}
+
+impl Bybit {
+    /// Linear client (the original connector).
     pub fn new(endpoints: Endpoints) -> Self {
+        Self::with_category(Category::Linear, endpoints)
+    }
+
+    /// Client for a category against the production endpoints.
+    pub fn market(category: Category) -> Self {
+        Self::with_category(category, Endpoints::default())
+    }
+
+    pub fn with_category(category: Category, endpoints: Endpoints) -> Self {
         let http = reqwest::Client::builder()
             .user_agent("HTFlow/0.1")
             .timeout(Duration::from_secs(15))
@@ -394,8 +548,32 @@ impl BybitLinear {
         Self {
             http,
             endpoints,
+            category,
             kline_rest,
         }
+    }
+
+    /// Feed provider id (`bybit-linear`, `bybit-inverse`, `bybit-spot`).
+    pub fn venue(&self) -> &'static str {
+        self.category.venue()
+    }
+
+    /// Public socket URL of this category.
+    pub fn ws_url(&self) -> String {
+        format!("{}/v5/public/{}", self.endpoints.ws, self.category.as_str())
+    }
+
+    /// Topics one stream subscribes to: trades, the 200-level book, and tickers on derivatives
+    /// (spot tickers have no funding / open interest). The book topic is always index 1.
+    pub fn topics(&self, symbol: &str) -> Vec<String> {
+        let mut t = vec![
+            format!("publicTrade.{symbol}"),
+            format!("orderbook.{BOOK_DEPTH}.{symbol}"),
+        ];
+        if self.category != Category::Spot {
+            t.push(format!("tickers.{symbol}"));
+        }
+        t
     }
 
     async fn get<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T, ConnectorError> {
@@ -418,7 +596,8 @@ impl BybitLinear {
     pub async fn symbol_spec(&self, symbol: &str) -> Result<SymbolSpec, ConnectorError> {
         let l: wire::List<wire::InstrumentInfo> = self
             .get(&format!(
-                "/v5/market/instruments-info?category=linear&symbol={symbol}"
+                "/v5/market/instruments-info?category={}&symbol={symbol}",
+                self.category.as_str()
             ))
             .await?;
         spec_from_info(symbol, l.list)
@@ -431,7 +610,8 @@ impl BybitLinear {
     ) -> Result<(u64, Vec<(i64, f64)>, Vec<(i64, f64)>), ConnectorError> {
         let b: wire::BookWire = self
             .get(&format!(
-                "/v5/market/orderbook?category=linear&symbol={}&limit={BOOK_DEPTH}",
+                "/v5/market/orderbook?category={}&symbol={}&limit={BOOK_DEPTH}",
+                self.category.as_str(),
                 spec.symbol
             ))
             .await?;
@@ -442,12 +622,15 @@ impl BybitLinear {
         ))
     }
 
-    /// The latest trades (Bybit's public REST only serves the most recent 1,000), oldest first.
+    /// The latest trades, oldest first. Bybit's public REST only serves the most recent ones
+    /// (1,000 on derivatives, 60 on spot — see [`recent_trade_limit`]).
     pub async fn recent_trades(&self, spec: &SymbolSpec) -> Result<Vec<Trade>, ConnectorError> {
         let l: wire::List<wire::RecentTrade> = self
             .get(&format!(
-                "/v5/market/recent-trade?category=linear&symbol={}&limit=1000",
-                spec.symbol
+                "/v5/market/recent-trade?category={}&symbol={}&limit={}",
+                self.category.as_str(),
+                spec.symbol,
+                recent_trade_limit(self.category)
             ))
             .await?;
         recent_from_rest(spec, l.list)
@@ -462,9 +645,15 @@ pub fn spec_from_info(
         .into_iter()
         .find(|i| i.symbol.eq_ignore_ascii_case(symbol))
         .ok_or_else(|| ConnectorError::UnknownSymbol(symbol.into()))?;
+    let step = i
+        .lot_size_filter
+        .qty_step
+        .as_deref()
+        .or(i.lot_size_filter.base_precision.as_deref())
+        .unwrap_or("1");
     Ok(SymbolSpec {
         tick: TickSize::parse(&i.price_filter.tick_size)?,
-        qty_precision: decimals_of(&i.lot_size_filter.qty_step),
+        qty_precision: decimals_of(step),
         symbol: i.symbol,
     })
 }
@@ -509,7 +698,7 @@ fn offer(tx: &mpsc::Sender<MarketEvent>, ev: MarketEvent) -> bool {
 
 /// Runs the live stream until `stop` flips to true, reconnecting with backoff.
 pub async fn run_stream(
-    client: BybitLinear,
+    client: Bybit,
     spec: SymbolSpec,
     tx: mpsc::Sender<MarketEvent>,
     mut stop: watch::Receiver<bool>,
@@ -523,7 +712,7 @@ pub async fn run_stream(
         match session(&client, &spec, &tx, &mut stop, &mut backoff).await {
             Ok(()) => return,
             Err(e) => {
-                tracing::warn!(symbol = %spec.symbol, error = %e, "bybit stream dropped; reconnecting");
+                tracing::warn!(venue = client.venue(), symbol = %spec.symbol, error = %e, "bybit stream dropped; reconnecting");
                 let _ = tx
                     .send(status(
                         FeedState::Disconnected,
@@ -548,19 +737,18 @@ fn sub_msg(op: &str, topics: &[String]) -> Message {
 }
 
 async fn session(
-    client: &BybitLinear,
+    client: &Bybit,
     spec: &SymbolSpec,
     tx: &mpsc::Sender<MarketEvent>,
     stop: &mut watch::Receiver<bool>,
     backoff: &mut Duration,
 ) -> Result<(), ConnectorError> {
-    let url = format!("{}/v5/public/linear", client.endpoints.ws);
-    let (mut ws, _) = tokio_tungstenite::connect_async(url).await?;
-    let book_topic = format!("orderbook.{BOOK_DEPTH}.{}", spec.symbol);
-    let trade_topic = format!("publicTrade.{}", spec.symbol);
-    ws.send(sub_msg("subscribe", &[trade_topic, book_topic.clone()]))
-        .await?;
+    let (mut ws, _) = tokio_tungstenite::connect_async(client.ws_url()).await?;
+    let topics = client.topics(&spec.symbol);
+    let book_topic = topics[1].clone();
+    ws.send(sub_msg("subscribe", &topics)).await?;
     let mut sync = BookSync::default();
+    let mut ticker = TickerState::default();
     let mut lagging = false;
     let mut msgs: u64 = 0;
     let mut latency = 0.0f64;
@@ -599,12 +787,16 @@ async fn session(
                                         }
                                     }
                                     SyncOutcome::Gap => {
-                                        tracing::info!(symbol = %spec.symbol, "bybit book sequence gap; resubscribing");
+                                        tracing::info!(venue = client.venue(), symbol = %spec.symbol, "bybit book sequence gap; resubscribing");
                                         ws.send(sub_msg("unsubscribe", std::slice::from_ref(&book_topic))).await?;
                                         ws.send(sub_msg("subscribe", std::slice::from_ref(&book_topic))).await?;
                                     }
                                     SyncOutcome::Ignored => {}
                                 }
+                            }
+                            p @ Parsed::Ticker { .. } => {
+                                let stats = ticker.apply(client.category, &p);
+                                if !stats.is_empty() { offer(tx, MarketEvent::Stats(stats)); }
                             }
                             Parsed::Reply { op, success, message } => {
                                 if !success && op == "subscribe" {
@@ -741,5 +933,315 @@ mod tests {
         assert_eq!(t[0].px, 166_184);
         assert_eq!(t[0].trade_id, trade_id("a"));
         assert_eq!(t[1].aggressor, Aggressor::Sell);
+    }
+}
+
+/// Spot and inverse categories. Bybit is region-blocked from the build server, so the
+/// fixtures under `tests/fixtures/` are hand-built from the message shapes in Bybit's v5 API
+/// docs (public WebSocket `publicTrade` / `orderbook` / `tickers`, REST `recent-trade`), not
+/// recorded from the live venue.
+#[cfg(test)]
+mod category_tests {
+    use super::*;
+    use htflow_connector_common::mock_http::{MockServer, Reply};
+
+    const WS_SPOT: &str = include_str!("../tests/fixtures/ws_spot.jsonl");
+    const WS_INVERSE: &str = include_str!("../tests/fixtures/ws_inverse.jsonl");
+
+    fn spot() -> SymbolSpec {
+        SymbolSpec {
+            symbol: "BTCUSDT".into(),
+            tick: TickSize::parse("0.01").unwrap(),
+            qty_precision: 6,
+        }
+    }
+
+    fn inverse() -> SymbolSpec {
+        SymbolSpec {
+            symbol: "BTCUSD".into(),
+            tick: TickSize::parse("0.5").unwrap(),
+            qty_precision: 0,
+        }
+    }
+
+    type Replayed = (Vec<Parsed>, Vec<SyncOutcome>, Vec<MarketStat>, BookSync);
+
+    /// Replays a fixture session through the parser, the book and the ticker state.
+    fn replay(cat: Category, spec: &SymbolSpec, text: &str) -> Replayed {
+        let mut sync = BookSync::default();
+        let mut tick = TickerState::default();
+        let (mut parsed, mut book, mut stats) = (Vec::new(), Vec::new(), Vec::new());
+        for line in text.lines().filter(|l| !l.trim().is_empty()) {
+            let p = parse_message(spec, line, 1).unwrap();
+            match &p {
+                Parsed::Book {
+                    snapshot,
+                    u,
+                    seq,
+                    bids,
+                    asks,
+                    ..
+                } => book.push(sync.on_book(*snapshot, *u, *seq, bids.clone(), asks.clone(), 0)),
+                Parsed::Ticker { .. } => stats.extend(tick.apply(cat, &p)),
+                _ => {}
+            }
+            parsed.push(p);
+        }
+        (parsed, book, stats, sync)
+    }
+
+    #[test]
+    fn categories_map_to_endpoints_and_topics() {
+        let s = Bybit::market(Category::Spot);
+        assert_eq!(s.ws_url(), "wss://stream.bybit.com/v5/public/spot");
+        assert_eq!(s.venue(), "bybit-spot");
+        assert_eq!(
+            s.topics("BTCUSDT"),
+            ["publicTrade.BTCUSDT", "orderbook.200.BTCUSDT"]
+        );
+        let i = Bybit::market(Category::Inverse);
+        assert_eq!(i.ws_url(), "wss://stream.bybit.com/v5/public/inverse");
+        assert_eq!(i.venue(), "bybit-inverse");
+        assert_eq!(
+            i.topics("BTCUSD"),
+            [
+                "publicTrade.BTCUSD",
+                "orderbook.200.BTCUSD",
+                "tickers.BTCUSD"
+            ]
+        );
+        assert_eq!(BybitLinear::default().category, Category::Linear);
+        assert_eq!(recent_trade_limit(Category::Spot), 60);
+        assert_eq!(recent_trade_limit(Category::Inverse), 1_000);
+    }
+
+    #[test]
+    fn spot_session_trades_book_and_resync() {
+        let (parsed, book, stats, sync) = replay(Category::Spot, &spot(), WS_SPOT);
+        assert!(matches!(&parsed[0], Parsed::Reply { op, success: true, .. } if op == "subscribe"));
+        let Parsed::Trades(t) = &parsed[2] else {
+            panic!("{:?}", parsed[2])
+        };
+        assert_eq!(t[0].px, 6_010_002);
+        assert_eq!(t[0].qty, 0.004521);
+        assert_eq!(t[0].aggressor, Aggressor::Buy);
+        assert_eq!(t[1].aggressor, Aggressor::Sell);
+        assert_eq!(t[0].exchange_ts_ns, 1_794_613_560_148_000_000);
+        // Spot ids are numeric but beyond 2^53: hashed to stay exact in JavaScript.
+        assert!(t[0].trade_id < 1 << 53 && t[0].trade_id != t[1].trade_id);
+        assert!(stats.is_empty(), "spot has no funding / OI");
+        // snapshot, delta, delta, gap (u 509 → 512), snapshot again.
+        assert!(matches!(book[0], SyncOutcome::Synced(_)));
+        let SyncOutcome::Applied(d) = &book[1] else {
+            panic!()
+        };
+        assert_eq!(d.len(), 3);
+        assert!(matches!(book[2], SyncOutcome::Applied(_)));
+        assert_eq!(book[3], SyncOutcome::Gap);
+        let SyncOutcome::Synced(s) = &book[4] else {
+            panic!()
+        };
+        assert_eq!(s.bids[0], (6_010_003, 0.01));
+        assert_eq!(s.asks[0], (6_010_002, 0.095479));
+        assert_eq!(sync.gaps, 1);
+        assert!(sync.is_synced());
+    }
+
+    #[test]
+    fn inverse_session_sizes_in_usd_contracts_and_funding() {
+        let (parsed, book, stats, sync) = replay(Category::Inverse, &inverse(), WS_INVERSE);
+        let Parsed::Trades(t) = &parsed[3] else {
+            panic!("{:?}", parsed[3])
+        };
+        // 2,500 contracts × 1 USD: the size stays a USD contract count (no division by price).
+        assert_eq!((t[0].px, t[0].qty), (120_201, 2500.0));
+        assert_eq!(t[0].aggressor, Aggressor::Buy);
+        assert_eq!((t[1].qty, t[1].aggressor), (1.0, Aggressor::Sell));
+        let SyncOutcome::Synced(s) = &book[0] else {
+            panic!()
+        };
+        assert_eq!(s.bids[0], (120_200, 12_000.0));
+        assert_eq!(
+            book[1],
+            SyncOutcome::Applied(vec![
+                BookDelta {
+                    side: Side::Buy,
+                    px: 120_200,
+                    qty: 11_999.0
+                },
+                BookDelta {
+                    side: Side::Sell,
+                    px: 120_201,
+                    qty: 32_500.0
+                },
+            ])
+        );
+        assert_eq!(book[2], SyncOutcome::Gap);
+        assert!(!sync.is_synced());
+        // The new-style `{"op":"pong"}` reply has no `success` field.
+        assert!(parsed
+            .iter()
+            .any(|p| matches!(p, Parsed::Reply { op, success: true, .. } if op == "pong")));
+        // Snapshot → funding + OI; OI delta → OI; mark-only delta → nothing; rate delta → funding.
+        assert_eq!(stats.len(), 4, "{stats:?}");
+        assert_eq!(
+            stats[0],
+            MarketStat::Funding {
+                ts_ns: 1_794_613_560_050_000_000,
+                rate: 0.0001,
+                next_ts_ns: 1_794_614_400_000_000_000,
+                mark_price: 60_101.2
+            }
+        );
+        assert_eq!(
+            stats[1],
+            MarketStat::OpenInterest {
+                ts_ns: 1_794_613_560_050_000_000,
+                oi: 512_345_678.0,
+                value: 512_345_678.0
+            }
+        );
+        assert!(matches!(stats[2], MarketStat::OpenInterest { oi, .. } if oi == 512_348_178.0));
+        assert!(
+            matches!(stats[3], MarketStat::Funding { rate, mark_price, .. } if rate == 0.000085 && mark_price == 60_103.0)
+        );
+    }
+
+    #[test]
+    fn linear_open_interest_value_is_quote() {
+        let mut st = TickerState::default();
+        let p = Parsed::Ticker {
+            ts_ms: 1,
+            funding_rate: None,
+            next_funding_ms: None,
+            mark_price: None,
+            open_interest: Some(10.0),
+            open_interest_value: Some(600_000.0),
+        };
+        assert_eq!(
+            st.apply(Category::Linear, &p),
+            vec![MarketStat::OpenInterest {
+                ts_ns: 1_000_000,
+                oi: 10.0,
+                value: 600_000.0
+            }]
+        );
+        // Unchanged → nothing new.
+        assert!(st.apply(Category::Linear, &p).is_empty());
+    }
+
+    #[tokio::test]
+    async fn rest_paths_follow_the_category() {
+        let srv = MockServer::start(|p| {
+            if p.contains("instruments-info") {
+                Reply::ok(include_str!("../fixtures/instruments_spot.json"))
+            } else if p.contains("recent-trade") && p.contains("category=spot") {
+                Reply::ok(include_str!("../tests/fixtures/recent_trade_spot.json"))
+            } else if p.contains("recent-trade") {
+                Reply::ok(include_str!("../tests/fixtures/recent_trade_inverse.json"))
+            } else {
+                Reply::ok(
+                    r#"{"retCode":0,"retMsg":"OK","result":{"s":"BTCUSDT","b":[["60100.01","0.5"]],"a":[["60100.02","0.1"]],"u":9,"seq":1,"ts":1}}"#,
+                )
+            }
+        });
+        let ep = Endpoints {
+            rest: srv.base.clone(),
+            ws: "ws://unused".into(),
+        };
+        let s = Bybit::with_category(Category::Spot, ep.clone());
+        // Spot instruments give `basePrecision`, not `qtyStep`.
+        let sp = s.symbol_spec("BTCUSDT").await.unwrap();
+        assert_eq!(sp.qty_precision, 6);
+        assert_eq!(sp.tick, TickSize::parse("0.01").unwrap());
+        let (u, b, a) = s.depth_snapshot(&sp).await.unwrap();
+        assert_eq!((u, b[0], a[0]), (9, (6_010_001, 0.5), (6_010_002, 0.1)));
+        let t = s.recent_trades(&sp).await.unwrap();
+        assert_eq!(t.len(), 2);
+        assert!(t[0].exchange_ts_ns < t[1].exchange_ts_ns, "oldest first");
+        assert_eq!(t[0].aggressor, Aggressor::Buy);
+
+        let i = Bybit::with_category(Category::Inverse, ep);
+        let t = i.recent_trades(&inverse()).await.unwrap();
+        assert_eq!((t[0].qty, t[0].px), (2500.0, 120_201));
+        assert_eq!(
+            srv.requests(),
+            vec![
+                "/v5/market/instruments-info?category=spot&symbol=BTCUSDT",
+                "/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=200",
+                "/v5/market/recent-trade?category=spot&symbol=BTCUSDT&limit=60",
+                "/v5/market/recent-trade?category=inverse&symbol=BTCUSD&limit=1000",
+            ]
+        );
+    }
+
+    /// Full stream against a local socket: category path, subscribe frame, events, and a
+    /// sequence gap answered with unsubscribe + subscribe of the book topic.
+    #[tokio::test]
+    async fn inverse_stream_end_to_end() {
+        use tokio::net::TcpListener;
+        use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (got_tx, mut got_rx) = mpsc::unbounded_channel::<String>();
+        tokio::spawn(async move {
+            let (sock, _) = listener.accept().await.unwrap();
+            let path_tx = got_tx.clone();
+            let cb = move |req: &Request, resp: Response| {
+                path_tx.send(req.uri().path().to_string()).unwrap();
+                Ok(resp)
+            };
+            let mut ws = tokio_tungstenite::accept_hdr_async(sock, cb).await.unwrap();
+            let sub = ws.next().await.unwrap().unwrap();
+            got_tx.send(sub.to_string()).unwrap();
+            for line in WS_INVERSE.lines().filter(|l| !l.is_empty()) {
+                ws.send(Message::Text(line.into())).await.unwrap();
+            }
+            // Gap → the client re-subscribes the book topic (heartbeat pings are skipped).
+            let mut n = 0;
+            while n < 2 {
+                let m = ws.next().await.unwrap().unwrap().to_string();
+                if !m.contains(r#""op":"ping""#) {
+                    got_tx.send(m).unwrap();
+                    n += 1;
+                }
+            }
+            while ws.next().await.is_some() {}
+        });
+        let client = Bybit::with_category(
+            Category::Inverse,
+            Endpoints {
+                rest: "http://unused".into(),
+                ws: format!("ws://{addr}"),
+            },
+        );
+        let (tx, mut rx) = mpsc::channel(100);
+        let (stop_tx, stop_rx) = watch::channel(false);
+        let h = tokio::spawn(run_stream(client, inverse(), tx, stop_rx));
+        assert_eq!(got_rx.recv().await.unwrap(), "/v5/public/inverse");
+        let sub: serde_json::Value = serde_json::from_str(&got_rx.recv().await.unwrap()).unwrap();
+        assert_eq!(sub["op"], "subscribe");
+        assert_eq!(sub["args"][2], "tickers.BTCUSD");
+        let unsub: serde_json::Value = serde_json::from_str(&got_rx.recv().await.unwrap()).unwrap();
+        let resub: serde_json::Value = serde_json::from_str(&got_rx.recv().await.unwrap()).unwrap();
+        assert_eq!(unsub["op"], "unsubscribe");
+        assert_eq!(resub["op"], "subscribe");
+        assert_eq!(resub["args"][0], "orderbook.200.BTCUSD");
+        let (mut snaps, mut trades, mut deltas, mut stats) = (0, 0, 0, 0);
+        while let Ok(Some(ev)) = tokio::time::timeout(Duration::from_millis(300), rx.recv()).await {
+            match ev {
+                MarketEvent::Snapshot(_) => snaps += 1,
+                MarketEvent::Trades(t) => trades += t.len(),
+                MarketEvent::Deltas(_) => deltas += 1,
+                MarketEvent::Stats(s) => stats += s.len(),
+                MarketEvent::Status(_) => {}
+            }
+        }
+        assert_eq!((snaps, trades, deltas, stats), (1, 2, 1, 4));
+        stop_tx.send(true).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), h)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }
