@@ -184,13 +184,12 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P14 — Indicator catalog (280+)
 
-- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 272 implemented (191 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
+- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 281 implemented (presets and multi-timeframe wrappers share implementations); each tested against hand-computed values and incremental = full recompute
 - [x] SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper (last closed bar or forming bar)
 - [x] Second-instrument input (`instrument` param type with the symbol picker; bars of the chart timeframe aligned to the chart's timestamps, gaps forward-filled): Spread, Ratio, Correlation (rolling Pearson), Beta (rolling)
 - [x] Read-only account context (paper / live store): Account Info Display, Position Sizing Tracker; Options Position and Options Risk Profile read the paper account's open option positions
 - [x] Custom Formula: sandboxed expression language (tokenizer + parser + evaluator, no eval; length and nesting limits) with an editor dialog (syntax errors, live preview); Custom script (`.htind`) with `let` bindings, several `plot()` outputs, line-numbered editor, import / export
-- [ ] 9 pending entries: Options Board and Volatility Smile need an options chain in the indicator context (simulated / Deribit sources exist but are not wired into the indicator feeds); four COT entries need a CFTC data source; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
-- [ ] 13 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
+- [x] All 281 entries implemented. Options Board and Volatility Smile read an options chain from the indicator context (`ctx.options`, loaded lazily only while such an indicator is on the chart; Deribit public chain for BTC / ETH, built-in or generic simulated chain otherwise, labelled "simulated"); Market Profile & TPO is a per-session profile overlay (value area, POC, initial balance, single prints, poor highs / lows); CMS (Cumulative Market Sentiment) and Margin Zones (leverage-tier liquidation bands) have original documented definitions because Appendix B gives no formula
 
 ## P15 — Smart DOM
 
@@ -233,7 +232,8 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] `@htflow/options`: Black-Scholes (dividend / funding yield) and Black-76 with full Greeks, IV solver (Newton + bisection), strategies (payoff at expiry and T+n, breakevens, max profit / loss incl. unlimited, probability of profit, Greeks totals), 13 templates, simulated chains for all Sim instruments, Deribit provider (recorded-fixture tests); validated against Hull / Haug references within 0.5%
 - [x] Options Strategy Analyser window: series filters, expiry blocks (calls / strike + IV / puts, ITM tint, spot line), click bid to sell / ask to buy, strategy builder with canvas payoff chart and T+n slider, readouts, local options positions tab with live P&L
 - [x] Options Board trades on paper: Send as paper order books each leg in the paper engine, "Click a quote: Trade now" buys at the ask / sells at the bid at once; positions tab shows paper options (debit / credit, model mark, P&L, days left, Analyse into the builder, Close); they also appear in the Positions table
-- [ ] Appendix B options indicators exported but not on charts yet; live Deribit in the desktop app needs `net_fetch_text` (now merged) wiring check; CME options need a user feed
+- [x] Appendix B options indicators on charts: Options Board (strikes, OI, volume, IV, max pain) and Volatility Smile (IV vs strike per expiry), fed by Deribit (desktop: native `net_fetch_text`) or the labelled simulated chain
+- [ ] CME options need a user feed; the live Deribit call from the desktop app was not exercised against the network
 
 ## P19 — Forward curve
 
