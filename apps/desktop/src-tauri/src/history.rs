@@ -251,12 +251,100 @@ pub async fn load_range(
     Ok(out)
 }
 
+/// REST requests the first paint of a chart may spend on real trades (the rest of the history
+/// arrives in the background through [`load_range`]).
+pub const FIRST_PAINT_PAGES: u32 = 3;
+
+/// The most recent part of `[from_ms, to_ms)` for a chart's first paint: newest-first within
+/// `max_pages` requests on venues that page by time (Binance used to page *forward* through
+/// up to 60 rate-limited requests — ~25 s — before the first candle), else the venue's
+/// "latest trades" call. Returns the trades (oldest first) and the start of the span they
+/// cover completely.
+pub async fn recent_window(
+    api: &dyn MarketApi,
+    spec: &SymbolSpec,
+    from_ms: i64,
+    to_ms: i64,
+    max_pages: u32,
+) -> Result<(Vec<Trade>, i64), ConnectorError> {
+    if api.windowed_trades() {
+        let r = api
+            .trades_back(spec, from_ms, to_ms, max_pages.max(1))
+            .await?;
+        return Ok((r.trades, r.covered_from_ms.max(from_ms)));
+    }
+    let t = api.trades(spec, from_ms, to_ms).await?;
+    let covered = if api.history_from_start() {
+        from_ms
+    } else {
+        t.first().map_or(to_ms, |x| x.exchange_ts_ns / 1_000_000)
+    };
+    Ok((t, covered))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use htflow_connector_binance::{Binance, Market};
     use htflow_connector_common::mock_http::{query_param, MockServer, Reply};
     use htflow_core_types::TickSize;
+
+    /// Time to first candle (docs/PERFORMANCE.md): a busy symbol (50 trades / s) opened with
+    /// 30 minutes of history. The old forward paging needs 90 pages (capped at 60, ~25 s at
+    /// Binance's public rate of 10 burst + 2 / s); the first paint now spends 3 requests.
+    #[tokio::test]
+    async fn first_paint_needs_three_requests() {
+        const RATE: i64 = 50; // trades per second; id = ms / 20
+        let srv = MockServer::start(|t| {
+            let p = |k| query_param(t, k).and_then(|v| v.parse::<i64>().ok());
+            let limit = p("limit").unwrap_or(500);
+            let ids: Vec<i64> = if let Some(f) = p("fromId") {
+                (f..f + limit).collect()
+            } else if let Some(s) = p("startTime") {
+                let first = (s * RATE + 999) / 1000;
+                let last = p("endTime").map_or(first + limit - 1, |e| e * RATE / 1000);
+                (first..=last.min(first + limit - 1)).collect()
+            } else {
+                vec![100 * H * RATE / 1000]
+            };
+            let rows: Vec<String> = ids
+                .into_iter()
+                .map(|id| {
+                    format!(
+                        r#"{{"a":{id},"p":"100.0","q":"1","T":{},"m":false}}"#,
+                        id * 1000 / RATE
+                    )
+                })
+                .collect();
+            Reply::ok(format!("[{}]", rows.join(",")))
+        });
+        let api = Binance::with_endpoints(Market::UsdM, &srv.base, "ws://unused");
+        let sp = SymbolSpec::new("BTCUSDT", TickSize::parse("0.1").unwrap(), 3);
+        let now = 100 * H;
+        let from = now - 30 * 60_000;
+        let t0 = std::time::Instant::now();
+        let (trades, covered) = recent_window(&api, &sp, from, now, FIRST_PAINT_PAGES)
+            .await
+            .unwrap();
+        let first_paint = t0.elapsed();
+        let new_reqs = srv.requests().len();
+        assert!(new_reqs <= FIRST_PAINT_PAGES as usize + 1, "{new_reqs}");
+        assert!(!trades.is_empty() && covered > from && covered < now);
+        // The newest trades come first: the window ends at "now".
+        assert!(trades.last().unwrap().exchange_ts_ns / 1_000_000 >= now - 1_000);
+        // Old path: 10 pages (the free burst) cover only 10,000 of the 90,000 trades needed.
+        let before = srv.requests().len();
+        let old = api.agg_trades_range(&sp, from, now, 10).await.unwrap();
+        assert_eq!(srv.requests().len() - before, 10);
+        assert!(old.len() <= 10_000);
+        let needed_pages = (30 * 60 * RATE) / 1000;
+        assert_eq!(needed_pages, 90);
+        eprintln!(
+            "first paint: {new_reqs} requests in {first_paint:?} (old: {} pages, rate-limited ≈ {} s)",
+            needed_pages.min(60),
+            (needed_pages.min(60) - 10) / 2
+        );
+    }
 
     #[test]
     fn chunking() {

@@ -207,3 +207,37 @@
 .ip-row[draggable='true'] {
   cursor: grab;
 }
+
+/* Live symbol discovery: per-venue counts, errors and retry (bottom of the tree). */
+.ip-lists {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ht-border);
+  font-size: 10px;
+}
+.ip-lists-head {
+  padding: 0 6px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ip-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  align-items: baseline;
+  padding: 1px 6px;
+}
+.ip-list-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ip-list-err {
+  flex-basis: 100%;
+  color: var(--ht-sell, #e5484d);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

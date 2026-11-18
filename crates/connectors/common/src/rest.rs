@@ -49,9 +49,14 @@ pub fn retry_wait(status: u16, retry_after: Option<&str>, attempt: u32) -> Optio
 
 impl Rest {
     pub fn new(base: impl Into<String>, limiter: TokenBucket) -> Self {
+        Self::with_timeout(base, limiter, Duration::from_secs(15))
+    }
+
+    /// Same as [`Rest::new`] with another whole-request timeout (large exchange-info bodies).
+    pub fn with_timeout(base: impl Into<String>, limiter: TokenBucket, timeout: Duration) -> Self {
         let http = reqwest::Client::builder()
             .user_agent("HTFlow/0.1")
-            .timeout(Duration::from_secs(15))
+            .timeout(timeout)
             .build()
             .expect("reqwest client");
         Self {

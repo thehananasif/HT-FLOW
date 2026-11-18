@@ -4,9 +4,13 @@
 //! * `instruments_cached` returns the on-disk list at once (`<data>/cache/instruments.json`),
 //!   flagged `stale` after 24 h, so the UI starts with the full list and refreshes in the
 //!   background.
-//! * `instruments_list(venue?, refresh?)` fetches every source (or the ones whose id starts with
-//!   `venue`) in parallel, 10 s timeout each. A failing source is reported in its row and keeps
-//!   its previous instruments; it never fails the whole call.
+//! * `instruments_list(venue?, sources?, refresh?)` fetches every source (or the ones whose id
+//!   starts with `venue`, or the listed `sources` — the app passes the enabled venues) in
+//!   parallel, 45 s timeout each (gzip; exchange-info bodies are large). Without `refresh` only
+//!   the sources that are missing, failed last time or older than 24 h are downloaded, so a
+//!   venue that failed once is retried at the next start instead of staying empty for a day. A
+//!   failing source is reported in its row and keeps its previous instruments; it never fails
+//!   the whole call.
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -22,7 +26,7 @@ use crate::error::{CmdError, CmdResult};
 /// The cached list is refreshed in the background once it is older than this.
 pub const MAX_AGE_MS: i64 = 24 * 3_600_000;
 /// Per-source request budget.
-pub const SOURCE_TIMEOUT: Duration = Duration::from_secs(10);
+pub const SOURCE_TIMEOUT: Duration = Duration::from_secs(45);
 
 /// Discovery sources: `(id, label)`. Ids are feed provider ids where the source maps onto one.
 pub const SOURCES: &[(&str, &str)] = &[
@@ -157,8 +161,52 @@ pub fn merge(
     out
 }
 
+/// Stale: never refreshed, older than [`MAX_AGE_MS`], empty, or a source failed last time.
 pub fn is_stale(r: &InstrumentsReport, now: i64) -> bool {
-    r.refreshed_at_ms <= 0 || now - r.refreshed_at_ms > MAX_AGE_MS || r.sources.is_empty()
+    r.refreshed_at_ms <= 0
+        || now - r.refreshed_at_ms > MAX_AGE_MS
+        || r.sources.is_empty()
+        || r.sources.iter().any(|s| !s.ok)
+}
+
+/// Sources of `wanted` that need a download: missing from the cache, failed last time, empty,
+/// or fetched more than [`MAX_AGE_MS`] ago (all of them when `refresh`).
+pub fn due(
+    cached: &InstrumentsReport,
+    wanted: &[(&'static str, &'static str)],
+    now: i64,
+    refresh: bool,
+) -> Vec<(&'static str, &'static str)> {
+    wanted
+        .iter()
+        .copied()
+        .filter(|(id, _)| {
+            refresh
+                || match cached.sources.iter().find(|s| s.id == *id) {
+                    None => true,
+                    Some(s) => !s.ok || s.count == 0 || now - s.fetched_at_ms > MAX_AGE_MS,
+                }
+        })
+        .collect()
+}
+
+/// Sources by id (unknown ids are an error); `None` / empty = no restriction.
+pub fn select_ids(ids: Option<&[String]>) -> CmdResult<Option<Vec<(&'static str, &'static str)>>> {
+    let Some(ids) = ids.filter(|l| !l.is_empty()) else {
+        return Ok(None);
+    };
+    ids.iter()
+        .map(|id| {
+            SOURCES
+                .iter()
+                .copied()
+                .find(|(s, _)| *s == id.as_str())
+                .ok_or_else(|| {
+                    CmdError::new("instruments.venue", format!("No symbol list for '{id}'"))
+                })
+        })
+        .collect::<CmdResult<Vec<_>>>()
+        .map(Some)
 }
 
 fn text(e: ConnectorError) -> String {
@@ -258,31 +306,43 @@ pub async fn instruments_cached(
     Ok(state.with_stale(state.load()))
 }
 
-/// Every instrument of every venue (or of the sources `venue` selects). Served from the cache
-/// while it is younger than 24 h unless `refresh`; per-source failures are reported, not fatal.
+/// Every instrument of every venue (or of the sources `venue` / `sources` select). Without
+/// `refresh`, only missing / failed / older-than-24 h sources are downloaded (see [`due`]);
+/// per-source failures are reported, not fatal.
 #[tauri::command]
 pub async fn instruments_list(
     state: State<'_, InstrumentsState>,
     venue: Option<String>,
+    sources: Option<Vec<String>>,
     refresh: Option<bool>,
 ) -> CmdResult<InstrumentsReport> {
-    let sources = select(venue.as_deref())?;
+    let sources = match select_ids(sources.as_deref())? {
+        Some(s) => s,
+        None => select(venue.as_deref())?,
+    };
     let _g = state.lock.lock().await;
     let cached = state.load();
     let now = now_ms();
-    let have_all = sources
-        .iter()
-        .all(|(id, _)| cached.sources.iter().any(|s| s.id == *id));
-    if !refresh.unwrap_or(false) && !is_stale(&cached, now) && have_all {
+    let todo = due(&cached, &sources, now, refresh.unwrap_or(false));
+    if todo.is_empty() {
         return Ok(state.with_stale(cached));
     }
+    let sources = todo;
     let fresh = fetch_all(&sources).await;
     let mut report = InstrumentsReport {
         refreshed_at_ms: cached.refreshed_at_ms,
         stale: false,
         sources: merge(&cached.sources, fresh, now),
     };
-    if sources.len() == SOURCES.len() {
+    // A full pass, or every source now fresh: the list counts as refreshed.
+    if sources.len() == SOURCES.len()
+        || SOURCES.iter().all(|(id, _)| {
+            report
+                .sources
+                .iter()
+                .any(|s| s.id == *id && now - s.fetched_at_ms <= MAX_AGE_MS)
+        })
+    {
         report.refreshed_at_ms = now;
     }
     if let Err(e) = state.save(&report) {
@@ -386,6 +446,50 @@ mod tests {
             (1, Some(42), 2_000)
         );
         assert_eq!(second[1], first[1], "untouched sources unchanged");
+    }
+
+    #[test]
+    fn only_missing_failed_or_old_sources_are_due() {
+        let r = InstrumentsReport {
+            refreshed_at_ms: 10_000,
+            stale: false,
+            sources: merge(
+                &[],
+                vec![
+                    (
+                        "binance-futures",
+                        "B",
+                        Ok((vec![row("binance-futures", "BTCUSDT")], None)),
+                    ),
+                    ("binance-spot", "S", Err("timed out after 10 s".into())),
+                    ("okx-swap", "O", Ok((Vec::new(), None))),
+                ],
+                10_000,
+            ),
+        };
+        assert!(is_stale(&r, 10_001), "a failed source makes the list stale");
+        let wanted = select(Some("binance")).unwrap();
+        let ids =
+            |v: Vec<(&'static str, &'static str)>| v.into_iter().map(|s| s.0).collect::<Vec<_>>();
+        // Spot failed, COIN-M never fetched; USD-M is fresh.
+        assert_eq!(
+            ids(due(&r, &wanted, 20_000, false)),
+            ["binance-coinm", "binance-spot"]
+        );
+        // Empty lists are retried too; everything when forced or too old.
+        assert_eq!(
+            ids(due(&r, &select(Some("okx-swap")).unwrap(), 20_000, false)),
+            ["okx-swap"]
+        );
+        assert_eq!(due(&r, &wanted, 20_000, true).len(), 3);
+        assert_eq!(due(&r, &wanted, 10_001 + MAX_AGE_MS, false).len(), 3);
+        // Explicit source ids (enabled venues).
+        let picked = select_ids(Some(&["bitget".to_string(), "deribit".to_string()]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(ids(picked), ["bitget", "deribit"]);
+        assert!(select_ids(Some(&["nope".to_string()])).is_err());
+        assert!(select_ids(Some(&[])).unwrap().is_none());
     }
 
     #[test]

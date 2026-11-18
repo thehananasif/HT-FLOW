@@ -1,7 +1,7 @@
 import { Button } from '@htflow/ui-kit';
 import { isTauri } from '../../backend';
 import { runCommand } from '../../shell/commands';
-import { discoverySummary, useDiscovery } from '../../state/discovery';
+import { discoverySummary, refreshSymbolLists, useDiscovery } from '../../state/discovery';
 
 function ago(ms: number): string {
   if (!ms) return 'never';
@@ -56,7 +56,19 @@ export function SymbolLists() {
                   {r.optionsCount ? ` (+${r.optionsCount.toLocaleString()} options)` : ''}
                 </td>
                 <td>{ago(r.fetchedAtMs)}</td>
-                <td title={r.error}>{r.ok ? 'OK' : `Kept last list: ${r.error ?? 'failed'}`}</td>
+                <td title={r.error}>
+                  {r.ok ? 'OK' : `Kept last list: ${r.error ?? 'failed'}`}
+                  {!r.ok && (
+                    <Button
+                      size="xs"
+                      disabled={loading}
+                      onClick={() => void refreshSymbolLists(r.id)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Retry
+                    </Button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

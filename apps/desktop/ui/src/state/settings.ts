@@ -1097,17 +1097,13 @@ export const SCHEMA = {
     step: 1000,
     wired: true,
   }),
-  'common.defaultLoadDays': num({
+  'common.autoBackfill': bool({
     section: 'common',
     alsoIn: ['chart', 'data'],
     group: 'Common',
-    label: 'Default load days',
-    help: 'History loaded when a chart opens.',
-    default: 4,
-    min: 1,
-    max: 365,
-    step: 1,
-    unit: 'days',
+    label: 'Load all available history automatically',
+    help: 'Charts show the latest data at once, then load older history in the background as far back as the venue provides (up to Max candles per chart). Scrolling left always loads more.',
+    default: true,
     wired: true,
   }),
   'common.mboStoreRaw': bool({

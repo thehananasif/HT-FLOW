@@ -72,7 +72,6 @@ test('chart right-click menu: P26 order and every top-level item works', async (
     'Trading session',
     'Refresh',
     'Reload all historical data',
-    '◂ Load 1 more day of history',
     'Add replay template',
     'Reset',
     'Export…',
@@ -85,6 +84,8 @@ test('chart right-click menu: P26 order and every top-level item works', async (
     expect(i, `${l} after index ${last} in ${labels.join(' | ')}`).toBeGreaterThan(last);
     last = i;
   }
+  // The day-load item is gone (automatic history).
+  expect(labels.some((l) => /Load 1 more day/.test(l))).toBe(false);
   await page.keyboard.press('Escape');
 
   // Buy limit below the market uses the Trading Panel account (toast names it).
@@ -150,11 +151,11 @@ test('chart right-click menu: P26 order and every top-level item works', async (
 
   // Hide panels hides the bottom bar; the command palette brings it back.
   await pick(page, host, ['Hide panels']);
-  await expect(page.getByTestId('load-one-more-day')).toHaveCount(0);
+  await expect(page.getByTestId('history-range')).toHaveCount(0);
   await page.keyboard.press('Control+k');
   await page.keyboard.type('Chart: Hide / show panels');
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('load-one-more-day').first()).toBeVisible();
+  await expect(page.getByTestId('history-range').first()).toBeVisible();
 
   // Clone window adds a chart.
   const before = await page.locator('.chart-window').count();
@@ -224,7 +225,7 @@ test('context menus on an indicator pane and on a drawing', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('Appendix C shortcuts, rebinding, snapshots and load days', async ({ page }) => {
+test('Appendix C shortcuts, rebinding, snapshots and automatic history', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await createAccount(page, 'chartmenu3');
@@ -314,14 +315,20 @@ test('Appendix C shortcuts, rebinding, snapshots and load days', async ({ page }
   await expect(page.getByText('Snapshot restored')).toBeVisible();
   await expect(page.getByTestId('chart-footprint').first()).toBeVisible();
 
-  // Load days is per chart; ◂ Load 1 more day extends history and the previous session profile.
-  const days = page.getByLabel('Load days').first();
-  await expect(days).toHaveValue('4');
-  await days.fill('6');
-  await expect(page.getByTestId('history-range').first()).toContainText('of 6 d');
-  await page.getByTestId('load-one-more-day').first().click();
+  // Automatic history (round 7): no "Load days" / "◂ Load 1 more day" controls any more; the
+  // footer shows the loaded range, and the menu has no day-load item.
+  await expect(page.getByLabel('Load days')).toHaveCount(0);
+  await expect(page.getByTestId('load-one-more-day')).toHaveCount(0);
+  await expect(page.getByTestId('history-range').first()).toContainText(/History .* ticks/);
+  // "Chart: Load older history" still extends a simulated chart on demand (previous session).
+  await page
+    .getByTestId('chart-footprint')
+    .first()
+    .click({ position: { x: 300, y: 200 } });
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('Chart: Load older history');
+  await page.keyboard.press('Enter');
   await expect(page.getByText(/Loaded .* older ticks/)).toBeVisible({ timeout: 45_000 });
-  await expect(page.getByTestId('history-range').first()).toContainText(/History \d\.\d d of 6 d/);
   await expect(page.getByTestId('prev-session-profile').first()).toHaveAttribute('data-poc', /\d/);
   expect(errors).toEqual([]);
 });
