@@ -172,6 +172,14 @@ export class ChartCore {
    * the newest bar away from the right margin turns it off; "Go to latest" (reset) turns it back on.
    */
   follow = true;
+  /**
+   * Fewest slots kept on screen until the user zooms: very wide bars (footprint) shrink to fit a
+   * narrow plot instead of showing a single bar. 0 = off.
+   */
+  minVisibleSlots = 0;
+  private userZoomed = false;
+  private preferredSlotWidth = 0;
+  private autoSlotWidth = -1;
   private lastTime: number | null = null;
   autoScale = true;
   priceMin = 0;
@@ -490,6 +498,7 @@ export class ChartCore {
   reset(): void {
     this.rightOffset = this.options.rightMargin;
     this.follow = true;
+    this.userZoomed = false;
     this.autoScale = true;
     this.invalidate();
   }
@@ -729,6 +738,17 @@ export class ChartCore {
       );
     }
     this.lastTime = n > 0 ? this.source.timeAt(n - 1) : null;
+    if (this.minVisibleSlots > 0 && !this.userZoomed && plot.w > 0) {
+      // Set by a template / setting since the last fit: that is the preferred width.
+      if (this.slotWidth !== this.autoSlotWidth) this.preferredSlotWidth = this.slotWidth;
+      this.slotWidth = fitSlotWidth(
+        this.preferredSlotWidth,
+        plot.w,
+        this.minVisibleSlots + Math.max(0, this.options.rightMargin) + 0.5,
+        this.options.minSlotWidth,
+      );
+      this.autoSlotWidth = this.slotWidth;
+    }
     const sw = this.slotWidth;
     const gaps = this.gapsActive(n);
     const period = gaps ? this.period(n) : 0;
@@ -908,16 +928,18 @@ export class ChartCore {
     if (this.showDebug) this.drawDebug(v);
     // Tests (and tools) wait on this instead of sleeping: it changes only after a frame is drawn.
     this.canvas.dataset.frame = String(++this.frameCount);
-    // Viewport test hooks: where the newest slot sits (fraction of the plot width) and how many
-    // slots are drawn to its left.
+    // Viewport test hooks: where the newest slot sits (fraction of the plot width), how many slots
+    // are drawn to its left, and the plot's x / width in CSS px.
     if (v.slotCount > 0) {
       const last = v.slotCount - 1;
       const pos = viewportStats(v.xOf(last), v.slotAt(v.plot.x), last, v.plot.x, v.plot.w);
       this.canvas.dataset.lastX = pos.lastX.toFixed(3);
       this.canvas.dataset.barsLeft = String(pos.barsLeft);
+      this.canvas.dataset.plot = `${Math.round(v.plot.x)},${Math.round(v.plot.w)}`;
     } else {
       delete this.canvas.dataset.lastX;
       delete this.canvas.dataset.barsLeft;
+      delete this.canvas.dataset.plot;
     }
     for (const fn of this.priceListeners) fn(this.priceMin, this.priceMax);
     // Lazy history: tell listeners when the left edge is past the first slot.
@@ -1304,6 +1326,7 @@ export class ChartCore {
       this.options.maxSlotWidth,
       Math.max(this.options.minSlotWidth, this.slotWidth * factor),
     );
+    this.userZoomed = true;
     // Anchored to the newest bar: zoom around it so it stays at the right margin.
     if (!(this.follow && this.autoScroll))
       this.rightOffset = (right - x) / sw - 0.5 - (lastV - slotF);
@@ -1434,6 +1457,7 @@ export class ChartCore {
         this.priceMin = mid - half;
         this.priceMax = mid + half;
       } else if (d.kind === 'time-axis') {
+        this.userZoomed = true;
         this.slotWidth = Math.min(
           this.options.maxSlotWidth,
           Math.max(this.options.minSlotWidth, d.slotWidth * Math.exp(-dx * 0.01)),
@@ -1469,6 +1493,7 @@ export class ChartCore {
         const s0 = this.vpos(v.slotAt(Math.min(z.x0, z.x1)), n);
         const s1 = this.vpos(v.slotAt(Math.max(z.x0, z.x1)), n);
         this.slotWidth = Math.min(this.options.maxSlotWidth, v.plot.w / Math.max(1, s1 - s0 + 1));
+        this.userZoomed = true;
         this.rightOffset = this.vpos(n - 1, n) - s1;
         this.follow = isAnchored(this.rightOffset, this.options.rightMargin, this.slotWidth);
         this.autoScale = false;
@@ -1542,4 +1567,15 @@ export function viewportStats(
   const lastX = plotW > 0 ? (lastSlotX - plotX) / plotW : 0;
   const first = Math.max(0, Math.ceil(leftEdgeSlot - 1e-9));
   return { lastX, barsLeft: Math.max(0, lastSlot - first) };
+}
+
+/** Slot width that keeps `slots` slots in a plot `plotW` px wide, never wider than `preferred`. */
+export function fitSlotWidth(
+  preferred: number,
+  plotW: number,
+  slots: number,
+  minSlotWidth: number,
+): number {
+  if (!(plotW > 0) || !(slots > 0)) return preferred;
+  return Math.max(minSlotWidth, Math.min(preferred, plotW / slots));
 }

@@ -101,6 +101,8 @@ export function buildExtraTemplate(b: TemplateBuildCtx): (s: ChartWindowState) =
       c.invalidate();
       c.slotWidth = 110;
       c.options.rightMargin = 1;
+      // A narrow window still shows a few bars of context (they collapse to candles).
+      c.minVisibleSlots = 3;
       c.rightOffset = 0.6;
       c.setSource(barSource(series()));
       const fp = new FootprintLayer(series, { mode: 'bidask-delta-colored' });
@@ -133,6 +135,8 @@ export function buildExtraTemplate(b: TemplateBuildCtx): (s: ChartWindowState) =
       const c = b.mk(b.hosts[0]!);
       c.slotWidth = 110;
       c.options.rightMargin = 1;
+      // A narrow window still shows a few bars of context (they collapse to candles).
+      c.minVisibleSlots = 3;
       c.rightOffset = 0.6;
       c.setSource(barSource(series()));
       const fp = new FootprintLayer(series, { mode: 'delta-profile' });
