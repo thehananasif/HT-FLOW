@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from '@htflow/ui-kit';
 import { formatPrice } from '@htflow/market-data';
 import type { Account, Fill, OptionPosition, Order, Position } from '@htflow/trading';
-import { hub, paper } from '../../state/market';
+import { paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
@@ -60,16 +60,14 @@ const pnl = (v: number) => (
 const sidePill = (s: 'buy' | 'sell') => (
   <Pill tone={s === 'buy' ? 'up' : 'down'}>{s.toUpperCase()}</Pill>
 );
-const mark = (id: string) => hub.peek(id)?.lastTrade?.px;
+const mark = (id: string) => {
+  const m = paper.mark(id);
+  return Number.isFinite(m) ? m : undefined;
+};
 
 function openPnl(accountId: string): number {
   // Options count at their mark-to-model P&L (P18).
-  let open = paper.optionUnrealized(accountId);
-  for (const p of paper.allPositions(accountId)) {
-    const m = mark(p.instrumentId);
-    if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
-  }
-  return open;
+  return paper.openPnl(accountId);
 }
 
 /* ------------------------------------------------------------------ Accounts */

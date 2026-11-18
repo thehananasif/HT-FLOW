@@ -23,6 +23,26 @@ export interface PaperEngineDeps {
   atr?(instrumentId: string): number | undefined;
   /** Last traded price in ticks (reference for trailing stops placed without a stop price). */
   last?(instrumentId: string): number | undefined;
+  /**
+   * Mark price in ticks used for unrealized P&L before the engine has seen a trade of the
+   * instrument (e.g. a position restored at start-up while the feed is still loading history).
+   */
+  mark?(instrumentId: string): number | undefined;
+}
+
+/** Account P&L at the current marks (account currency). */
+export interface PnlSummary {
+  /** Unrealized P&L of open positions (and options) at the current marks. */
+  open: number;
+  /** Gross realized P&L of the fills since `since` (before commissions). */
+  realized: number;
+  /** Commissions / fees of the fills since `since`. */
+  fees: number;
+  /** realized − fees + open. */
+  net: number;
+  balance: number;
+  /** balance + open. */
+  equity: number;
 }
 
 /** Fields of an account the user may edit (name, currency, starting balance, fees). */
@@ -107,7 +127,12 @@ export interface AccountState {
     beDone: boolean;
   }[];
   options: OptionPosition[];
+  /** Most recent fills (optional; saves before round 7 have none). */
+  fills?: Fill[];
 }
+
+/** Fills saved per account with its open state. */
+export const MAX_SAVED_FILLS = 1000;
 
 /**
  * Paper trading engine (P17). Market orders walk the live book; resting limits fill when the tape
@@ -126,6 +151,8 @@ export class PaperEngine {
   private options = new Map<string, OptionPosition>();
   readonly optionFills: OptionFill[] = [];
   private optionModel: OptionMarkModel | null = null;
+  /** Last traded price (ticks) seen per instrument: the mark for unrealized P&L. */
+  private marks = new Map<string, number>();
   /** Stop / MIT / trailing orders that became market orders (slippage applies to their fills). */
   private triggered = new Set<string>();
   private listeners = new Set<Listener>();
@@ -329,11 +356,79 @@ export class PaperEngine {
     );
   }
 
-  /** Unrealized PnL in account currency at the given mark (ticks). */
-  unrealized(accountId: string, instrumentId: string, markPx: number): number {
+  /**
+   * Instrument economics with a guard: a missing / zero / non-finite tick size or tick value
+   * would silently zero every P&L, so bad values fall back to linear 1-tick units.
+   */
+  economics(instrumentId: string): InstrumentEconomics {
+    const e = this.deps.economics(instrumentId);
+    const tickSize = Number.isFinite(e?.tickSize) && e.tickSize > 0 ? e.tickSize : 1;
+    const tickValue = Number.isFinite(e?.tickValue) && e.tickValue > 0 ? e.tickValue : 0;
+    return { tickSize, tickValue };
+  }
+
+  /** Currency P&L of one tick move on one unit of the instrument. */
+  pnlPerTick(instrumentId: string): number {
+    return pnlPerTick(this.economics(instrumentId), 1);
+  }
+
+  /** Records a mark price (ticks) without a trade, e.g. from a quote. */
+  setMark(instrumentId: string, px: number): void {
+    if (Number.isFinite(px)) this.marks.set(instrumentId, px);
+  }
+
+  /**
+   * Current mark price (ticks): the last trade the engine saw, else the app's mark source, else
+   * the book mid. NaN when nothing is known.
+   */
+  mark(instrumentId: string): number {
+    const m = this.marks.get(instrumentId);
+    if (m !== undefined) return m;
+    const d = this.deps.mark?.(instrumentId);
+    if (d !== undefined && Number.isFinite(d)) return d;
+    const b = this.deps.book(instrumentId);
+    return b && Number.isFinite(b.mid) ? b.mid : Number.NaN;
+  }
+
+  /** Unrealized PnL in account currency at the given mark (ticks), default the current mark. */
+  unrealized(accountId: string, instrumentId: string, markPx?: number): number {
     const p = this.position(accountId, instrumentId);
     if (!p.qty) return 0;
-    return (markPx - p.avgPx) * pnlPerTick(this.deps.economics(instrumentId), p.qty);
+    const m = markPx ?? this.mark(instrumentId);
+    if (!Number.isFinite(m)) return 0;
+    return (m - p.avgPx) * pnlPerTick(this.economics(instrumentId), p.qty);
+  }
+
+  /** Unrealized P&L of every open position (and option) of an account at the current marks. */
+  openPnl(accountId: string): number {
+    let open = this.optionUnrealized(accountId);
+    for (const p of this.allPositions(accountId))
+      open += this.unrealized(accountId, p.instrumentId);
+    return open;
+  }
+
+  /** Realized / fees of the account's fills since `since` (epoch ms), open P&L and equity. */
+  pnlSummary(accountId: string, since = 0, instrumentId?: string): PnlSummary {
+    let realized = 0;
+    let fees = 0;
+    for (const f of this.fills) {
+      if (f.accountId !== accountId || f.ts < since) continue;
+      if (instrumentId && f.instrumentId !== instrumentId) continue;
+      realized += f.realized;
+      fees += f.commission;
+    }
+    const open = instrumentId
+      ? this.unrealized(accountId, instrumentId)
+      : this.openPnl(accountId);
+    const balance = this.accounts.get(accountId)?.balance ?? 0;
+    return {
+      open,
+      realized,
+      fees,
+      net: realized - fees + open,
+      balance,
+      equity: balance + (instrumentId ? this.openPnl(accountId) : open),
+    };
   }
 
   private placeInner(req: OrderRequest): Order {
@@ -610,6 +705,7 @@ export class PaperEngine {
 
   /** Feed every live/replay trade through here (Live Pipeline stage 11). */
   private onTradeInner(instrumentId: string, t: Trade): void {
+    if (Number.isFinite(t.px)) this.marks.set(instrumentId, t.px);
     let changed = false;
     for (const o of this.orders.values()) {
       if (o.instrumentId !== instrumentId || !isWorking(o)) continue;
@@ -733,19 +829,22 @@ export class PaperEngine {
   private execute(o: Order, qty: number, px: number, liquidity: 'maker' | 'taker'): void {
     if (qty <= 0) return;
     const acc = this.accounts.get(o.accountId)!;
-    const econ = this.deps.economics(o.instrumentId);
+    const econ = this.economics(o.instrumentId);
     // Slippage model: triggered stop / MIT / trailing fills give up `slippageTicks`.
     if (liquidity === 'taker' && acc.slippageTicks && this.triggered.has(o.id))
       px += (o.side === 'buy' ? 1 : -1) * acc.slippageTicks;
     const pos = this.position(o.accountId, o.instrumentId);
     const signed = o.side === 'buy' ? qty : -qty;
     let realized = 0;
+    let closedQty = 0;
+    const entryAvg = pos.avgPx;
     if (pos.qty === 0 || Math.sign(pos.qty) === Math.sign(signed)) {
       const newQty = pos.qty + signed;
       pos.avgPx = (pos.avgPx * Math.abs(pos.qty) + px * qty) / Math.abs(newQty);
       pos.qty = newQty;
     } else {
       const closing = Math.min(Math.abs(pos.qty), qty);
+      closedQty = closing;
       realized = (px - pos.avgPx) * Math.sign(pos.qty) * pnlPerTick(econ, closing);
       const newQty = pos.qty + signed;
       if (Math.sign(newQty) !== Math.sign(pos.qty) && newQty !== 0) pos.avgPx = px;
@@ -775,6 +874,11 @@ export class PaperEngine {
       realized,
       tag: o.tag,
     };
+    if (closedQty > 0) {
+      fill.closedQty = closedQty;
+      fill.entryAvg = entryAvg;
+    }
+    if (!this.marks.has(o.instrumentId)) this.marks.set(o.instrumentId, px);
     this.fills.push(fill);
     if (this.postFillHooks.length) this.pendingFills.push(fill);
     // User OCO groups: the first fill (even partial) cancels the other orders of the group.
@@ -1124,6 +1228,8 @@ export class PaperEngine {
         .filter((m) => m.accountId === accountId)
         .map(({ accountId: _a, ...m }) => clone(m)),
       options: clone(this.optionPositions(accountId)),
+      // Recent fills keep trade history, today's realized P&L and the journal across restarts.
+      fills: clone(this.fills.filter((f) => f.accountId === accountId).slice(-MAX_SAVED_FILLS)),
     };
   }
 
@@ -1148,6 +1254,12 @@ export class PaperEngine {
         this.brackets.set(b.entryId, { accountId, instrumentId: e.instrumentId, spec: b.spec });
       }
     for (const m of s.managed) this.managed.set(m.entryId, { ...m, accountId });
+    if (s.fills?.length) {
+      const known = new Set(this.fills.map((f) => f.id));
+      const add = s.fills.filter((f) => !known.has(f.id)).map((f) => ({ ...f, accountId }));
+      this.fills.unshift(...add);
+      this.fills.sort((a, b) => a.ts - b.ts);
+    }
     for (const p of s.options)
       if (p.qty !== 0) {
         const op = { ...p, accountId };

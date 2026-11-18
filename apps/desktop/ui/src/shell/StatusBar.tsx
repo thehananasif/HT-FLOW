@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { StatusPill } from '@htflow/ui-kit';
 import type { MarketStore } from '@htflow/market-data';
-import { hub } from '../state/market';
+import { hub, paper } from '../state/market';
+import { activeInstrument } from '../state/windows';
+import { routedAccount } from '../trading/accounts';
+import { startOfLocalDay } from '../trading/TradingPanel';
+import { HIDDEN_MONEY, usePrivacy } from '../state/format';
 import { runCommand } from './commands';
 import { classifyDelay, useSetting } from '../state/settings';
 
@@ -31,6 +35,28 @@ function feedLabel(s: MarketStore): { key: string; label: string; state: string;
     state: st === 'live' ? DELAY_STATE[classifyDelay(s.status.latencyMs)] : st,
     title: `${venue}: ${st}${s.status.message ? ' — ' + s.status.message : ''} · ${s.status.latencyMs.toFixed(0)} ms · ${s.status.msgsPerSec.toFixed(0)} msg/s`,
   };
+}
+
+/** Paper account P&L: open P&L at the marks and today's net (realized − fees + open). */
+function PnlItem() {
+  const privacy = usePrivacy();
+  const acc = routedAccount(activeInstrument());
+  const s = paper.pnlSummary(acc.id, startOfLocalDay());
+  const cls = (v: number) => (v > 0 ? 'up' : v < 0 ? 'down' : '');
+  const f = (v: number) =>
+    privacy.hide ? HIDDEN_MONEY : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(2)}`;
+  return (
+    <button
+      className="sb-item sb-pnl tnum"
+      data-testid="status-pnl"
+      title={`${acc.name}: open P&L of every position, and today's net (realized ${s.realized.toFixed(2)} − fees ${s.fees.toFixed(2)} + open). Click for positions.`}
+      onClick={() => runCommand('open.positions')}
+    >
+      P&amp;L <b className={cls(s.open)} data-testid="status-pnl-open">{f(s.open)}</b>
+      <span className="muted"> · Day </span>
+      <b className={cls(s.net)}>{f(s.net)}</b>
+    </button>
+  );
 }
 
 /** Bottom status bar: one pill per connection, latency, memory, clock, version. */
@@ -74,6 +100,7 @@ export function StatusBar({ version, timezone }: { version: string; timezone: st
         <Settings size={13} />
       </button>
       <div className="grow" />
+      <PnlItem />
       <span className="sb-item tnum">Latency {latency.toFixed(0)} ms</span>
       {mem && (
         <span className="sb-item tnum">RAM {(mem.usedJSHeapSize / 1048576).toFixed(0)} MB</span>

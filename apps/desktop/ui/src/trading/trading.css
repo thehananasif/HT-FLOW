@@ -150,3 +150,142 @@
   overflow: hidden;
   pointer-events: none;
 }
+
+/* Responsive Trading Panel / order entry (round 7): nothing may be wider than the panel at any
+   width >= 240px. Grid tracks and flex rows shrink, button labels wrap, long text truncates. */
+.trading-panel {
+  width: var(--tp-width, 262px);
+  min-width: 240px;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.trading-panel > *,
+.trading-panel .row > *,
+.trading-panel .ot-field > *,
+.trading-panel .tp-grid > *,
+.trading-panel .tp-bracket > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.trading-panel .tp-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.trading-panel .ot-field {
+  grid-template-columns: minmax(36px, auto) minmax(0, 1fr);
+}
+.trading-panel .tp-bracket,
+.trading-panel .ot-bracket {
+  grid-template-columns: 22px minmax(0, 1fr);
+}
+.trading-panel .ht-btn {
+  min-width: 0;
+  height: auto;
+  min-height: 28px;
+  padding: 3px 6px;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.trading-panel .ht-select {
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+.trading-panel .ht-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trading-panel .row {
+  flex-wrap: wrap;
+}
+.trading-panel .row > .grow {
+  flex: 1 1 96px;
+}
+.trading-panel .tp-head h3,
+.trading-panel .tp-inst {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trading-panel .ot-acct > b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tp-day {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  font-size: 11px;
+}
+.tp-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+.tp-foot > span {
+  white-space: nowrap;
+}
+.sb-pnl {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.sb-pnl:hover {
+  color: var(--ht-text-primary);
+}
+
+/* DOM Trader / DOM window: shrink instead of overflowing at narrow widths (round 7). */
+.dom-window,
+.dom-trader {
+  min-width: 0;
+  overflow: hidden;
+}
+.dom-foot-row {
+  grid-template-columns:
+    minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 2fr)
+    minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 0.8fr);
+}
+.dom-foot-row button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+.dom-foot-row button.up {
+  color: var(--ht-up);
+}
+.dom-foot-row button.down {
+  color: var(--ht-down);
+}
+.dom-foot {
+  flex-wrap: wrap;
+}
+.dom-foot > .ht-btn {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sdom-head > *,
+.ot-dom-atm > * {
+  min-width: 0;
+}
+.sdom-hbtn {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
