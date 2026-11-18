@@ -238,3 +238,15 @@ export function newCustomId(
   while (existing.some((c) => c.id === `${kind}-${n}`)) n++;
   return `${kind}-${n}`;
 }
+
+export type ProviderStatus = 'ok' | 'untested' | 'failed' | 'nokey';
+
+/** Chip colour source: green = key saved (or none needed) and reachable on the last test. */
+export function providerStatus(
+  c: Pick<ProviderConfig, 'kind' | 'hasKey'>,
+  health: { ok: boolean } | undefined,
+): ProviderStatus {
+  if (providerInfo(c.kind).needsKey && !c.hasKey) return 'nokey';
+  if (!health) return 'untested';
+  return health.ok ? 'ok' : 'failed';
+}

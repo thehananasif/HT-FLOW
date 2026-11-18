@@ -17,17 +17,37 @@ import {
   runTurn,
   sanitizeConversations,
   titleFrom,
+  truncateFrom,
   truncateToLastUser,
   uid,
   type ChatMsg,
   type Conversation,
 } from './chat';
 import { captureWindow } from './capture';
-import { collectSnapshot, formatContext } from './context';
-import { AgentGuard, installAgentGuard, sanitizeLimits, type AgentLimits } from './guard';
+import {
+  collectSnapshot,
+  formatContext,
+  FULL_INCLUDE,
+  sanitizeInclude,
+  type ContextInclude,
+} from './context';
+import {
+  AGENT_TAG,
+  AgentGuard,
+  installAgentGuard,
+  sanitizeLimits,
+  type AgentLimits,
+} from './guard';
 import { aiNative, errorText } from './native';
 import { keyVaultName, providerInfo, sanitizeConfigs, type ProviderConfig } from './providers';
-import { READ_TOOL_DEFS, runTool, TOOL_DEFS, TRADE_TOOLS, type ToolDeps } from './tools';
+import {
+  READ_TOOL_DEFS,
+  runTool,
+  TOOL_DEFS,
+  TRADE_TOOLS,
+  type ToolDeps,
+  type ToolOutcome,
+} from './tools';
 
 import { translateLiteral as tl, tt } from '@htflow/i18n';
 export interface AuditEntry {
@@ -73,6 +93,28 @@ export function sanitizeAgent(raw: unknown): AgentConfig {
 
 export const guard = new AgentGuard();
 
+/** Result of the last "Test connection" of a provider. */
+export interface Health {
+  ok: boolean;
+  /** Round-trip of the model-list request (ms). */
+  ms: number;
+  at: number;
+  models?: number;
+  error?: string;
+}
+
+/** An order the model proposed (`place_order`), shown as a card until the trader decides. */
+export interface OrderProposal {
+  /** The model's tool call id. */
+  id: string;
+  convId: string;
+  mode: 'chat' | 'agent';
+  args: Record<string, unknown>;
+  /** `auto`: "confirm each trade" is off, the order goes straight through (card is informational). */
+  status: 'pending' | 'confirmed' | 'rejected' | 'auto';
+  ts: number;
+}
+
 interface State {
   configs: ProviderConfig[];
   convs: Conversation[];
@@ -81,10 +123,25 @@ interface State {
   audit: AuditEntry[];
   agent: AgentConfig;
   agentRunning: boolean;
+  /** True once the agent was started in this session (distinguishes paused from idle). */
+  agentStarted: boolean;
   agentConvId: string | null;
   nextRunAt: number | null;
+  health: Record<string, Health>;
+  orders: Record<string, OrderProposal>;
+  include: ContextInclude;
   /** Bumped on every change (React subscription key). */
   v: number;
+}
+
+const INCLUDE_KEY = 'htflow.ai.include';
+
+function loadInclude(): ContextInclude {
+  try {
+    return sanitizeInclude(JSON.parse(localStorage.getItem(INCLUDE_KEY) ?? 'null'));
+  } catch {
+    return { ...FULL_INCLUDE };
+  }
 }
 
 const st: State = {
@@ -95,8 +152,12 @@ const st: State = {
   audit: [],
   agent: DEFAULT_AGENT,
   agentRunning: false,
+  agentStarted: false,
   agentConvId: null,
   nextRunAt: null,
+  health: {},
+  orders: {},
+  include: loadInclude(),
   v: 0,
 };
 
@@ -149,6 +210,10 @@ function onSession(): void {
   st.audit = [];
   st.activeId = null;
   st.agent = DEFAULT_AGENT;
+  st.agentStarted = false;
+  st.agentConvId = null;
+  st.health = {};
+  rejectOrders();
   emit();
   if (!id) return;
   void Promise.all([
@@ -237,6 +302,32 @@ export async function fetchModels(configId: string): Promise<string[]> {
   return models;
 }
 
+/** "Test connection": lists the provider's models (a cheap authenticated call) and times it. */
+export async function testConnection(configId: string): Promise<Health> {
+  const t0 = performance.now();
+  let h: Health;
+  try {
+    const models = await fetchModels(configId);
+    h = { ok: true, ms: Math.round(performance.now() - t0), at: Date.now(), models: models.length };
+  } catch (e) {
+    h = { ok: false, ms: Math.round(performance.now() - t0), at: Date.now(), error: errorText(e) };
+  }
+  st.health = { ...st.health, [configId]: h };
+  emit();
+  return h;
+}
+
+/** What the trader's context checkboxes currently let the AI see. */
+export function setInclude(patch: Partial<ContextInclude>): void {
+  st.include = { ...st.include, ...patch };
+  try {
+    localStorage.setItem(INCLUDE_KEY, JSON.stringify(st.include));
+  } catch {
+    /* storage blocked: the choice lasts for this session */
+  }
+  emit();
+}
+
 /** First provider with a key (or a keyless local / custom one). */
 export function preferredConfig(): ProviderConfig {
   return (
@@ -291,8 +382,20 @@ export function patchConversation(id: string, patch: Partial<Conversation>): voi
   emit(true);
 }
 
+export function renameConversation(id: string, title: string): void {
+  const t = title.replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (t) patchConversation(id, { title: t });
+}
+
+export function togglePin(id: string): void {
+  const c = st.convs.find((x) => x.id === id);
+  if (c) patchConversation(id, { pinned: !c.pinned });
+}
+
 export function deleteConversation(id: string): void {
   stop(id);
+  rejectOrders(id);
+  for (const [k, o] of Object.entries(st.orders)) if (o.convId === id) delete st.orders[k];
   st.convs = st.convs.filter((c) => c.id !== id);
   if (st.activeId === id) st.activeId = st.convs[0]?.id ?? null;
   if (st.agentConvId === id) st.agentConvId = null;
@@ -309,7 +412,87 @@ export function stop(id: string): void {
   const s = signals.get(id);
   if (!s) return;
   s.stopped = true;
+  rejectOrders(id);
   if (s.requestId) void aiNative.cancel(s.requestId);
+}
+
+/* ------------------------------------------------------------------ order proposals */
+
+const deciders = new Map<string, (d: { args: Record<string, unknown> } | null) => void>();
+
+/** Rejects every order card still waiting for the trader (of one conversation, or all). */
+function rejectOrders(convId?: string): void {
+  for (const [id, o] of Object.entries(st.orders)) {
+    if (o.status !== 'pending' || (convId && o.convId !== convId)) continue;
+    o.status = 'rejected';
+    deciders.get(id)?.(null);
+    deciders.delete(id);
+  }
+}
+
+/** Confirm (optionally with edited arguments) or reject a pending order card. */
+export function decideOrder(
+  id: string,
+  decision: 'confirm' | 'reject',
+  edited?: Record<string, unknown>,
+): void {
+  const o = st.orders[id];
+  if (!o || o.status !== 'pending') return;
+  o.status = decision === 'confirm' ? 'confirmed' : 'rejected';
+  if (decision === 'confirm' && edited) o.args = edited;
+  const d = deciders.get(id);
+  deciders.delete(id);
+  d?.(decision === 'confirm' ? { args: o.args } : null);
+  emit();
+}
+
+function awaitOrder(
+  convId: string,
+  mode: 'chat' | 'agent',
+  id: string,
+  args: unknown,
+): Promise<{ args: Record<string, unknown> } | null> {
+  const a =
+    args && typeof args === 'object' && !Array.isArray(args)
+      ? { ...(args as Record<string, unknown>) }
+      : {};
+  const auto = !guard.limits.confirmEachTrade;
+  st.orders[id] = { id, convId, mode, args: a, status: auto ? 'auto' : 'pending', ts: Date.now() };
+  emit();
+  if (auto) return Promise.resolve({ args: a });
+  return new Promise((resolve) => {
+    deciders.set(id, resolve);
+  });
+}
+
+/** Instrument, tick economics, last price and account kind for an order card. */
+export function orderContext(args: Record<string, unknown>) {
+  const id = resolveSymbol(typeof args.symbol === 'string' ? args.symbol : undefined);
+  const s = id ? hub.peek(id) : undefined;
+  const acc = paper.accounts.get(st.agent.accountId);
+  const tickSize = s?.instrument.tickSize ?? 0;
+  const last = s?.lastTrade?.px;
+  return {
+    instrumentId: id,
+    symbol: s?.instrument.symbol ?? (typeof args.symbol === 'string' ? args.symbol : '—'),
+    tickSize,
+    tickValue: s?.instrument.tickValue ?? 0,
+    precision: s?.instrument.pricePrecision ?? 2,
+    last: last !== undefined && tickSize > 0 ? last * tickSize : null,
+    accountName: acc?.name ?? st.agent.accountId,
+    accountKind: acc?.kind ?? 'paper',
+    currency: acc?.currency ?? 'USD',
+  };
+}
+
+/** Why the agent limits would reject this order right now (shown on the card), or null. */
+export function orderPreCheck(args: Record<string, unknown>): string | null {
+  const ctx = orderContext(args);
+  const qty = typeof args.qty === 'number' ? args.qty : Number(args.qty);
+  return guard.check(
+    { accountId: st.agent.accountId, instrumentId: ctx.instrumentId ?? '', qty },
+    { accountKind: ctx.accountKind, dayPnl: dayPnl(st.agent.accountId), now: Date.now() },
+  );
 }
 
 function audit(e: Omit<AuditEntry, 'id' | 'ts'>): void {
@@ -379,6 +562,8 @@ export interface SendOptions {
   screenshot?: boolean;
   /** Attach the structured screen context. */
   context?: boolean;
+  /** Images the trader dropped / pasted (consent already confirmed by the caller). */
+  attachments?: NonNullable<ChatMsg['attachments']>;
   mode?: 'chat' | 'agent';
 }
 
@@ -391,7 +576,16 @@ export async function send(conv: Conversation, opts: SendOptions): Promise<void>
   if (st.busy[conv.id]) return;
   const mode = opts.mode ?? 'chat';
   const msg: ChatMsg = { id: uid('m'), role: 'user', text: opts.text.trim(), ts: Date.now() };
-  if (opts.context) msg.context = formatContext(collectSnapshot(st.agent.accountId));
+  if (opts.context)
+    msg.context = formatContext(
+      collectSnapshot(st.agent.accountId),
+      Date.now(),
+      mode === 'agent' ? FULL_INCLUDE : st.include,
+    );
+  if (opts.attachments?.length) {
+    msg.attachments = opts.attachments;
+    msg.hadImage = true;
+  }
   if (opts.screenshot) {
     try {
       const cap = await captureWindow();
@@ -401,11 +595,17 @@ export async function send(conv: Conversation, opts: SendOptions): Promise<void>
       toast('warning', tl('Screenshot failed'), errorText(e));
     }
   }
-  if (!msg.text && !msg.image) return;
-  if (!conv.messages.some((m) => m.role === 'user'))
+  if (!msg.text && !msg.image && !msg.attachments?.length) return;
+  if (!conv.messages.some((m) => m.role === 'user') && conv.title === 'New chat')
     conv.title = titleFrom(msg.text || 'Screenshot');
   conv.messages.push(msg);
   await turn(conv, mode);
+}
+
+/** Edits an earlier question: that message and everything after it is replaced. */
+export async function editAndSend(conv: Conversation, msgId: string, opts: SendOptions) {
+  if (st.busy[conv.id] || !truncateFrom(conv, msgId)) return;
+  await send(conv, opts);
 }
 
 export async function regenerate(conv: Conversation): Promise<void> {
@@ -429,13 +629,31 @@ async function turn(conv: Conversation, mode: 'chat' | 'agent'): Promise<void> {
       maxSteps: mode === 'agent' ? st.agent.maxSteps : 4,
       signal,
       onChange: () => emit(),
-      runTool: async (name, args) => {
-        const out = await runTool(name, args, deps);
+      runTool: async (name, args, callId) => {
+        let a = args;
+        let d = deps;
+        let out: ToolOutcome;
+        if (name === 'place_order') {
+          // The order card is the confirmation: Confirm / Edit / Reject (or auto when
+          // "confirm each trade" is off). The agent guard and risk engine still run in the tool.
+          const decision = await awaitOrder(conv.id, mode, callId, args);
+          if (decision) {
+            a = decision.args;
+            d = { ...deps, confirm: async () => true };
+          }
+          out = decision
+            ? await runTool(name, a, d)
+            : {
+                ok: false,
+                result: { error: 'Rejected: the user declined the order' },
+                summary: 'Rejected: the user declined the order',
+              };
+        } else out = await runTool(name, a, d);
         audit({
           mode,
           conversationId: conv.id,
           tool: name,
-          args: JSON.stringify(args ?? {}).slice(0, 2000),
+          args: JSON.stringify(a ?? {}).slice(0, 2000),
           ok: out.ok,
           summary: out.summary,
         });
@@ -491,6 +709,39 @@ async function agentRun(): Promise<void> {
   }
 }
 
+/** Realized P&L (after commission) of today's orders placed by the agent. */
+export function agentDayPnl(now = Date.now()): number {
+  const since = new Date(now);
+  since.setHours(0, 0, 0, 0);
+  let pnl = 0;
+  for (const f of paper.fills)
+    if (f.tag === AGENT_TAG && f.ts >= since.getTime()) pnl += f.realized - f.commission;
+  return pnl;
+}
+
+/** Model calls the current / last agent run used, against its step limit. */
+export function agentStepInfo(): { used: number; max: number } {
+  const conv = st.agentConvId ? st.convs.find((c) => c.id === st.agentConvId) : undefined;
+  let used = 0;
+  if (conv) {
+    for (let i = conv.messages.length - 1; i >= 0; i--) {
+      const m = conv.messages[i]!;
+      if (m.role === 'user') break;
+      if (m.role === 'assistant' && (m.text || m.toolCalls?.length || m.pending)) used++;
+    }
+  }
+  return { used, max: st.agent.maxSteps };
+}
+
+/** Largest open position of the agent account (units), for the max-quantity gauge. */
+export function agentMaxPosition(): number {
+  let m = 0;
+  for (const p of paper.allPositions(st.agent.accountId)) m = Math.max(m, Math.abs(p.qty));
+  return m;
+}
+
+export const agentDayPnlOfAccount = (): number => dayPnl(st.agent.accountId);
+
 export function startAgent(): boolean {
   if (st.agentRunning) return true;
   if (guard.isKilled) {
@@ -507,6 +758,7 @@ export function startAgent(): boolean {
     return false;
   }
   st.agentRunning = true;
+  st.agentStarted = true;
   emit();
   void agentRun();
   toast(
@@ -533,6 +785,7 @@ export function killSwitch(): void {
   guard.kill();
   stopAgent();
   for (const id of Object.keys(st.busy)) stop(id);
+  rejectOrders();
   let n = 0;
   for (const o of paper.workingOrders()) if (o.tag === 'ai-agent' && paper.cancel(o.id)) n++;
   audit({

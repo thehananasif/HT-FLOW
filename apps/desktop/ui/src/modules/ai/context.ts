@@ -48,15 +48,61 @@ export interface ScreenSnapshot {
   openWindows: string[];
 }
 
-/** Plain-text rendering (stable order, compact). */
-export function formatContext(s: ScreenSnapshot, now = Date.now()): string {
+/** Which parts of the screen the trader lets the AI see (right-hand panel checkboxes). */
+export interface ContextInclude {
+  symbol: boolean;
+  timeframe: boolean;
+  price: boolean;
+  flow: boolean;
+  positions: boolean;
+  indicators: boolean;
+  account: boolean;
+}
+
+export const CONTEXT_PARTS = [
+  'symbol',
+  'timeframe',
+  'price',
+  'flow',
+  'positions',
+  'indicators',
+  'account',
+] as const satisfies readonly (keyof ContextInclude)[];
+
+export const FULL_INCLUDE: ContextInclude = {
+  symbol: true,
+  timeframe: true,
+  price: true,
+  flow: true,
+  positions: true,
+  indicators: true,
+  account: true,
+};
+
+export function sanitizeInclude(raw: unknown): ContextInclude {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<ContextInclude>;
+  const out = { ...FULL_INCLUDE };
+  for (const k of CONTEXT_PARTS) if (typeof r[k] === 'boolean') out[k] = r[k]!;
+  return out;
+}
+
+/** Plain-text rendering (stable order, compact). Unchecked parts are left out entirely. */
+export function formatContext(
+  s: ScreenSnapshot,
+  now = Date.now(),
+  inc: ContextInclude = FULL_INCLUDE,
+): string {
   const L: string[] = [];
   L.push(`time: ${new Date(now).toISOString()}`);
-  L.push(`active instrument: ${s.symbol ?? 'none'}${s.instrumentId ? ` (${s.instrumentId})` : ''}`);
-  L.push(`timeframe: ${s.timeframe}${s.chartType ? `, chart type: ${s.chartType}` : ''}`);
-  if (s.indicators.length) L.push(`indicators: ${s.indicators.join(', ')}`);
-  L.push(`last: ${s.last ?? '—'}  bid: ${s.bid ?? '—'}  ask: ${s.ask ?? '—'}`);
-  if (s.flow) {
+  if (inc.symbol)
+    L.push(
+      `active instrument: ${s.symbol ?? 'none'}${s.instrumentId ? ` (${s.instrumentId})` : ''}`,
+    );
+  if (inc.timeframe)
+    L.push(`timeframe: ${s.timeframe}${s.chartType ? `, chart type: ${s.chartType}` : ''}`);
+  if (inc.indicators && s.indicators.length) L.push(`indicators: ${s.indicators.join(', ')}`);
+  if (inc.price) L.push(`last: ${s.last ?? '—'}  bid: ${s.bid ?? '—'}  ask: ${s.ask ?? '—'}`);
+  if (inc.flow && s.flow) {
     const f = s.flow;
     L.push(
       `order flow (15 min): buy ${f.buyVolume}, sell ${f.sellVolume}, delta ${f.delta}, trades ${f.trades}, POC ${f.poc ?? '—'}`,
@@ -69,17 +115,19 @@ export function formatContext(s: ScreenSnapshot, now = Date.now()): string {
           .join(', ')}`,
       );
   }
-  if (s.account)
+  if (inc.account && s.account)
     L.push(
       `account: ${s.account.name} (${s.account.kind}) balance ${s.account.balance.toFixed(2)} ${s.account.currency}`,
     );
-  L.push(
-    s.positions.length
-      ? `positions: ${s.positions.map((p) => `${p.instrument} ${p.qty} @ ${p.avgPrice} (uPnL ${p.unrealized ?? '—'})`).join('; ')}`
-      : 'positions: flat',
-  );
-  L.push(`working orders: ${s.workingOrders}`);
-  if (s.openWindows.length) L.push(`open windows: ${s.openWindows.join(', ')}`);
+  if (inc.positions) {
+    L.push(
+      s.positions.length
+        ? `positions: ${s.positions.map((p) => `${p.instrument} ${p.qty} @ ${p.avgPrice} (uPnL ${p.unrealized ?? '—'})`).join('; ')}`
+        : 'positions: flat',
+    );
+    L.push(`working orders: ${s.workingOrders}`);
+  }
+  if (inc.symbol && s.openWindows.length) L.push(`open windows: ${s.openWindows.join(', ')}`);
   return L.join('\n');
 }
 

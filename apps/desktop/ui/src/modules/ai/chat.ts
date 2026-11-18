@@ -24,7 +24,9 @@ export interface ChatMsg {
   text: string;
   /** Screenshot sent with this message (kept in memory only, never saved). */
   image?: { mediaType: 'image/png' | 'image/jpeg'; data: string };
-  /** True once a screenshot was sent (survives saving without the pixels). */
+  /** Images the trader added by drop / paste (memory only, never saved). */
+  attachments?: { mediaType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }[];
+  /** True once an image was sent (survives saving without the pixels). */
   hadImage?: boolean;
   /** Structured screen context sent with this message (shown collapsed). */
   context?: string;
@@ -49,6 +51,8 @@ export interface Conversation {
   messages: ChatMsg[];
   createdAt: number;
   updatedAt: number;
+  /** Pinned conversations stay at the top of the list. */
+  pinned?: boolean;
 }
 
 export interface Preset {
@@ -116,7 +120,10 @@ export function toWire(msgs: readonly ChatMsg[]): AiMessage[] {
         : m.text;
       if (text) parts.push({ type: 'text', text });
       if (m.image) parts.push({ type: 'image', mediaType: m.image.mediaType, data: m.image.data });
-      else if (m.hadImage) parts.push({ type: 'text', text: '[earlier screenshot not resent]' });
+      else if (m.hadImage && !m.attachments?.length)
+        parts.push({ type: 'text', text: '[earlier screenshot not resent]' });
+      for (const a of m.attachments ?? [])
+        parts.push({ type: 'image', mediaType: a.mediaType, data: a.data });
     } else {
       if (m.text) parts.push({ type: 'text', text: m.text });
       for (const c of m.toolCalls ?? [])
@@ -141,7 +148,8 @@ export interface TurnDeps {
   native: AiNative;
   target: ChatTarget;
   tools: AiToolDef[];
-  runTool(name: string, args: unknown): Promise<ToolOutcome>;
+  /** `callId` is the model's id of the tool call (the UI keys order cards on it). */
+  runTool(name: string, args: unknown, callId: string): Promise<ToolOutcome>;
   /** Called after every change (streamed token, tool result). */
   onChange(): void;
   /** Max model calls in this turn (tool round trips). */
@@ -223,7 +231,7 @@ export async function runTurn(conv: Conversation, d: TurnDeps): Promise<void> {
         out = { ok: false, result: { error: 'Stopped by the user' }, summary: 'stopped' };
       else {
         try {
-          out = await d.runTool(c.name, c.arguments);
+          out = await d.runTool(c.name, c.arguments, c.id);
         } catch (e) {
           out = { ok: false, result: { error: String(e) }, summary: String(e) };
         }
@@ -261,8 +269,8 @@ export function forSave(convs: readonly Conversation[]): Conversation[] {
   return convs.slice(0, 100).map((c) => ({
     ...c,
     messages: c.messages.slice(-300).map((m) => {
-      const { image, pending: _p, ...rest } = m;
-      return image ? { ...rest, hadImage: true } : rest;
+      const { image, attachments, pending: _p, ...rest } = m;
+      return image || attachments?.length ? { ...rest, hadImage: true } : rest;
     }),
   }));
 }
@@ -276,6 +284,32 @@ export function sanitizeConversations(raw: unknown): Conversation[] {
       typeof (c as Conversation).id === 'string' &&
       Array.isArray((c as Conversation).messages) &&
       typeof (c as Conversation).configId === 'string',
+  );
+}
+
+/** Drops message `id` and everything after it (editing an earlier question); false if unknown. */
+export function truncateFrom(conv: Conversation, id: string): boolean {
+  const i = conv.messages.findIndex((m) => m.id === id);
+  if (i < 0) return false;
+  conv.messages.splice(i);
+  return true;
+}
+
+/** Conversations in display order: pinned first, then most recently updated. */
+export function sortedConversations(convs: readonly Conversation[]): Conversation[] {
+  return [...convs].sort(
+    (a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.updatedAt - a.updatedAt,
+  );
+}
+
+/** Case-insensitive search over titles and message text. */
+export function filterConversations(convs: readonly Conversation[], q: string): Conversation[] {
+  const n = q.trim().toLowerCase();
+  if (!n) return [...convs];
+  return convs.filter(
+    (c) =>
+      c.title.toLowerCase().includes(n) ||
+      c.messages.some((m) => m.role !== 'tool' && m.text.toLowerCase().includes(n)),
   );
 }
 
