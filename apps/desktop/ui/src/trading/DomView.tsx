@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
-import { ChevronDown, Columns3, Lock, Pencil, StickyNote } from 'lucide-react';
+import { ChevronDown, Columns3, Crosshair, Lock, Pencil, StickyNote } from 'lucide-react';
 import {
   COLUMN_DEFS,
   DomLadder,
@@ -19,7 +19,7 @@ import { useWindows } from '../state/windows';
 import { paper, pnlTick } from '../state/market';
 import { effectiveMaxFps, frameInterval } from '../charts/settings/performance';
 import { clickSide } from './dom/globalSettings';
-import { getSettings, useSettingsStore, type SettingsValues } from '../state/settings';
+import { getSettings, setSetting, useSettingsStore, type SettingsValues } from '../state/settings';
 import { useAtmTemplates } from './atmStore';
 import { setPrefs, tradingPrefs, useTradingPrefs } from './prefs';
 import { usePaperTick } from './TradingPanel';
@@ -44,14 +44,17 @@ const SETTINGS_DEFAULT_FONT = 12;
 const SETTINGS_DEFAULT_RECENT = 30;
 
 /**
- * Global Settings → DOM applied on top of the template: auto-centre off forces manual centring,
+ * Global Settings → DOM applied on top of the template: a non-default re-centre mode forces it,
  * a big-lot threshold fills in when the template has none, and a row height / font size changed
  * from its default overrides every template. Levels per side go to `ladder.maxLevels`.
  */
 export function effectiveTemplate(t: DomTemplate, v: SettingsValues): DomTemplate {
   const style = { ...t.style };
   const behaviour = { ...t.behaviour };
-  if (!v['dom.autoCenter']) style.centring = 'manual';
+  // The global mode only overrides the template once the user changed it from its default.
+  const mode = v['dom.centerMode'];
+  if (mode === 'off') style.centring = 'manual';
+  else if (mode === 'always') style.centring = 'always';
   if (v['dom.rowHeight'] !== SETTINGS_DEFAULT_ROW) style.rowHeight = v['dom.rowHeight'];
   if (v['dom.fontSize'] !== SETTINGS_DEFAULT_FONT) style.fontSize = v['dom.fontSize'];
   if (v['dom.recentWindowSec'] !== SETTINGS_DEFAULT_RECENT)
@@ -109,12 +112,19 @@ function Ladder({
   useEffect(() => {
     const c = ref.current!;
     const l = new DomLadder(c);
+    l.autoFit = getSettings()['dom.autoFit'];
     l.setTemplate(effectiveTemplate(tplRef.current, getSettings()));
     l.labels = columnLabels(tplRef.current);
     l.maxLevels = getSettings()['common.domLevels'];
     const unSettings = useSettingsStore.subscribe((st, prev) => {
       if (st.values !== prev.values) {
         l.maxLevels = st.values['common.domLevels'];
+        if (l.autoFit !== st.values['dom.autoFit']) {
+          l.autoFit = st.values['dom.autoFit'];
+          l.setTemplate(l.template);
+          const r = c.parentElement!.getBoundingClientRect();
+          l.resize(r.width, r.height);
+        }
         dirty.current = true;
       }
     });
@@ -469,6 +479,7 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
     };
   });
   const b = template.behaviour;
+  const centerMode = useSettingsStore((st) => st.values['dom.centerMode']);
   const patch = (p: Partial<DomWindowState>) => useWindows.getState().patch(id, p);
   return (
     <div className="sdom-head" data-testid="dom-header">
@@ -524,6 +535,33 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
         ))}
       </div>
       <span className="grow" />
+      <DropdownMenu
+        items={(['off', 'out-of-view', 'always'] as const).map((m) => ({
+          id: m,
+          label: m === 'off' ? 'Off' : m === 'always' ? 'Always' : 'When out of view',
+          checked: centerMode === m,
+          onSelect: () => setSetting('dom.centerMode', m),
+        }))}
+        trigger={
+          <button
+            className="ht-icon-btn"
+            aria-label="Re-centre mode"
+            data-testid="dom-centre-mode"
+            title="Re-centre on last price: off / when out of view / always"
+          >
+            <ChevronDown size={12} />
+          </button>
+        }
+      />
+      <button
+        className="sdom-hbtn"
+        data-testid="dom-recenter"
+        aria-label="Re-centre"
+        title="Re-centre on the last price (C)"
+        onClick={() => domControllers.get(id)?.recenter()}
+      >
+        <Crosshair size={13} /> Re-centre
+      </button>
       <button
         className="ht-icon-btn"
         aria-label="Clear notes"

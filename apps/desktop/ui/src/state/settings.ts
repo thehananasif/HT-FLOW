@@ -2046,12 +2046,26 @@ export const SCHEMA = {
     unit: 'px',
     wired: true,
   }),
-  'dom.autoCenter': bool({
+  'dom.centerMode': oneOf({
     section: 'dom',
     group: 'Ladder',
-    label: 'Auto-centre on price',
-    help: 'Re-centre the ladder when the price leaves the middle band. Off keeps your scroll position.',
+    label: 'Re-centre on last price',
+    help: 'When the ladder follows the last traded price. "When out of view" re-centres only once the price leaves the visible rows; "Always" keeps it on the middle row; "Off" keeps your scroll position (Re-centre button / C re-centres by hand).',
+    default: 'out-of-view',
+    options: [
+      { value: 'off', label: 'Off' },
+      { value: 'out-of-view', label: 'When out of view' },
+      { value: 'always', label: 'Always' },
+    ],
+    wired: true,
+  }),
+  'dom.autoFit': bool({
+    section: 'dom',
+    group: 'Ladder',
+    label: 'Auto-fit to window',
+    help: 'Fit row height, font and column widths to the window so numbers are never clipped and there is no sideways scroll; columns that cannot fit are hidden (lowest priority first).',
     default: true,
+    wired: true,
   }),
   'dom.defaultGrouping': oneOf({
     section: 'dom',
