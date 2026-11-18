@@ -2,6 +2,7 @@ import { asAny, type AnyIndicator } from '@htflow/indicator-sdk';
 import * as account from './account';
 import * as bands from './bands';
 import * as bands2 from './bands2';
+import * as cot from './cot';
 import * as crypto from './crypto';
 import * as custom from './custom';
 import * as ma2 from './ma2';
@@ -40,6 +41,7 @@ export {
   levels2,
   orderflow2,
   crypto,
+  cot,
   orderbook,
   samples,
   mtf,
@@ -74,6 +76,7 @@ export const INDICATORS: AnyIndicator[] = collect(
   levels2,
   orderflow2,
   crypto,
+  cot,
   orderbook,
   samples,
   mtf,
@@ -109,7 +112,7 @@ export function indicatorById(id: string): AnyIndicator | undefined {
  * Indicators that read the tape or the derivatives / depth feeds run on the main thread; the
  * rest can be computed by the worker pool (Stage 8).
  */
-const FEED_IDS = new Set(collect(crypto, orderbook).map((d) => d.id));
+const FEED_IDS = new Set(collect(crypto, orderbook, cot).map((d) => d.id));
 export function poolable(def: AnyIndicator): boolean {
   return (
     !def.needsTrades &&

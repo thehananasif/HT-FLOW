@@ -3,6 +3,7 @@
 
 mod auth_cmds;
 mod backup;
+mod cot_cmds;
 mod crash;
 mod custom_ws;
 mod data_cmds;
@@ -105,6 +106,7 @@ pub fn run() {
                 ),
             )));
             app.manage(instruments_cmds::InstrumentsState::new(&root.join("cache")));
+            app.manage(cot_cmds::CotState::new(&root.join("cache")));
             app.manage(market_cmds::MarketState::default());
             app.manage(custom_ws::CustomWsState::default());
             app.manage(feed_cmds::FeedState::new(&root));
@@ -145,6 +147,7 @@ pub fn run() {
             market_cmds::market_subscribe,
             market_cmds::market_unsubscribe,
             net_cmds::net_fetch_text,
+            cot_cmds::cot_fetch,
             net_cmds::net_post_json,
             feed_cmds::feed_fetch,
             feed_cmds::feed_allow_add,

@@ -27,6 +27,7 @@ import { CATALOG, indicatorById, poolable } from '@htflow/indicators';
 import type { BarSpec, MarketStore } from '@htflow/market-data';
 import { t } from '@htflow/i18n';
 import { Chip, toast } from '@htflow/ui-kit';
+import { createCotFeed } from '../../state/cotFeed';
 import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { registerCommands, registerPaletteProvider } from '../../shell/commands';
@@ -241,6 +242,7 @@ registerChartExtension({
     const store = ctx.store;
     const derivatives = new DerivativesLog();
     const detachFeeds = derivatives.attach(store);
+    const cotFeed = createCotFeed(store.instrument.symbol, () => ctx.core.invalidate());
     const data: BarData = {
       get bars() {
         return ctx.series()?.bars ?? [];
@@ -251,6 +253,9 @@ registerChartExtension({
       tickSize: store.instrument.tickSize,
       tradesBetween: (a, b) => store.tradesBetween(a, b),
       derivatives,
+      get cot() {
+        return cotFeed.data();
+      },
       depth: {
         get version() {
           const d = store.depth;
@@ -301,6 +306,7 @@ registerChartExtension({
           sym,
         );
       }
+      if (def.category === 'cot') cotFeed.ensure();
       const pool = poolable(def) ? indicatorPool() : null;
       if (pool) return pool.create(eff, spec, () => core.invalidate());
       return new IndicatorRuntime(eff, inputs);
@@ -385,6 +391,7 @@ registerChartExtension({
         hub.release(id);
       }
       detachFeeds();
+      cotFeed.detach();
       if (contexts.get(ctx.windowId) === ctx) contexts.delete(ctx.windowId);
       if (scenes.get(ctx.windowId) === scene) scenes.delete(ctx.windowId);
       core.pointerHandlers = core.pointerHandlers.filter((p) => p !== ph);

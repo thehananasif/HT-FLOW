@@ -2233,6 +2233,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "htflow-cot"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "htflow-desktop"
 version = "0.1.0"
 dependencies = [
@@ -2252,6 +2260,7 @@ dependencies = [
  "htflow-connector-phemex",
  "htflow-connector-whitebit",
  "htflow-core-types",
+ "htflow-cot",
  "htflow-tick-store",
  "htflow-vps",
  "keyring",

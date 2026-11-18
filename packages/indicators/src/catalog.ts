@@ -34,9 +34,6 @@ function rows(category: IndicatorCategory, group: string | undefined, list: Row[
 
 const OPTIONS_NOTE =
   'Needs an options chain (strikes, open interest, IV per expiry) in the indicator context: the simulated and Deribit chain sources exist in @htflow/options but are not wired into the indicator feeds yet';
-const COT_NOTE =
-  'No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data';
-
 export const CATALOG: CatalogEntry[] = [
   ...rows('volume-orderflow', undefined, [
     ['Active Volume', 'active-volume'],
@@ -91,10 +88,10 @@ export const CATALOG: CatalogEntry[] = [
     ['Options Risk Profile', 'options-risk-profile'],
   ]),
   ...rows('cot', undefined, [
-    ['COT', undefined, undefined, COT_NOTE],
-    ['COT Commercials / Non-Commercials', undefined, undefined, COT_NOTE],
-    ['COT Institutional Net Positions', undefined, undefined, COT_NOTE],
-    ['COT High/Low', undefined, undefined, COT_NOTE],
+    ['COT', 'cot'],
+    ['COT Commercials / Non-Commercials', 'cot-comm-noncomm'],
+    ['COT Institutional Net Positions', 'cot-institutional'],
+    ['COT High/Low', 'cot-high-low'],
   ]),
   ...rows('crypto', undefined, [
     ['Funding Rate Tracker', 'funding-rate'],

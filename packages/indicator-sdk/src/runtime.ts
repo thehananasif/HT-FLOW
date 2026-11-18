@@ -119,6 +119,7 @@ export class IndicatorRuntime {
       depth: undefined,
       aux: (id) => this.aux(id),
       account: null,
+      cot: undefined,
       notice: (text) => {
         this.pendingNotice = text;
       },
@@ -128,7 +129,8 @@ export class IndicatorRuntime {
   private feedKey(data: BarData): number {
     return (
       ((data.derivatives?.version ?? 0) * 1e6 + (data.depth?.version ?? 0)) * 1e3 +
-      ((data.account?.()?.version ?? 0) % 1e3)
+      ((data.account?.()?.version ?? 0) % 1e3) +
+      (data.cot?.version ?? 0) * 7919
     );
   }
 
@@ -214,6 +216,7 @@ export class IndicatorRuntime {
     ctx.derivatives = data.derivatives;
     ctx.depth = data.depth;
     ctx.account = data.account?.() ?? null;
+    ctx.cot = data.cot;
     const outs = Object.values(this.outputs);
     for (const o of outs) if (o instanceof ListOut) o.truncate(from);
     for (let i = from; i < to; i++) {
@@ -336,6 +339,7 @@ export function computeIndicator(
     depth?: BarData['depth'];
     aux?: BarData['aux'];
     account?: BarData['account'];
+    cot?: BarData['cot'];
   } = {},
 ): IndicatorRuntime {
   const rt = new IndicatorRuntime(def, raw);
@@ -348,6 +352,7 @@ export function computeIndicator(
     depth: opts.depth,
     aux: opts.aux,
     account: opts.account,
+    cot: opts.cot,
   });
   return rt;
 }
