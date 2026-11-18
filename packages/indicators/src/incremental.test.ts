@@ -135,3 +135,67 @@ describe('worker pool shares one bar packet per worker', () => {
     );
   });
 });
+
+/** True when an update changed a series value before the previous last bar. */
+function revisesHistory(def: (typeof INDICATORS)[number], tape: Trade[]): boolean {
+  const lb = (x: number) => {
+    let lo = 0;
+    let hi = tape.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (tape[m]!.ts < x) lo = m + 1;
+      else hi = m;
+    }
+    return lo;
+  };
+  const between = (a: number, b: number) => tape.slice(lb(a), lb(b + 1));
+  const series = new BarSeries({ kind: 'time', ms: 60_000 });
+  const data: BarData = {
+    get bars() {
+      return series.bars;
+    },
+    get version() {
+      return series.version;
+    },
+    tickSize: 1,
+    tradesBetween: between,
+  };
+  const rt = new IndicatorRuntime(def);
+  let prev = new Map<string, Float64Array[]>();
+  for (const t of tape) {
+    series.add(t);
+    const stable = rt.count - 1;
+    rt.update(data);
+    for (const [k, o] of Object.entries(rt.outputs)) {
+      if (!(o instanceof SeriesOut)) continue;
+      const before = prev.get(k);
+      const cur = [o.v, o.v2, o.v3, o.v4, Float64Array.from(o.tone)];
+      if (before)
+        for (let c = 0; c < 5; c++)
+          for (let i = 0; i < Math.min(stable, before[c]!.length); i++) {
+            const a = before[c]![i]!;
+            const b = cur[c]![i]!;
+            if (a !== b && !(Number.isNaN(a) && Number.isNaN(b))) return true;
+          }
+    }
+    prev = new Map();
+    for (const [k, o] of Object.entries(rt.outputs))
+      if (o instanceof SeriesOut)
+        prev.set(
+          k,
+          [o.v, o.v2, o.v3, o.v4, Float64Array.from(o.tone)].map((a) => a.slice(0, rt.count)),
+        );
+  }
+  return false;
+}
+
+describe('stableHistory hint (lets the worker skip the history diff)', () => {
+  it('every built-in marked stable never rewrites an earlier bar', () => {
+    const long = trades(2500, 9).map((t, i) => ({ ...t, ts: 1_700_000_000_000 + i * 100_000 }));
+    const stable = INDICATORS.filter((d) => d.stableHistory);
+    expect(stable.length).toBeGreaterThan(150);
+    expect(indicatorById('zigzag')!.stableHistory).toBeFalsy();
+    const bad = stable.filter((d) => revisesHistory(d, tape) || revisesHistory(d, long));
+    expect(bad.map((d) => d.id)).toEqual([]);
+  }, 300_000);
+});

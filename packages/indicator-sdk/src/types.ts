@@ -352,6 +352,12 @@ export interface IndicatorMeta {
    * every item is compared with what was sent, which also catches zones extended in place).
    */
   listsAppendOnly?: boolean;
+  /**
+   * Performance hint: calc() of bar i writes series values of bar i only (never earlier bars), so
+   * the worker skips diffing the whole history after each tick. Leave unset when the indicator
+   * revises the past (zigzag, displaced lines): the safe default diffs everything.
+   */
+  stableHistory?: boolean;
 }
 
 export interface IndicatorDefinition<

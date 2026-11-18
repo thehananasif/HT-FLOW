@@ -156,14 +156,23 @@ interface Shadow {
   tone: Uint8Array;
 }
 
-/** First index < limit where `a` and `b` differ (NaN equals NaN). */
-function firstDiff(a: ArrayLike<number>, b: ArrayLike<number>, limit: number): number {
+/**
+ * First index < limit where two Float64Arrays differ, compared bit for bit through 32-bit views
+ * (an integer loop, several times faster than float compares with NaN checks). Bit equality is
+ * stricter than value equality (−0 vs 0, NaN payloads), which can only make a reply start earlier.
+ */
+function firstDiff(a: Float64Array, b: Float64Array, limit: number): number {
   const n = Math.min(limit, a.length, b.length);
-  for (let i = 0; i < n; i++) {
-    const x = a[i]!;
-    const y = b[i]!;
-    if (x !== y && !(x !== x && y !== y)) return i;
-  }
+  if (n <= 0) return limit;
+  const x = new Int32Array(a.buffer, a.byteOffset, n * 2);
+  const y = new Int32Array(b.buffer, b.byteOffset, n * 2);
+  for (let i = 0; i < n * 2; i++) if (x[i] !== y[i]) return i >> 1;
+  return limit;
+}
+
+function firstDiffU8(a: Uint8Array, b: Uint8Array, limit: number): number {
+  const n = Math.min(limit, a.length, b.length);
+  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return i;
   return limit;
 }
 
@@ -190,7 +199,7 @@ function firstChange(
     if (!prev) return 0;
     const cur = usedCols(o);
     for (let c = 0; c < cur.length; c++) first = firstDiff(prev.cols[c]!, cur[c]!, first);
-    first = firstDiff(prev.tone, o.tone, first);
+    first = firstDiffU8(prev.tone, o.tone, first);
     if (first === 0) return 0;
   }
   return first;
@@ -318,9 +327,12 @@ export class EngineHost {
           const kind = e.rt.update({ bars: e.bars, version: msg.version, tickSize: msg.tickSize });
           const count = e.rt.count;
           let from = kind === 'full' ? 0 : Math.max(0, Math.min(msg.from, count));
-          // Some indicators revise earlier bars (zigzag, pivots): send from the first change.
-          if (from > 0) from = Math.min(from, firstChange(e.shadow, e.rt.outputs, from));
-          saveShadow(e.shadow, e.rt.outputs, from, count);
+          // Some indicators revise earlier bars (zigzag, displaced lines): unless the definition
+          // declares a stable history, send from the first value that differs from the last reply.
+          if (!e.rt.def.stableHistory) {
+            if (from > 0) from = Math.min(from, firstChange(e.shadow, e.rt.outputs, from));
+            saveShadow(e.shadow, e.rt.outputs, from, count);
+          }
           const series: Record<string, SeriesSlice> = {};
           const lists: Record<string, (Marker | Level | Zone)[] | PackedList> = {};
           const listFrom: Record<string, number> = {};

@@ -74,6 +74,20 @@ export const INDICATORS: AnyIndicator[] = collect(
   custom,
 );
 
+/**
+ * Built-ins whose calc() rewrites earlier bars (checked for every other built-in by
+ * incremental.test.ts). Indicators with a timeframe input are left out too: a higher-timeframe
+ * value can be spread over the chart bars of its period.
+ */
+const REVISES_HISTORY = new Set(['zigzag', 'ichimoku']);
+for (const d of INDICATORS)
+  if (
+    d.stableHistory === undefined &&
+    !REVISES_HISTORY.has(d.id) &&
+    !Object.values(d.inputs).some((x) => x.type === 'timeframe')
+  )
+    d.stableHistory = true;
+
 const byId = new Map(INDICATORS.map((d) => [d.id, d]));
 
 /** Indicators added at run time (user `.htind` scripts, id `script:<slug>`). */

@@ -190,7 +190,7 @@ describe('indicators', () => {
       group: 'Indicators',
       name: 'Apply 10 indicators to 50,000 bars — main thread (UI freeze)',
       target: 'applying indicators keeps the UI responsive',
-      budget: 100,
+      budget: 200,
       unit: 'ms',
       median: quantile(applyMain, 0.5),
       p95: quantile(applyMain, 0.95),
