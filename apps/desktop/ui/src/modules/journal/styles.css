@@ -62,6 +62,12 @@
   flex: 1;
   min-height: 260px;
 }
+/* Short windows: rows keep their height and the body scrolls instead of squashing them (the
+   calendar's month buttons used to end up under the trades table). */
+.jr-body > .jr-cards,
+.jr-body > .jr-row:not(.jr-row--grow) {
+  flex-shrink: 0;
+}
 .jr-panel {
   display: flex;
   flex-direction: column;
