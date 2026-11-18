@@ -113,7 +113,7 @@ export function fromWireProgress(p: WireProgress): HistoryProgress {
 }
 
 const side = (s: number): Trade['side'] => (s > 0 ? 'buy' : s < 0 ? 'sell' : 'unknown');
-const toTrades = (rows: WireBatch['tr']): Trade[] =>
+export const toTrades = (rows: WireBatch['tr']): Trade[] =>
   rows.map(([ts, px, qty, s, id]) => ({ ts, px, qty, side: side(s), id }));
 
 /** Live venues served by the Rust connectors. */

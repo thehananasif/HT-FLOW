@@ -16,6 +16,7 @@ import {
   type ReplayDataSource,
   type ReplayLayers,
 } from '@htflow/replay';
+import { pickSourceId } from '../modules/replay/logic';
 import { registerFeedProvider } from './registry';
 import { hub, paper } from '../state/market';
 import { instrumentById } from '../state/instruments';
@@ -28,6 +29,8 @@ import { instrumentById } from '../state/instruments';
  */
 export const REPLAY_PREFIX = 'replay:';
 export const REPLAY_ACCOUNT = 'replay';
+
+const fmtWhen = (t: number) => new Date(t).toLocaleString('en-GB');
 
 export const isReplayId = (id: string) => id.startsWith(REPLAY_PREFIX);
 export const replayIdOf = (sourceId: string) => REPLAY_PREFIX + sourceId;
@@ -71,10 +74,29 @@ export function replaySources(instrumentId?: string): ReplayDataSource[] {
   return instrumentId ? sources.filter((s) => s.covers(instrumentId)) : sources;
 }
 
-function pickSource(instrumentId: string, id?: string): ReplayDataSource {
+/**
+ * The source for [from, to]: the one the user chose, else the first (in preference order) whose
+ * data covers the range — tick store, then simulator / session memory, then an exchange download —
+ * else the one overlapping most. Without a range it is just the first that covers the instrument.
+ */
+export async function chooseSource(
+  instrumentId: string,
+  id?: string,
+  from?: number,
+  to?: number,
+): Promise<ReplayDataSource> {
   const all = replaySources(instrumentId);
-  const s = (id && all.find((x) => x.id === id)) || all[0];
-  if (!s) throw new Error(`No recorded data for ${instrumentId}`);
+  const chosen = id ? all.find((x) => x.id === id) : undefined;
+  if (chosen) return chosen;
+  let pick: string | null = all[0]?.id ?? null;
+  if (from !== undefined && to !== undefined && all.length > 1) {
+    const ranges = await Promise.all(
+      all.map(async (x) => ({ id: x.id, range: await x.range(instrumentId).catch(() => null) })),
+    );
+    pick = pickSourceId(ranges, from, to);
+  }
+  const s = all.find((x) => x.id === pick) ?? all[0];
+  if (!s) throw new Error(`No recorded or downloadable data for ${instrumentId}`);
   return s;
 }
 
@@ -125,7 +147,7 @@ export async function startReplay(
   const n = config.instruments.length;
   for (let i = 0; i < n; i++) {
     const src = config.instruments[i]!;
-    const s = pickSource(src, config.source);
+    const s = await chooseSource(src, config.source, config.from, config.to);
     const load = s.load.bind(s) as (
       id: string,
       from: number,
@@ -136,7 +158,11 @@ export async function startReplay(
     const data = await load(src, config.from, config.to, config.layers, (p) =>
       onProgress?.((i + p) / n),
     );
-    replayInstrument(src);
+    const rinst = replayInstrument(src);
+    if (!data.trades.length)
+      throw new Error(
+        `No ticks for ${rinst.symbol} between ${fmtWhen(config.from)} and ${fmtWhen(config.to)} in "${s.label}". Pick a range the source covers (see "Available" in the setup).`,
+      );
     engines.set(replayIdOf(src), new ReplayEngine(data));
   }
   const prev = session;
@@ -192,7 +218,8 @@ class ReplayFeed implements FeedSource {
     if (!replayEngine(this.id)) {
       // Restored workspace or picker: start a default session (last hour of data).
       const src = sourceIdOf(this.id);
-      const range = await pickSource(src).range(src);
+      const probe = await chooseSource(src, undefined, Date.now() - DEFAULT_SPAN, Date.now());
+      const range = await probe.range(src);
       if (!range) throw new Error(`No recorded data for ${src}`);
       const to = range.to;
       const from = Math.max(range.from, to - DEFAULT_SPAN);
