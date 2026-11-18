@@ -413,9 +413,13 @@ export class LegendLayer implements ChartLayer {
     ctx.textAlign = 'left';
     ctx.font = v.font(11);
     ctx.fillStyle = p.textSecondary;
+    // Every legend line stays inside the plot: long text is ellipsized, trailing OHLC parts that
+    // do not fit are dropped (never drawn over the price axis or each other).
+    const maxX = Math.max(x + 40, v.plot.x + v.plot.w - 8);
+    const maxW = maxX - x;
     let y = 12;
     if (o.title) {
-      ctx.fillText(this.title(), x, y);
+      ctx.fillText(fitText(ctx, this.title(), maxW), x, y);
       y += 17;
     }
     const s = this.series();
@@ -428,6 +432,13 @@ export class LegendLayer implements ChartLayer {
       const col = o.byCandle || !o.color ? (b.c >= b.o ? p.up : p.down) : o.color;
       let cx = x;
       const part = (label: string, value: string, c: string) => {
+        ctx.font = v.font(11);
+        const lw = ctx.measureText(label).width + 3;
+        ctx.font = v.font(11, 600);
+        if (cx + lw + ctx.measureText(value).width > maxX) {
+          cx = Infinity; // out of room: this and every later part is skipped
+          return;
+        }
         ctx.fillStyle = p.textSecondary;
         ctx.font = v.font(11);
         ctx.fillText(label, cx, y);
@@ -462,9 +473,27 @@ export class LegendLayer implements ChartLayer {
     if (e) {
       ctx.font = v.font(10);
       ctx.fillStyle = p.textTertiary;
-      ctx.fillText(e, x, y);
+      ctx.fillText(fitText(ctx, e, maxW), x, y);
     }
   }
+}
+
+/** `text` shortened with an ellipsis so it is at most `maxW` px wide in the current font. */
+export function fitText(
+  ctx: Pick<CanvasRenderingContext2D, 'measureText'>,
+  text: string,
+  maxW: number,
+): string {
+  if (maxW <= 0) return '';
+  if (ctx.measureText(text).width <= maxW) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (ctx.measureText(text.slice(0, mid) + '…').width <= maxW) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo > 0 ? text.slice(0, lo) + '…' : '';
 }
 
 /** Dashed vertical session separators with "New session · dd Mon 00:00" labels (P31). */

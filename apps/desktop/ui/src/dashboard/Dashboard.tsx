@@ -812,7 +812,7 @@ export function Dashboard({ version }: { version: string }) {
   return (
     <div className="app-root">
       <TitleBar>
-        <div className="titlebar-brand">
+        <div className="titlebar-brand" title="HT Flow">
           <BrandIcon size={16} />
           <span className="tb-logo">
             HT
@@ -822,13 +822,18 @@ export function Dashboard({ version }: { version: string }) {
         </div>
         <WorkspaceMenu
           trigger={
-            <button className="tb-workspace" data-testid="workspace-menu">
-              <span className="muted">Workspace:</span> {doc.name} ▾
+            <button
+              className="tb-workspace"
+              data-testid="workspace-menu"
+              title={`Workspace: ${doc.name}`}
+            >
+              <span className="muted tb-ws-label">Workspace:</span>{' '}
+              <span className="tb-ws-name">{doc.name}</span> ▾
             </button>
           }
         />
-        <div className="tb-group">
-          <span className="muted">Layout</span>
+        <div className="tb-group tb-layout">
+          <span className="muted tb-label">Layout</span>
           <SegmentedControl
             aria-label="Layout presets"
             value={preset}
@@ -845,8 +850,8 @@ export function Dashboard({ version }: { version: string }) {
           />
         </div>
         {singleChart && firstChart?.kind === 'chart' && (
-          <div className="tb-group">
-            <span className="muted">Main chart</span>
+          <div className="tb-group tb-mainchart">
+            <span className="muted tb-label">Main chart</span>
             {CHART_TEMPLATES.filter((t) => !t.more).map((t) => (
               <Chip
                 key={t.id}
@@ -858,23 +863,24 @@ export function Dashboard({ version }: { version: string }) {
             ))}
           </div>
         )}
-        <div className="tb-group">
-          <Button size="xs" variant="ghost" onClick={() => split('right')}>
-            <ArrowRightToLine size={13} /> Split right
+        <div className="tb-group tb-actions">
+          <Button size="xs" variant="ghost" title="Split right" onClick={() => split('right')}>
+            <ArrowRightToLine size={13} /> <span className="tb-txt">Split right</span>
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => split('below')}>
-            <ArrowDownToLine size={13} /> Split down
+          <Button size="xs" variant="ghost" title="Split down" onClick={() => split('below')}>
+            <ArrowDownToLine size={13} /> <span className="tb-txt">Split down</span>
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => detach()}>
-            <ExternalLink size={13} /> Detach window
+          <Button size="xs" variant="ghost" title="Detach window" onClick={() => detach()}>
+            <ExternalLink size={13} /> <span className="tb-txt">Detach window</span>
           </Button>
           <Button
             size="xs"
             variant="ghost"
+            title="Trading Panel"
             aria-pressed={tradingPanel}
             onClick={() => useWindows.getState().setTradingPanel(!tradingPanel)}
           >
-            <PanelRight size={13} /> Panel
+            <PanelRight size={13} /> <span className="tb-txt">Panel</span>
           </Button>
         </div>
         <HelpMenu />
