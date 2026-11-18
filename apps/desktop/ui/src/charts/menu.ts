@@ -440,7 +440,6 @@ export function buildChartMenu(c: MenuContext): MenuEntry[] {
     { kind: 'submenu', id: 'session', label: t('chartMenu.tradingSession'), items: sessionItems },
     { id: 'refresh', label: t('chartMenu.refresh'), onSelect: act('refresh') },
     { id: 'reload', label: t('chartMenu.reloadHistory'), onSelect: act('reload-history') },
-    { id: 'load-day', label: t('chartMenu.loadDay'), onSelect: act('load-day') },
     ...ex.replay,
     { id: 'reset', label: t('chartMenu.reset'), shortcut: 'Ctrl+R', onSelect: act('reset') },
     {

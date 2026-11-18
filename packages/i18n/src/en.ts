@@ -465,7 +465,6 @@ export const en = {
   'chartMenu.hidePanels': 'Hide panels',
   'chartMenu.refresh': 'Refresh',
   'chartMenu.reloadHistory': 'Reload all historical data',
-  'chartMenu.loadDay': '◂ Load 1 more day of history',
   'chartMenu.export': 'Export…',
   'chartMenu.exportPng': 'PNG image',
   'chartMenu.exportCsvBars': 'CSV of bars',

@@ -16,6 +16,7 @@ import type {
   FundingStat,
   HistoryData,
   HistoryProgress,
+  HistoryRequestOptions,
   Instrument,
   LiquidationStat,
   MarketStat,
@@ -60,8 +61,14 @@ export class MarketStore {
   liveFrom = Number.NaN;
   lastTs = 0;
   /** Set by the hub when the feed can load older history (lazy left-scroll loading). */
-  olderLoader: ((before: number, spanMs: number, anchorPx?: number) => Promise<Trade[]>) | null =
-    null;
+  olderLoader:
+    | ((
+        before: number,
+        spanMs: number,
+        anchorPx?: number,
+        opts?: HistoryRequestOptions,
+      ) => Promise<Trade[]>)
+    | null = null;
   loadingOlder = false;
   /** True once the feed returned no older data. */
   historyExhausted = false;
@@ -138,14 +145,14 @@ export class MarketStore {
   }
 
   /** Asks the feed for spanMs of trades before the first loaded one; resolves to the count added. */
-  async loadOlder(spanMs = 3_600_000): Promise<number> {
+  async loadOlder(spanMs = 3_600_000, opts?: HistoryRequestOptions): Promise<number> {
     if (!this.olderLoader || this.loadingOlder || this.historyExhausted || !this.ready) return 0;
     const first = this.trades[0];
     const before = first ? first.ts : this.lastTs;
     this.loadingOlder = true;
     this.bump();
     try {
-      const older = await this.olderLoader(before, spanMs, first?.px);
+      const older = await this.olderLoader(before, spanMs, first?.px, opts);
       const n = this.prependTrades(older);
       if (n === 0) this.historyExhausted = true;
       return n;
@@ -338,7 +345,8 @@ export class MarketHub {
     });
     const u2 = feed.onStatus((s) => store.setStatus(s));
     if (feed.historyBefore)
-      store.olderLoader = (before, span, anchor) => feed.historyBefore!(before, span, anchor);
+      store.olderLoader = (before, span, anchor, opts) =>
+        feed.historyBefore!(before, span, anchor, opts);
     const u3 = feed.onHistoryProgress?.((p) => store.setHistoryProgress(p)) ?? (() => {});
     this.entries.set(instrumentId, {
       store,

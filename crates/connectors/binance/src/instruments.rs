@@ -15,7 +15,11 @@ fn path(m: Market, trading_only: bool) -> &'static str {
     match (m, trading_only) {
         (Market::UsdM, _) => "/fapi/v1/exchangeInfo",
         (Market::CoinM, _) => "/dapi/v1/exchangeInfo",
-        (Market::Spot, true) => "/api/v3/exchangeInfo?symbolStatus=TRADING",
+        // `showPermissionSets=false` drops the per-symbol permission lists that made the spot body
+        // >10 MB (it used to time out on ordinary connections, so spot coins went missing).
+        (Market::Spot, true) => {
+            "/api/v3/exchangeInfo?symbolStatus=TRADING&showPermissionSets=false"
+        }
         (Market::Spot, false) => "/api/v3/exchangeInfo",
     }
 }
@@ -182,7 +186,7 @@ mod tests {
         assert_eq!(
             srv.requests(),
             vec![
-                "/api/v3/exchangeInfo?symbolStatus=TRADING",
+                "/api/v3/exchangeInfo?symbolStatus=TRADING&showPermissionSets=false",
                 "/api/v3/exchangeInfo"
             ]
         );

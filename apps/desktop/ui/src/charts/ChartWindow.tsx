@@ -30,14 +30,13 @@ import { getSetting } from '../state/settings';
 import {
   DAY_MS,
   LazyHistoryGate,
-  MAX_LOAD_DAYS,
   autoLoadsHistory,
   lazySpanMs,
   loadChunks,
-  openLoadChunks,
   progressLabel,
-  normalizeLoadDays,
+  runBackfill,
   spanLabel,
+  type BackfillEnd,
 } from './history';
 import { useSettingsStore } from '../state/settings';
 import { onChartAction, publishCrosshair, subscribeCrosshair, type CrosshairSync } from './bus';
@@ -65,6 +64,14 @@ import { SessionSelect } from './timeframes/TimeframeDialog';
 
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 const COMPARE_COLORS = ['#4FA3F7', '#B07CF0', '#E8B04B', '#BDBDBD', '#64C8D8'];
+
+/** Footer suffix for the automatic history state. */
+function backfillNote(b: 'running' | BackfillEnd | null): string {
+  if (b === 'running') return ' · loading older history…';
+  if (b === 'exhausted') return ' · all available history';
+  if (b === 'max-candles') return ' · max candles reached';
+  return '';
+}
 
 export function ChartWindow(props: IDockviewPanelProps) {
   const id = props.api.id;
@@ -133,18 +140,8 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   linkRef.current = s.link;
   const instRef = useRef(s.instrumentId);
   instRef.current = s.instrumentId;
-  // Load days (P31): per chart, default from Settings → Common → Default load days.
-  const loadDays = normalizeLoadDays(
-    (s.ext as Record<string, unknown> | undefined)?.loadDays,
-    normalizeLoadDays(getSetting('common.defaultLoadDays'), 4),
-  );
-  const setLoadDays = (d: number) => {
-    const cur = useWindows.getState().windows[id];
-    if (cur?.kind !== 'chart') return;
-    patch(id, {
-      ext: { ...(cur.ext ?? {}), loadDays: normalizeLoadDays(d) },
-    } as Partial<WindowState>);
-  };
+  // Automatic history: "backfilling" while the background loop runs, then why it stopped.
+  const [backfill, setBackfill] = useState<'running' | BackfillEnd | null>(null);
   const syncRef = useRef<CrosshairSync>('off');
   syncRef.current = sStr(settings, 'crosshair.sync') as CrosshairSync;
 
@@ -279,44 +276,30 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     return () => clearInterval(t);
   }, [countdown]);
 
-  // Load days: real / replay feeds fill the missing days in the background when the chart opens.
+  // Automatic history (replaces "Load days"): real / replay feeds backfill older history in the
+  // background, as far back as the venue provides, up to Settings → Common → Max candles. Each
+  // step yields to the UI; the loop stops on rebuild (timeframe change) and is step-capped.
   useEffect(() => {
     if (!store.ready || !autoLoadsHistory(store.feedKind, !!store.olderLoader)) return;
+    if (getSetting('common.autoBackfill') === false) return;
     let stop = false;
-    void (async () => {
-      const chunks = openLoadChunks(
-        store.trades[0]?.ts,
-        store.lastTs,
-        loadDays,
-        // Long timeframes load enough bars on live feeds (klines keep that cheap).
-        store.feedKind === 'live' ? (handle.current?.periodMs ?? undefined) : undefined,
-      );
-      for (const span of chunks) {
-        if (stop || store.historyExhausted) break;
-        setOlderNote(`Loading history (${loadDays} days)…`);
-        const n = await store.loadOlder(span);
-        if (!n) break;
-      }
-      if (!stop) setOlderNote(null);
-    })();
+    setBackfill('running');
+    void runBackfill({
+      periodMs: handle.current?.periodMs ?? null,
+      bars: () => handle.current?.series()?.bars.length ?? 0,
+      maxBars: globalChartOptions().maxCandles,
+      loadOlder: (span, opts) => store.loadOlder(span, opts),
+      busy: () => store.loadingOlder,
+      exhausted: () => store.historyExhausted,
+      stopped: () => stop,
+      onStep: () => handle.current?.main.invalidate(),
+    }).then((r) => {
+      if (!stop) setBackfill(r.end);
+    });
     return () => {
       stop = true;
     };
-  }, [store, store.ready, loadDays, built]);
-
-  const loadOneMoreDay = () => {
-    if (!store.olderLoader) return toast('info', 'No older history from this feed');
-    store.historyExhausted = false;
-    setOlderNote('Loading 1 more day of history…');
-    // Let the note paint before a simulated day is generated.
-    setTimeout(() => {
-      void store.loadOlder(DAY_MS).then((n) => {
-        setOlderNote(n ? null : 'Start of available history');
-        handle.current?.cores.forEach((c) => c.invalidate());
-        if (n) toast('info', `Loaded ${n.toLocaleString()} older ticks`, '1 more day of history');
-      });
-    }, 30);
-  };
+  }, [store, store.ready, built]);
 
   // Default template per instrument class when the instrument changes.
   const prevInst = useRef(s.instrumentId);
@@ -417,8 +400,6 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               'Historical data reloaded',
               `${store.trades.length.toLocaleString()} ticks`,
             );
-          case 'load-day':
-            return loadOneMoreDay();
           case 'load-older':
             store.historyExhausted = false;
             void store
@@ -578,8 +559,19 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             data-testid={`chart-${s.template}`}
           >
             {!store.ready && (
-              <div className="chart-loading">
-                {store.error ?? `Loading ${inst.symbol} history…`}
+              <div className="chart-loading" data-testid="chart-loading" role="status">
+                {!store.error && <span className="chart-loading-spin" aria-hidden />}
+                {store.error ?? `Loading ${inst.symbol}…`}
+              </div>
+            )}
+            {store.ready && backfill === 'running' && (
+              <div
+                className="chart-backfill"
+                data-testid="chart-backfill"
+                role="status"
+                title="Loading older history in the background"
+              >
+                <span className="chart-loading-spin" aria-hidden /> history
               </div>
             )}
             <div ref={hostA} className="chart-host" />
@@ -652,34 +644,12 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           >
             📅
           </button>
-          <button
-            className="ht-chip ht-chip--ghost"
-            data-testid="load-one-more-day"
-            title="Load 1 more day of history"
-            onClick={loadOneMoreDay}
-          >
-            ◂ Load 1 more day
-          </button>
-          <label
-            className="chart-load-days"
-            title="History loaded when the chart opens (per chart)"
-          >
-            Load days
-            <input
-              type="number"
-              aria-label="Load days"
-              min={1}
-              max={MAX_LOAD_DAYS}
-              value={loadDays}
-              onChange={(e) => setLoadDays(Number(e.target.value))}
-            />
-          </label>
           <span className="muted" data-testid="history-range">
             {(store.historyProgress && progressLabel(store.historyProgress)) ??
               olderNote ??
               (s.template === 'liquidity-map'
                 ? `Brightness 100 · Cut-off 98/20 · ${store.depth.length} columns`
-                : `History ${spanLabel(store.trades.length ? store.lastTs - store.trades[0]!.ts : 0)} of ${loadDays} d · ${store.trades.length.toLocaleString()} ticks`)}
+                : `History ${spanLabel(store.trades.length ? store.lastTs - store.trades[0]!.ts : 0)} · ${store.trades.length.toLocaleString()} ticks${backfillNote(backfill)}`)}
           </span>
           <div className="grow" />
           {sBool(settings, 'delays.show') && <DelayChip store={store} settings={settings} />}

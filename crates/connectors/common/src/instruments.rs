@@ -161,9 +161,17 @@ pub fn pow10_text(places: i32) -> String {
     }
 }
 
-/// A REST client for one discovery run (short timeout, gentle rate limit).
+/// Whole-request timeout of a discovery download.
+pub const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(40);
+
+/// A REST client for one discovery run (long timeout, gzip, gentle rate limit).
 pub fn discovery_rest(base: &str) -> Rest {
-    Rest::new(base, TokenBucket::new(5, Duration::from_secs(1)))
+    // Exchange-info bodies are large (Binance spot is several MB): give them time on slow links.
+    Rest::with_timeout(
+        base,
+        TokenBucket::new(5, Duration::from_secs(1)),
+        DISCOVERY_TIMEOUT,
+    )
 }
 
 /// Parses a JSON body, mapping a decode error to an API error that names the endpoint.

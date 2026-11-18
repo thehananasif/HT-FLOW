@@ -180,13 +180,6 @@ const STATIC: Command[] = [
     run: act('fullscreen'),
   },
   {
-    id: 'chart.load-day',
-    label: 'Chart: ◂ Load 1 more day of history',
-    group: 'Chart',
-    keywords: 'history older load days',
-    run: act('load-day'),
-  },
-  {
     id: 'chart.snapshot.take',
     label: 'Chart: Take snapshot (save chart state)',
     group: 'Chart',
