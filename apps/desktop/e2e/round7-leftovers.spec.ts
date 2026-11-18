@@ -51,6 +51,40 @@ test('double-clicked .htstrat file opens in the HT Editor', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
+test('COT chart in the web build downloads from the CFTC API with a browser fetch', async ({
+  page,
+}) => {
+  const urls: string[] = [];
+  const row = (date: string) => ({
+    report_date_as_yyyy_mm_dd: `${date}T00:00:00.000`,
+    open_interest_all: '2603046',
+    change_in_open_interest_all: '1000',
+    dealer_positions_long_all: '548735',
+    dealer_positions_short_all: '156360',
+    asset_mgr_positions_long: '937649',
+    asset_mgr_positions_short: '100',
+  });
+  await page.route('https://publicreporting.cftc.gov/**', async (route) => {
+    urls.push(route.request().url());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify([row('2026-10-27'), row('2026-11-03')]),
+    });
+  });
+  await createAccount(page, 'leftover3');
+  await page.getByTestId('template-menu').first().click();
+  await page.getByRole('menuitem', { name: 'COT Chart', exact: true }).click();
+  await expect(page.getByTestId('chart-cot')).toBeVisible();
+  const status = page.getByTestId('cot-status');
+  await expect(status).toHaveAttribute('data-status', 'ready');
+  await expect(status).toContainText('as of 2026-11-03');
+  await expect(page.getByText('Sample data')).toHaveCount(0);
+  expect(urls.length).toBeGreaterThan(0);
+  expect(urls[0]).toContain('/resource/');
+});
+
 test('Trading Panel: drag handle resizes (min 240), keyboard nudges, double-click resets', async ({
   page,
 }) => {

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '../backend';
 import type { CotReport } from '../charts/layers/cotMarkets';
+import { cotFetchWeb } from './cotWeb';
 
 /** One trader category of a weekly report (mirrors the Rust `CotGroup`). */
 export interface CotGroup {
@@ -60,6 +61,15 @@ export async function cotFetchNative(a: CotFetchArgs): Promise<CotNativeResult> 
     });
   if (typeof window !== 'undefined' && window.__HTFLOW_COT_MOCK__)
     return window.__HTFLOW_COT_MOCK__(a);
+  // Web build: the CFTC API allows browser requests (CORS), so download it directly.
+  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+    try {
+      return await cotFetchWeb(a);
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
+      throw { code: err.code ?? 'cot.network', message: err.message ?? 'COT download failed' };
+    }
+  }
   throw { code: 'cot.unavailable', message: 'COT download needs the desktop app' };
 }
 
