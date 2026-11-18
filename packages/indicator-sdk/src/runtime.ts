@@ -1,6 +1,7 @@
 import type { Bar, Trade } from '@htflow/market-data';
 import { ListOut, SeriesOut, isSeriesKind } from './buffers';
 import { resolveInputs } from './inputs';
+import { alignAuxClose } from './second';
 import type {
   AnyIndicator,
   BarData,
@@ -11,6 +12,7 @@ import type {
   Marker,
   OutputDefs,
   Outputs,
+  AuxSeries,
   RawInputs,
   SeriesKind,
   SourceId,
@@ -84,6 +86,11 @@ export class IndicatorRuntime {
   private srcs = new Map<SourceId, Float64Array>();
   private state: unknown;
   private data: BarData | null = null;
+  /** Aligned closes of the other instruments this indicator asked for (ctx.aux). */
+  private auxs = new Map<string, { series: AuxSeries; tick: number }>();
+  private askedAux = new Set<string>();
+  private auxKey = '';
+  private auxFirst = '';
   private ctx: CalcContext<InputDefs, OutputDefs, unknown>;
 
   constructor(
@@ -110,6 +117,9 @@ export class IndicatorRuntime {
       state: undefined,
       derivatives: undefined,
       depth: undefined,
+      aux: (id) => this.aux(id),
+      account: null,
+      cot: undefined,
       notice: (text) => {
         this.pendingNotice = text;
       },
@@ -117,16 +127,35 @@ export class IndicatorRuntime {
   }
 
   private feedKey(data: BarData): number {
-    return (data.derivatives?.version ?? 0) * 1e6 + (data.depth?.version ?? 0);
+    return (
+      ((data.derivatives?.version ?? 0) * 1e6 + (data.depth?.version ?? 0)) * 1e3 +
+      ((data.account?.()?.version ?? 0) % 1e3) +
+      (data.cot?.version ?? 0) * 7919
+    );
+  }
+
+  /** Versions of the aux instruments in use (any change reruns the last bar) and their first bars. */
+  private auxKeys(data: BarData): [string, string] {
+    let v = '';
+    let f = '';
+    for (const id of this.askedAux) {
+      const a = data.aux?.(id);
+      v += `${a?.version ?? '-'}:${a?.bars.length ?? 0}|`;
+      f += `${a?.bars[0]?.t ?? '-'}|`;
+    }
+    return [v, f];
   }
 
   /** Brings results up to date with `data`. Cheap when nothing changed. */
   update(data: BarData): UpdateKind {
     const bars = data.bars;
     const fk = this.feedKey(data);
+    const [ak, af] = this.auxKeys(data);
     if (
       data.version === this.version &&
       fk === this.feedVersion &&
+      ak === this.auxKey &&
+      af === this.auxFirst &&
       bars.length === this.count &&
       bars[0] === this.first
     ) {
@@ -136,7 +165,11 @@ export class IndicatorRuntime {
     const n = bars.length;
     const m = this.count;
     const appendOnly =
-      m > 0 && n >= m && bars[0] === this.first && (m < 2 || bars[m - 2] === this.anchor);
+      m > 0 &&
+      n >= m &&
+      bars[0] === this.first &&
+      (m < 2 || bars[m - 2] === this.anchor) &&
+      af === this.auxFirst;
     if (!appendOnly) {
       this.recompute(data);
       return 'full';
@@ -144,6 +177,7 @@ export class IndicatorRuntime {
     this.data = data;
     this.version = data.version;
     this.feedVersion = fk;
+    this.auxKey = ak;
     this.run(data, m - 1, n);
     this.stats.incremental++;
     return 'incremental';
@@ -154,6 +188,8 @@ export class IndicatorRuntime {
     this.data = data;
     this.version = data.version;
     this.feedVersion = this.feedKey(data);
+    this.auxs.clear();
+    this.askedAux.clear();
     this.ensure(data.bars.length);
     for (const o of Object.values(this.outputs)) {
       if (o instanceof SeriesOut) o.clear(0);
@@ -165,6 +201,7 @@ export class IndicatorRuntime {
     this.notice = null;
     this.count = 0;
     this.run(data, 0, data.bars.length);
+    [this.auxKey, this.auxFirst] = this.auxKeys(data);
     this.stats.full++;
   }
 
@@ -178,6 +215,8 @@ export class IndicatorRuntime {
     ctx.state = this.state;
     ctx.derivatives = data.derivatives;
     ctx.depth = data.depth;
+    ctx.account = data.account?.() ?? null;
+    ctx.cot = data.cot;
     const outs = Object.values(this.outputs);
     for (const o of outs) if (o instanceof ListOut) o.truncate(from);
     for (let i = from; i < to; i++) {
@@ -188,6 +227,7 @@ export class IndicatorRuntime {
       for (const [id, arr] of this.srcs)
         arr[i] = sourceValue(b, id, i > 0 ? arr[i - 1]! : Number.NaN);
       for (const arr of this.bufs.values()) arr[i] = Number.NaN;
+      for (const [id, a] of this.auxs) this.fillAux(id, a, i, i + 1);
       for (const o of outs) {
         if (o instanceof SeriesOut) o.clearAt(i);
         else o.cursor = i;
@@ -209,6 +249,36 @@ export class IndicatorRuntime {
     for (const o of Object.values(this.outputs)) if (o instanceof SeriesOut) o.ensure(cap);
     for (const [k, b] of this.bufs) this.bufs.set(k, growF64(b, cap));
     for (const [k, s] of this.srcs) this.srcs.set(k, growF64(s, cap));
+    for (const a of this.auxs.values()) a.series.close = growF64(a.series.close, cap);
+  }
+
+  private fillAux(id: string, a: { series: AuxSeries; tick: number }, from: number, to: number) {
+    const aux = this.data?.aux?.(id);
+    const bars = this.ctx.bars;
+    const end = Math.min(to, bars.length);
+    if (!aux) {
+      a.series.close.fill(Number.NaN, from, end);
+      return;
+    }
+    a.tick = aux.tickSize;
+    a.series.tickSize = aux.tickSize;
+    alignAuxClose(bars, aux.bars, aux.tickSize, from, end, a.series.close);
+  }
+
+  private aux(id: string): AuxSeries | null {
+    if (id) this.askedAux.add(id);
+    const aux = this.data?.aux?.(id);
+    if (!id || !aux || !aux.bars.length) return null;
+    let a = this.auxs.get(id);
+    if (!a) {
+      a = {
+        series: { close: new Float64Array(this.cap).fill(Number.NaN), tickSize: aux.tickSize },
+        tick: aux.tickSize,
+      };
+      this.auxs.set(id, a);
+      this.fillAux(id, a, 0, this.ctx.i + 1);
+    }
+    return a.series;
   }
 
   private buf(name: string): Float64Array {
@@ -267,6 +337,9 @@ export function computeIndicator(
     tradesBetween?: BarData['tradesBetween'];
     derivatives?: BarData['derivatives'];
     depth?: BarData['depth'];
+    aux?: BarData['aux'];
+    account?: BarData['account'];
+    cot?: BarData['cot'];
   } = {},
 ): IndicatorRuntime {
   const rt = new IndicatorRuntime(def, raw);
@@ -277,6 +350,9 @@ export function computeIndicator(
     tradesBetween: opts.tradesBetween,
     derivatives: opts.derivatives,
     depth: opts.depth,
+    aux: opts.aux,
+    account: opts.account,
+    cot: opts.cot,
   });
   return rt;
 }

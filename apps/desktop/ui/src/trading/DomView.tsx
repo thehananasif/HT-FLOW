@@ -560,6 +560,7 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
   const template = domStore.get(smartDomExt(s).template);
   const pos = domActions.position(inst);
   const account = domActions.account(inst);
+  const upnl = pos.qty ? paper.unrealized(account, inst) : 0;
   const act = (fn: () => void) => () => fn();
   const market = (side: 'buy' | 'sell') =>
     domActions.place({ instrumentId: inst, side, type: 'market', qty: s.lots });
@@ -582,8 +583,13 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
         <button title="Reverse position" onClick={act(() => domActions.reverse(inst))}>
           × R
         </button>
-        <button title="Position PnL" disabled>
-          PnL
+        <button
+          title="Open P&L of the position at the last price"
+          disabled
+          data-testid="dom-pnl"
+          className={upnl > 0 ? 'up' : upnl < 0 ? 'down' : undefined}
+        >
+          {pos.qty ? `${upnl >= 0 ? '+' : '−'}${Math.abs(upnl).toFixed(2)}` : 'PnL'}
         </button>
         <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
           ×

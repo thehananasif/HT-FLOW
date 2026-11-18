@@ -1,8 +1,8 @@
 /**
- * SAMPLE COT data — synthetic weekly positions in the CFTC "Legacy" report layout.
- * HT Flow has no COT feed yet (CFTC publishes it free; a downloader is pending), so the COT Chart
- * shows these bundled rows and labels them "Sample data". Columns:
- * [report date, relative price, commercials long, commercials short, non-commercials long,
+ * SAMPLE COT data: synthetic weekly positions in the CFTC "Legacy" report layout. Real data comes
+ * from the CFTC public reporting API (`cot_fetch`); these rows are shown, labelled "Sample data",
+ * only when the app is offline and no cached download exists. Columns:
+ * [report date, relative price (unused), commercials long, commercials short, non-commercials long,
  *  non-commercials short, non-reportable long, non-reportable short, open interest]
  */
 export type CotRow = [string, number, number, number, number, number, number, number, number];

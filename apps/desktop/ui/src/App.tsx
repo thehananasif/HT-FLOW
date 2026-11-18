@@ -6,6 +6,11 @@ import { LoginScreen } from './auth/LoginScreen';
 import { Dashboard } from './dashboard/Dashboard';
 import { Gallery } from './Gallery';
 import { PlatformHost } from './platform/PlatformHost';
+import { SecondaryApp } from './platform/SecondaryApp';
+import { secondaryLabel } from './platform/secondary';
+
+/** Set once: a secondary OS window (`?window=ht-w-…`) never shows the login or the main chrome. */
+const osWindowLabel = secondaryLabel();
 
 export function App() {
   const session = useSession((s) => s.session);
@@ -14,8 +19,16 @@ export function App() {
   const gallery = import.meta.env.DEV && new URLSearchParams(location.search).has('gallery');
   return (
     <TooltipProvider>
-      {gallery ? <Gallery /> : session ? <Dashboard version={version} /> : <LoginScreen />}
-      <PlatformHost />
+      {osWindowLabel ? (
+        <SecondaryApp label={osWindowLabel} />
+      ) : gallery ? (
+        <Gallery />
+      ) : session ? (
+        <Dashboard version={version} />
+      ) : (
+        <LoginScreen />
+      )}
+      <PlatformHost secondary={!!osWindowLabel} />
       <Toaster />
     </TooltipProvider>
   );

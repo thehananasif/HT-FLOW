@@ -172,8 +172,8 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
             <b>Declarations</b> {SCRIPT_BUILTINS.declarations.join(' ')}
           </p>
           <p>
-            <b>Statements</b> <code>a = expr</code>, <code>var s = 0</code> then{' '}
-            <code>s := s + 1</code>, operators{' '}
+            <b>Statements</b> <code>let a = expr</code> (or <code>a = expr</code>),{' '}
+            <code>var s = 0</code> then <code>s := s + 1</code>, operators{' '}
             <code>+ - * / % ^ &lt; &gt; == != and or not ?:</code>
           </p>
           <p className="muted">

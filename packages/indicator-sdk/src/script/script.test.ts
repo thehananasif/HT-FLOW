@@ -3,7 +3,8 @@ import type { Bar } from '@htflow/market-data';
 import type { ListOut, SeriesOut } from '../buffers';
 import { ema, sma } from '../math';
 import { IndicatorRuntime, computeIndicator } from '../runtime';
-import { checkScript, compileFormula, scriptIndicator } from './compile';
+import { checkFormula, checkScript, compileFormula, scriptIndicator, MAX_FORMULA } from './compile';
+import { previewFormula } from './preview';
 import { SAMPLE_SCRIPT, parseHtind, serializeHtind } from './htind';
 import { parseProgram } from './lang';
 
@@ -244,5 +245,131 @@ describe('HT Script sandbox', () => {
     // A built-in-looking label is just a label.
     const ok = checkScript('len = input.int("constructor", 3)\nplot("toString", sma(close, len))');
     expect(ok.ok).toBe(true);
+  });
+});
+
+describe('Custom Formula language extras', () => {
+  const evalAt = (text: string, k: number) => {
+    const fn = compileFormula(text);
+    let out = Number.NaN;
+    computeIndicator(
+      {
+        id: 'f',
+        name: 'f',
+        category: 'technical',
+        pane: 'new',
+        description: '',
+        inputs: {},
+        outputs: { v: { kind: 'line', label: 'v', color: '#FFFFFF' } },
+        calc: (ctx) => {
+          const v = fn(ctx as never);
+          if (ctx.i === k) out = v;
+        },
+      },
+      bars(CLOSES),
+    );
+    return out;
+  };
+
+  it('iff, ref, buyVol / sellVol and highest / lowest', () => {
+    expect(evalAt('iff(close > ref(close, 1), 1, -1)', 1)).toBe(1);
+    expect(evalAt('iff(close > ref(close, 1), 1, -1)', 2)).toBe(-1);
+    expect(evalAt('ref(close, 2)', 4)).toBe(CLOSES[2]);
+    expect(evalAt('buyVol - sellVol', 3)).toBe(2);
+    expect(evalAt('highest(close, 3) - lowest(close, 3)', 4)).toBe(15 - 11);
+    expect(evalAt('max(abs(-3), min(5, 4))', 0)).toBe(4);
+    expect(evalAt('ema(delta, 3) * 0 + sma(close, 2)', 3)).toBeCloseTo((11 + 13) / 2, 9);
+  });
+
+  it('reports wrong arity of iff / ref with a position', () => {
+    expect(() => compileFormula('iff(1, 2)')).toThrow(/iff\(\) takes 3/);
+    expect(() => compileFormula('ref(close)')).toThrow(/ref\(\) takes 2/);
+  });
+
+  it('syntax errors carry line and column', () => {
+    const r = checkFormula('close +');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.pos).toEqual({ line: 1, col: 8 });
+    const u = checkFormula('close @ 2');
+    expect(u.ok).toBe(false);
+    if (!u.ok) expect(u.error).toMatch(/Unexpected character '@'/);
+  });
+
+  it('rejects deep nesting without overflowing the stack', () => {
+    const deep = `${'('.repeat(5000)}1${')'.repeat(5000)}`;
+    expect(() => compileFormula(deep)).toThrow(/longer than/);
+    // A script allows 20 000 characters: the nesting limit (not the stack) stops it.
+    const d = checkScript(`plot("x", ${'('.repeat(9000)}1${')'.repeat(9000)})`);
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.error).toMatch(/nested deeper/);
+    const ok = `${'('.repeat(40)}1${')'.repeat(40)}`;
+    expect(() => compileFormula(ok)).not.toThrow();
+    const over = `${'('.repeat(60)}1${')'.repeat(60)}`;
+    expect(() => compileFormula(over)).toThrow(/nested deeper/);
+    expect(() => compileFormula(`${'-'.repeat(200)}1`)).toThrow(/nested deeper/);
+    expect(() => compileFormula(`${'abs('.repeat(100)}1${')'.repeat(100)}`)).toThrow(
+      /nested deeper/,
+    );
+    expect(() => compileFormula(`${'1?'.repeat(100)}1${':1'.repeat(100)}`)).toThrow(/nested/);
+  });
+
+  it('limits length and node count', () => {
+    expect(() => compileFormula('1+'.repeat(MAX_FORMULA) + '1')).toThrow(/longer than/);
+    expect(checkFormula('x'.repeat(MAX_FORMULA + 1)).ok).toBe(false);
+    expect(() => compileFormula('1' + '+1'.repeat(499))).not.toThrow(); // long but legal chain
+  });
+
+  it('refuses host access in formulas', () => {
+    for (const f of [
+      'constructor',
+      '__proto__',
+      'this',
+      'window',
+      'globalThis.process',
+      'close.constructor',
+      'eval("1")',
+      'Function("return 1")()',
+      '`x`',
+      'a = 1',
+      'plot("x", 1)',
+      'input.int("a", 1)',
+    ])
+      expect(checkFormula(f).ok, f).toBe(false);
+  });
+
+  it('previews the last values on bars', () => {
+    const r = previewFormula('close - ref(close, 1)', bars(CLOSES), 1, 3);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.rows).toHaveLength(3);
+      expect(r.rows.map((x) => x.value)).toEqual([2, -1, 2]);
+    }
+    const bad = previewFormula('close +', bars(CLOSES), 1);
+    expect(bad.ok).toBe(false);
+  });
+});
+
+describe('HT Script let bindings and multiple plots', () => {
+  it('let is a binding; plot() may repeat', () => {
+    const def = scriptIndicator(
+      'script:let',
+      'let fast = ema(close, 3)\nlet slow = ema(close, 6)\nplot("Fast", fast)\nplot("Slow", slow)\nplot.histogram("Diff", fast - slow)',
+    );
+    expect(Object.keys(def.outputs)).toEqual(['fast', 'slow', 'diff']);
+    const rt = computeIndicator(def, bars(CLOSES));
+    const c = Float64Array.from(CLOSES);
+    const f = new Float64Array(c.length).fill(Number.NaN);
+    for (let i = 0; i < c.length; i++) f[i] = ema(f, c, i, 3);
+    expect(vals(rt, 'fast')[10]).toBeCloseTo(f[10]!, 9);
+    expect(vals(rt, 'diff')[10]).toBeCloseTo(vals(rt, 'fast')[10]! - vals(rt, 'slow')[10]!, 9);
+  });
+
+  it('let cannot shadow built-ins or aliases; deep nesting in scripts is rejected', () => {
+    expect(checkScript('let close = 1\nplot("x", close)').ok).toBe(false);
+    expect(checkScript('let buyVol = 1\nplot("x", buyVol)').ok).toBe(false);
+    const deep = `plot("x", ${'('.repeat(100)}1${')'.repeat(100)})`;
+    const r = checkScript(deep);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/nested deeper/);
   });
 });

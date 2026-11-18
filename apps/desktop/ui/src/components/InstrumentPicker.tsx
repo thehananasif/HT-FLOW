@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Clock, Search, Star } from 'lucide-react';
 import { Badge, Button, Checkbox } from '@htflow/ui-kit';
 import { catalog } from '@htflow/market-catalog';
 import { isTauri } from '../backend';
-import { useCatalogVersion } from '../state/discovery';
+import { refreshSymbolLists, useCatalogVersion, useDiscovery } from '../state/discovery';
 import { runCommand } from '../shell/commands';
 import {
   CONNECTED_GROUP,
@@ -130,8 +130,10 @@ export function InstrumentPicker({
     if (query.trim()) {
       const fav = new Set(prefs.favourites);
       const ids = new Set(entries.map((e) => e.key));
+      // No display cap: every match is listed (the list is virtualised). A 400-row cap used to
+      // hide most of a venue's coins for short queries such as "usdt".
       const hits = catalog().index.search(query, {
-        limit: 400,
+        limit: Math.max(1000, entries.length),
         boost: (d) => (fav.has(d.id) ? 40 : 0) + (byKey.get(d.id)?.status !== 'none' ? 25 : 0),
       });
       list = hits.map((h) => byKey.get(h.doc.id)).filter((e): e is PickerEntry => !!e && keep(e));
@@ -266,6 +268,7 @@ export function InstrumentPicker({
               g.subGroups.map((s) => treeItem(`s:${g.name}/${s.name}`, s.name, 1, s.ids.length))}
           </div>
         ))}
+        <SymbolListStatus />
       </nav>
       <div className="ip-main">
         <div className="ip-bar">
@@ -407,6 +410,51 @@ export function InstrumentPicker({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/**
+ * Per-venue symbol counts of the live discovery, with the error and a Retry for a venue whose
+ * list could not be downloaded (region block, timeout) — so a short list is never silent.
+ */
+function SymbolListStatus() {
+  const { report, loading } = useDiscovery();
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!report?.sources.length) return null;
+  return (
+    <div className="ip-lists" data-testid="picker-symbol-lists">
+      <div className="ip-lists-head muted">Symbol lists</div>
+      {report.sources.map((src) => (
+        <div
+          key={src.id}
+          className="ip-list-row"
+          data-testid={`picker-list-${src.id}`}
+          data-ok={src.ok}
+          title={src.ok ? undefined : src.error}
+        >
+          <span className="ip-list-name">{src.label}</span>
+          <span className="tnum">{src.count.toLocaleString()}</span>
+          {!src.ok && (
+            <>
+              <span className="ip-list-err" role="alert">
+                {src.count ? 'last list' : 'failed'}: {src.error ?? 'error'}
+              </span>
+              <button
+                type="button"
+                className="ip-connect"
+                disabled={loading || busy === src.id}
+                onClick={() => {
+                  setBusy(src.id);
+                  void refreshSymbolLists(src.id).finally(() => setBusy(null));
+                }}
+              >
+                {busy === src.id ? 'retrying…' : 'retry'}
+              </button>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 

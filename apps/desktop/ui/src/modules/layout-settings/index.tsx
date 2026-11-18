@@ -242,6 +242,7 @@ function LayoutSettings() {
           <EnumRow k="layout.openDom" label="DOM" />
           <EnumRow k="layout.openTape" label="Tape" />
           <EnumRow k="layout.openModule" label="Other windows" />
+          <EnumRow k="layout.detachMode" />
           <EnumRow k="layout.dockPlacement" />
           <EnumRow k="layout.floatPlacement" />
           <NumRow k="layout.newWindowWidth" />

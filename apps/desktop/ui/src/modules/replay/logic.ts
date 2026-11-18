@@ -173,3 +173,93 @@ export function savedStateOf(
 export function sameSavedState(a: SavedReplayState, b: SavedReplayState): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
+
+// ------------------------------------------------------------------ setup validation
+
+/** Largest range (bytes, estimated) one session may load: keeps the UI thread and memory sane. */
+export const MAX_SESSION_BYTES = 600e6;
+/** `to` may be this far ahead of the wall clock (the setup rounds "now" to the minute). */
+const FUTURE_SLACK_MS = 2 * 60_000;
+
+/** Why a replay range cannot be started, or null when it is fine. */
+export function validateRange(
+  from: number,
+  to: number,
+  now: number,
+  estimatedBytes = 0,
+): string | null {
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return 'Pick a start and an end time';
+  if (!(to > from)) return 'To must be after From';
+  if (to > now + FUTURE_SLACK_MS) return 'To is in the future: there is nothing to replay yet';
+  if (estimatedBytes > MAX_SESSION_BYTES)
+    return `That range is about ${Math.round(estimatedBytes / 1e6)} MB: shorten it (max ${Math.round(MAX_SESSION_BYTES / 1e6)} MB)`;
+  return null;
+}
+
+export interface SourceRange {
+  id: string;
+  /** Available data range of the source for the instrument, or null when unknown / empty. */
+  range: { from: number; to: number } | null;
+}
+
+/**
+ * Picks the data source for [from, to] from candidates in preference order: the first one whose
+ * range covers the request (within `tolMs`), else the one overlapping most, else the first
+ * candidate (so generated sources that have no meaningful range still work). null: no candidates.
+ */
+export function pickSourceId(
+  candidates: readonly SourceRange[],
+  from: number,
+  to: number,
+  tolMs = 120_000,
+): string | null {
+  if (!candidates.length) return null;
+  let best: { id: string; overlap: number } | null = null;
+  for (const c of candidates) {
+    const r = c.range;
+    if (!r) continue;
+    if (r.from <= from + tolMs && r.to >= to - tolMs) return c.id;
+    const overlap = Math.min(to, r.to) - Math.max(from, r.from);
+    if (overlap > 0 && (!best || overlap > best.overlap)) best = { id: c.id, overlap };
+  }
+  return best?.id ?? candidates[0]!.id;
+}
+
+// ------------------------------------------------------------------ leaving replay
+
+const REPLAY_PREFIX = 'replay:';
+
+/** Windows (id → instrument id) that show a replay instrument, with the live instrument to go back to. */
+export function exitReplayTargets(
+  windows: Readonly<Record<string, string | undefined>>,
+): { id: string; instrumentId: string }[] {
+  const out: { id: string; instrumentId: string }[] = [];
+  for (const [id, inst] of Object.entries(windows))
+    if (inst && inst.startsWith(REPLAY_PREFIX))
+      out.push({ id, instrumentId: inst.slice(REPLAY_PREFIX.length) });
+  return out;
+}
+
+// ------------------------------------------------------------------ timeline
+
+/** CSS left / width (percent strings) of the loop band on the timeline. */
+export function loopBand(
+  loop: { from: number; to: number },
+  start: number,
+  end: number,
+): { left: string; width: string } {
+  const span = Math.max(1, end - start);
+  const l = Math.min(1, Math.max(0, (loop.from - start) / span));
+  const r = Math.min(1, Math.max(l, (loop.to - start) / span));
+  return { left: `${(l * 100).toFixed(3)}%`, width: `${((r - l) * 100).toFixed(3)}%` };
+}
+
+const p2 = (n: number) => String(n).padStart(2, '0');
+
+/** Timeline end label: "HH:MM", with the day ("05 Jan 14:30") when the range is a day or longer. */
+export function edgeLabel(t: number, spanMs: number): string {
+  const d = new Date(t);
+  const hm = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  if (spanMs < 86_400_000) return hm;
+  return `${p2(d.getDate())} ${d.toLocaleDateString('en-GB', { month: 'short' })} ${hm}`;
+}

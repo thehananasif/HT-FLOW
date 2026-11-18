@@ -196,6 +196,8 @@ interface BaseDef<T> {
    * shows a "not used yet" hint for these.
    */
   wired?: boolean;
+  /** True when a change only takes effect after HT Flow restarts (a visible note is shown). */
+  restartRequired?: boolean;
 }
 
 export interface NumberDef extends BaseDef<number> {
@@ -244,6 +246,7 @@ export interface CustomDef<T> extends BaseDef<T> {
     | 'commissionRules'
     | 'clocks'
     | 'providers'
+    | 'dataSources'
     | 'moduleToggles'
     | 'moduleFolders'
     | 'tableLayouts';
@@ -707,6 +710,16 @@ export const SCHEMA = {
     keywords: 'compact toolbar',
   }),
 
+  'appearance.loginAnimation': bool({
+    section: 'appearance',
+    group: 'Login screen',
+    label: 'Animated login background',
+    help: 'Show the slow footprint-candle animation behind the login card. It pauses when the window is hidden and is replaced by a still picture when the system asks for reduced motion.',
+    default: true,
+    keywords: 'animation motion background canvas footprint login',
+    wired: true,
+  }),
+
   // ---------------------------------------------------------------- Hot keys
   'hotkeys.preset': oneOf({
     section: 'hotkeys',
@@ -954,7 +967,7 @@ export const SCHEMA = {
     alsoIn: ['common'],
     group: 'Rendering',
     label: 'Video adapter',
-    help: 'GPU preference of WebGL contexts (3D heatmap) on PCs with integrated + discrete graphics; the Heatmap rendering adapter wins when set.',
+    help: 'GPU the whole app (WebView2: all charts and WebGL) runs on, on PCs with integrated + discrete graphics. Passed to WebView2 at start-up, so it applies after a restart. The 3D heatmap also honours it for new WebGL contexts; the Heatmap rendering adapter wins there when set.',
     default: 'auto',
     options: [
       { value: 'auto', label: 'Auto' },
@@ -962,6 +975,7 @@ export const SCHEMA = {
       { value: 'low-power', label: 'Integrated (low power)' },
     ],
     wired: true,
+    restartRequired: true,
   }),
   'performance.showDebugInfo': bool({
     section: 'performance',
@@ -1083,17 +1097,13 @@ export const SCHEMA = {
     step: 1000,
     wired: true,
   }),
-  'common.defaultLoadDays': num({
+  'common.autoBackfill': bool({
     section: 'common',
     alsoIn: ['chart', 'data'],
     group: 'Common',
-    label: 'Default load days',
-    help: 'History loaded when a chart opens.',
-    default: 4,
-    min: 1,
-    max: 365,
-    step: 1,
-    unit: 'days',
+    label: 'Load all available history automatically',
+    help: 'Charts show the latest data at once, then load older history in the background as far back as the venue provides (up to Max candles per chart). Scrolling left always loads more.',
+    default: true,
     wired: true,
   }),
   'common.mboStoreRaw': bool({
@@ -1205,13 +1215,13 @@ export const SCHEMA = {
     alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Backup period',
-    help: 'How often the local database is backed up.',
+    help: 'How often the sealed profile folder is copied into backups\\<timestamp>\\ (checked at start-up and daily).',
     default: 1,
     min: 1,
     max: 30,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'common.maxBackups': num({
     section: 'common',
@@ -1223,7 +1233,7 @@ export const SCHEMA = {
     min: 1,
     max: 100,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'common.recorderMaxGb': num({
     section: 'common',
@@ -2273,6 +2283,17 @@ export const SCHEMA = {
     keywords: 'connector feed source order priority',
     wired: true,
   }),
+  'data.newsSources': custom<boolean>({
+    section: 'data',
+    group: 'Data sources',
+    label: 'News, RSS and calendar sources',
+    help: 'Public, key-free sources fetched by the HT Flow core: the weekly economic calendar and the default RSS feeds. Toggle the calendar here; manage feeds in the RSS Reader.',
+    default: true,
+    editor: 'dataSources',
+    validate: (v) => (typeof v === 'boolean' ? v : undefined),
+    keywords: 'news rss calendar economic source feed public data',
+    wired: true,
+  }),
   'data.autoReconnect': bool({
     section: 'data',
     group: 'Connections',
@@ -2291,6 +2312,29 @@ export const SCHEMA = {
     max: 600,
     step: 1,
     unit: 's',
+    wired: true,
+  }),
+  'data.cotReport': oneOf({
+    section: 'data',
+    group: 'Commitments of Traders',
+    label: 'Default COT report',
+    help: 'Report the COT Chart opens with when the market has it (financials: TFF, commodities: Disaggregated; Legacy is available for all).',
+    default: 'tff',
+    options: [
+      { value: 'tff', label: 'TFF (financial futures)' },
+      { value: 'disagg', label: 'Disaggregated (commodities)' },
+      { value: 'legacy', label: 'Legacy' },
+    ],
+    keywords: 'cot cftc commitments traders report',
+    wired: true,
+  }),
+  'data.cotAutoRefresh': bool({
+    section: 'data',
+    group: 'Commitments of Traders',
+    label: 'Refresh COT data weekly',
+    help: 'Download new COT data after the Friday release when a COT Chart is open. Off: only the cache (or the Refresh COT data command) is used. Data comes from the free CFTC public reporting API.',
+    default: true,
+    keywords: 'cot cftc commitments traders refresh update weekly',
     wired: true,
   }),
   'data.timestampSource': oneOf({
@@ -2618,18 +2662,19 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'logs.folder': str({
     section: 'logs',
     group: 'Files',
     label: 'Log folder',
-    help: 'Where log files are written. Applied on the next start; opening the folder needs the native shell.',
+    help: 'Where the daily log files are written (secrets are redacted). Applied on the next start.',
     default: '%APPDATA%\\HTFlow\\logs',
     maxLength: 260,
     pattern: /^[^<>"|?*\0]+$/,
     patternHint: 'A folder path without < > " | ? *',
-    wired: false,
+    wired: true,
+    restartRequired: true,
   }),
 
   // ---------------------------------------------------------------- Layout (P25 / P37)
@@ -2724,7 +2769,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openDom': oneOf({
@@ -2736,7 +2781,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openTape': oneOf({
@@ -2748,7 +2793,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openModule': oneOf({
@@ -2760,8 +2805,21 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
+  }),
+  'layout.detachMode': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Detach window opens',
+    help: 'Where "Detach window" moves a window: its own OS window (drag it to another monitor; the desktop app remembers size, position and monitor per window), or a floating window inside the main window. The browser build always floats.',
+    default: 'os',
+    options: [
+      { value: 'os', label: 'Separate OS window' },
+      { value: 'float', label: 'Floating inside the main window' },
+    ],
+    keywords: 'multi monitor second screen undock pop out tear off',
+    wired: true,
   }),
   'layout.dockPlacement': oneOf({
     section: 'layout',

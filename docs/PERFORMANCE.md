@@ -106,3 +106,14 @@ Timing assertions in `pnpm test` are smoke checks only, because every suite shar
 | Liquidity map, 2005 × 491 visible (bubbles, best bid / ask, DOM column on), live append | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 14.3 ms | 18.1 ms | Pass   |
 
 <!-- bench:end -->
+
+## Time to first candle (round 7)
+
+Measured by `history::tests::first_paint_needs_three_requests` (`cargo test -p htflow-desktop --lib first_paint -- --nocapture`): a busy USDⓈ-M symbol (50 trades / s) opened with 30 minutes of history against a local mock of the Binance REST API.
+
+| Path                                          | REST requests before the first candle | Time (Binance public rate: 10 burst + 2 / s) |
+| --------------------------------------------- | ------------------------------------- | -------------------------------------------- |
+| Before: forward `aggTrades` paging            | 90 needed, capped at 60               | ≈ 25 s + 60 round trips                      |
+| After: newest-first `recent_window` (3 pages) | 3                                     | 3 round trips (29 ms against the mock)       |
+
+The rest of the history arrives in the background (`charts/history.ts` `runBackfill`), with a spinner on the chart and progress in the footer; the browser preview's simulated feeds are unchanged.

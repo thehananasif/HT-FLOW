@@ -113,8 +113,7 @@ class TradingLayer implements ChartLayer {
     const pos = paper.position(acc, instId);
     const td = tradingDefaults();
     if (p.showPosition && td.showPositionLine && pos.qty !== 0) {
-      const last = w.ctx.store.lastTrade?.px;
-      const pnl = last !== undefined ? paper.unrealized(acc, instId, last) : 0;
+      const pnl = paper.unrealized(acc, instId);
       const side = pos.qty > 0 ? 'LONG' : 'SHORT';
       const cur = paper.accounts.get(acc)?.currency ?? 'USD';
       const pnlText = p.showPnl

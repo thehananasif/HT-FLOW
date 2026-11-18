@@ -38,6 +38,10 @@ const OPS2 = ['[', ']', ',', '=', '<', '>', '!', '?', ':', '.', ';'];
 
 export const MAX_SOURCE = 20_000;
 export const MAX_NODES = 4_000;
+/** Deepest expression nesting the parser accepts (keeps recursion far below the JS stack limit). */
+export const MAX_DEPTH = 48;
+/** Alternative spellings of bar series (Custom Formula names): name -> canonical built-in. */
+export const NAME_ALIASES: Readonly<Record<string, string>> = { buyVol: 'buy', sellVol: 'sell' };
 
 export function lex(src: string): Tok[] {
   if (src.length > MAX_SOURCE) throw new ScriptError(`Script is longer than ${MAX_SOURCE} chars`);
@@ -115,6 +119,7 @@ export type Stmt =
 class Parser {
   private p = 0;
   private nodes = 0;
+  private depth = 0;
   constructor(private toks: Tok[]) {}
 
   private get cur(): Tok {
@@ -162,6 +167,8 @@ class Parser {
   private stmt(): Stmt {
     const pos = this.cur.pos;
     let persist = false;
+    // `let x = ...` is the same as `x = ...` (bindings are per-bar series, so x[1] is the previous bar).
+    if (this.cur.k === 'id' && this.cur.v === 'let' && this.peek().k === 'id') this.p++;
     if (this.cur.k === 'id' && this.cur.v === 'var' && this.peek().k === 'id') {
       persist = true;
       this.p++;
@@ -181,7 +188,21 @@ class Parser {
     return { t: 'expr', e: this.expr(), pos };
   }
 
+  private nest<T>(pos: Pos, f: () => T): T {
+    if (++this.depth > MAX_DEPTH)
+      throw new ScriptError(`Expression nested deeper than ${MAX_DEPTH} levels`, pos);
+    try {
+      return f();
+    } finally {
+      this.depth--;
+    }
+  }
+
   private expr(): Expr {
+    return this.nest(this.cur.pos, () => this.exprInner());
+  }
+
+  private exprInner(): Expr {
     const c = this.or();
     if (!this.is('?')) return c;
     const pos = this.eat('?').pos;
@@ -239,7 +260,7 @@ class Parser {
     if (this.is('-') || this.is('+') || this.is('!') || this.kw('not')) {
       const t = this.toks[this.p++]!;
       const op = t.v === 'not' ? '!' : t.v;
-      return this.node({ t: 'unary', op, e: this.unary(), pos: t.pos });
+      return this.node({ t: 'unary', op, e: this.nest(t.pos, () => this.unary()), pos: t.pos });
     }
     return this.pow();
   }
@@ -305,9 +326,17 @@ class Parser {
           this.p++;
         }
         this.eat(')');
+        // iff(c, a, b) is the conditional; ref(x, n) is x[n] (the value n bars ago).
+        const plain = !Object.keys(named).length;
+        if (name === 'iff' && args.length === 3 && plain)
+          return this.node({ t: 'cond', c: args[0]!, a: args[1]!, b: args[2]!, pos: t.pos });
+        if (name === 'ref' && args.length === 2 && plain)
+          return this.node({ t: 'index', e: args[0]!, n: args[1]!, pos: t.pos });
+        if (name === 'iff' || name === 'ref')
+          throw new ScriptError(`${name}() takes ${name === 'iff' ? 3 : 2} arguments`, t.pos);
         return this.node({ t: 'call', name, args, named, pos: t.pos });
       }
-      return this.node({ t: 'name', name, pos: t.pos });
+      return this.node({ t: 'name', name: NAME_ALIASES[name] ?? name, pos: t.pos });
     }
     throw new ScriptError(
       t.k === 'eof' ? 'Unexpected end of script' : `Unexpected '${t.v}'`,

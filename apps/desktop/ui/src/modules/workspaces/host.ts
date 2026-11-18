@@ -17,6 +17,8 @@ export interface WorkspaceHost {
   isFloating?(id: string): boolean;
   /** Moves a docked window into a floating group, or a floating one back into the grid. */
   toggleFloating?(id: string): void;
+  /** Detach window: OS window or floating (`auto` follows Layout settings). */
+  detachWindow?(id: string, mode?: 'auto' | 'float' | 'os'): void;
 }
 
 let host: WorkspaceHost | null = null;

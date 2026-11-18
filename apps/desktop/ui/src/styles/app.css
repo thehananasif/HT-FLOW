@@ -909,9 +909,48 @@
   background: #000;
 }
 .login-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
+}
+.login-anim {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.6;
+}
+.login-anim canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.login-anim-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 34% 30% at 24% 58%, rgba(0, 0, 0, 0.7), transparent),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.3));
+}
+.login-hero,
+.login-side {
+  z-index: 1;
+}
+.login-hero-logo {
+  position: absolute;
+  right: 48px;
+  top: 40px;
+  filter: drop-shadow(0 6px 24px rgba(0, 0, 0, 0.6));
+}
+.brand-logo {
+  object-fit: contain;
+  user-select: none;
+}
+.brand-logo-card {
+  background: #e9e9e9;
+  border-radius: 14px;
+  padding: 6px;
 }
 .login-hero {
   position: relative;
@@ -930,39 +969,6 @@
 .login-brand-sub {
   color: var(--ht-text-secondary);
   font-size: 12px;
-}
-.hero-fp {
-  position: absolute;
-  left: 240px;
-  top: 150px;
-  display: flex;
-  gap: 4px;
-  opacity: 1;
-  pointer-events: none;
-}
-.hero-fp-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.hero-fp-cell {
-  display: flex;
-  gap: 0;
-  font-size: 10px;
-  color: var(--ht-text-secondary);
-  font-feature-settings: 'tnum' 1;
-}
-.hero-fp-cell span {
-  width: 34px;
-  padding: 3px 4px;
-  text-align: center;
-  background: #0d0d0d;
-}
-.hero-fp-cell[data-tone='up'] span {
-  background: rgba(32, 199, 122, 0.22);
-}
-.hero-fp-cell[data-tone='down'] span {
-  background: rgba(240, 74, 93, 0.22);
 }
 .login-hero-copy {
   position: relative;
@@ -1006,7 +1012,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: #050505;
+  background: rgba(5, 5, 5, 0.6);
   overflow-y: auto;
 }
 .login-card {
@@ -1167,4 +1173,27 @@
   .win-hdr .hdr-account {
     display: none;
   }
+}
+
+/* Round 7: small windows (e.g. 1366 × 700). The title bar shrinks its contents and never pushes
+   the window controls off-screen; the main column and side panels keep everything reachable by
+   scrolling instead of cutting it off at the bottom. */
+.titlebar {
+  min-width: 0;
+  overflow: hidden;
+}
+.titlebar > :not(.win-controls) {
+  min-width: 0;
+  flex-shrink: 1;
+}
+.titlebar > .tb-group,
+.titlebar > .titlebar-brand {
+  overflow: hidden;
+}
+.titlebar > .win-controls {
+  flex: none;
+  margin-left: auto;
+}
+.sidetools {
+  min-height: 0;
 }

@@ -33,6 +33,7 @@ htflow-connector-bybit.workspace = true
 htflow-tick-store.workspace = true
 htflow-vps.workspace = true
 htflow-core-types.workspace = true
+htflow-cot.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -40,8 +41,11 @@ tauri = { version = "2", features = [] }
 tokio.workspace = true
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 tracing.workspace = true
+tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeroize.workspace = true
+feed-rs = "2"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

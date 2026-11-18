@@ -56,7 +56,7 @@ export const ARTICLES: Article[] = [
     body: `Title bar → **Layout** switches between presets: DOM | Chart | Panel, Grid 2x2, 1 + 2, Split and Single.
 
 - Drag a window header to dock it anywhere; drag splitters to resize.
-- **Split right / Split down** duplicates the active window. **Detach window** floats it.
+- **Split right / Split down** duplicates the active window (a floating window gets a floating copy beside it). **Detach window** moves it into its own OS window you can drag to another monitor (desktop app; Settings → Layout → Detach window opens) or floats it; **Re-attach** in that window's title bar brings it back.
 - Layout tabs at the bottom keep several layouts; **+** adds one, double-click renames.
 - **Link groups**: click the coloured dot in a window header. Changing the instrument in one window changes every window of the same colour.
 

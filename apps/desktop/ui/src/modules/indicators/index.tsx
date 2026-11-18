@@ -27,11 +27,13 @@ import { CATALOG, indicatorById, poolable } from '@htflow/indicators';
 import type { BarSpec, MarketStore } from '@htflow/market-data';
 import { t } from '@htflow/i18n';
 import { Chip, toast } from '@htflow/ui-kit';
+import { createCotFeed } from '../../state/cotFeed';
 import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { registerCommands, registerPaletteProvider } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
-import { hub } from '../../state/market';
+import { hub, paper } from '../../state/market';
+import { routedAccount } from '../../trading/accounts';
 import { instrumentById } from '../../state/instruments';
 import { notify } from '../alerts/runtime';
 import { useSettingsStore } from '../../state/settings';
@@ -48,12 +50,24 @@ import {
   writeExt,
 } from './state';
 import { indicatorPool } from './pool';
+import { buildAccountSnapshot, type AccountFeedDeps } from './accountFeed';
 import { scriptSource } from './scripts';
 import type { MenuEntry } from '@htflow/ui-kit';
 import { canMovePane, indicatorsInPane, moveIndicator, type PaneMove } from './menuModel';
 import './styles.css';
 
 const isOurs = (l: ChartLayer) => l.id.startsWith('ind');
+
+/** Where indicators read the (paper) trading account from. */
+const accountDeps: AccountFeedDeps = {
+  paper,
+  accountFor: (instrumentId) => routedAccount(instrumentId).id,
+  economics: (id) => {
+    const i = hub.peek(id)?.instrument ?? instrumentById(id);
+    return { tickSize: i?.tickSize ?? 1, tickValue: i?.tickValue ?? 0 };
+  },
+  last: (id) => hub.peek(id)?.lastTrade?.px,
+};
 
 /** Indicator scene per chart window (right-click hit testing on the legend). */
 const scenes = new Map<string, IndicatorScene>();
@@ -228,6 +242,7 @@ registerChartExtension({
     const store = ctx.store;
     const derivatives = new DerivativesLog();
     const detachFeeds = derivatives.attach(store);
+    const cotFeed = createCotFeed(store.instrument.symbol, () => ctx.core.invalidate());
     const data: BarData = {
       get bars() {
         return ctx.series()?.bars ?? [];
@@ -238,6 +253,9 @@ registerChartExtension({
       tickSize: store.instrument.tickSize,
       tradesBetween: (a, b) => store.tradesBetween(a, b),
       derivatives,
+      get cot() {
+        return cotFeed.data();
+      },
       depth: {
         get version() {
           const d = store.depth;
@@ -247,6 +265,9 @@ registerChartExtension({
           return store.depth;
         },
       },
+      // Second instrument (Spread, Ratio, Correlation, Beta): same timeframe as the chart.
+      aux: (id) => (instrumentById(id) ? foreignData(id)() : null),
+      account: () => buildAccountSnapshot(accountDeps, store.instrument.id),
     };
     const core = ctx.core;
     // Other symbols used as indicator data sources (retained while this chart lives).
@@ -285,6 +306,7 @@ registerChartExtension({
           sym,
         );
       }
+      if (def.category === 'cot') cotFeed.ensure();
       const pool = poolable(def) ? indicatorPool() : null;
       if (pool) return pool.create(eff, spec, () => core.invalidate());
       return new IndicatorRuntime(eff, inputs);
@@ -369,6 +391,7 @@ registerChartExtension({
         hub.release(id);
       }
       detachFeeds();
+      cotFeed.detach();
       if (contexts.get(ctx.windowId) === ctx) contexts.delete(ctx.windowId);
       if (scenes.get(ctx.windowId) === scene) scenes.delete(ctx.windowId);
       core.pointerHandlers = core.pointerHandlers.filter((p) => p !== ph);

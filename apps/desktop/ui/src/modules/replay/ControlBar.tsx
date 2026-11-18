@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pause, Play, SkipBack, StepBack, StepForward } from 'lucide-react';
+import { Pause, Play, SkipBack, Square, StepBack, StepForward } from 'lucide-react';
 import { Button, Checkbox, Dialog, Field, Input, toast } from '@htflow/ui-kit';
 import type { BarSpec } from '@htflow/market-data';
 import type { ChartLayer, ChartView } from '@htflow/chart-engine';
@@ -19,11 +19,20 @@ import {
   replaySession,
   setHideFuture,
   sourceIdOf,
+  stopReplay,
+  REPLAY_ACCOUNT,
   type ReplayConfig,
 } from '../../feeds/replay';
 import { allEvents, calendar } from '../calendar/store';
 import { timeToX } from '../calendar/chartLines';
-import { fillTags, savedStateOf, timelineEvents } from './logic';
+import {
+  edgeLabel,
+  exitReplayTargets,
+  fillTags,
+  loopBand,
+  savedStateOf,
+  timelineEvents,
+} from './logic';
 import {
   addTemplate,
   onReplayDisplay,
@@ -92,7 +101,7 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
   );
   return (
     <div className="rp-timeline">
-      <span className="tnum muted">{fmtHm(e.start)}</span>
+      <span className="tnum muted">{edgeLabel(e.start, span)}</span>
       <div
         ref={ref}
         className="rp-track"
@@ -107,18 +116,14 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
           setDrag(tAt(ev.clientX));
         }}
         onPointerMove={(ev) => drag !== null && setDrag(tAt(ev.clientX))}
+        onPointerCancel={() => setDrag(null)}
         onPointerUp={(ev) => {
           if (drag === null) return;
           setDrag(null);
           replayControls.seek(id, tAt(ev.clientX));
         }}
       >
-        {e.loop && (
-          <span
-            className="rp-loop"
-            style={{ left: pct(e.loop.from), width: pct(e.start + e.loop.to - e.loop.from) }}
-          />
-        )}
+        {e.loop && <span className="rp-loop" style={loopBand(e.loop, e.start, e.end)} />}
         <span className="rp-fill" style={{ width: `${frac * 100}%` }} />
         <span className="rp-thumb" style={{ left: `${frac * 100}%` }} />
         {events.map((ev) => (
@@ -149,7 +154,7 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
           </span>
         ))}
       </div>
-      <span className="tnum muted">{fmtHm(e.end)}</span>
+      <span className="tnum muted">{edgeLabel(e.end, span)}</span>
     </div>
   );
 }
@@ -281,6 +286,16 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
             </button>
           ))}
         </div>
+        <button
+          className="rp-btn"
+          aria-label="Stop replay"
+          title="Stop replay and go back to the live chart"
+          data-testid="replay-stop"
+          onClick={exitReplay}
+        >
+          <Square size={12} />
+          Stop
+        </button>
         <div className="grow" />
         <button className="rp-btn" onClick={() => setGoto(true)}>
           Go to time…
@@ -555,6 +570,12 @@ function syncCommands(): void {
         run: run((id) => replayControls.stepTick(id)),
       },
       {
+        id: 'replay.stop',
+        label: 'Replay: stop and return to the live chart',
+        group: 'Chart',
+        run: () => exitReplay(),
+      },
+      {
         id: 'replay.hide-future',
         label: 'Replay: toggle hide future bars (ghost candles)',
         group: 'Chart',
@@ -591,4 +612,31 @@ export function showReplayOn(replayIds: string[]): void {
       if (w.kind !== 'module' && w.instrumentId === src)
         patch(k, { instrumentId: rid } as Partial<WindowState>);
   }
+}
+
+/**
+ * Leaves replay: closes open replay positions at the replay price (they have no price once the
+ * session is gone), stops the clock and puts every chart that shows a replay instrument back on
+ * its live / simulated instrument, so no stale replay bars stay on screen.
+ */
+export function exitReplay(): void {
+  try {
+    paper.flattenAll(REPLAY_ACCOUNT);
+  } catch {
+    // Nothing to flatten (no book): the account card can reset it.
+  }
+  stopReplay();
+  const { windows, patch, setActive, activeId } = useWindows.getState();
+  const inst: Record<string, string | undefined> = {};
+  for (const [id, w] of Object.entries(windows))
+    inst[id] = w.kind === 'module' ? undefined : w.instrumentId;
+  const targets = exitReplayTargets(inst);
+  for (const t of targets) {
+    const cur = useWindows.getState().windows[t.id];
+    // A linked chart may already have been switched by the previous patch.
+    if (cur && cur.kind !== 'module' && isReplayId(cur.instrumentId))
+      patch(t.id, { instrumentId: t.instrumentId } as Partial<WindowState>);
+  }
+  if (targets[0] && !activeId) setActive(targets[0].id);
+  if (targets.length) toast('info', 'Replay stopped', 'Back on the live chart');
 }

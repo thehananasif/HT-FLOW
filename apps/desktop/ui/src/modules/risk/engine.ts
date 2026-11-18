@@ -10,7 +10,7 @@ import {
   type RiskRules,
 } from '@htflow/trading';
 import { backend } from '../../backend';
-import { hub, paper } from '../../state/market';
+import { paper } from '../../state/market';
 import { useSession } from '../../state/session';
 import { activityLog } from '../activity/log';
 import { allEvents, calendar } from '../calendar/store';
@@ -39,7 +39,12 @@ interface Saved {
 /** The app-wide risk engine: pre-trade checks and loss monitoring on the paper engine. */
 export const risk = new RiskEngine(
   paper,
-  { mark: (id) => hub.peek(id)?.lastTrade?.px },
+  {
+    mark: (id) => {
+      const m = paper.mark(id);
+      return Number.isFinite(m) ? m : undefined;
+    },
+  },
   defaultRiskRules(localTimeZone()),
 );
 
@@ -179,12 +184,7 @@ function globalLimits(): GlobalRiskLimits {
 function accountEquity(accountId: string): number {
   const acc = paper.accounts.get(accountId);
   if (!acc) return 0;
-  let open = 0;
-  for (const p of paper.allPositions(accountId)) {
-    const m = hub.peek(p.instrumentId)?.lastTrade?.px;
-    if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
-  }
-  return acc.balance + open + paper.optionUnrealized(accountId);
+  return acc.balance + paper.openPnl(accountId);
 }
 
 function dayState(accountId: string): DayState {
@@ -257,7 +257,7 @@ paper.preTradeChecks.push((req) => {
     req,
     {
       position: paper.position(req.accountId, req.instrumentId).qty,
-      lastPx: hub.peek(req.instrumentId)?.lastTrade?.px ?? Number.NaN,
+      lastPx: paper.mark(req.instrumentId),
       dayPnl: accountEquity(req.accountId) - st.startEquity,
       tradesToday: st.trades,
     },

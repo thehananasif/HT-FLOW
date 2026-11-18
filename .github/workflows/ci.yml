@@ -1,8 +1,10 @@
 name: CI
 
+# Private repo: Actions minutes are limited (Windows runners count double), so each commit runs once.
+# Pushes to main run CI; work branches run through their pull request only (draft PRs included).
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -11,8 +13,9 @@ on:
 permissions:
   contents: read
 
+# A newer commit on the same PR / branch cancels the older run.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:

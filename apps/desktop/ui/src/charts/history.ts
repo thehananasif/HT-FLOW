@@ -1,39 +1,17 @@
-/** "Load days" (P31): how much history a chart wants, and what is still missing. */
+/**
+ * Chart history (round 7): no "Load days" any more. A chart paints the most recent window at
+ * once, then backfills older history automatically in the background as far back as the venue
+ * provides (bounded by Settings → Common → Max candles per chart), and keeps loading when the
+ * user scrolls left (gated by {@link LazyHistoryGate}).
+ */
 
 export const DAY_MS = 86_400_000;
-export const MIN_LOAD_DAYS = 1;
-export const MAX_LOAD_DAYS = 365;
-
-function clampDays(n: number): number {
-  return Math.min(MAX_LOAD_DAYS, Math.max(MIN_LOAD_DAYS, Math.round(n)));
-}
-
-/** Whole days in [1, 365]; anything unreadable falls back to `fallback`. */
-export function normalizeLoadDays(v: unknown, fallback = 4): number {
-  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : Number.NaN;
-  if (!Number.isFinite(n)) return clampDays(fallback);
-  return clampDays(n);
-}
-
-/** History (ms) still to load so [first, last] covers `days` days; 0 when covered or empty. */
-export function missingHistoryMs(
-  firstTs: number | undefined,
-  lastTs: number,
-  days: number,
-): number {
-  if (firstTs === undefined || !Number.isFinite(firstTs) || lastTs <= 0) return 0;
-  return Math.max(0, days * DAY_MS - Math.max(0, lastTs - firstTs));
-}
 
 /**
  * Spans (ms, newest first) to request for the missing history: whole days, the last one shorter.
  * Bounded to `maxChunks` so a bad clock never loops forever.
  */
-export function loadChunks(
-  missingMs: number,
-  chunkMs = DAY_MS,
-  maxChunks = MAX_LOAD_DAYS,
-): number[] {
+export function loadChunks(missingMs: number, chunkMs = DAY_MS, maxChunks = 365): number[] {
   const out: number[] = [];
   let left = Math.max(0, missingMs);
   while (left > 0 && out.length < maxChunks) {
@@ -45,8 +23,8 @@ export function loadChunks(
 }
 
 /**
- * Whether a chart loads the missing days by itself when it opens. Simulated feeds generate older
- * history on demand only (a simulated day is ~700k ticks): "◂ Load 1 more day" extends them.
+ * Whether a chart backfills older history by itself. Simulated feeds generate older history on
+ * demand only (a simulated day is ~700k ticks): scrolling left extends them.
  */
 export function autoLoadsHistory(feedKind: string | null, hasOlderLoader: boolean): boolean {
   return hasOlderLoader && feedKind !== 'mock';
@@ -59,27 +37,74 @@ export function spanLabel(ms: number): string {
   return `${Math.max(0, Math.round(ms / 60_000))} min`;
 }
 
-/** Bars a time-based chart shows at least once it has opened (long timeframes load more days). */
+/** Bars the first background step fills (a 4 h / 1 D chart has a full screen right away). */
 export const MIN_OPEN_BARS = 120;
+/** Bars of the chart period one later background step asks for (≤ every venue's kline budget, so
+ * the backfill keeps the chart's own bar resolution). */
+export const BACKFILL_BARS_PER_STEP = 3000;
+/** Longest span of one step (the native range command accepts 400 days). */
+export const MAX_BACKFILL_SPAN_MS = 365 * DAY_MS;
+/** Loop protection: steps one background backfill may take, whatever the feed answers. */
+export const MAX_BACKFILL_STEPS = 400;
+/** Real-trade REST budget of the first step: fills the screen fast; later steps use the default. */
+export const FIRST_STEP_PAGES = 12;
+
+/** Span (ms) of background backfill step `step` for a chart of `periodMs` bars (null = tick /
+ * volume / range bars). */
+export function backfillSpanMs(periodMs: number | null | undefined, step: number): number {
+  const p = periodMs && periodMs > 0 ? periodMs : null;
+  if (!p) return step === 0 ? 3_600_000 : 6 * 3_600_000;
+  const bars = step === 0 ? MIN_OPEN_BARS : BACKFILL_BARS_PER_STEP;
+  return Math.min(MAX_BACKFILL_SPAN_MS, Math.max(3_600_000, p * bars));
+}
+
+export interface BackfillDeps {
+  periodMs: number | null | undefined;
+  /** Bars the chart shows now. */
+  bars(): number;
+  maxBars: number;
+  /** Loads `spanMs` before the first trade; resolves to the trades added (0 = start reached). */
+  loadOlder(spanMs: number, opts?: { maxPages?: number }): Promise<number>;
+  /** Another request (left-scroll) is in flight. */
+  busy(): boolean;
+  exhausted(): boolean;
+  stopped(): boolean;
+  onStep?(step: number, added: number): void;
+  /** Yields to the UI between steps (default: a macrotask). */
+  pause?(ms: number): Promise<void>;
+}
+
+export type BackfillEnd = 'exhausted' | 'max-candles' | 'stopped' | 'step-cap';
 
 /**
- * Spans (ms, newest first) a chart loads when it opens: the missing part of `days` in whole
- * days, then one more span so a time-based chart of `periodMs` bars shows at least
- * {@link MIN_OPEN_BARS} bars (a 4h / 1D chart). One span for the extra part keeps it to one
- * request: the desktop backfill picks a kline interval to match, so it stays cheap.
+ * The automatic all-history backfill loop. Every step yields to the UI thread first; it stops at
+ * the start of the venue's history, at the max-candles cap, when the chart is rebuilt, or after
+ * {@link MAX_BACKFILL_STEPS} — it can never spin (the old 4 h freeze).
  */
-export function openLoadChunks(
-  firstTs: number | undefined,
-  lastTs: number,
-  days: number,
-  periodMs?: number,
-): number[] {
-  const chunks = loadChunks(missingHistoryMs(firstTs, lastTs, days));
-  if (!periodMs || periodMs <= 0 || firstTs === undefined || lastTs <= 0) return chunks;
-  const planned = Math.max(0, lastTs - firstTs) + chunks.reduce((a, b) => a + b, 0);
-  const want = Math.min(periodMs * MIN_OPEN_BARS, MAX_LOAD_DAYS * DAY_MS);
-  if (want > planned) chunks.push(want - planned);
-  return chunks;
+export async function runBackfill(d: BackfillDeps): Promise<{ steps: number; end: BackfillEnd }> {
+  const pause = d.pause ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  let step = 0;
+  let waits = 0;
+  while (step < MAX_BACKFILL_STEPS) {
+    await pause(step === 0 ? 0 : 16);
+    if (d.stopped()) return { steps: step, end: 'stopped' };
+    if (d.exhausted()) return { steps: step, end: 'exhausted' };
+    if (d.bars() >= d.maxBars) return { steps: step, end: 'max-candles' };
+    if (d.busy()) {
+      // A left-scroll request is running: wait for it (bounded) instead of stopping.
+      if (++waits > 600) return { steps: step, end: 'step-cap' };
+      await pause(250);
+      continue;
+    }
+    const added = await d.loadOlder(
+      backfillSpanMs(d.periodMs, step),
+      step === 0 ? { maxPages: FIRST_STEP_PAGES } : undefined,
+    );
+    d.onStep?.(step, added);
+    step++;
+    if (!added) return { steps: step, end: d.stopped() ? 'stopped' : 'exhausted' };
+  }
+  return { steps: step, end: 'step-cap' };
 }
 
 export interface HistoryProgressLike {

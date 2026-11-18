@@ -30,9 +30,20 @@ import type {
 } from '../types';
 import { SOURCES } from '../types';
 import { isColor } from '../inputs';
-import { parseExpression, parseProgram, ScriptError, type Expr, type Pos, type Stmt } from './lang';
+import {
+  NAME_ALIASES,
+  parseExpression,
+  parseProgram,
+  ScriptError,
+  type Expr,
+  type Pos,
+  type Stmt,
+} from './lang';
 
 export { ScriptError } from './lang';
+
+/** Longest Custom Formula text accepted (scripts have their own, larger limit). */
+export const MAX_FORMULA = 1000;
 
 type Ctx = CalcContext<InputDefs, OutputDefs, unknown>;
 
@@ -82,8 +93,17 @@ const FUNCS: Record<string, [number, number]> = {
 
 /** Every built-in name a script can use (shown in the editor's reference). */
 export const SCRIPT_BUILTINS = {
-  variables: [...BAR_SOURCES, 'bar_index', 'time', 'tick', 'na', 'true', 'false'],
-  functions: Object.keys(FUNCS),
+  variables: [
+    ...BAR_SOURCES,
+    ...Object.keys(NAME_ALIASES),
+    'bar_index',
+    'time',
+    'tick',
+    'na',
+    'true',
+    'false',
+  ],
+  functions: [...Object.keys(FUNCS), 'iff', 'ref'],
   declarations: [
     'indicator',
     'input.int',
@@ -291,6 +311,9 @@ function build(stmts: Stmt[], opts: { defaultName: string }): ScriptProgram {
       if (
         BAR_SOURCES.includes(s.name as SourceId) ||
         own(FUNCS, s.name) !== undefined ||
+        own(NAME_ALIASES, s.name) !== undefined ||
+        s.name === 'iff' ||
+        s.name === 'ref' ||
         s.name === 'tick'
       )
         err(`'${s.name}' is a built-in name`, s.pos);
@@ -700,6 +723,8 @@ export function scriptIndicator(id: string, source: string, defaultName = 'Scrip
  * `(close - sma(close, 20)) / stdev(close, 20)`. Returns the evaluator for a single value.
  */
 export function compileFormula(text: string): (ctx: Ctx) => number {
+  if (text.length > MAX_FORMULA)
+    throw new ScriptError(`Formula is longer than ${MAX_FORMULA} characters`);
   const e = parseExpression(text);
   const stmts: Stmt[] = [
     {
@@ -723,4 +748,17 @@ export function compileFormula(text: string): (ctx: Ctx) => number {
     prog.run(fake);
     return out.v[ctx.i]!;
   };
+}
+
+/** Non-throwing variant of compileFormula for editors (message includes line:col when known). */
+export function checkFormula(
+  text: string,
+): { ok: true } | { ok: false; error: string; pos: Pos | null } {
+  try {
+    compileFormula(text);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof ScriptError) return { ok: false, error: e.message, pos: e.pos };
+    return { ok: false, error: e instanceof Error ? e.message : String(e), pos: null };
+  }
 }

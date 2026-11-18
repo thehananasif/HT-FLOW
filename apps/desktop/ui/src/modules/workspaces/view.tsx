@@ -3,6 +3,7 @@
  * favourites, recent list and starters; Save current / Save as / Import / Export; the "Manage
  * workspace" tree with its summary; and the link-group manager.
  */
+import { useCatalogVersion } from '../../state/discovery';
 import { useEffect, useMemo, useState } from 'react';
 import { Download, MoreHorizontal, Save, Star, Upload } from 'lucide-react';
 import {
@@ -595,10 +596,13 @@ function LinksPane() {
   const [sel, setSel] = useState<LinkColor>('red');
   const groups = useMemo(() => linkGroups(windows), [windows]);
   const group = groups.find((g) => g.color === sel)!;
+  // Rebuilt when live symbol discovery merges new symbols.
+  const catVersion = useCatalogVersion();
   const instOptions = useMemo(
     () =>
       allInstruments(isTauri).map((i) => ({ value: i.id, label: `${i.symbol} — ${i.exchange}` })),
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catVersion],
   );
   const columns: TableColumn<LinkGroupInfo>[] = [
     {
