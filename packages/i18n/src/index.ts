@@ -1,5 +1,6 @@
 import { en, type Strings } from './en';
 
+export { en };
 export type { Strings };
 export type Locale = 'en';
 
