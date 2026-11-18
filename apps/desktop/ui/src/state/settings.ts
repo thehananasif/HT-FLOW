@@ -709,6 +709,16 @@ export const SCHEMA = {
     keywords: 'compact toolbar',
   }),
 
+  'appearance.loginAnimation': bool({
+    section: 'appearance',
+    group: 'Login screen',
+    label: 'Animated login background',
+    help: 'Show the slow footprint-candle animation behind the login card. It pauses when the window is hidden and is replaced by a still picture when the system asks for reduced motion.',
+    default: true,
+    keywords: 'animation motion background canvas footprint login',
+    wired: true,
+  }),
+
   // ---------------------------------------------------------------- Hot keys
   'hotkeys.preset': oneOf({
     section: 'hotkeys',

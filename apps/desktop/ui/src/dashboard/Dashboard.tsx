@@ -24,7 +24,6 @@ import {
   DropdownMenu,
   Field,
   Input,
-  LogoBars,
   SegmentedControl,
   toast,
   type MenuEntry,
@@ -51,6 +50,7 @@ import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../state/ins
 import { paper } from '../state/market';
 import { activeAccount, routedAccount } from '../trading/accounts';
 import { isTauri } from '../backend';
+import { BrandIcon } from '../components/Brand';
 import { TitleBar } from '../shell/TitleBar';
 import { Ribbon } from '../shell/Ribbon';
 import { StatusBar } from '../shell/StatusBar';
@@ -634,7 +634,7 @@ export function Dashboard({ version }: { version: string }) {
     <div className="app-root">
       <TitleBar>
         <div className="titlebar-brand">
-          <LogoBars size={16} />
+          <BrandIcon size={16} />
           <span className="tb-logo">
             HT
             <br />
