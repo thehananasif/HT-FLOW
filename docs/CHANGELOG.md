@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — round 7
+
+- News, RSS Reader and Economic Calendar now show real data. Rust commands `feed_fetch` (RSS 2.0 / Atom via `feed-rs`, https only, 3 MB / 15 s caps, host allow-list of defaults plus user-added feeds persisted through `feed_allow_add`, items reduced to plain text, disk cache with stale fallback) and `calendar_fetch` (public weekly economic-calendar JSON, UTC-normalised, 15 min minimum interval). Default feeds were re-verified live (crypto news, Federal Reserve, ECB, BoE, SEC, CFTC, EIA); existing profiles get the new defaults merged once. The calendar feeds the Calendar window, chart event markers, calendar alerts and the news-flatten rule. Sample data remains only as a labelled last-resort fallback when offline with no cache; loading / error / offline-cache states, "Mark all read", and Settings → Data → Data sources added. See `docs/SECURITY-AUDIT.md` for the new network hosts.
+
 ## Unreleased — round 6
 
 ### Security
