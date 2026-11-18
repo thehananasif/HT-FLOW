@@ -7,7 +7,7 @@ export function ConfirmHost() {
   const req = useConfirmStore((s) => s.queue[0]);
   if (!req) return null;
   return (
-    <Dialog open onOpenChange={(o) => !o && req.resolve(false)} title={req.title} width={380}>
+    <Dialog open onOpenChange={(o) => !o && req.resolve(false)} title={tl(req.title)} width={380}>
       <p className="st-confirm-body" data-testid="confirm-body">
         {req.body}
       </p>

@@ -55,8 +55,8 @@ export function CotBar({
         onChange={(e) => onChange((c) => (c.report = e.target.value as typeof c.report))}
       >
         {reports.map((r) => (
-          <option key={r.id} value={r.id} title={r.help}>
-            {r.label}
+          <option key={r.id} value={r.id} title={tl(r.help)}>
+            {tl(r.label)}
           </option>
         ))}
       </select>

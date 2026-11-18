@@ -123,7 +123,7 @@ function ShortcutsTable() {
                   <td>
                     <code className="ug-code">{c.shortcut}</code>
                   </td>
-                  <td>{c.label}</td>
+                  <td>{tl(c.label)}</td>
                   <td>{c.scope ?? 'global'}</td>
                 </tr>
               ))}
@@ -312,7 +312,7 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
                 data-testid="guide-hit"
                 onClick={() => nav(h.article.id, h.anchor)}
               >
-                {h.article.title}
+                {tl(h.article.title)}
                 {h.heading ? ` › ${h.heading}` : ''}
                 {h.snippet && <span className="ug-snip muted">{h.snippet}</span>}
               </button>
@@ -328,7 +328,7 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
                     className={`ug-item${article?.id === a.id ? ' active' : ''}`}
                     onClick={() => nav(a.id)}
                   >
-                    {a.title}
+                    {tl(a.title)}
                     {a.isNew && <span className="ug-new">{tl('new')}</span>}
                   </button>
                   {article?.id === a.id &&
@@ -340,7 +340,7 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
                           className={`ug-item ug-sub${anchor === p.id ? ' active' : ''}`}
                           onClick={() => nav(a.id, p.id)}
                         >
-                          {p.title}
+                          {tl(p.title)}
                         </button>
                       ))}
                 </Fragment>
@@ -359,7 +359,7 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
           <>
             <div className="ug-crumb muted">{article.section}</div>
             <h2 className="ug-title">
-              {article.title}
+              {tl(article.title)}
               {article.isNew && <span className="ug-new">{tl('new')}</span>}
             </h2>
             {article.opens && article.opens.length > 0 && (
@@ -375,14 +375,14 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
             <div className="ug-pager">
               {prev ? (
                 <Button size="sm" variant="outline" onClick={() => nav(prev.id)}>
-                  ← {prev.title}
+                  ← {tl(prev.title)}
                 </Button>
               ) : (
                 <span />
               )}
               {next && (
                 <Button size="sm" variant="outline" onClick={() => nav(next.id)}>
-                  {next.title} →
+                  {tl(next.title)} →
                 </Button>
               )}
             </div>

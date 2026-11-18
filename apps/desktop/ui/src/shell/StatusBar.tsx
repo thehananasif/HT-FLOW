@@ -91,8 +91,8 @@ export function StatusBar({ version, timezone }: { version: string; timezone: st
         <StatusPill
           key={p.key}
           state={p.state}
-          label={p.label}
-          title={p.title}
+          label={tl(p.label)}
+          title={tl(p.title)}
           onClick={() => runCommand('open.connections')}
         />
       ))}

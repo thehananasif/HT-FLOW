@@ -153,7 +153,7 @@ export function SideTools({
           }}
         >
           <span className="st-check">{m.id === mode ? '✓' : ''}</span>
-          {m.label}
+          {tl(m.label)}
           {m.shortcut && <span className="ht-menu-sc">{m.shortcut}</span>}
         </button>
       ))}

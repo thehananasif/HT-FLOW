@@ -75,7 +75,7 @@ export function DataWindow({
       <dl>
         {rows.map((r) => (
           <div key={r.label}>
-            <dt>{r.label}</dt>
+            <dt>{tl(r.label)}</dt>
             <dd className="tnum" style={r.color ? { color: r.color } : undefined}>
               {r.value}
             </dd>

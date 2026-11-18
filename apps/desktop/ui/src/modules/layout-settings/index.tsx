@@ -55,9 +55,9 @@ function EnumRow({ k, label }: { k: EnumKey; label?: string }) {
   if (d.type !== 'enum') return null;
   const off = d.options.filter((o) => o.disabled);
   return (
-    <Row label={label ?? d.label} help={d.help}>
+    <Row label={label ?? d.label} help={tl(d.help)}>
       <SegmentedControl<string>
-        aria-label={d.label}
+        aria-label={tl(d.label)}
         value={value}
         onChange={(v) => setSetting(k, v as never)}
         options={d.options
@@ -86,9 +86,9 @@ function BoolRow({
   const value = useSetting(k) as boolean;
   const d = settingDef(k);
   return (
-    <Row label={d.label} help={d.help}>
+    <Row label={tl(d.label)} help={tl(d.help)}>
       <SegmentedControl<'on' | 'off'>
-        aria-label={d.label}
+        aria-label={tl(d.label)}
         value={value ? 'on' : 'off'}
         onChange={(v) => setSetting(k, (v === 'on') as never)}
         options={[
@@ -105,9 +105,9 @@ function NumRow({ k }: { k: SettingKey }) {
   const d = settingDef(k);
   if (d.type !== 'number') return null;
   return (
-    <Row label={d.label} help={d.help}>
+    <Row label={tl(d.label)} help={tl(d.help)}>
       <NumberInput
-        aria-label={d.label}
+        aria-label={tl(d.label)}
         value={value}
         min={d.min}
         max={d.max}
@@ -178,7 +178,7 @@ function LinkColorRow({ c }: { c: Exclude<LinkColor, 'none'> }) {
   const count = linkGroups(windows).find((g) => g.color === c)?.windowIds.length ?? 0;
   const label = c[0]!.toUpperCase() + c.slice(1);
   return (
-    <Row label={`${label} group`} help={settingDef(key).help}>
+    <Row label={`${label} group`} help={tl(settingDef(key).help)}>
       <span className="ls-swatch" style={{ background: LINK_COLORS[c] }} />
       <ColorPicker
         label={`${label} group colour`}

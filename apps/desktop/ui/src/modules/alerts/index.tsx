@@ -139,7 +139,7 @@ function SoundPicker({ value, onChange }: { value: string; onChange(v: string): 
         <option value="">{tl('Default (Settings → Sounds → Alert)')}</option>
         {BUILTIN_SOUNDS.map((s) => (
           <option key={s.id} value={s.id}>
-            {s.label}
+            {tl(s.label)}
           </option>
         ))}
         {custom.map((s) => (
@@ -385,7 +385,7 @@ function NewAlertForm() {
       >
         {KINDS.map((k) => (
           <option key={k.id} value={k.id}>
-            {k.label}
+            {tl(k.label)}
           </option>
         ))}
       </select>
@@ -523,7 +523,7 @@ function NewAlertForm() {
         >
           {LIQ_WINDOWS.map((w) => (
             <option key={w.ms} value={w.ms}>
-              {tl('Size:')} {w.label}
+              {tl('Size:')} {tl(w.label)}
             </option>
           ))}
         </select>
@@ -538,7 +538,7 @@ function NewAlertForm() {
             aria-pressed={!!actions[a.id]}
             onClick={() => setActions({ ...actions, [a.id]: !actions[a.id] })}
           >
-            {a.label}
+            {tl(a.label)}
           </button>
         ))}
       </div>
@@ -565,7 +565,7 @@ function NewAlertForm() {
         >
           {EXPIRY.map((x, k) => (
             <option key={x.label} value={k}>
-              {tl('Expires:')} {x.label}
+              {tl('Expires:')} {tl(x.label)}
             </option>
           ))}
         </select>

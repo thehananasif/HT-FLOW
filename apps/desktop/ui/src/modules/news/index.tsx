@@ -258,7 +258,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
         />
         {CHIPS.map((c) => (
           <Chip key={c.id} selected={chip === c.id} onClick={() => setParams({ chip: c.id })}>
-            {c.label}
+            {tl(c.label)}
           </Chip>
         ))}
         <Checkbox

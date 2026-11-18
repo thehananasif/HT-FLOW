@@ -4,6 +4,7 @@ import type { BarSpec, Instrument } from '@htflow/market-data';
 import type { StrategyInstrument } from '@htflow/strategy';
 import { Checkbox, ColorSwatch, Input, NumberInput, Select } from '@htflow/ui-kit';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export const openModule = (id: string) =>
   window.dispatchEvent(new CustomEvent('htflow:open-module', { detail: id }));
 
@@ -79,7 +80,7 @@ function InputControl({
     case 'float':
       return (
         <NumberInput
-          aria-label={def.label}
+          aria-label={tl(def.label)}
           value={Number(value)}
           step={def.step}
           min={def.min}
@@ -94,19 +95,19 @@ function InputControl({
       return (
         <Select
           small
-          aria-label={def.label}
+          aria-label={tl(def.label)}
           value={String(value)}
           options={def.options.map((o) => ({ value: o.value, label: o.label }))}
           onChange={onChange}
         />
       );
     case 'color':
-      return <ColorSwatch label={def.label} value={String(value)} onChange={onChange} />;
+      return <ColorSwatch label={tl(def.label)} value={String(value)} onChange={onChange} />;
     case 'source':
       return (
         <Select
           small
-          aria-label={def.label}
+          aria-label={tl(def.label)}
           value={String(value)}
           options={SOURCES.map((s) => ({ value: s.value, label: s.label }))}
           onChange={onChange}
@@ -116,7 +117,7 @@ function InputControl({
       return (
         <Select
           small
-          aria-label={def.label}
+          aria-label={tl(def.label)}
           value={String(value)}
           options={TIMEFRAMES.map((s) => ({ value: s.value, label: s.label }))}
           onChange={onChange}
@@ -126,7 +127,7 @@ function InputControl({
       return (
         <Select
           small
-          aria-label={def.label}
+          aria-label={tl(def.label)}
           value={String(value)}
           options={['solid', 'dashed', 'dotted'].map((s) => ({ value: s, label: s }))}
           onChange={onChange}
@@ -135,7 +136,7 @@ function InputControl({
     default:
       return (
         <Input
-          aria-label={def.label}
+          aria-label={tl(def.label)}
           data-input={id}
           value={String(value)}
           onChange={(e) => onChange(e.target.value)}
@@ -160,8 +161,8 @@ export function InputsForm({
   return (
     <div className="stg-inputs" data-testid={testId}>
       {Object.entries(defs).map(([k, d]) => (
-        <label key={k} className="stg-input-row" title={d.help}>
-          <span>{d.label}</span>
+        <label key={k} className="stg-input-row" title={tl(d.help)}>
+          <span>{tl(d.label)}</span>
           <InputControl
             id={k}
             def={d}

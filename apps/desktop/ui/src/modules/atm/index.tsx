@@ -244,7 +244,7 @@ function ConfirmTab() {
             key={k.id}
             checked={prefs.confirm[k.id]}
             onChange={(v) => setPrefs({ confirm: { ...prefs.confirm, [k.id]: v } })}
-            label={k.label}
+            label={tl(k.label)}
           />
         ))}
       </div>

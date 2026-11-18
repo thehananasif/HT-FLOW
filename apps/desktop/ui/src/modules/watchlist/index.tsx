@@ -308,7 +308,7 @@ function Row({
         // Fed by the crypto connectors' funding / open-interest streams; "—" when absent.
         const f = formatOiFunding(store, formatCompact);
         return (
-          <span key={c} className={`r tnum${f.text === '—' ? ' muted' : ''}`} title={f.title}>
+          <span key={c} className={`r tnum${f.text === '—' ? ' muted' : ''}`} title={tl(f.title)}>
             {f.text}
           </span>
         );
@@ -586,7 +586,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             className={c === 'spark' ? '' : 'r'}
             onClick={() => sortBy(c)}
           >
-            {COLUMNS.find((x) => x.id === c)!.label}
+            {tl(COLUMNS.find((x) => x.id === c)!.label)}
             {arrow(c)}
           </button>
         ))}

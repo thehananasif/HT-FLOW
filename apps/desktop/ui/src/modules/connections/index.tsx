@@ -233,9 +233,9 @@ function Connections({ onData }: { onData: () => void }) {
                 </td>
                 <td>{r.type}</td>
                 <td>
-                  <span className={`cx-status cx-status--${r.status}`} title={r.label}>
+                  <span className={`cx-status cx-status--${r.status}`} title={tl(r.label)}>
                     <i />
-                    {r.label}
+                    {tl(r.label)}
                   </span>
                 </td>
                 <td className={`r ${LAT_CLASS[latencyLevel(r.latency)]}`}>{r.latencyText}</td>

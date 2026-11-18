@@ -349,7 +349,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
       {
         key: 'label',
         header: 'Column',
-        render: (c) => <span title={columnDef(c.id).description}>{columnLabel(c.id)}</span>,
+        render: (c) => <span title={tl(columnDef(c.id).description)}>{columnLabel(c.id)}</span>,
       },
       {
         key: 'width',

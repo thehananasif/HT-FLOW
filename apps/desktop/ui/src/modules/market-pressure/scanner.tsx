@@ -164,7 +164,7 @@ export function ScannerTable<R extends { key: string }>({
               onSort(c.id, c.id === col.id ? (sortDir === 'desc' ? 'asc' : 'desc') : 'desc')
             }
           >
-            {c.label}
+            {tl(c.label)}
             {c.id === col.id ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}
           </button>
         ))}

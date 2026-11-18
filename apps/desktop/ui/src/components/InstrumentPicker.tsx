@@ -434,7 +434,7 @@ function SymbolListStatus() {
           data-ok={src.ok}
           title={src.ok ? undefined : src.error}
         >
-          <span className="ip-list-name">{src.label}</span>
+          <span className="ip-list-name">{tl(src.label)}</span>
           <span className="tnum">{src.count.toLocaleString()}</span>
           {!src.ok && (
             <>

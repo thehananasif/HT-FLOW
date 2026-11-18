@@ -461,7 +461,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
             </p>
           </aside>
           <section className="stg-setup" aria-label={tl('Backtest setup')}>
-            <p className="stg-desc">{def.description}</p>
+            <p className="stg-desc">{tl(def.description)}</p>
             <div className="stg-subhead">{tl('Inputs')}</div>
             <InputsForm
               defs={def.inputs}

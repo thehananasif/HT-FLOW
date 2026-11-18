@@ -456,7 +456,7 @@ function StrategyDialog({ windowId }: { windowId: string }) {
         </label>
         {def && (
           <>
-            <p className="stg-muted">{def.description}</p>
+            <p className="stg-muted">{tl(def.description)}</p>
             <InputsForm
               defs={def.inputs}
               values={ext.inputs}

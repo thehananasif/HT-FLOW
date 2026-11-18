@@ -44,15 +44,14 @@ export function t(key: keyof Strings, vars?: Record<string, string | number>): s
  * Translate an English string that was resolved at module load (command labels, registered with
  * `t()` before the language was known). Strings that are not an exact en.ts value pass through.
  */
-export function translateLiteral(s: string): string {
-  if (locale === 'en') return s;
+export function translateLiteral<T extends string | undefined>(s: T): T {
+  if (locale === 'en' || s === undefined) return s;
   if (!reverse) {
     reverse = new Map();
-    for (const [k, v] of Object.entries(en))
-      if (!v.includes('{')) reverse.set(v, k as keyof Strings);
+    for (const [k, v] of Object.entries(en)) reverse.set(v, k as keyof Strings);
   }
   const key = reverse.get(s);
-  return key ? t(key) : s;
+  return (key ? t(key) : s) as T;
 }
 
 /** Plural suffix for the "{n} object{s}" style strings: English adds "s", Urdu has none. */

@@ -254,8 +254,8 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
                           onMouseDown={() => setSel(r)}
                           onFocus={() => setSel(r)}
                         >
-                          <span className="cs-name" title={r.help}>
-                            {r.label}
+                          <span className="cs-name" title={tl(r.help)}>
+                            {tl(r.label)}
                           </span>
                           <span className="cs-editor">
                             <RowEditor

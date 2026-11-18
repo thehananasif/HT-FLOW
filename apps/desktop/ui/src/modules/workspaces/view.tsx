@@ -395,7 +395,7 @@ function LibraryPane({
                   {tl('Use')}
                 </Button>
               </div>
-              <div className="wsm-card-desc">{s.description}</div>
+              <div className="wsm-card-desc">{tl(s.description)}</div>
             </div>
           ))}
         </div>
@@ -535,7 +535,7 @@ function ManagePane({
               const i = tree.info.get(n.id);
               return (
                 <span className="wsm-node">
-                  <span className="wsm-node-label">{n.label}</span>
+                  <span className="wsm-node-label">{tl(n.label)}</span>
                   {i?.detail && (
                     <span className={`wsm-node-detail${i.open ? ' wsm-open' : ''}`}>
                       {i.detail}

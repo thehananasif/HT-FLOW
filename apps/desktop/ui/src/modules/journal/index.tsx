@@ -632,7 +632,7 @@ function Journal({ params, setParams }: { params: Params; setParams(p: Partial<P
               aria-pressed={params.period === p.id}
               onClick={() => setParams({ period: p.id })}
             >
-              {p.label}
+              {tl(p.label)}
             </button>
           ))}
         </div>

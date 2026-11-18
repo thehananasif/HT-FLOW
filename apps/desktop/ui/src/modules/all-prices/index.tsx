@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Settings2 } from 'lucide-react';
 import { Chip, IconButton, Input, Select, alpha, theme } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import { formatPrice, formatQty, type MarketStore } from '@htflow/market-data';
 import {
   PriceStatsAccumulator,
@@ -182,7 +182,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
         <span className="grow" />
         {RANGES.map((r) => (
           <Chip key={r.id} selected={p.range === r.id} onClick={() => set({ range: r.id })}>
-            {r.label}
+            {tl(r.label)}
           </Chip>
         ))}
         <IconButton
@@ -247,7 +247,7 @@ function AllPrices({ state, setParams }: ModuleViewProps) {
             data-sorted={p.sortKey === c.id ? p.sortDir : undefined}
             onClick={() => sortBy(c.id)}
           >
-            {c.label}
+            {tl(c.label)}
             {p.sortKey === c.id ? (p.sortDir === 'desc' ? ' ▾' : ' ▴') : ''}
           </button>
         ))}

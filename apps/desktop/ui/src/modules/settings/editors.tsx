@@ -130,7 +130,7 @@ export function TokensEditor({ value, onChange, draft }: EditorProps<TokenOverri
     <div className="st-tokens">
       {TOKEN_GROUPS.map((g) => (
         <div key={g.label} className="st-token-group">
-          <div className="st-subhead">{g.label}</div>
+          <div className="st-subhead">{tl(g.label)}</div>
           {g.keys.map((k) => (
             <TokenRow
               key={k}
@@ -348,7 +348,7 @@ export function HotkeysEditor({
                       <span className="st-dot-slot">
                         {r.modified && <span className="st-mod" />}
                       </span>
-                      {r.c.label}
+                      {tl(r.c.label)}
                       {conf && (
                         <span className="st-conflict">
                           {' '}
@@ -359,7 +359,7 @@ export function HotkeysEditor({
                     <td>
                       <Recorder
                         value={r.shortcut}
-                        label={r.c.label}
+                        label={tl(r.c.label)}
                         onRecord={(s) => set(r.c.id, { shortcut: s })}
                       />
                     </td>
@@ -372,7 +372,7 @@ export function HotkeysEditor({
                       >
                         {HOTKEY_SCOPES.map((s) => (
                           <option key={s.value} value={s.value}>
-                            {s.label}
+                            {tl(s.label)}
                           </option>
                         ))}
                       </select>
@@ -420,7 +420,7 @@ export function SoundEventsEditor({
       {SOUND_EVENTS.map((e) => {
         const c = value[e.id];
         return (
-          <div key={e.id} className="st-row" title={e.help}>
+          <div key={e.id} className="st-row" title={tl(e.help)}>
             <span className="st-row-label">
               <input
                 type="checkbox"
@@ -429,7 +429,7 @@ export function SoundEventsEditor({
                 checked={c.enabled}
                 onChange={(x) => set(e.id, { enabled: x.target.checked })}
               />
-              {e.label}
+              {tl(e.label)}
             </span>
             <span className="st-row-ctl row gap8 center-y">
               <select
@@ -440,7 +440,7 @@ export function SoundEventsEditor({
               >
                 {BUILTIN_SOUNDS.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.label}
+                    {tl(b.label)}
                   </option>
                 ))}
                 {customs.map((s) => (

@@ -659,7 +659,7 @@ function NodeHelp({ host }: { host: VpsHost }) {
   return (
     <div className="stg-banner" role="note" data-testid="vps-node-help">
       <b>{tl('Node.js 22+ is required on the VPS')}</b> {tl('(found:')} {host.probe?.node ?? 'none'}
-      {tl('). Install it yourself —')} {s.title}:
+      {tl('). Install it yourself —')} {tl(s.title)}:
       <pre className="vps-log">{s.commands.join('\n')}</pre>
       <span className="stg-muted">{s.note}</span>
     </div>

@@ -86,7 +86,7 @@ export function DataSourcesEditor() {
           </tr>
           {DEFAULT_FEEDS.map((f) => (
             <tr key={f.id}>
-              <td>{f.title}</td>
+              <td>{tl(f.title)}</td>
               <td>
                 <button className="link" onClick={() => openUrl(f.url)}>
                   {new URL(f.url).hostname}
@@ -254,7 +254,7 @@ export function ModuleTogglesEditor({ value, onChange }: EditorProps<string[]>) 
         <tbody>
           {connectors.map((p) => (
             <tr key={p.prefix}>
-              <td>{p.label}</td>
+              <td>{tl(p.label)}</td>
               <td className="muted">{p.prefix}</td>
               <td className="muted">{p.desktopOnly ? 'Windows app' : 'App and browser preview'}</td>
             </tr>
@@ -353,7 +353,7 @@ export function AboutPanel() {
       <div className="st-about-links">
         {ABOUT_LINKS.map((l) => (
           <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer">
-            {l.label}
+            {tl(l.label)}
           </a>
         ))}
       </div>

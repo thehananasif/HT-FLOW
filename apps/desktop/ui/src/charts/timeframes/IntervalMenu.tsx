@@ -114,10 +114,10 @@ export function IntervalMenu({ windowId, s }: { windowId: string; s: ChartWindow
                 <button
                   className="iv-ghead"
                   aria-expanded={isOpen}
-                  aria-label={g.label}
+                  aria-label={tl(g.label)}
                   onClick={() => toggleGroup(g.id)}
                 >
-                  <span>{g.label}</span>
+                  <span>{tl(g.label)}</span>
                   {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                 </button>
                 {isOpen &&

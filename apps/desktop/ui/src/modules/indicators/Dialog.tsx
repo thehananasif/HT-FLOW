@@ -266,7 +266,7 @@ export function IndicatorsDialog({
                 aria-pressed={cat === c.id && !query}
                 onClick={() => (setCat(c.id), setQuery(''))}
               >
-                {c.label}
+                {tl(c.label)}
                 <span className="tnum">{counts[c.id] ?? 0}</span>
               </button>
             ))}
@@ -499,7 +499,7 @@ export function IndicatorsDialog({
                       {TF_CLASSES.map((c) => (
                         <Checkbox
                           key={c.value}
-                          label={c.label}
+                          label={tl(c.label)}
                           checked={selected.visibility.includes(c.value)}
                           onChange={(on) =>
                             update({
@@ -645,7 +645,7 @@ function InputControl({
     case 'float':
       return (
         <NumberInput
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as number}
           min={d.min}
           max={d.max}
@@ -658,22 +658,22 @@ function InputControl({
         />
       );
     case 'bool':
-      return <Toggle label={d.label} checked={value as boolean} onChange={onChange} />;
+      return <Toggle label={tl(d.label)} checked={value as boolean} onChange={onChange} />;
     case 'enum':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={d.options.map((o) => ({ ...o }))}
         />
       );
     case 'color':
-      return <ColorSwatch label={d.label} value={value as string} onChange={onChange} />;
+      return <ColorSwatch label={tl(d.label)} value={value as string} onChange={onChange} />;
     case 'linestyle':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={['solid', 'dashed', 'dotted'].map((v) => ({ value: v, label: v }))}
@@ -682,7 +682,7 @@ function InputControl({
     case 'source':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={SOURCES.filter((s) => !d.sources || d.sources.includes(s.value)).map((s) => ({
@@ -694,7 +694,7 @@ function InputControl({
     case 'timeframe':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={TIMEFRAMES.filter((s) => !d.options || d.options.includes(s.value)).map((s) => ({
@@ -709,14 +709,14 @@ function InputControl({
         return (
           <FormulaInput
             windowId={windowId}
-            label={d.label}
+            label={tl(d.label)}
             value={value as string}
             onChange={onChange}
           />
         );
       return (
         <Input
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           maxLength={d.maxLength}
           onChange={(e) => onChange(e.target.value)}
@@ -742,7 +742,7 @@ function InputsTab({
   return (
     <div className="ind-form">
       {entries.map(([k, d]) => (
-        <Row key={k} label={d.label} help={d.help}>
+        <Row key={k} label={tl(d.label)} help={tl(d.help)}>
           <InputControl
             d={d}
             value={vals[k]!}

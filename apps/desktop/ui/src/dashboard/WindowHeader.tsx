@@ -162,7 +162,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
     return () => subs.forEach((d) => d.dispose());
   }, [props.containerApi]);
   const multi = (props.api.group?.panels.length ?? 1) > 1;
-  if (!s) return <div className="win-hdr">{props.api.title}</div>;
+  if (!s) return <div className="win-hdr">{tl(props.api.title)}</div>;
   const inst = s.kind !== 'module' ? instrumentById(s.instrumentId) : undefined;
   if (multi) {
     return (

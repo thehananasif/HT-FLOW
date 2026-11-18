@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, BellOff, SlidersHorizontal } from 'lucide-react';
 import { Checkbox, Chip, IconButton, Input, Select, alpha, theme } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import {
   formatCompact,
   formatPrice,
@@ -658,7 +658,7 @@ export function TapeView({
                   <Checkbox
                     key={cc.id}
                     checked={p.cols.includes(cc.id)}
-                    label={cc.label}
+                    label={tl(cc.label)}
                     onChange={(v) =>
                       set({
                         cols: v

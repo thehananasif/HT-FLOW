@@ -184,7 +184,7 @@ function EconomicCalendar() {
             {groupByDay(events, tz).map((g) => (
               <Fragment key={g.key}>
                 <tr className="cal-day">
-                  <td colSpan={7}>{g.label}</td>
+                  <td colSpan={7}>{tl(g.label)}</td>
                 </tr>
                 {g.events.map((e) => {
                   const sp = surprise(e);
@@ -214,7 +214,7 @@ function EconomicCalendar() {
                         </span>
                       </td>
                       <td style={{ whiteSpace: 'normal' }}>
-                        {e.title}
+                        {tl(e.title)}
                         {e.sample && (
                           <>
                             {' '}

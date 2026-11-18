@@ -49,7 +49,7 @@ export function AboutDialog() {
         <div className="row gap12 wrap">
           {ABOUT_LINKS.map((l) => (
             <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer">
-              {l.label}
+              {tl(l.label)}
             </a>
           ))}
         </div>

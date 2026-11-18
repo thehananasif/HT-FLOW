@@ -338,7 +338,7 @@ function ChatTab() {
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && selectConversation(c.id)}
             >
-              <span className="ai-conv-title">{c.title}</span>
+              <span className="ai-conv-title">{tl(c.title)}</span>
               <span className="ai-conv-meta">{c.model}</span>
               <button
                 type="button"
@@ -600,7 +600,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
   return (
     <div className="ai-provider" data-testid={`ai-provider-${c.id}`}>
       <div className="ai-provider-head">
-        <strong>{c.label}</strong>
+        <strong>{tl(c.label)}</strong>
         {info.local && <Badge>{tl('local')}</Badge>}
         {c.hasKey ? (
           <Badge kind="live">{tl('key saved')}</Badge>

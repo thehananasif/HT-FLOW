@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Combobox, type ComboOption } from './Combobox';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export interface FontEntry {
   family: string;
   /** CSS font-family stack used for the preview. */
@@ -67,7 +68,7 @@ export function FontPicker({
   const options: ComboOption[] = fonts.map((f) => ({
     value: f.family,
     label: f.family,
-    hint: <span style={{ fontFamily: f.stack }}>Aa 123</span>,
+    hint: <span style={{ fontFamily: f.stack }}>{tl('Aa 123')}</span>,
   }));
   const current = fonts.find((f) => f.family === value);
   return (

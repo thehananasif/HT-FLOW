@@ -147,7 +147,7 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
         <span className="fc-title">
           {tl('Forward curve')}{' '}
           <span className="muted">
-            · {root.label} ({name})
+            · {tl(root.label)} ({name})
           </span>
         </span>
         <div className="grow" />
@@ -175,7 +175,7 @@ function ForwardCurve({ state, setParams }: ModuleViewProps) {
             selected={r.key === root.key}
             onClick={() => setParams({ root: r.key })}
           >
-            {r.label}
+            {tl(r.label)}
           </Chip>
         ))}
         <div className="grow" />

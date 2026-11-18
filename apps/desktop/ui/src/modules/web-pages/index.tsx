@@ -450,7 +450,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           bookmarks.map((b) => (
             <span key={b.url} className="web-bm">
               <button className="web-bm-go ellipsis" title={b.url} onClick={() => go(b.url)}>
-                {b.title}
+                {tl(b.title)}
               </button>
               <button
                 className="web-bm-x"

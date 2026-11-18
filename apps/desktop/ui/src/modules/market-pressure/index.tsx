@@ -141,7 +141,7 @@ function MarketPressure({ state, setParams }: ModuleViewProps) {
           selected={win === w.id}
           onClick={() => setParams({ window: w.id, sortKey: w.id, sortDir: 'desc' })}
         >
-          {w.label}
+          {tl(w.label)}
         </Chip>
       ))}
       settings={

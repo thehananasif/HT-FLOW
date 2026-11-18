@@ -151,7 +151,7 @@ function Control({
     case 'number':
       return (
         <NumberInput
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as number}
           step={d.step}
           min={d.min}
@@ -161,18 +161,18 @@ function Control({
         />
       );
     case 'boolean':
-      return <Toggle label={d.label} checked={value as boolean} onChange={onChange} />;
+      return <Toggle label={tl(d.label)} checked={value as boolean} onChange={onChange} />;
     case 'enum':
       return (
         <select
           className="ht-select ht-select--sm"
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={(e) => onChange(e.target.value)}
         >
           {d.options.map((o) => (
             <option key={o.value} value={o.value} disabled={o.disabled}>
-              {o.label}
+              {tl(o.label)}
             </option>
           ))}
         </select>
@@ -181,25 +181,25 @@ function Control({
       return (
         <input
           className="ht-input st-text"
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           placeholder={d.placeholder}
           onChange={(e) => onChange(e.target.value)}
         />
       );
     case 'color':
-      return <ColorControl label={d.label} value={value as string} onChange={onChange} />;
+      return <ColorControl label={tl(d.label)} value={value as string} onChange={onChange} />;
     case 'timezone':
       return (
         <select
           className="ht-select ht-select--sm"
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={(e) => onChange(e.target.value)}
         >
           {d.special?.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {tl(o.label)}
             </option>
           ))}
           {!ZONES.includes(value as string) && !d.special?.some((o) => o.value === value) && (
@@ -273,7 +273,7 @@ function Row({
         <span className="st-dot-slot">
           {modified && <span className="st-mod" title={tl('Modified')} />}
         </span>
-        {d.label}
+        {tl(d.label)}
         {d.restartRequired && (
           <em className="st-restart" data-testid={`restart-note-${k}`}>
             {tl('restart required')}
@@ -282,7 +282,7 @@ function Row({
         <Tooltip
           content={
             <span className="st-tip">
-              {d.help}
+              {tl(d.help)}
               {d.wired === false && (
                 <em> {tl('Stored; the module that uses it is not built yet.')}</em>
               )}
@@ -678,7 +678,7 @@ export function SettingsView({
             }}
           >
             {ICONS[s.id]}
-            <span className="grow">{s.label}</span>
+            <span className="grow">{tl(s.label)}</span>
             {sectionModified(s.id) && (
               <span className="st-mod" title={tl('Has modified settings')} />
             )}
@@ -741,7 +741,7 @@ export function SettingsView({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        {!q && <p className="st-desc muted">{meta.description}</p>}
+        {!q && <p className="st-desc muted">{tl(meta.description)}</p>}
         <div className="st-body">
           {q ? (
             hits.length ? (
@@ -751,7 +751,7 @@ export function SettingsView({
                     className="st-hit-section"
                     onClick={() => (setSection(s.id), setQuery(''))}
                   >
-                    {ICONS[s.id]} {s.label} ›
+                    {ICONS[s.id]} {tl(s.label)} ›
                   </button>
                   {renderKeys(
                     hits.filter(
@@ -763,7 +763,7 @@ export function SettingsView({
                     .filter((k) => settingDef(k).section === s.id && SCHEMA[k].type === 'custom')
                     .map((k) => (
                       <div key={k} className="st-row">
-                        <span className="st-row-label">{settingDef(k).label}</span>
+                        <span className="st-row-label">{tl(settingDef(k).label)}</span>
                         <span className="st-row-ctl">
                           <Button size="xs" onClick={() => (setSection(s.id), setQuery(''))}>
                             {tl('Open')}
@@ -800,7 +800,7 @@ export function SettingsView({
                   >
                     {SCHEMA['hotkeys.preset'].options.map((o) => (
                       <option key={o.value} value={o.value}>
-                        {o.label}
+                        {tl(o.label)}
                       </option>
                     ))}
                   </select>

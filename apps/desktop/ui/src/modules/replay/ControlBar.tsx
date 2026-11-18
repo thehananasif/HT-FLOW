@@ -151,7 +151,7 @@ function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
               replayControls.seek(id, b.t);
             }}
           >
-            ▲ <span>{b.label}</span>
+            ▲ <span>{tl(b.label)}</span>
           </span>
         ))}
       </div>

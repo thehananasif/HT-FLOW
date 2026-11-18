@@ -347,7 +347,7 @@ function TfRowView({
             <span className="tf-add">
               {params.map((p) => (
                 <label key={p.key} className="tf-param">
-                  {p.label}
+                  {tl(p.label)}
                   <NumberInput
                     value={vals[p.key] ?? p.def}
                     min={p.min}

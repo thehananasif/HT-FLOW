@@ -685,7 +685,7 @@ function PropertiesDialog({
                       };
                     })
                   }
-                  label={t.label}
+                  label={tl(t.label)}
                 />
               ))}
           </div>

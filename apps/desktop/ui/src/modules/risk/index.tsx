@@ -247,10 +247,10 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
               <input
                 type="checkbox"
                 checked={rule.enabled}
-                aria-label={r.label}
+                aria-label={tl(r.label)}
                 onChange={(e) => edit({ ...draft, [r.id]: { ...rule, enabled: e.target.checked } })}
               />
-              <span className="risk-rule-name">{r.label}</span>
+              <span className="risk-rule-name">{tl(r.label)}</span>
               <span className="risk-rule-val">
                 {r.id === 'tradingHours' ? (
                   <>
@@ -341,7 +341,7 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
           </option>
           {RISK_PRESETS.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.label}
+              {tl(p.label)}
             </option>
           ))}
           <option value="default">{tl('Reset to defaults')}</option>

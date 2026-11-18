@@ -55,7 +55,7 @@ export function SymbolLists() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} data-testid={`symbols-${r.id}`}>
-                <td>{r.label}</td>
+                <td>{tl(r.label)}</td>
                 <td>
                   {r.count.toLocaleString()}
                   {r.optionsCount ? ` (+${r.optionsCount.toLocaleString()} options)` : ''}

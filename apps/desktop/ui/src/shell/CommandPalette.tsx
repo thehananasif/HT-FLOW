@@ -107,8 +107,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     <CommandRow command={row.command} />
                   ) : (
                     <>
-                      <span className="palette-label">{row.item.label}</span>
-                      {row.item.hint && <span className="palette-hint">{row.item.hint}</span>}
+                      <span className="palette-label">{tl(row.item.label)}</span>
+                      {row.item.hint && <span className="palette-hint">{tl(row.item.hint)}</span>}
                     </>
                   )}
                 </div>
@@ -126,7 +126,7 @@ function CommandRow({ command: c }: { command: Command }) {
   return (
     <>
       <span className="palette-group">{c.group}</span>
-      <span className="palette-label">{c.label}</span>
+      <span className="palette-label">{tl(c.label)}</span>
       {c.shortcut && <Kbd>{c.shortcut}</Kbd>}
     </>
   );

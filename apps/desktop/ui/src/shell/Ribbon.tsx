@@ -78,7 +78,7 @@ export function Ribbon({ compact }: { compact?: boolean }) {
                     m.id,
                     <RibbonButton
                       icon={<Icon />}
-                      label={m.label}
+                      label={tl(m.label)}
                       hasMenu={m.hasMenu}
                       compact={compact}
                       data-testid={`ribbon-${m.id}`}

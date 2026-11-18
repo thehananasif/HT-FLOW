@@ -208,7 +208,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
       title={`${f.url}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
     >
       <span className="grow ellipsis">
-        {f.title}
+        {tl(f.title)}
         {f.lastError && <span className="warn-dot" aria-label={tl('fetch failed')} />}
       </span>
       <span className="tnum muted">{counts.feeds.get(f.id) || ''}</span>
@@ -404,7 +404,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
           ) : (
             <>
               <div className="muted">
-                {feedById.get(item.feedId)?.title} ·{' '}
+                {tl(feedById.get(item.feedId)?.title)} ·{' '}
                 {new Date(item.published ?? item.fetchedAt).toLocaleString('en-GB', {
                   timeZone: tz,
                 })}

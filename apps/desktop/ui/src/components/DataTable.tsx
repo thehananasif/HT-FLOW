@@ -210,7 +210,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
   return (
     <div className="dt" data-testid={props.testId}>
       <div className="dt-bar">
-        {props.title && <b>{props.title}</b>}
+        {props.title && <b>{tl(props.title)}</b>}
         {props.subtitle && <span className="muted">· {props.subtitle}</span>}
         {hasFilters && <span className="dt-filtered">{tl('filtered')}</span>}
         <span className="grow" />
@@ -252,7 +252,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 })
               }
             >
-              {c.header} {sorted ? (sorted === 'asc' ? '▴' : '▾') : ''}
+              {tl(c.header)} {sorted ? (sorted === 'asc' ? '▴' : '▾') : ''}
             </span>
           );
         })}
@@ -295,7 +295,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                     setCollapsed(n);
                   }}
                 >
-                  {f.collapsed ? '▸' : '▾'} {groupCol?.header}: {f.key}
+                  {f.collapsed ? '▸' : '▾'} {tl(groupCol?.header)}: {f.key}
                   <span className="muted"> · {f.count}</span>
                 </div>
               ) : (

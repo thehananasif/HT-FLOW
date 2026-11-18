@@ -171,7 +171,7 @@ function TourOverlay() {
           {tl('Step')} {t.step + 1} {tl('of')} {TOUR_STEPS.length}
         </div>
         <h3 className="tour-title" data-testid="tour-title">
-          {step.title}
+          {tl(step.title)}
         </h3>
         <p className="tour-body">{step.body}</p>
         {!target && (
