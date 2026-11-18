@@ -62,6 +62,11 @@ type BatchListener = (b: EventBatch) => void;
 export class ReplayEngine {
   readonly start: number;
   readonly end: number;
+  /**
+   * Trades already visible at `start` (the "History before start" look-back plus trades stamped
+   * exactly at `start`). The clock never goes before them and step back stops there.
+   */
+  readonly historyTrades: number;
   /** Replay clock (epoch ms). Consumers only ever see events at or before it. */
   time: number;
   playing = false;
@@ -97,6 +102,7 @@ export class ReplayEngine {
     this.start = dataset.start;
     this.end = Math.max(dataset.start, dataset.end);
     this.time = this.start;
+    this.historyTrades = upperBoundTrades(dataset.trades, this.start);
     this.buildKeyframes();
     this.position(this.start);
   }
@@ -108,6 +114,14 @@ export class ReplayEngine {
   /** Index of the next trade to be emitted (= number of trades already replayed). */
   get tradeIndex(): number {
     return this.ti;
+  }
+
+  /** Trades replayed since `start` and the total to replay (the look-back is not counted). */
+  get progressTrades(): { done: number; total: number } {
+    return {
+      done: Math.max(0, this.ti - this.historyTrades),
+      total: Math.max(0, this.dataset.trades.length - this.historyTrades),
+    };
   }
 
   get atEnd(): boolean {
@@ -254,7 +268,7 @@ export class ReplayEngine {
 
   /** Removes the last bar of `spec` (re-seeks to just before its first trade). */
   stepBackBar(spec: BarSpec): void {
-    if (this.ti === 0) {
+    if (this.ti <= this.historyTrades) {
       this.seek(this.start);
       return;
     }
@@ -272,7 +286,8 @@ export class ReplayEngine {
   /** Seeks to the moment just before trade `k` (trades [0, k) replayed). */
   seekToTrade(k: number): void {
     const trades = this.dataset.trades;
-    const idx = Math.max(0, Math.min(trades.length, k));
+    // Never before the replay start: the look-back history stays as it was loaded.
+    const idx = Math.max(this.historyTrades, Math.min(trades.length, k));
     const t = idx > 0 ? trades[idx - 1]!.ts : this.start;
     this.position(this.clamp(t));
     this.ti = Math.min(this.ti, idx);

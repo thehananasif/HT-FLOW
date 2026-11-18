@@ -11,7 +11,13 @@ import {
   Slider,
   toast,
 } from '@htflow/ui-kit';
-import type { ReplayDataInfo } from '@htflow/replay';
+import {
+  DEFAULT_LOOKBACK,
+  lookbackMs,
+  normalizeLookback,
+  type ReplayDataInfo,
+  type ReplayLookback,
+} from '@htflow/replay';
 import { journalStats, roundTrips } from '@htflow/trading';
 import { exchangeHistoryAvailable } from '../../feeds/exchangeHistory';
 import { registerModule, type ModuleViewProps } from '../registry';
@@ -29,7 +35,7 @@ import {
   startReplay,
   type ReplayConfig,
 } from '../../feeds/replay';
-import { exitReplay, showReplayOn } from './ControlBar';
+import { exitReplay, replayChartBarMs, showReplayOn } from './ControlBar';
 import { pickSourceId, validateRange } from './logic';
 import {
   addTemplate,
@@ -57,6 +63,8 @@ interface SetupParams {
   /** false = future bars are drawn as faded ghost candles. */
   hideFuture: boolean;
   source: string;
+  /** History before start (drawn as normal bars before the replay clock). */
+  lookback: ReplayLookback;
 }
 
 function defaults(): SetupParams {
@@ -71,6 +79,7 @@ function defaults(): SetupParams {
     depth: true,
     hideFuture: true,
     source: '',
+    lookback: DEFAULT_LOOKBACK,
   };
 }
 
@@ -89,6 +98,7 @@ function readParams(p: Record<string, unknown> | undefined): SetupParams {
     depth: typeof s.depth === 'boolean' ? s.depth : true,
     hideFuture: typeof s.hideFuture === 'boolean' ? s.hideFuture : true,
     source: typeof s.source === 'string' ? s.source : '',
+    lookback: s.lookback === undefined ? d.lookback : normalizeLookback(s.lookback),
   };
 }
 
@@ -99,6 +109,7 @@ function toConfig(p: SetupParams): ReplayConfig {
     to: p.to,
     layers: { ticks: p.ticks, depth: p.depth, hideFuture: p.hideFuture },
     source: p.source || undefined,
+    lookback: p.lookback,
   };
 }
 
@@ -109,9 +120,13 @@ async function launch(
 ) {
   setBusy('Loading data… 0%');
   try {
-    const s = await startReplay(template ? { ...cfg, templateId: template.id } : cfg, (p) =>
-      setBusy(`Loading data… ${Math.round(p * 100)}%`),
-    );
+    // "History before start" in bars uses the timeframe of the chart the replay is shown on.
+    const run: ReplayConfig = {
+      ...cfg,
+      lookbackBarMs: cfg.lookbackBarMs ?? replayChartBarMs(),
+      ...(template ? { templateId: template.id } : {}),
+    };
+    const s = await startReplay(run, (p) => setBusy(`Loading data… ${Math.round(p * 100)}%`));
     if (template) applyTemplateState(s, template);
     showReplayOn([...s.engines.keys()]);
     toast('success', 'Replay ready', 'Press Play or Space on the chart');
@@ -120,6 +135,13 @@ async function launch(
   } finally {
     setBusy(null);
   }
+}
+
+function fmtSpan(ms: number): string {
+  const h = ms / 3_600_000;
+  if (h >= 24) return `${+(h / 24).toFixed(1)} d`;
+  if (h >= 1) return `${+h.toFixed(1)} h`;
+  return `${Math.round(ms / 60_000)} min`;
 }
 
 function Setup({ state, setParams }: ModuleViewProps) {
@@ -253,6 +275,41 @@ function Setup({ state, setParams }: ModuleViewProps) {
             />
           </Field>
         )}
+        <div className="row gap8" data-testid="replay-lookback">
+          <Field label="History before start">
+            <NumberInput
+              aria-label="History before start"
+              value={p.lookback.amount}
+              min={0}
+              max={p.lookback.unit === 'bars' ? 5000 : 5}
+              step={p.lookback.unit === 'bars' ? 50 : 1}
+              onChange={(v) => set({ lookback: normalizeLookback({ ...p.lookback, amount: v }) })}
+            />
+          </Field>
+          <Field label="Unit">
+            <Select
+              aria-label="History unit"
+              value={p.lookback.unit}
+              onChange={(v) =>
+                set({
+                  lookback: normalizeLookback({
+                    unit: v,
+                    amount: v === 'bars' ? 300 : 1,
+                  }),
+                })
+              }
+              options={[
+                { value: 'bars', label: 'Bars' },
+                { value: 'days', label: 'Days' },
+              ]}
+            />
+          </Field>
+        </div>
+        <span className="muted rp-sub">
+          {p.lookback.amount > 0
+            ? `Loaded before the clock starts and drawn as normal bars (≈ ${fmtSpan(lookbackMs(p.lookback, replayChartBarMs()))} of context); only bars after the clock are hidden.`
+            : 'No history: the chart starts empty at the replay start.'}
+        </span>
         <Checkbox checked onChange={() => {}} label="Ticks (trades)" />
         <Checkbox
           checked={p.depth}
