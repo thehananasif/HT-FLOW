@@ -258,6 +258,25 @@ export interface WorkspaceTab {
    * dockview layout). Each spec's state is also in `windows`.
    */
   specs?: PanelSpec[];
+  /**
+   * Windows shown in separate OS windows (desktop app). Their states are in `windows`; they are
+   * not part of `layout`. The web build folds them back into floating windows.
+   */
+  osWindows?: OsWindowSpec[];
+}
+
+/** One separate OS window of a layout tab (a detached dock group or a workspace). */
+export interface OsWindowSpec {
+  /** Native window label (`ht-w-…`); its bounds and monitor are remembered per label. */
+  label: string;
+  title: string;
+  kind: 'panels' | 'workspace';
+  /** Window ids (keys of the tab's `windows`) shown in that OS window. */
+  ids: string[];
+  /** dockview layout inside the OS window. */
+  layout?: unknown;
+  /** Library workspace it was opened from (kind `workspace`). */
+  workspaceId?: string;
 }
 
 export interface WorkspaceDoc {

@@ -2718,7 +2718,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openDom': oneOf({
@@ -2730,7 +2730,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openTape': oneOf({
@@ -2742,7 +2742,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openModule': oneOf({
@@ -2754,8 +2754,21 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
+  }),
+  'layout.detachMode': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Detach window opens',
+    help: 'Where "Detach window" moves a window: its own OS window (drag it to another monitor; the desktop app remembers size, position and monitor per window), or a floating window inside the main window. The browser build always floats.',
+    default: 'os',
+    options: [
+      { value: 'os', label: 'Separate OS window' },
+      { value: 'float', label: 'Floating inside the main window' },
+    ],
+    keywords: 'multi monitor second screen undock pop out tear off',
+    wired: true,
   }),
   'layout.dockPlacement': oneOf({
     section: 'layout',

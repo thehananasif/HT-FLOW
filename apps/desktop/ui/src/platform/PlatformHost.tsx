@@ -56,11 +56,13 @@ registerCommands([
 ]);
 
 /** Mounts the platform dialogs and wires file-open events, crash handlers and the update check. */
-export function PlatformHost() {
+export function PlatformHost({ secondary = false }: { secondary?: boolean }) {
   const loggedIn = useSession((s) => !!s.session);
 
   useEffect(() => {
     installGlobalCrashHandlers();
+    // Files opened from Explorer and the update check belong to the main window only.
+    if (secondary) return;
     let off: (() => void) | undefined;
     let cancelled = false;
     void startOpenFileBridge().then((u) => (cancelled ? u() : (off = u)));
@@ -68,13 +70,13 @@ export function PlatformHost() {
       cancelled = true;
       off?.();
     };
-  }, []);
+  }, [secondary]);
 
   useEffect(() => {
-    if (!loggedIn) return;
+    if (!loggedIn || secondary) return;
     void flushWaitingFiles();
     startupUpdateCheck();
-  }, [loggedIn]);
+  }, [loggedIn, secondary]);
 
   return (
     <>

@@ -20,6 +20,7 @@ import {
   type SettingKey,
   type SettingsValues,
 } from '../../state/settings';
+import { isTauri } from '../../backend';
 
 export const LINK_SETTING: Record<Exclude<LinkColor, 'none'>, SettingKey> = {
   red: 'layout.linkRed',
@@ -169,7 +170,34 @@ export function defaultFloatingRect(api: DockviewApi): Rect {
 
 /** Whether a new window of this type opens floating (Layout settings → New windows). */
 export function opensFloating(state: WindowState): boolean {
-  return getSetting(OPEN_SETTING[openModeType(state)]) === 'floating';
+  const mode = getSetting(OPEN_SETTING[openModeType(state)]);
+  // "New OS window" floats in the browser build (no second native window there).
+  return mode === 'floating' || (mode === 'window' && !isTauri);
+}
+
+/** Whether a new window of this type opens in its own OS window (desktop app only). */
+export function opensOsWindow(state: WindowState): boolean {
+  return isTauri && getSetting(OPEN_SETTING[openModeType(state)]) === 'window';
+}
+
+/**
+ * Where "Split right / down" puts the copy of a floating window: a floating window of the same
+ * size next to it (floating groups cannot be split), kept inside the docking area (pure).
+ */
+export function splitFloatingRect(
+  src: Rect,
+  dir: 'right' | 'below',
+  area: { width: number; height: number },
+  gap = 8,
+): Rect {
+  const width = Math.min(src.width, area.width);
+  const height = Math.min(src.height, area.height);
+  let x = dir === 'right' ? src.x + src.width + gap : src.x;
+  let y = dir === 'below' ? src.y + src.height + gap : src.y;
+  // No room on that side: overlap with an offset instead of leaving the docking area.
+  if (x + width > area.width) x = Math.max(0, Math.min(src.x + 32, area.width - width));
+  if (y + height > area.height) y = Math.max(0, Math.min(src.y + 32, area.height - height));
+  return { x, y, width, height };
 }
 
 export interface PlaceOptions {

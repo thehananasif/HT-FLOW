@@ -16,6 +16,7 @@ mod market_cmds;
 mod native_prefs;
 mod net_cmds;
 mod openfile;
+mod os_windows;
 mod paths;
 mod updater_cmds;
 mod vps_cmds;
@@ -109,12 +110,14 @@ pub fn run() {
             app.manage(feed_cmds::FeedState::new(&root));
             app.manage(vps_cmds::VpsState::default());
             app.manage(webpage_cmds::WebpageState::default());
+            app.manage(os_windows::OsWindowsState::new(&root));
             Ok(())
         })
+        // Web Page windows and secondary OS windows never outlive the main window.
         .on_window_event(|window, event| {
-            // Web Page windows never outlive the main window.
             if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
                 webpage_cmds::close_all(window.app_handle());
+                os_windows::close_all(window.app_handle());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -191,6 +194,10 @@ pub fn run() {
             webpage_cmds::webpage_set_always_on_top,
             webpage_cmds::webpage_set_policy,
             webpage_cmds::webpage_open_external,
+            os_windows::os_window_open,
+            os_windows::os_window_close,
+            os_windows::os_window_focus,
+            os_windows::os_window_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HT Flow");

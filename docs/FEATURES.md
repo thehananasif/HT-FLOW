@@ -36,7 +36,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Ribbon with all groups from APP LAYOUT, horizontal scroll, collapse to icons (command "Ribbon: icons only")
 - [x] Ribbon: right-click Hide button / Customize ribbon… (show / hide, drag or keyboard reorder, reset), saved per user
 - [x] Docking workspace (dockview): tabs, horizontal / vertical splits, drag tabs to re-dock, floating windows, maximize panel
-- [!] Detach to a separate OS window / multi-monitor — floating in-app window today (see BLOCKERS)
+- [x] Detach to a separate OS window / multi-monitor (desktop app; Settings → Layout → Detach window opens: OS window / floating; the browser build floats). Re-attach, bounds + monitor remembered per window, restored at start-up
 - [x] Right Trading Panel slot, status bar, Command Palette (Ctrl+K) searching commands, symbols, layouts and modules
 - [x] Command Palette searching indicators and settings — indicators (catalog entries with an implementation) add to the active chart; settings sections and keys open the Settings window at their section; results grouped under "Indicators" and "Settings" after the commands
 - [x] Command Palette focuses its search box synchronously when it opens, so keystrokes no longer reach the chart underneath
@@ -286,7 +286,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] `.htworkspace` files (`@htflow/workspace`): versioned JSON envelope (v1 → v3 migrations), validation with warnings, tested
 - [x] "Create linked window" and "Clone window" from the window ⋯ menu (charts, DOM, tape and module windows); Float / Dock
 - [x] Multi-monitor restore: windows are placed on the monitor that held them and moved on-screen when that monitor is gone (setting `layout.restoreMonitors`)
-- [ ] Opening a workspace in a separate OS window (see BLOCKERS)
+- [x] Opening a workspace in a separate OS window (Workspaces ▾ → Open workspace in new window, one palette command per workspace); Clone window / Create linked window ▸ … in new OS window
 
 ## P26 — Chart right-click menu
 
@@ -359,7 +359,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## Section 8 — Fast-track (Dashboard v3 + 4 core charts)
 
 - [x] P44 Dashboard: dockview tabs / splits / floating, 5 layout presets (DOM | Chart | Panel, Grid 2×2, 1 + 2, Split, Single), "Main chart" chips, Split right / down, Detach (floating), daily-risk meter, account avatar, workspace tabs, status bar pills; layout JSON persisted per user
-- [!] P44 pop-out to a separate OS window (see BLOCKERS)
+- [x] P44 pop-out to a separate OS window (window bus keeps window states, link groups, settings / theme and paper orders / positions in sync); Split right / down also split floating windows (copy floats beside)
 - [x] P45 Side tools: 34 px bar, footprint quick settings, vertical footprint mode tabs with flyouts (Volume ›, Trades ›, Bid x Ask ›, Delta ›), drawing groups with shortcuts, compact mode (< 520 px), Esc / outside-click closes
 - [x] P46 four core charts on one ChartCore: Candles + period Volume Profiles (vPOC, VAH / VAL), Footprint (visible-range profile, candle strip, clusters, DOM histogram, statistics rows), Liquidity Map, Order Flow (Dark: candles + heat rows | tape chart with bubbles, DOM backdrop, best bid / ask, big-level line, Lots ≥ filter)
 - [x] MockFeed (seeded ticks + depth) → same `FeedSource` interface as live

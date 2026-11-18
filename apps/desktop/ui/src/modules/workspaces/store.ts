@@ -26,6 +26,9 @@ import { backend } from '../../backend';
 import { useSession } from '../../state/session';
 import { log } from '../../state/log';
 import { workspaceHost } from './host';
+import { openTabInOsWindow } from '../../platform/osWindows';
+import { remapTab } from '../../platform/windowBus';
+import { openWindow } from './windowActions';
 
 export const LIBRARY_KEY = 'workspaces.library';
 
@@ -120,6 +123,32 @@ export function saveAs(name: string, description = ''): string | null {
     toast('error', 'Could not save', errMsg(e));
     return null;
   }
+}
+
+/**
+ * Opens a saved workspace (its active layout tab) in a separate OS window. The browser build has
+ * no second native window: the workspace's windows open as floating windows instead.
+ */
+export function openWorkspaceInWindow(id: string): boolean {
+  const ws = findWorkspace(lib(), id);
+  if (!ws) return false;
+  const doc = JSON.parse(JSON.stringify(ws.doc)) as WorkspaceDoc;
+  const tab = doc.tabs.find((t) => t.id === doc.activeTab) ?? doc.tabs[0];
+  if (!tab || !Object.keys(tab.windows).length) {
+    toast('info', `"${ws.meta.name}" has no windows`);
+    return false;
+  }
+  if (openTabInOsWindow(ws.meta.name, tab, id, remapTab)) {
+    log.info('workspaces', `Opened workspace ${ws.meta.name} in a new window`);
+    return true;
+  }
+  for (const w of Object.values(tab.windows)) openWindow({ state: w, floating: true });
+  toast(
+    'info',
+    `Opened "${ws.meta.name}" as floating windows`,
+    'Separate OS windows need the desktop app.',
+  );
+  return true;
 }
 
 /** Loads a saved workspace into the dashboard (every layout tab and window). */
