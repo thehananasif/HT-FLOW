@@ -1,4 +1,4 @@
-import type { BarSpec, OrderBook, Trade } from '@htflow/market-data';
+import type { Bar, BarSpec, OrderBook, Trade } from '@htflow/market-data';
 import { BarSeries } from '@htflow/market-data';
 import {
   RiskEngine,
@@ -276,12 +276,12 @@ export class ScriptBridge {
 
   private appendBars(): BarAppend {
     const out: BarAppend = {};
-    const add = (key: string, bars: readonly import('@htflow/market-data').Bar[]) => {
+    const add = (key: string, bars: readonly Bar[]) => {
       const n = bars.length;
       const closed = n && bars[n - 1]!.closed ? n : n - 1;
       const from = this.sent.get(key) ?? 0;
       if (closed > from) {
-        out[key] = bars.slice(from, closed) as import('@htflow/market-data').Bar[];
+        out[key] = bars.slice(from, closed) as Bar[];
         this.sent.set(key, closed);
       }
     };

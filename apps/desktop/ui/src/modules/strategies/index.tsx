@@ -68,10 +68,13 @@ import { VPS_EVENT, VpsPanel, type VpsAction } from './vps/panel';
 import { allTemplates } from '../../trading/atmStore';
 import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
+import { HtEditor, editorMounted, type EditorActions } from './editor/HtEditor';
+import { scriptRuns } from './editor/runs';
+import { SCRIPT_TEMPLATES } from '@htflow/strategy';
 import { Summary, TradesTable, fmtTime } from './results';
 import './styles.css';
 
-type MainTab = 'backtest' | 'live' | 'vps';
+type MainTab = 'backtest' | 'editor' | 'live' | 'vps';
 type ResultTab = 'summary' | 'equity' | 'trades' | 'optimise' | 'log';
 
 interface CostSetup {
@@ -235,7 +238,8 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const cost = sanitizeCost(p.cost, def);
   const opt = sanitizeOpt(p.opt, def, inputs);
   const style = sanitizeStyle(p.style);
-  const tab: MainTab = p.tab === 'live' || p.tab === 'vps' ? p.tab : 'backtest';
+  const tab: MainTab =
+    p.tab === 'live' || p.tab === 'vps' || p.tab === 'editor' ? p.tab : 'backtest';
   const rtab: ResultTab = (['summary', 'equity', 'trades', 'optimise', 'log'] as const).includes(
     p.resultTab as ResultTab,
   )
@@ -408,6 +412,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
           onChange={(t) => setParams({ tab: t })}
           tabs={[
             { value: 'backtest', label: 'Backtest' },
+            { value: 'editor', label: 'HT Editor' },
             { value: 'live', label: `Running (${liveRuns.list().length})` },
             { value: 'vps', label: 'VPS runner' },
           ]}
@@ -415,6 +420,20 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       </div>
       {tab === 'live' && <LivePanel />}
       {tab === 'vps' && <VpsPanel />}
+      {tab === 'editor' && (
+        <HtEditor
+          windowId={windowId}
+          params={p}
+          setParams={setParams}
+          onDeployVps={() => {
+            setParams({ tab: 'vps' });
+            setTimeout(
+              () => window.dispatchEvent(new CustomEvent(VPS_EVENT, { detail: 'deploy' })),
+              60,
+            );
+          }}
+        />
+      )}
       {tab === 'backtest' && (
         <div className="stg-body">
           <aside className="stg-list" aria-label="Strategy list">
@@ -1065,7 +1084,7 @@ function attachToActiveChart(strategyId?: string): void {
 }
 
 function stopAll(): void {
-  const n = liveRuns.list().length;
+  const n = liveRuns.list().length + scriptRuns.killAll();
   for (const r of liveRuns.list()) writeStrategyExt(r.key, { live: false });
   liveRuns.stopAll(true);
   toast('info', `${n} strategies stopped and flattened`);
@@ -1081,7 +1100,23 @@ const withWindow = (fn: (a: WindowActions) => void) => () => {
   }, 50);
 };
 
+const withEditor = (fn: (a: EditorActions) => void) =>
+  withWindow((w) => {
+    w.setTab('editor');
+    setTimeout(() => {
+      const e = editorMounted[editorMounted.length - 1]?.actions;
+      if (e) fn(e);
+    }, 80);
+  });
+
 registerCommands([
+  {
+    id: 'strategies.editor',
+    label: 'Open HT Editor (write your own strategy)',
+    group: 'Trading',
+    keywords: 'code editor script strategy javascript typescript automate',
+    run: withWindow((a) => a.setTab('editor')),
+  },
   {
     id: 'strategies.open',
     label: 'Open Strategies',
@@ -1171,6 +1206,30 @@ registerCommands([
       writeStrategyExt(id, { live: !ext.live });
     },
   },
+  ...(
+    [
+      ['editor-new', 'HT Editor: New strategy', 'code script new strategy write', (a) => a.newStrategy()],
+      ['editor-open', 'HT Editor: Open / import .htstrat…', 'open import htstrat file strategy code', (a) => a.importFile()],
+      ['editor-save', 'HT Editor: Save strategy', 'save script code', (a) => a.save()],
+      ['editor-export', 'HT Editor: Export .htstrat', 'export htstrat file script', (a) => a.exportFile()],
+      ['editor-backtest', 'HT Editor: Backtest strategy', 'backtest script code run history', (a) => a.backtest()],
+      ['editor-run', 'HT Editor: Run on paper', 'run paper live script start', (a) => a.paper()],
+      ['editor-stop', 'HT Editor: Stop strategy runs', 'stop script run', (a) => a.stop()],
+    ] as [string, string, string, (a: EditorActions) => void][]
+  ).map(([id, label, keywords, fn]) => ({
+    id: `strategies.${id}`,
+    label,
+    group: 'Trading' as const,
+    keywords,
+    run: withEditor(fn),
+  })),
+  ...SCRIPT_TEMPLATES.map((t) => ({
+    id: `strategies.editor-template-${t.id}`,
+    label: `HT Editor: New from template ${t.name}`,
+    group: 'Trading' as const,
+    keywords: `template script ${t.description}`,
+    run: withEditor((a) => a.newStrategy(t.id)),
+  })),
   {
     id: 'strategies.stop-all',
     label: 'Strategies: Stop all and flatten',

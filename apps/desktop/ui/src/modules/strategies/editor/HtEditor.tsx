@@ -31,8 +31,16 @@ import { BAR_SPECS, InputsForm, cssVar, signedMoney, specOf, toStrategyInstrumen
 import { CodeEditor } from './CodeEditor';
 import { compileProject, type Diagnostic } from './compile';
 import { liveRouters, runStats, scriptRuns, type LiveOrderRouter, type ScriptRun } from './runs';
-import { deleteProject, newProject, projectById, saveProject, useScripts } from './store';
+import {
+  deleteProject,
+  newProject,
+  projectById,
+  saveProject,
+  useScripts,
+  vpsDeployRequest,
+} from './store';
 import { WorkerTransport } from './workerTransport';
+import './editor.css';
 
 type ResultTab = 'problems' | 'summary' | 'equity' | 'plots' | 'trades' | 'log' | 'runs';
 
@@ -142,8 +150,6 @@ export interface EditorActions {
 }
 export const editorMounted: { id: string; actions: EditorActions }[] = [];
 
-/** Set before switching to the VPS tab: the deploy dialog preselects this script. */
-export const vpsDeployRequest: { projectId: string | null } = { projectId: null };
 
 function useRunsVersion(): number {
   return useSyncExternalStore(scriptRuns.subscribe, scriptRuns.version);
@@ -749,11 +755,13 @@ function RunsPanel({
   const sel = runs.find((r) => r.id === logRun) ?? runs[0];
   return (
     <div className="hte-runs" data-testid="hte-runs">
-      <Table
+      <Table<ScriptRun>
+        aria-label="Strategy runs"
+        height={150}
         rows={runs}
-        rowKey={(r) => r.id}
+        rowId={(r) => r.id}
         empty="No strategy runs. Use Paper or Live… to start one."
-        onRowClick={(r) => setLogRun(r.id)}
+        onRowActivate={(r) => setLogRun(r.id)}
         columns={[
           { key: 'name', header: 'Strategy', width: 140, render: (r) => r.name },
           { key: 'mode', header: 'Mode', width: 60, render: (r) => (r.mode === 'live' ? <b className="down">LIVE</b> : 'Paper') },

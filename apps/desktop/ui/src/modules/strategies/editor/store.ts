@@ -57,3 +57,6 @@ export function deleteProject(id: string): void {
 export function projectById(id: string): StrategyProject | undefined {
   return scriptStore.get().find((p) => p.id === id);
 }
+
+/** Set before switching to the VPS tab: the deploy dialog preselects this script. */
+export const vpsDeployRequest: { projectId: string | null } = { projectId: null };
