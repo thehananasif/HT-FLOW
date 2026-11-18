@@ -85,6 +85,88 @@ test('COT chart in the web build downloads from the CFTC API with a browser fetc
   expect(urls[0]).toContain('/resource/');
 });
 
+test('HT Editor plot() lines are drawn on the instrument chart during a paper run, removable', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'leftover4');
+  const source = [
+    "export const meta = { name: 'Plotter', timeframe: '1m' };",
+    'export function onTick(tick) {',
+    "  plot('Price', tick.price, { color: '#ff00ff' });",
+    '}',
+    '',
+  ].join('\n');
+  await page.evaluate((src) => {
+    window.dispatchEvent(
+      new CustomEvent('htflow:inject-file', {
+        detail: {
+          path: 'C:\\x\\plotter.htstrat',
+          name: 'plotter.htstrat',
+          ext: 'htstrat',
+          kind: 'strategy',
+          text: JSON.stringify({
+            format: 'htstrat',
+            version: 1,
+            id: 'stg-plotter',
+            name: 'Plotter',
+            files: [{ name: 'strategy.ts', source: src }],
+            params: {},
+            createdAt: 1,
+            updatedAt: 1,
+          }),
+          error: null,
+        },
+      }),
+    );
+  }, source);
+  const ed = page.getByTestId('ht-editor');
+  await expect(ed).toBeVisible({ timeout: 15_000 });
+  await expect(ed.getByText('Compiled')).toBeVisible();
+  // The sandbox loads slowly while the page is still busy loading history right after login.
+  await page.waitForTimeout(12_000);
+  // Plot on the instrument the main chart shows (mock:CLZ6 by default).
+  await ed.getByLabel('Instrument').selectOption('mock:CLZ6');
+  await page.getByTestId('hte-paper').click();
+  const runs = page.getByTestId('hte-runs');
+  await expect(runs.getByText('running')).toBeVisible({ timeout: 30_000 });
+
+  // Count magenta pixels on the chart canvases (the plot line colour).
+  const magenta = () =>
+    page.evaluate(() => {
+      let n = 0;
+      for (const c of Array.from(document.querySelectorAll('canvas'))) {
+        if (c.getAttribute('aria-label') === 'Strategy plots') continue;
+        const g = c.getContext('2d');
+        if (!g || !c.width || !c.height) continue;
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        for (let i = 0; i < d.length; i += 4)
+          if (
+            d[i]! > 130 &&
+            d[i + 2]! > 130 &&
+            d[i + 1]! < d[i]! - 70 &&
+            d[i + 2]! > d[i + 1]! + 70
+          )
+            n++;
+      }
+      return n;
+    });
+  await expect.poll(magenta, { timeout: 30_000 }).toBeGreaterThan(5);
+
+  // Removable: hide the run's plots, then they disappear from the chart.
+  await runs.getByTestId('hte-run-plots').click();
+  await expect(runs.getByTestId('hte-run-plots')).toHaveText('Show plots');
+  await expect.poll(magenta, { timeout: 10_000 }).toBe(0);
+  await runs.getByTestId('hte-run-plots').click();
+  await expect.poll(magenta, { timeout: 10_000 }).toBeGreaterThan(5);
+
+  // Stopping the run removes the overlay.
+  await runs.getByRole('button', { name: 'Stop', exact: true }).click();
+  await expect.poll(magenta, { timeout: 10_000 }).toBe(0);
+  expect(errors).toEqual([]);
+});
+
 test('Trading Panel: drag handle resizes (min 240), keyboard nudges, double-click resets', async ({
   page,
 }) => {

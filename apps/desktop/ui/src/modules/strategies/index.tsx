@@ -71,6 +71,8 @@ import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
 import { HtEditor, editorMounted, type EditorActions } from './editor/HtEditor';
 import { projectFromHtstratFile, saveProject } from './editor/store';
+import { plotOverlay } from './editor/plotOverlay';
+import './editor/plotOverlayExt';
 import { scriptRuns } from './editor/runs';
 import { SCRIPT_TEMPLATES } from '@htflow/strategy';
 import { Summary, TradesTable, fmtTime } from './results';
@@ -1265,6 +1267,17 @@ registerCommands([
     keywords: `template script ${t.description}`,
     run: withEditor((a) => a.newStrategy(t.id)),
   })),
+  {
+    id: 'strategies.plots-toggle',
+    label: 'HT Editor: Show / hide strategy plots on charts',
+    group: 'Chart',
+    keywords: 'script plot overlay chart indicator lines paper run',
+    run: () => {
+      const on = !plotOverlay.isEnabled();
+      plotOverlay.setEnabled(on);
+      toast('info', on ? 'Strategy plots shown on charts' : 'Strategy plots hidden');
+    },
+  },
   {
     id: 'strategies.stop-all',
     label: 'Strategies: Stop all and flatten',
