@@ -128,7 +128,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 ## P09 — Chart templates
 
 - [x] Built-in templates: Japanese Candlesticks with Volume Profile, Footprint chart, Liquidity Map, Order Flow (Dark) — switching re-renders from the same data
-- [x] Order Flow (Light), Imbalance Chart, TPO Chart (letters / blocks, VA, POC, IB, single prints, split / merge), On-Chart Liquidity Map, Multi-timeframe Chart (boxes / side by side / stacked), Volume Histogram, Delta Profile, COT Chart (bundled sample data, labelled); per-template Style dialogs
+- [x] Order Flow (Light), Imbalance Chart, TPO Chart (letters / blocks, VA, POC, IB, single prints, split / merge), On-Chart Liquidity Map, Multi-timeframe Chart (boxes / side by side / stacked), Volume Histogram, Delta Profile, COT Chart (real CFTC data: market + report pickers, loading / error / offline-cache states; the bundled sample is shown, labelled, only when offline with no cache); per-template Style dialogs
 - [x] User templates as JSON (`.httemplate`): save as / rename / duplicate / delete / overwrite / export / import, default per instrument class, favourites; style presets White, Light, Dark, Black, Dark footprint, Footprint statistic, Imbalance, MarketResearch, MultiTimeFrame
 
 ## P10 — Footprint / cluster engine
@@ -181,7 +181,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 - [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 264 implemented (183 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
 - [x] SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper (last closed bar or forming bar)
-- [ ] 17 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
+- [ ] 13 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
 
 ## P15 — Smart DOM
 

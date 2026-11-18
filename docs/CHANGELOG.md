@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — round 7
+
+- Real COT data from the free CFTC public reporting API (no key): new `htflow-cot` crate (SoQL query builder for the Legacy `6dca-aqww`, Disaggregated `72hh-3qpy` and TFF `gpe5-46if` futures-only datasets, typed weekly rows with net positions, open interest and changes, parser tested on real response fixtures) and the `cot_fetch` command (https to `publicreporting.cftc.gov` only, no redirects, 20 s timeout, 8 MB cap, cached on disk in the data folder and refreshed after each Friday release; an older cache is served when the download fails).
+- COT Chart uses the real data: market picker mapped from catalog symbols (ES, NQ, YM, RTY, CL, NG, GC, SI, HG, ZB, ZN, ZC, ZS, ZW, 6E, 6J, 6B, BTC and more, micros included), report picker, refresh button, per-category net-position panes, positioning table, loading / error / offline-cache states. The bundled "SAMPLE DATA" is shown, clearly labelled, only when offline with no cache.
+- The four COT indicators (COT, COT Commercials / Non-Commercials, COT Institutional Net Positions, COT High/Low) are implemented on the new `ctx.cot` feed; a bar only sees a report after its Friday publication (no look-ahead). The COT entries are no longer pending.
+- Command Palette: "Refresh COT data". Settings (Data): default COT report and weekly auto-refresh, both wired.
+
 ## Unreleased — round 6
 
 ### Security
