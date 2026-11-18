@@ -1,6 +1,7 @@
 import {
   BLANK_SCRIPT,
   normalizeProject,
+  parseHtstrat,
   templateById,
   type StrategyProject,
 } from '@htflow/strategy';
@@ -60,3 +61,15 @@ export function projectById(id: string): StrategyProject | undefined {
 
 /** Set before switching to the VPS tab: the deploy dialog preselects this script. */
 export const vpsDeployRequest: { projectId: string | null } = { projectId: null };
+
+/**
+ * Parses a `.htstrat` file opened from the file system. A project whose id is already saved is
+ * given a fresh id so double-clicking never overwrites the user's own strategy.
+ */
+export function projectFromHtstratFile(
+  text: string,
+  existing: readonly StrategyProject[] = scriptStore.get(),
+): StrategyProject {
+  const p = parseHtstrat(text);
+  return existing.some((s) => s.id === p.id) ? { ...p, id: newProjectId() } : p;
+}

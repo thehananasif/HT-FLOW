@@ -14,7 +14,7 @@ signatures), WiX and NSIS. Code signing with a paid certificate is out of scope 
 | `*.sig`, `latest.json`                  | Only when the signing secret is set: updater signatures and the update manifest                                                                      |
 
 File associations registered by the installers: `.htprofile`, `.htworkspace`, `.htind`,
-`.httemplate`. Opening one starts HT Flow (or hands the file to the running instance); the core emits an
+`.httemplate`, `.htstrat`. Opening one starts HT Flow (or hands the file to the running instance); the core emits an
 `htflow:open-file` event and the UI routes it to the matching importer (see "Opening files" below).
 
 ## Cut a release

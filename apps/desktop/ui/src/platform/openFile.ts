@@ -1,6 +1,6 @@
 /**
  * P30 — file associations (UI side). The Rust core reads a file Windows opened with HT Flow
- * (`.htprofile`, `.htworkspace`, `.htind`, `.httemplate`) and emits `htflow:open-file`
+ * (`.htprofile`, `.htworkspace`, `.htind`, `.httemplate`, `.htstrat`) and emits `htflow:open-file`
  * with an `OpenedFile`. This module routes it to the importer registered for its kind:
  *
  *   registerOpenFileHandler('template', (file) => { …import file.text…; return true; });
@@ -16,7 +16,7 @@ import { importTemplates, parseTemplatesFile } from '../charts/templates';
 import { useSession } from '../state/session';
 import { isTauri, native, onNative } from './native';
 
-export type OpenFileKind = 'profile' | 'workspace' | 'indicator' | 'template';
+export type OpenFileKind = 'profile' | 'workspace' | 'indicator' | 'template' | 'strategy';
 
 export interface OpenedFile {
   path: string;
@@ -118,6 +118,13 @@ registerOpenFileHandler('template', async (f) => {
   useChartTemplates.getState().update((l) => importTemplates(l, templates));
   toast('success', `Imported ${templates.length} chart template(s)`, f.name);
 });
+
+// Web build / tests: lets a page hand a file to the router as if Windows had opened it.
+if (typeof window !== 'undefined' && !isTauri) {
+  window.addEventListener('htflow:inject-file', (e) => {
+    void routeOpenedFile((e as CustomEvent<OpenedFile>).detail);
+  });
+}
 
 /** Attaches the core listener and drains files queued during start-up. Desktop only. */
 export async function startOpenFileBridge(): Promise<() => void> {

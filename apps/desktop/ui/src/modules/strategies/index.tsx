@@ -39,6 +39,7 @@ import { useWindows } from '../../state/windows';
 import { downloadText } from '../../components/DataTable.utils';
 import { activeChartId } from '../rss/shared';
 import { journalStore } from '../journal/store';
+import { registerOpenFileHandler } from '../../platform/openFile';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { DEFAULT_STYLE, EquityCanvas, HeatmapCanvas, type ResultStyle } from './charts';
 import {
@@ -69,6 +70,7 @@ import { allTemplates } from '../../trading/atmStore';
 import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
 import { HtEditor, editorMounted, type EditorActions } from './editor/HtEditor';
+import { projectFromHtstratFile, saveProject } from './editor/store';
 import { scriptRuns } from './editor/runs';
 import { SCRIPT_TEMPLATES } from '@htflow/strategy';
 import { Summary, TradesTable, fmtTime } from './results';
@@ -1107,6 +1109,20 @@ const withEditor = (fn: (a: EditorActions) => void) =>
       if (e) fn(e);
     }, 80);
   });
+
+// Double-clicking a `.htstrat` file: save it to the library and open it in the HT Editor.
+registerOpenFileHandler('strategy', (f) => {
+  let proj;
+  try {
+    proj = projectFromHtstratFile(f.text);
+  } catch (e) {
+    toast('error', `Could not open ${f.name}`, e instanceof Error ? e.message : String(e));
+    return;
+  }
+  saveProject(proj);
+  withEditor((a) => a.open(proj.id))();
+  toast('success', `Opened ${proj.name} in HT Editor`, f.name);
+});
 
 registerCommands([
   {
