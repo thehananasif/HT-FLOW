@@ -36,7 +36,7 @@ import { allEvents, calendar } from '../calendar/store';
 import { Highlighted } from '../rss';
 import '../rss/styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 // ------------------------------------------------ HT Flow generated events (ref-counted service)
 
 const generated: NewsItem[] = [];
@@ -233,7 +233,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
       seen.current.add(i.id);
       const hit = matchKeywords([i.title], alerts);
       if (hit.length)
-        toast('warning', `News alert: ${hit.join(', ')}`, `${i.title} — ${i.source}`, 8000);
+        toast('warning', tt`News alert: ${hit.join(', ')}`, `${i.title} — ${i.source}`, 8000);
     }
   });
 
@@ -248,7 +248,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && query.trim()) {
               setParams({ alerts: normalizeKeywords([...alerts, query.trim()]) });
-              toast('info', `Alert added: "${query.trim()}"`);
+              toast('info', tt`Alert added: "${query.trim()}"`);
               setQuery('');
             }
           }}
@@ -264,7 +264,7 @@ function News({ state: win, setParams }: ModuleViewProps) {
         <Checkbox
           checked={followActive}
           onChange={(v) => setParams({ followActive: v })}
-          label={`Active instrument${followActive && activeRoot ? ` (${activeRoot})` : ''}`}
+          label={tt`Active instrument${followActive && activeRoot ? ` (${activeRoot})` : ''}`}
         />
       </div>
       {alerts.length > 0 && (

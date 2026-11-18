@@ -20,7 +20,7 @@ import {
   type ScanColumn,
 } from './scanner';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const WINDOWS = [
   { id: 'm1', label: '1m' },
   { id: 'm5', label: '5m' },
@@ -84,7 +84,7 @@ function MarketPressure({ state, setParams }: ModuleViewProps) {
         toast(
           r.signal === 'strong-buy' ? 'success' : 'warning',
           `${r.sym}: ${SIGNAL_LABEL[r.signal]}`,
-          `Aggressive buy ${r.pr[win].toFixed(0)}% over ${win}`,
+          tt`Aggressive buy ${r.pr[win].toFixed(0)}% over ${win}`,
         );
         beep(r.signal === 'strong-buy' ? 1 : -1);
       }

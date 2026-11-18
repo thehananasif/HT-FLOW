@@ -53,7 +53,7 @@ import {
 } from './runtime';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Tab = 'chat' | 'agent' | 'audit' | 'providers';
 
 function useAi() {
@@ -342,7 +342,7 @@ function ChatTab() {
               <span className="ai-conv-meta">{c.model}</span>
               <button
                 type="button"
-                aria-label={`Delete ${c.title}`}
+                aria-label={tt`Delete ${c.title}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteConversation(c.id);
@@ -590,7 +590,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
     try {
       const m = await fetchModels(c.id);
       setModels(m.join('\n'));
-      toast('success', `${m.length} models`, c.label);
+      toast('success', tt`${m.length} models`, c.label);
     } catch (e) {
       toast('error', tl('Could not list models'), errorText(e));
     } finally {
@@ -625,7 +625,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
             <Input
               type="password"
               autoComplete="off"
-              aria-label={`${c.label} API key`}
+              aria-label={tt`${c.label} API key`}
               placeholder={c.hasKey ? '•••••••• (saved in the encrypted vault)' : info.keyHint}
               value={key}
               onChange={(e) => setKey(e.target.value)}
@@ -656,7 +656,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
         <label>
           {tl('Base URL')}
           <Input
-            aria-label={`${c.label} base URL`}
+            aria-label={tt`${c.label} base URL`}
             value={base}
             placeholder={info.baseUrl || 'https://your-endpoint/v1'}
             invalid={!!urlErr}
@@ -668,7 +668,7 @@ function ProviderRow({ c }: { c: ProviderConfig }) {
         <label className="ai-wide">
           {tl('Models (one per line)')}
           <textarea
-            aria-label={`${c.label} models`}
+            aria-label={tt`${c.label} models`}
             value={models}
             onChange={(e) => setModels(e.target.value)}
             onBlur={() => {

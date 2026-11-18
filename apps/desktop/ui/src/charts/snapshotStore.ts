@@ -13,6 +13,7 @@ import {
   type ChartSnapshot,
 } from './snapshots';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const KEY = 'chart-snapshots';
 
 interface SnapshotState {
@@ -39,7 +40,7 @@ export const useChartSnapshots = create<SnapshotState>((set, get) => ({
     set({ list });
     void backend
       .saveSettings(KEY, list)
-      .catch(() => toast('error', 'Could not save chart snapshots'));
+      .catch(() => toast('error', tl('Could not save chart snapshots')));
   },
 }));
 
@@ -53,7 +54,7 @@ export function takeSnapshot(windowId: string): ChartSnapshot | null {
     .getState()
     .load()
     .then(() => useChartSnapshots.getState().update((l) => addSnapshot(l, snap)));
-  toast('success', 'Snapshot saved', snap.name);
+  toast('success', tl('Snapshot saved'), snap.name);
   return snap;
 }
 
@@ -62,7 +63,7 @@ export function restoreSnapshot(windowId: string, id: string): void {
   const snap = useChartSnapshots.getState().list.find((x) => x.id === id);
   if (w?.kind !== 'chart' || !snap) return;
   useWindows.getState().patch(windowId, restorePatch(w, snap) as Partial<WindowState>);
-  toast('info', 'Snapshot restored', snap.name);
+  toast('info', tl('Snapshot restored'), snap.name);
 }
 
 export function deleteSnapshot(id: string): void {

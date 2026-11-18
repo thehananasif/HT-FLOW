@@ -10,7 +10,7 @@ import { HIDDEN_MONEY, usePrivacy } from '../state/format';
 import { runCommand } from './commands';
 import { classifyDelay, useSetting } from '../state/settings';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Settings → Data delays: amber above the warning latency, red above the critical one. */
 const DELAY_STATE = { ok: 'live', warning: 'delayed', critical: 'error' } as const;
 
@@ -50,10 +50,10 @@ function PnlItem() {
     <button
       className="sb-item sb-pnl tnum"
       data-testid="status-pnl"
-      title={`${acc.name}: open P&L of every position, and today's net (realized ${s.realized.toFixed(2)} − fees ${s.fees.toFixed(2)} + open). Click for positions.`}
+      title={tt`${acc.name}: open P&L of every position, and today's net (realized ${s.realized.toFixed(2)} − fees ${s.fees.toFixed(2)} + open). Click for positions.`}
       onClick={() => runCommand('open.positions')}
     >
-      P&amp;L{' '}
+      {tl('P&L')}{' '}
       <b className={cls(s.open)} data-testid="status-pnl-open">
         {f(s.open)}
       </b>

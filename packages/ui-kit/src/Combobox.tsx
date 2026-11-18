@@ -192,8 +192,12 @@ export function Combobox({
               onClick={() => pick(o)}
               onPointerMove={() => setActive(i)}
             >
-              <span>{o.label}</span>
-              {o.hint != null && <span className="ht-combo-hint">{o.hint}</span>}
+              <span>{tl(o.label)}</span>
+              {o.hint != null && (
+                <span className="ht-combo-hint">
+                  {typeof o.hint === 'string' ? tl(o.hint) : o.hint}
+                </span>
+              )}
             </li>
           ))}
           {list.length === 0 && (

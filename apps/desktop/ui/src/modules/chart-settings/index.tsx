@@ -22,6 +22,7 @@ import { activeChartId } from '../../charts/bus';
 import { registerCommands } from '../../shell/commands';
 import './styles.css';
 
+import { tt } from '@htflow/i18n';
 function SettingsOverlay({ windowId }: { windowId: string; state: ChartWindowState }) {
   const openFor = useChartSettingsUi((s) => s.openFor);
   return openFor === windowId ? <ChartSettingsWindow windowId={windowId} /> : null;
@@ -50,7 +51,7 @@ registerCommands([
     keywords: 'gpu webgl canvas backend performance',
     run: () => {
       setSetting('chart.renderer', value);
-      toast('info', `Chart renderer: ${name}`);
+      toast('info', tt`Chart renderer: ${name}`);
     },
   })),
   {

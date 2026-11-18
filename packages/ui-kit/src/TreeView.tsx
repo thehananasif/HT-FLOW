@@ -10,6 +10,7 @@ import {
   type TreeNode,
 } from './treeLogic';
 
+import { tt } from '@htflow/i18n';
 export interface TreeViewProps {
   nodes: TreeNode[];
   /** Expanded branch ids (controlled). Omit for uncontrolled. */
@@ -151,7 +152,7 @@ export function TreeView({
               <input
                 type="checkbox"
                 tabIndex={-1}
-                aria-label={`Check ${r.node.label}`}
+                aria-label={tt`Check ${r.node.label}`}
                 checked={cs === 'checked'}
                 disabled={r.node.disabled}
                 ref={(el) => {

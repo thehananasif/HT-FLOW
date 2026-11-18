@@ -20,7 +20,7 @@ import {
 } from '../../trading/atmStore';
 import { setPrefs, useTradingPrefs } from '../../trading/prefs';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 function download(name: string, text: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -98,7 +98,7 @@ export function AtmEditor() {
               void pickFile().then((txt) => {
                 if (!txt) return;
                 try {
-                  toast('success', `Imported ${importTemplates(txt)} template(s)`);
+                  toast('success', tt`Imported ${importTemplates(txt)} template(s)`);
                 } catch {
                   toast('error', tl('Import failed'), tl('Not a template file'));
                 }
@@ -221,7 +221,7 @@ export function AtmEditor() {
                     step={draft.tpUnit === 'ticks' ? 1 : 0.05}
                     min={0}
                     unit={unitLabel(draft.tpUnit)}
-                    aria-label={`Target ${i + 1} distance`}
+                    aria-label={tt`Target ${i + 1} distance`}
                   />
                   <NumberInput
                     value={tg.qty}
@@ -232,11 +232,11 @@ export function AtmEditor() {
                     }
                     min={0}
                     unit="share"
-                    aria-label={`Target ${i + 1} quantity share`}
+                    aria-label={tt`Target ${i + 1} quantity share`}
                   />
                   <button
                     className="ot-x"
-                    aria-label={`Remove target ${i + 1}`}
+                    aria-label={tt`Remove target ${i + 1}`}
                     onClick={() => set({ targets: draft.targets.filter((_, j) => j !== i) })}
                   >
                     ✕
@@ -309,7 +309,7 @@ export function AtmEditor() {
                     }
                     min={1}
                     unit="T profit"
-                    aria-label={`Step ${i + 1} trigger`}
+                    aria-label={tt`Step ${i + 1} trigger`}
                   />
                   <NumberInput
                     value={s.stopOffset}
@@ -322,11 +322,11 @@ export function AtmEditor() {
                     }
                     min={-1000}
                     unit="T stop"
-                    aria-label={`Step ${i + 1} stop`}
+                    aria-label={tt`Step ${i + 1} stop`}
                   />
                   <button
                     className="ot-x"
-                    aria-label={`Remove step ${i + 1}`}
+                    aria-label={tt`Remove step ${i + 1}`}
                     onClick={() => set({ trailSteps: draft.trailSteps.filter((_, j) => j !== i) })}
                   >
                     ✕

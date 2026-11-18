@@ -23,7 +23,7 @@ import {
 import { IntervalMenu } from './IntervalMenu';
 import './timeframes.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Session = BarSpec['session'];
 
 function capsFor(instrumentId: string): FeedCapabilities {
@@ -333,7 +333,7 @@ function TfRowView({
               {configure && (
                 <button
                   className="tf-chip-x"
-                  aria-label={`Remove ${specLabel(sp)}`}
+                  aria-label={tt`Remove ${specLabel(sp)}`}
                   onClick={() => onRemove(sp)}
                 >
                   <X size={10} />
@@ -374,7 +374,7 @@ function TfRowView({
           ) : (
             <button
               className="tf-chip-add"
-              aria-label={`Add ${row.row} preset`}
+              aria-label={tt`Add ${row.row} preset`}
               onClick={() => setAdding(true)}
             >
               <Plus size={11} />

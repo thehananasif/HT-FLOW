@@ -20,7 +20,7 @@ import { toolDef, toolsIn, type ToolGroup, type ToolId } from '@htflow/drawings'
 import { activateTool, controllers, openObjectsList, useDrawUi } from '../modules/drawings/store';
 import { tk, toolbarGroupLabel, toolLabel, toolNote } from '../modules/drawings/toolText';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Drawing groups (P45): each flyout lists tools of @htflow/drawings (P12). */
 const DRAW_GROUPS: { id: string; label: string; icon: typeof Minus; tools: ToolId[] }[] = [
   { id: 'lines', label: 'Lines', icon: Minus, tools: ids('lines') },
@@ -295,7 +295,7 @@ export function SideTools({
           <button
             className="st-btn"
             aria-label={tl('More tools')}
-            title={`More tools: ${[
+            title={tt`More tools: ${[
               ...(fpHidden ? FOOTPRINT_GROUPS : []),
               ...hidden.map((g) => toolbarGroupLabel(g.id, g.label)),
             ].join(', ')}`}

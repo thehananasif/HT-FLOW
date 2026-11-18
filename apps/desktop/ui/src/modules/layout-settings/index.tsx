@@ -32,7 +32,7 @@ import { installLayoutEffects, LINK_SETTING } from './apply';
 import { currentMonitors, installDisplayTracking, refreshDisplay } from './display';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 installLayoutEffects();
 
 type EnumKey = {
@@ -178,10 +178,10 @@ function LinkColorRow({ c }: { c: Exclude<LinkColor, 'none'> }) {
   const count = linkGroups(windows).find((g) => g.color === c)?.windowIds.length ?? 0;
   const label = c[0]!.toUpperCase() + c.slice(1);
   return (
-    <Row label={`${label} group`} help={tl(settingDef(key).help)}>
+    <Row label={tt`${label} group`} help={tl(settingDef(key).help)}>
       <span className="ls-swatch" style={{ background: LINK_COLORS[c] }} />
       <ColorPicker
-        label={`${label} group colour`}
+        label={tt`${label} group colour`}
         alpha={false}
         value={value || LINK_COLOR_DEFAULTS[c]}
         onChange={(hex) => setSetting(key, hex.slice(0, 7) as never)}

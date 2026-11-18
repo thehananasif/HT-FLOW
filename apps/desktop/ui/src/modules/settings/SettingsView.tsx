@@ -77,7 +77,7 @@ import {
   TokensEditor,
 } from './editors';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const ICONS: Record<SectionId, ReactNode> = {
   general: <Settings2 size={15} />,
   appearance: <Palette size={15} />,
@@ -233,7 +233,7 @@ function ColorControl({
       <input
         type="color"
         className="st-color-pick"
-        aria-label={`${label} picker`}
+        aria-label={tt`${tl(label)} picker`}
         value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#808080'}
         onChange={(e) => onChange(e.target.value.toUpperCase())}
       />
@@ -289,7 +289,7 @@ function Row({
             </span>
           }
         >
-          <button type="button" className="st-help" aria-label={`Help: ${d.label}`}>
+          <button type="button" className="st-help" aria-label={tt`Help: ${d.label}`}>
             <HelpCircle size={12} aria-hidden />
           </button>
         </Tooltip>
@@ -299,7 +299,7 @@ function Row({
         {modified && (
           <button
             className="ht-icon-btn"
-            aria-label={`Reset ${d.label}`}
+            aria-label={tt`Reset ${d.label}`}
             title={tl('Reset to default')}
             onClick={() => onChange(k, defaults[k])}
           >
@@ -584,7 +584,7 @@ export function SettingsView({
                 toast(
                   'info',
                   tl('Settings folder'),
-                  `%APPDATA%\\HTFlow\\profiles\\${session?.profileId ?? '<profile>'}\\settings.bin (encrypted). Opening Explorer needs the native shell command (not available yet).`,
+                  tt`%APPDATA%\\HTFlow\\profiles\\${session?.profileId ?? '<profile>'}\\settings.bin (encrypted). Opening Explorer needs the native shell command (not available yet).`,
                   8000,
                 )
               }
@@ -708,7 +708,7 @@ export function SettingsView({
                 setDraft(getSettings());
                 toast(
                   r.errors.length ? 'warning' : 'success',
-                  `Imported ${r.applied} settings`,
+                  tt`Imported ${r.applied} settings`,
                   r.errors.length
                     ? `${r.errors.length} skipped: ${r.errors.slice(0, 3).join('; ')}`
                     : undefined,

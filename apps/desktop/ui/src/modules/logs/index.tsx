@@ -14,7 +14,7 @@ import {
 } from '../../state/log';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 installLogCapture();
 
 interface Prefs {
@@ -98,7 +98,7 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(entriesToText(shown));
-      toast('success', tl('Copied'), `${shown.length} log lines`);
+      toast('success', tl('Copied'), tt`${shown.length} log lines`);
     } catch {
       toast('error', tl('Copy failed'), tl('Clipboard access was denied'));
     }

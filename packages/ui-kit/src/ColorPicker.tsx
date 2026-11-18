@@ -19,7 +19,7 @@ import {
 } from './colorMath';
 import { addStop, gradientCss, removeStop, updateStop, type GradientStop } from './gradient';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
@@ -253,7 +253,7 @@ function SwatchRow({
   onAdd?: () => void;
 }) {
   return (
-    <div className="ht-cp-swatches" role="group" aria-label={`${title} colours`}>
+    <div className="ht-cp-swatches" role="group" aria-label={tt`${title} colours`}>
       <span className="ht-cp-swatches-title">{title}</span>
       <div className="ht-cp-swatch-grid">
         {colors.map((c) => (
@@ -346,7 +346,7 @@ export function ColorPicker({ label, className, ...panel }: ColorPickerProps) {
         </span>
       </button>
       {open && (
-        <div className="ht-cp-pop" role="dialog" aria-label={`${label} picker`}>
+        <div className="ht-cp-pop" role="dialog" aria-label={tt`${label} picker`}>
           <ColorPanel {...panel} />
         </div>
       )}
@@ -398,7 +398,7 @@ export function GradientEditor({
             className="ht-grad-stop"
             data-selected={i === idx || undefined}
             style={{ left: `${s.pos * 100}%`, ['--sw' as string]: s.color }}
-            aria-label={`Stop ${i + 1} at ${Math.round(s.pos * 100)}%`}
+            aria-label={tt`Stop ${i + 1} at ${Math.round(s.pos * 100)}%`}
             onClick={() => setSel(i)}
             onPointerDown={(e) => {
               setSel(i);
@@ -427,7 +427,7 @@ export function GradientEditor({
         {stops.map((s, i) => (
           <div key={i} className="ht-grad-row" data-selected={i === idx || undefined}>
             <ColorPicker
-              label={`Stop ${i + 1} colour`}
+              label={tt`Stop ${i + 1} colour`}
               value={s.color}
               onChange={(c) => onChange(updateStop(stops, i, { color: c }))}
               swatches={swatches}
@@ -439,7 +439,7 @@ export function GradientEditor({
               min={0}
               max={100}
               step={1}
-              aria-label={`Stop ${i + 1} position %`}
+              aria-label={tt`Stop ${i + 1} position %`}
               value={Math.round(s.pos * 100)}
               onFocus={() => setSel(i)}
               onChange={(e) => {
@@ -450,7 +450,7 @@ export function GradientEditor({
             <button
               type="button"
               className="ht-icon-btn"
-              aria-label={`Remove stop ${i + 1}`}
+              aria-label={tt`Remove stop ${i + 1}`}
               disabled={stops.length <= 2}
               onClick={() => onChange(removeStop(stops, i))}
             >

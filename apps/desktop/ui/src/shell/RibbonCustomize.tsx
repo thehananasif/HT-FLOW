@@ -4,7 +4,7 @@ import { Button, Checkbox, Dialog, moveItem } from '@htflow/ui-kit';
 import { MODULES } from './modules';
 import { groupIds, ribbonStore, RIBBON_GROUPS, useRibbonState } from './ribbonStore';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Drop = { id: string; where: 'before' | 'after' } | null;
 
 /**
@@ -98,7 +98,7 @@ export function RibbonCustomize() {
                   <button
                     type="button"
                     className="ht-icon-btn"
-                    aria-label={`Move ${label.get(id)} up`}
+                    aria-label={tt`Move ${tl(label.get(id))} up`}
                     disabled={i === 0}
                     onClick={() => move(g, id, -1)}
                   >
@@ -107,7 +107,7 @@ export function RibbonCustomize() {
                   <button
                     type="button"
                     className="ht-icon-btn"
-                    aria-label={`Move ${label.get(id)} down`}
+                    aria-label={tt`Move ${tl(label.get(id))} down`}
                     disabled={i === ids.length - 1}
                     onClick={() => move(g, id, 1)}
                   >

@@ -37,7 +37,7 @@ import {
 } from './shared';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Sel =
   | { kind: 'all' }
   | { kind: 'folder'; name: string }
@@ -49,7 +49,7 @@ export function Highlighted({ text, keywords }: { text: string; keywords: readon
     <>
       {highlightSegments(text, keywords).map((s, i) =>
         s.keyword ? (
-          <mark key={i} className="info-kw" title={`Keyword: ${s.keyword}`}>
+          <mark key={i} className="info-kw" title={tt`Keyword: ${s.keyword}`}>
             {s.text}
           </mark>
         ) : (
@@ -205,7 +205,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
       aria-pressed={sel.kind === 'feed' && sel.id === f.id}
       onClick={() => setSel({ kind: 'feed', id: f.id })}
       onDoubleClick={() => setDialog({ open: true, feed: f })}
-      title={`${f.url}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
+      title={tt`${f.url}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
     >
       <span className="grow ellipsis">
         {tl(f.title)}
@@ -282,8 +282,8 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
                   if (!addFeed(f.xmlUrl, f.title, f.folder || 'Imported')) added++;
                 toast(
                   'success',
-                  `OPML: ${added} feed(s) added`,
-                  `${doc.feeds.length - added} skipped (duplicate or invalid)`,
+                  tt`OPML: ${added} feed(s) added`,
+                  tt`${doc.feeds.length - added} skipped (duplicate or invalid)`,
                 );
               } catch (e) {
                 toast(

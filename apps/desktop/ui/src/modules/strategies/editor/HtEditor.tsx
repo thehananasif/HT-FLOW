@@ -61,7 +61,7 @@ import {
 import { WorkerTransport } from './workerTransport';
 import './editor.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type ResultTab = 'problems' | 'summary' | 'equity' | 'plots' | 'trades' | 'log' | 'runs';
 
 export interface EditorSettings {
@@ -291,7 +291,7 @@ export function HtEditor({
     saveProject(project);
     set({ savedJson: JSON.stringify(project.files) });
     setParams({ editor: { ...ed, projectId: project.id } });
-    toast('success', `Saved ${project.name}`);
+    toast('success', tt`Saved ${project.name}`);
   };
 
   const open = (p: StrategyProject) => {
@@ -309,7 +309,7 @@ export function HtEditor({
     if (state.phase !== 'idle') return;
     if (!compiled.project) {
       set({ rtab: 'problems' });
-      return toast('error', tl('Fix the errors first'), `${errors} error(s) in the code`);
+      return toast('error', tl('Fix the errors first'), tt`${errors} error(s) in the code`);
     }
     if (!inst) return toast('error', tl('No instrument with history'));
     set({ phase: 'loading', progress: 0, runtime: null });
@@ -392,20 +392,21 @@ export function HtEditor({
       router,
     });
     setLogRun(run.id);
-    if (run.status === 'error') toast('error', `${project.name} could not start`, run.error);
-    else toast('success', `${project.name} running (${mode})`, `${inst.symbol} · ${run.accountId}`);
+    if (run.status === 'error') toast('error', tt`${project.name} could not start`, run.error);
+    else
+      toast('success', tt`${project.name} running (${mode})`, `${inst.symbol} · ${run.accountId}`);
   };
 
   const stopAll = () => {
     const n = scriptRuns.active().filter((r) => r.projectId === project.id).length;
     for (const r of scriptRuns.active()) if (r.projectId === project.id) scriptRuns.stop(r.id);
-    toast('info', `${n} run(s) of ${project.name} stopped`);
+    toast('info', tt`${n} run(s) of ${project.name} stopped`);
   };
 
   const kill = () => {
     const n = scriptRuns.killAll() + liveRuns.list().length;
     liveRuns.stopAll(true);
-    toast('info', `Kill switch: ${n} strategies stopped and flattened`);
+    toast('info', tt`Kill switch: ${n} strategies stopped and flattened`);
   };
 
   const exportFile = () => {
@@ -422,7 +423,7 @@ export function HtEditor({
       const proj = clash ? { ...p, id: newProject().id } : p;
       saveProject(proj);
       open(proj);
-      toast('success', `Imported ${proj.name}`);
+      toast('success', tt`Imported ${proj.name}`);
     } catch (e) {
       toast('error', tl('Import failed'), e instanceof Error ? e.message : String(e));
     }
@@ -535,7 +536,7 @@ export function HtEditor({
               </button>
               <button
                 className="hte-x"
-                aria-label={`Delete ${s.name}`}
+                aria-label={tt`Delete ${s.name}`}
                 onClick={() => {
                   if (window.confirm(`Delete ${s.name}?`)) deleteProject(s.id);
                 }}
@@ -641,7 +642,7 @@ export function HtEditor({
                 <span
                   className="hte-x"
                   role="button"
-                  aria-label={`Close ${f.name}`}
+                  aria-label={tt`Close ${f.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     removeFile(i);

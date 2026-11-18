@@ -33,6 +33,7 @@ import { paper } from '../state/market';
 import { reloadPersisted, setPersistedSaveHook } from '../trading/persist';
 import { log } from '../state/log';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Stores only the main window writes; a secondary window never saves or reloads them. */
 export const MAIN_OWNED_KEYS = new Set([
   'settings',
@@ -103,7 +104,7 @@ async function openNative(e: OsWindowEntry): Promise<void> {
     await native('os_window_open', { req: { label: e.label, title: e.title, ...sizeOfNew() } });
   } catch (err) {
     log.error('windows', `Opening an OS window failed: ${String(err)}`);
-    toast('error', 'Could not open a new window', String(err));
+    toast('error', tl('Could not open a new window'), String(err));
     reattach(e.label);
   }
 }

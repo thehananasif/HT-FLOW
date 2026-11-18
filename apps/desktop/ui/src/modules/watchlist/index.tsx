@@ -20,7 +20,7 @@ import { isModuleBuilt, registerModule, type ModuleViewProps } from '../registry
 import { formatOiFunding, moveItem, RowStats, sparkPoints, statsFrom } from './stats';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 // ------------------------------------------------------------------ params
 
 type ColId =
@@ -518,7 +518,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             <button
               type="button"
               className="link-dot"
-              aria-label={`Link group: ${p.link}`}
+              aria-label={tt`Link group: ${p.link}`}
               title={tl('Link group')}
             >
               <span style={{ background: LINK_COLORS[p.link] }} />
@@ -565,7 +565,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
           mode="add"
           onPick={(e) => {
             if (list.symbols.includes(e.key)) {
-              toast('info', `${e.symbol} is already in ${list.name}`);
+              toast('info', tt`${e.symbol} is already in ${list.name}`);
               return;
             }
             setList([...list.symbols, e.key]);
@@ -591,7 +591,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
           </button>
         ))}
       </div>
-      <div className="wl-body" role="table" aria-label={`${list.name} watchlist`}>
+      <div className="wl-body" role="table" aria-label={tt`${list.name} watchlist`}>
         {ids.map((id) => (
           <Row
             key={id}

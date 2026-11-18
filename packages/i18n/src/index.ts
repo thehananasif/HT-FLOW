@@ -2,6 +2,7 @@ import { en, type Strings } from './en';
 import { ur } from './ur';
 
 export type { Strings };
+export { en, ur };
 export type Locale = 'en' | 'ur';
 
 export const LOCALES: Locale[] = ['en', 'ur'];
@@ -52,6 +53,17 @@ export function translateLiteral<T extends string | undefined>(s: T): T {
   }
   const key = reverse.get(s);
   return (key ? t(key) : s) as T;
+}
+
+/**
+ * Tagged template for strings with variables: ``tt`Help: ${name}` `` looks up the pattern
+ * "Help: {0}" (positional placeholders) in en.ts and fills the values in. English output is the
+ * template itself; patterns without a translation fall back to English.
+ */
+export function tt(strings: TemplateStringsArray, ...vals: unknown[]): string {
+  if (locale === 'en') return strings.reduce((a, str, i) => a + String(vals[i - 1]) + str);
+  const pattern = strings.reduce((a, str, i) => a + `{${i - 1}}` + str);
+  return translateLiteral(pattern).replace(/\{(\d+)\}/g, (_, i) => String(vals[Number(i)]));
 }
 
 /** Plural suffix for the "{n} object{s}" style strings: English adds "s", Urdu has none. */

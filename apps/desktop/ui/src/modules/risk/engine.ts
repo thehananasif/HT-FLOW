@@ -18,6 +18,7 @@ import { newsFromCalendar } from './news';
 import { getSetting } from '../../state/settings';
 import { checkGlobalLimits, increasesRisk, lockEnd, type GlobalRiskLimits } from './globalLimits';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const KEY = 'risk.settings';
 export const localTimeZone = (): string => {
   try {
@@ -149,9 +150,9 @@ risk.onEvent((e) => {
     account,
     message: e.message,
   });
-  if (e.kind === 'lock') toast('error', 'Risk lock', e.message, 8000);
+  if (e.kind === 'lock') toast('error', tl('Risk lock'), e.message, 8000);
   else if (e.kind === 'warning' || e.kind === 'flatten')
-    toast('warning', 'Risk warning', e.message, 6000);
+    toast('warning', tl('Risk warning'), e.message, 6000);
   if (e.kind === 'lock' || e.kind === 'unlock') save();
   notify();
 });
@@ -233,7 +234,7 @@ function breach(accountId: string, message: string): void {
   const lim = globalLimits();
   const st = dayState(accountId);
   if (lim.onBreach === 'warn') {
-    if (!st.lossNotified) toast('warning', 'Risk limit reached', message, 8000);
+    if (!st.lossNotified) toast('warning', tl('Risk limit reached'), message, 8000);
     st.lossNotified = true;
     return;
   }
@@ -242,7 +243,7 @@ function breach(accountId: string, message: string): void {
     st.lockedUntil = lockEnd(lim.lockUntil, now, nextDayStart(now, localTimeZone()));
     if (lim.onBreach === 'flatten')
       for (const p of paper.allPositions(accountId)) paper.flatten(accountId, p.instrumentId);
-    toast('error', 'Trading locked (Settings → Risk)', message, 8000);
+    toast('error', tl('Trading locked (Settings → Risk)'), message, 8000);
     activityLog.add({ type: 'lock', account: accountId, message });
   }
 }
@@ -269,7 +270,7 @@ paper.preTradeChecks.push((req) => {
   }
   if (v.verdict === 'warn' && v.message && v.message !== lastWarn) {
     lastWarn = v.message;
-    toast('warning', 'Risk warning', v.message, 6000);
+    toast('warning', tl('Risk warning'), v.message, 6000);
   }
   return null;
 });

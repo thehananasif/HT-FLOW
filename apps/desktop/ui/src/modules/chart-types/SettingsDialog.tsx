@@ -20,7 +20,7 @@ import {
 } from '../../charts/layers/settings';
 import { EXTRA_TEMPLATES } from '../../charts/layers/templates';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Templates and chart types that have their own style settings. */
 export function hasTypeSettings(s: ChartWindowState): boolean {
   const k = (s.timeframe as BarSpec).kind;
@@ -62,7 +62,7 @@ export function ChartTypeSettingsDialog({
     <Dialog
       open
       onOpenChange={onOpenChange}
-      title={`${tpl} — style`}
+      title={tt`${tpl} — style`}
       description={tl('Changes apply live and are saved with the window.')}
       width={460}
     >

@@ -60,7 +60,7 @@ import {
   type VpsHost,
 } from './service';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const POLL_MS = 10_000;
 /** Commands from the palette reach the mounted panel through this event. */
 export const VPS_EVENT = 'htflow:vps';
@@ -130,7 +130,7 @@ export function VpsPanel() {
       setL(id, { busy: null, error: errorText(e), connected: code === 'vps.remote' });
       toast(
         code === 'vps.host_key_mismatch' ? 'error' : 'warning',
-        `${what} failed`,
+        tt`${what} failed`,
         errorText(e),
         8000,
       );
@@ -157,7 +157,7 @@ export function VpsPanel() {
           /* the status poll reports connection problems */
         }
       }
-      if (!quiet) toast('success', tl('Journal updated'), `${added} new VPS trade(s) imported`);
+      if (!quiet) toast('success', tl('Journal updated'), tt`${added} new VPS trade(s) imported`);
     },
     [native, patchHost],
   );
@@ -199,8 +199,8 @@ export function VpsPanel() {
       setL(h.id, { busy: null });
       toast(
         probe.nodeOk ? 'success' : 'warning',
-        `Connected to ${h.name}`,
-        `${probe.osName} ${probe.arch} · Node.js ${probe.node ?? 'not installed'}`,
+        tt`Connected to ${h.name}`,
+        tt`${probe.osName} ${probe.arch} · Node.js ${probe.node ?? 'not installed'}`,
       );
       await refresh(next, true);
     } catch (e) {
@@ -221,7 +221,7 @@ export function VpsPanel() {
       setL(h.id, { busy: null });
       toast(
         'success',
-        `Runner ${d.runnerId}`,
+        tt`Runner ${d.runnerId}`,
         kind === 'remove' ? 'Removed from the VPS' : `${kind === 'start' ? 'Started' : 'Stopped'}`,
       );
       await refresh(hostsRef.current.find((x) => x.id === h.id) ?? h, true);
@@ -1040,8 +1040,8 @@ function DeployDialog({
       });
       toast(
         'success',
-        `Deployed ${def.name}`,
-        `Runner ${runnerId} is starting on ${host.name} (paper).`,
+        tt`Deployed ${def.name}`,
+        tt`Runner ${runnerId} is starting on ${host.name} (paper).`,
       );
     } catch (e) {
       setBusy(null);
@@ -1053,7 +1053,7 @@ function DeployDialog({
     <Dialog
       open
       onOpenChange={(o) => !o && !busy && onClose()}
-      title={`${existing ? 'Redeploy' : 'Deploy'} to ${host.name}`}
+      title={tt`${existing ? 'Redeploy' : 'Deploy'} to ${host.name}`}
       width={480}
     >
       <div className="stg-form" data-testid="vps-deploy-dialog">

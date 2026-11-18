@@ -48,7 +48,7 @@ import {
 } from './shared';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 interface SetupParams {
   instruments: string[];
   from: number;
@@ -185,7 +185,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
               {symbol(id)}
               {p.instruments.length > 1 && (
                 <button
-                  aria-label={`Remove ${symbol(id)}`}
+                  aria-label={tt`Remove ${symbol(id)}`}
                   onClick={() => set({ instruments: p.instruments.filter((x) => x !== id) })}
                 >
                   <X size={11} />
@@ -365,7 +365,7 @@ function Account() {
           <b className="tnum">${acc.balance.toLocaleString('en-US')}</b>
         </div>
         <div className="card-stat">
-          <span className="muted" title={`Realized ${money(realized)} · open ${money(open)}`}>
+          <span className="muted" title={tt`Realized ${money(realized)} · open ${money(open)}`}>
             Session P&amp;L
           </span>
           <b className={`tnum ${pnl > 0 ? 'up' : pnl < 0 ? 'down' : ''}`}>{money(pnl)}</b>
@@ -419,7 +419,7 @@ function Templates({ setBusy }: { setBusy: (b: string | null) => void }) {
           </Button>
           <button
             className="ht-icon-btn"
-            aria-label={`Delete ${t.name}`}
+            aria-label={tt`Delete ${t.name}`}
             onClick={() => saveTemplates(list.filter((x) => x.id !== t.id))}
           >
             <X size={12} />
@@ -449,7 +449,7 @@ function Display() {
           onChange={(v) => setReplayDisplay({ tagQty: v })}
           label={tl('Show quantity in the tag')}
         />
-        <Field label={`Tag size: ${d.tagSize}px`}>
+        <Field label={tt`Tag size: ${d.tagSize}px`}>
           <Slider
             label={tl('Tag size')}
             min={8}
@@ -488,7 +488,7 @@ function Display() {
               onChange={(v) => setReplayDisplay({ ghostBars: v })}
             />
           </Field>
-          <Field label={`Ghost opacity: ${Math.round(d.ghostOpacity * 100)}%`}>
+          <Field label={tt`Ghost opacity: ${Math.round(d.ghostOpacity * 100)}%`}>
             <Slider
               label={tl('Ghost opacity')}
               min={10}

@@ -36,7 +36,7 @@ import { allInstruments } from '../../state/instruments';
 import { isTauri } from '../../backend';
 import { EXCHANGES, exchangeStatus, formatDuration, resolveCommission } from './model';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export interface EditorProps<T> {
   value: T;
   onChange(v: T): void;
@@ -88,19 +88,19 @@ function TokenRow({
   return (
     <div
       className="st-token"
-      title={`--ht-${k.replace(/[A-Z0-9]/g, (m) => '-' + m.toLowerCase())}`}
+      title={tt`--ht-${k.replace(/[A-Z0-9]/g, (m) => '-' + m.toLowerCase())}`}
     >
       <span className="st-dot-slot">{modified && <span className="st-mod" />}</span>
       <input
         type="color"
-        aria-label={`${k} colour`}
+        aria-label={tt`${k} colour`}
         value={value.slice(0, 7).toLowerCase()}
         onChange={(e) => onSet(e.target.value)}
       />
       <span className="st-token-name">{k}</span>
       <input
         className="st-hex mono"
-        aria-label={`${k} hex`}
+        aria-label={tt`${k} hex`}
         value={text}
         aria-invalid={!normalizeHex(text) || undefined}
         onChange={(e) => {
@@ -110,7 +110,11 @@ function TokenRow({
         }}
       />
       {modified && (
-        <button className="ht-icon-btn" aria-label={`Reset ${k}`} onClick={() => onSet(undefined)}>
+        <button
+          className="ht-icon-btn"
+          aria-label={tt`Reset ${k}`}
+          onClick={() => onSet(undefined)}
+        >
           <RotateCcw size={12} />
         </button>
       )}
@@ -241,7 +245,7 @@ function Recorder({
       type="button"
       className="st-rec"
       data-recording={rec || undefined}
-      aria-label={`Shortcut for ${label}`}
+      aria-label={tt`Shortcut for ${tl(label)}`}
       title={tl('Click, then press the new key combination (Esc cancels, Backspace clears)')}
       onClick={() => setRec(true)}
       onBlur={() => setRec(false)}
@@ -366,7 +370,7 @@ export function HotkeysEditor({
                     <td>
                       <select
                         className="ht-select ht-select--sm"
-                        aria-label={`Scope for ${r.c.label}`}
+                        aria-label={tt`Scope for ${tl(r.c.label)}`}
                         value={r.scope}
                         onChange={(e) => set(r.c.id, { scope: e.target.value as HotkeyScope })}
                       >
@@ -382,7 +386,7 @@ export function HotkeysEditor({
                       {r.modified && (
                         <button
                           className="ht-icon-btn"
-                          aria-label={`Reset ${r.c.label}`}
+                          aria-label={tt`Reset ${tl(r.c.label)}`}
                           onClick={() => {
                             const next = { ...value };
                             delete next[r.c.id];
@@ -425,7 +429,7 @@ export function SoundEventsEditor({
               <input
                 type="checkbox"
                 className="st-check"
-                aria-label={`${e.label} sound on`}
+                aria-label={tt`${tl(e.label)} sound on`}
                 checked={c.enabled}
                 onChange={(x) => set(e.id, { enabled: x.target.checked })}
               />
@@ -434,7 +438,7 @@ export function SoundEventsEditor({
             <span className="st-row-ctl row gap8 center-y">
               <select
                 className="ht-select ht-select--sm"
-                aria-label={`${e.label} sound`}
+                aria-label={tt`${tl(e.label)} sound`}
                 value={c.sound}
                 onChange={(x) => set(e.id, { sound: x.target.value })}
               >
@@ -454,14 +458,14 @@ export function SoundEventsEditor({
                 className="ht-slider st-vol"
                 min={0}
                 max={100}
-                aria-label={`${e.label} volume`}
+                aria-label={tt`${tl(e.label)} volume`}
                 value={c.volume}
                 onChange={(x) => set(e.id, { volume: Number(x.target.value) })}
               />
               <span className="tnum muted st-num">{c.volume}%</span>
               <button
                 className="ht-icon-btn"
-                aria-label={`Preview ${e.label}`}
+                aria-label={tt`Preview ${tl(e.label)}`}
                 onClick={() => playSoundRef(c.sound, (c.volume / 100) * master)}
               >
                 <Play size={12} />
@@ -499,14 +503,14 @@ export function CustomSoundsEditor({ value, onChange, draft }: EditorProps<Custo
           <span className="st-row-ctl row gap8">
             <button
               className="ht-icon-btn"
-              aria-label={`Preview ${s.name}`}
+              aria-label={tt`Preview ${s.name}`}
               onClick={() => playSoundRef('custom:' + s.id, draft['sounds.master'] / 100)}
             >
               <Play size={12} />
             </button>
             <button
               className="ht-icon-btn"
-              aria-label={`Remove ${s.name}`}
+              aria-label={tt`Remove ${s.name}`}
               onClick={() => onChange(value.filter((x) => x.id !== s.id))}
             >
               <Trash2 size={12} />
@@ -732,7 +736,7 @@ export function ClocksEditor({ value, onChange, draft }: EditorProps<string[]>) 
                 <input
                   type="checkbox"
                   className="st-check"
-                  aria-label={`Follow ${ex.name}`}
+                  aria-label={tt`Follow ${ex.name}`}
                   checked={value.includes(ex.id)}
                   onChange={(e) =>
                     onChange(

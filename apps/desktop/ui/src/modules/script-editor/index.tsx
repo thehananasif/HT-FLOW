@@ -17,7 +17,7 @@ import {
   type HtindFile,
 } from '@htflow/indicator-sdk';
 import { indicatorById } from '@htflow/indicators';
-import { t, translateLiteral as tl } from '@htflow/i18n';
+import { t, translateLiteral as tl, tt } from '@htflow/i18n';
 import { Badge, Button, Input, toast } from '@htflow/ui-kit';
 import { registerCommands } from '../../shell/commands';
 import { downloadText } from '../../components/DataTable.utils';
@@ -42,7 +42,7 @@ function addToChart(id: string): void {
     return;
   }
   writeExt(chart, [...readExt(chart).items, createConfig(def)]);
-  toast('success', `${def.name} added to the chart`);
+  toast('success', tt`${def.name} added to the chart`);
 }
 
 function ScriptEditor({ state, setParams }: ModuleViewProps) {
@@ -93,7 +93,11 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
         .save({ format: 'htind', version: 1, id: sid, name: nm, source, updated: Date.now() });
       setId(sid);
       setName(nm);
-      toast('success', `Script "${nm}" saved`, tl('Find it under Indicators → Custom (scripts).'));
+      toast(
+        'success',
+        tt`Script "${nm}" saved`,
+        tl('Find it under Indicators → Custom (scripts).'),
+      );
       return sid;
     } catch (e) {
       toast('error', tl('Could not save'), e instanceof Error ? e.message : String(e));
@@ -121,9 +125,9 @@ function ScriptEditor({ state, setParams }: ModuleViewProps) {
       setId(null);
       setName(f.name);
       setSource(f.source);
-      toast('success', `Imported ${file.name}`, tl('Save it to add it to your library.'));
+      toast('success', tt`Imported ${file.name}`, tl('Save it to add it to your library.'));
     } catch (e) {
-      toast('error', `Could not import ${file.name}`, e instanceof Error ? e.message : String(e));
+      toast('error', tt`Could not import ${file.name}`, e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -302,5 +306,5 @@ registerOpenFileHandler('indicator', (f) => {
   const file = parseHtind(f.text, f.name.replace(/\.htind$/i, ''));
   const exists = useScripts.getState().scripts.some((s) => s.id === file.id);
   useScripts.getState().save({ ...file, id: exists ? uniqueScriptId(file.name) : file.id });
-  toast('success', `Indicator "${file.name}" imported`, tl('Indicators → Custom (scripts).'));
+  toast('success', tt`Indicator "${file.name}" imported`, tl('Indicators → Custom (scripts).'));
 });

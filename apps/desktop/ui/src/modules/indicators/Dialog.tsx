@@ -38,7 +38,7 @@ import {
   type TimeframeId,
 } from '@htflow/indicator-sdk';
 import { CATALOG, indicatorById, isImplemented, type CatalogEntry } from '@htflow/indicators';
-import { t, translateLiteral as tl } from '@htflow/i18n';
+import { t, translateLiteral as tl, tt } from '@htflow/i18n';
 import {
   Badge,
   Button,
@@ -201,7 +201,7 @@ export function IndicatorsDialog({
     setPresets(next);
     setPresetName(null);
     void backend.saveSettings(PRESET_KEY, next);
-    toast('success', `Preset "${name}" saved`);
+    toast('success', tt`Preset "${name}" saved`);
   };
 
   const applyAll = () => {
@@ -220,7 +220,7 @@ export function IndicatorsDialog({
     }
     toast(
       'success',
-      `${titleOf(def!, selected.inputs)} applied to ${n} chart${n === 1 ? '' : 's'}`,
+      tt`${titleOf(def!, selected.inputs)} applied to ${n} chart${n === 1 ? '' : 's'}`,
     );
   };
 
@@ -294,7 +294,7 @@ export function IndicatorsDialog({
                     >
                       <button
                         className="ind-star"
-                        aria-label={`Favourite ${e.name}`}
+                        aria-label={tt`Favourite ${e.name}`}
                         data-on={favs.includes(e.key) || undefined}
                         onClick={() => toggleFav(e.key)}
                       >
@@ -304,7 +304,7 @@ export function IndicatorsDialog({
                       {(userScript || e.impl === 'custom-script') && (
                         <button
                           className="ht-icon-btn"
-                          aria-label={`Edit ${e.name}`}
+                          aria-label={tt`Edit ${e.name}`}
                           title={tl('Open in the Script Editor')}
                           onClick={() =>
                             openScriptEditor(
@@ -318,7 +318,7 @@ export function IndicatorsDialog({
                       {ok ? (
                         <button
                           className="ht-icon-btn"
-                          aria-label={`Add ${e.name}`}
+                          aria-label={tt`Add ${e.name}`}
                           disabled={noBars}
                           onClick={() => add(e)}
                         >
@@ -775,25 +775,25 @@ function StyleTab({
           <div key={id} className="ind-style-row">
             <Checkbox label="" checked={s.visible} onChange={(v) => set(id, { visible: v })} />
             <Input
-              aria-label={`${o.label} label`}
+              aria-label={tt`${o.label} label`}
               className="ind-style-label"
               value={s.label}
               onChange={(e) => set(id, { label: e.target.value })}
             />
             <ColorSwatch
-              label={`${o.label} colour`}
+              label={tt`${o.label} colour`}
               value={s.color}
               onChange={(c) => set(id, { color: c })}
             />
             {o.color2 && (
               <ColorSwatch
-                label={`${o.label} colour 2`}
+                label={tt`${o.label} colour 2`}
                 value={s.color2}
                 onChange={(c) => set(id, { color2: c })}
               />
             )}
             <NumberInput
-              aria-label={`${o.label} width`}
+              aria-label={tt`${o.label} width`}
               value={s.width}
               min={0.5}
               max={8}
@@ -803,7 +803,7 @@ function StyleTab({
             />
             <Select
               small
-              aria-label={`${o.label} line style`}
+              aria-label={tt`${o.label} line style`}
               value={s.style}
               onChange={(v) => set(id, { style: v as OutputStyle['style'] })}
               options={[
@@ -814,7 +814,7 @@ function StyleTab({
             />
             <span className="ind-opacity" title={tl('Opacity')}>
               <Slider
-                label={`${o.label} opacity`}
+                label={tt`${o.label} opacity`}
                 value={Math.round(s.opacity * 100)}
                 min={0}
                 max={100}
@@ -900,7 +900,7 @@ function AdvancedTab({
           ]}
         />
       </Row>
-      <Row label={tl('Pane height')} help={`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
+      <Row label={tl('Pane height')} help={tt`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
         <NumberInput
           aria-label={tl('Pane height')}
           value={cfg.height}

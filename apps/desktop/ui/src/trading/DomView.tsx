@@ -33,7 +33,7 @@ import { domControllers, smartDomExt, setWindowTemplate } from './dom/controller
 import './dom/commands';
 import './dom/dom.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Drag =
   | { kind: 'resize'; id: DomColumnId; startX: number; startW: number; scale: number }
   | { kind: 'reorder'; id: DomColumnId; startX: number; x: number; moved: boolean }
@@ -412,8 +412,8 @@ function NoteEditor({
       autoFocus
       className="sdom-note-input"
       data-testid="dom-note-input"
-      aria-label={`Note at ${label}`}
-      placeholder={`Note at ${label}`}
+      aria-label={tt`Note at ${label}`}
+      placeholder={tt`Note at ${label}`}
       style={style}
       value={v}
       maxLength={200}
@@ -518,7 +518,7 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
             key={q}
             className={`sdom-lot${s.lots === q ? ' on' : ''}`}
             onClick={() => patch({ lots: q })}
-            title={`Trade ${q} lot${q > 1 ? 's' : ''}`}
+            title={tt`Trade ${q} lot${q > 1 ? 's' : ''}`}
           >
             {q}
           </button>

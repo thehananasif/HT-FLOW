@@ -28,7 +28,7 @@ import {
   type UserChartTemplate,
 } from '../../charts/templates';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export function TemplatesTab({ windowId, state }: { windowId: string; state: ChartWindowState }) {
   const lib = useChartTemplates((s) => s.lib);
   const update = useChartTemplates((s) => s.update);
@@ -46,7 +46,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
     const { templates, errors } = parseTemplatesFile(text);
     if (templates.length) {
       update((l) => importTemplates(l, templates));
-      toast('success', `Imported ${templates.length} template${templates.length > 1 ? 's' : ''}`);
+      toast('success', tt`Imported ${templates.length} template${templates.length > 1 ? 's' : ''}`);
     }
     if (errors.length) toast('error', tl('Some templates were skipped'), errors.join('\n'));
   };
@@ -100,11 +100,11 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
       {!t.preset && (
         <button
           className="ht-icon-btn"
-          aria-label={`Overwrite ${t.name} with this chart`}
+          aria-label={tt`Overwrite ${t.name} with this chart`}
           title={tl('Save this chart over the template')}
           onClick={() => {
             update((l) => updateTemplate(l, t.id, state));
-            toast('success', `Template “${t.name}” updated`);
+            toast('success', tt`Template “${t.name}” updated`);
           }}
         >
           <Upload size={12} />
@@ -113,7 +113,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
       {!t.preset && (
         <button
           className="ht-icon-btn"
-          aria-label={`Rename ${t.name}`}
+          aria-label={tt`Rename ${t.name}`}
           onClick={() => {
             setRenaming(t.id);
             setRenameText(t.name);
@@ -124,14 +124,14 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
       )}
       <button
         className="ht-icon-btn"
-        aria-label={`Duplicate ${t.name}`}
+        aria-label={tt`Duplicate ${t.name}`}
         onClick={() => update((l) => duplicateTemplate(l, t.id))}
       >
         <Copy size={12} />
       </button>
       <button
         className="ht-icon-btn"
-        aria-label={`Export ${t.name}`}
+        aria-label={tt`Export ${t.name}`}
         onClick={() =>
           downloadText(
             `${t.name.replace(/[^\w.-]+/g, '_')}${TEMPLATE_EXT}`,
@@ -144,7 +144,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
       {!t.preset && (
         <button
           className="ht-icon-btn"
-          aria-label={`Delete ${t.name}`}
+          aria-label={tt`Delete ${t.name}`}
           onClick={() => {
             if (window.confirm(`Delete template “${t.name}”?`))
               update((l) => deleteTemplate(l, t.id));
@@ -188,7 +188,7 @@ export function TemplatesTab({ windowId, state }: { windowId: string; state: Cha
               <span className="cs-editor">
                 <Select
                   small
-                  aria-label={`Default template for ${c.label}`}
+                  aria-label={tt`Default template for ${c.label}`}
                   value={lib.defaults[c.value] ?? ''}
                   options={options}
                   onChange={(v) => update((l) => setClassDefault(l, c.value, v || null))}

@@ -5,7 +5,7 @@ import { barDataRows, type ChartCore, type DataRow } from '@htflow/chart-engine'
 import { formatPrice, type BarSeries, type MarketStore } from '@htflow/market-data';
 import { Button, Checkbox, Dialog, Field, Input, toast } from '@htflow/ui-kit';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Data window: OHLCV, delta and every layer's value at the cursor (or the last bar). */
 export function DataWindow({
   core,
@@ -240,7 +240,7 @@ export function SaveTemplateDialog({
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <Checkbox checked={def} onChange={setDef} label={`Default for ${className}`} />
+        <Checkbox checked={def} onChange={setDef} label={tt`Default for ${className}`} />
         <div className="row gap8">
           <div className="grow" />
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

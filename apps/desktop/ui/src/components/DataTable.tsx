@@ -16,7 +16,7 @@ import {
 import { buildXlsx, XLSX_MIME } from './xlsx';
 import './DataTable.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export type { SavedView, TableView } from './DataTable.utils';
 
 export interface DataColumn<T> {
@@ -263,7 +263,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             <span key={c.id} style={cellStyle(c)}>
               {!c.action && (
                 <input
-                  aria-label={`Filter ${c.header}`}
+                  aria-label={tt`Filter ${tl(c.header)}`}
                   placeholder={tl('filter')}
                   value={view.filters[c.id] ?? ''}
                   onChange={(e) =>

@@ -16,7 +16,7 @@ import { addSource, allEvents, calendar, refreshCalendars, usingSample } from '.
 import './chartLines';
 import '../rss/styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const DOTS = { high: '●●●', medium: '●●○', low: '●○○' } as const;
 
 function EconomicCalendar() {
@@ -208,7 +208,7 @@ function EconomicCalendar() {
                         <span
                           className="impact-dots"
                           data-impact={e.impact}
-                          aria-label={`${e.impact} impact`}
+                          aria-label={tt`${e.impact} impact`}
                         >
                           {DOTS[e.impact]}
                         </span>

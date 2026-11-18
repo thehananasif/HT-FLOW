@@ -19,7 +19,7 @@ import {
 import { confirmAction } from '../../state/confirm';
 import { editsStop, parseModify, type ModifyField } from './inlineModify';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Re-renders on every paper-engine event (fills land in all tables in the same frame). */
 function useTicker(ms = 500) {
   useTimeFormat(); // times follow Settings → General / Time zones
@@ -160,7 +160,7 @@ function Accounts({ state, setParams }: ModuleViewProps) {
     <DataTable
       testId="accounts-table"
       title={tl('Accounts')}
-      subtitle={`${rows.length} account${rows.length === 1 ? '' : 's'}`}
+      subtitle={tt`${rows.length} account${rows.length === 1 ? '' : 's'}`}
       rows={rows}
       columns={accountCols}
       rowKey={(a) => a.id}
@@ -334,7 +334,7 @@ function Positions({ state, setParams }: ModuleViewProps) {
     <DataTable
       testId="positions-table"
       title={tl('Positions')}
-      subtitle={`${rows.length} open`}
+      subtitle={tt`${rows.length} open`}
       rows={rows}
       columns={positionCols}
       rowKey={(p) => (p.option ? p.option.id : `${p.accountId}|${p.instrumentId}`)}
@@ -503,7 +503,7 @@ const orderCols: DataColumn<Order>[] = [
     value: typeLabel,
     render: (o) => (
       <>
-        {o.oco && <span title={`OCO group ${o.oco}`}>⧉ </span>}
+        {o.oco && <span title={tt`OCO group ${o.oco}`}>⧉ </span>}
         {typeLabel(o)}
       </>
     ),
@@ -621,7 +621,7 @@ function Orders({ state, setParams }: ModuleViewProps) {
     <DataTable
       testId="orders-table"
       title={tl('Orders')}
-      subtitle={`working ${working} · history`}
+      subtitle={tt`working ${working} · history`}
       rows={rows}
       columns={orderCols}
       rowKey={(o) => o.id}
@@ -731,7 +731,7 @@ function Trades({ state, setParams }: ModuleViewProps) {
     <DataTable
       testId="trades-table"
       title={tl('Trades')}
-      subtitle={`${rows.length} fill${rows.length === 1 ? '' : 's'}`}
+      subtitle={tt`${rows.length} fill${rows.length === 1 ? '' : 's'}`}
       rows={rows}
       columns={tradeCols}
       rowKey={(f) => f.id}

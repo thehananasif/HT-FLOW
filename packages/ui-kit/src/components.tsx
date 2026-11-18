@@ -2,7 +2,7 @@ import * as RxContext from '@radix-ui/react-context-menu';
 import * as RxDialog from '@radix-ui/react-dialog';
 import * as RxDropdown from '@radix-ui/react-dropdown-menu';
 import * as RxTooltip from '@radix-ui/react-tooltip';
-import { translateLiteral } from '@htflow/i18n';
+import { translateLiteral, translateLiteral as tl } from '@htflow/i18n';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   forwardRef,
@@ -314,7 +314,7 @@ export function NumberInput({
         <button
           type="button"
           tabIndex={-1}
-          aria-label="Increase"
+          aria-label={tl('Increase')}
           onClick={() => commit(value + step)}
         >
           ▲
@@ -322,7 +322,7 @@ export function NumberInput({
         <button
           type="button"
           tabIndex={-1}
-          aria-label="Decrease"
+          aria-label={tl('Decrease')}
           onClick={() => commit(value - step)}
         >
           ▼

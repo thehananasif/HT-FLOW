@@ -30,6 +30,7 @@ import { openTabInOsWindow } from '../../platform/osWindows';
 import { remapTab } from '../../platform/windowBus';
 import { openWindow } from './windowActions';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export const LIBRARY_KEY = 'workspaces.library';
 
 interface WorkspacesState {
@@ -76,7 +77,7 @@ function commit(lib: WorkspaceLibrary): void {
   useWorkspaces.setState({ lib });
   void backend.saveSettings(LIBRARY_KEY, lib).catch((e) => {
     log.error('workspaces', `Saving the workspace library failed: ${String(e)}`);
-    toast('error', 'Could not save workspaces', String(e));
+    toast('error', tl('Could not save workspaces'), String(e));
   });
 }
 
@@ -86,7 +87,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 function snapshot(): WorkspaceDoc | null {
   const h = workspaceHost();
   if (!h) {
-    toast('warning', 'The dashboard is not ready yet');
+    toast('warning', tl('The dashboard is not ready yet'));
     return null;
   }
   return h.snapshot();
@@ -103,7 +104,7 @@ export function saveCurrent(): string | null {
   const cur = currentWorkspace();
   if (!cur) return saveAs(doc.name);
   commit(touchRecent(updateWorkspaceDoc(lib(), cur.meta.id, doc), cur.meta.id));
-  toast('success', `Saved "${cur.meta.name}"`);
+  toast('success', tt`Saved "${cur.meta.name}"`);
   log.info('workspaces', `Saved workspace ${cur.meta.name}`);
   return cur.meta.id;
 }
@@ -117,10 +118,10 @@ export function saveAs(name: string, description = ''): string | null {
     commit({ ...r.lib, currentId: r.id });
     const saved = findWorkspace(r.lib, r.id)!;
     workspaceHost()?.rename(saved.meta.name);
-    toast('success', `Saved as "${saved.meta.name}"`);
+    toast('success', tt`Saved as "${saved.meta.name}"`);
     return r.id;
   } catch (e) {
-    toast('error', 'Could not save', errMsg(e));
+    toast('error', tl('Could not save'), errMsg(e));
     return null;
   }
 }
@@ -135,7 +136,7 @@ export function openWorkspaceInWindow(id: string): boolean {
   const doc = JSON.parse(JSON.stringify(ws.doc)) as WorkspaceDoc;
   const tab = doc.tabs.find((t) => t.id === doc.activeTab) ?? doc.tabs[0];
   if (!tab || !Object.keys(tab.windows).length) {
-    toast('info', `"${ws.meta.name}" has no windows`);
+    toast('info', tt`"${ws.meta.name}" has no windows`);
     return false;
   }
   if (openTabInOsWindow(ws.meta.name, tab, id, remapTab)) {
@@ -145,8 +146,8 @@ export function openWorkspaceInWindow(id: string): boolean {
   for (const w of Object.values(tab.windows)) openWindow({ state: w, floating: true });
   toast(
     'info',
-    `Opened "${ws.meta.name}" as floating windows`,
-    'Separate OS windows need the desktop app.',
+    tt`Opened "${ws.meta.name}" as floating windows`,
+    tl('Separate OS windows need the desktop app.'),
   );
   return true;
 }
@@ -158,7 +159,7 @@ export function loadWorkspace(id: string): boolean {
   if (!ws || !h) return false;
   h.load(JSON.parse(JSON.stringify({ ...ws.doc, name: ws.meta.name })) as WorkspaceDoc);
   commit({ ...touchRecent(lib(), id), currentId: id });
-  toast('success', `Loaded "${ws.meta.name}"`);
+  toast('success', tt`Loaded "${ws.meta.name}"`);
   log.info('workspaces', `Loaded workspace ${ws.meta.name}`);
   return true;
 }
@@ -170,7 +171,7 @@ export function renameWorkspace(id: string, name: string): boolean {
     if (next.currentId === id) workspaceHost()?.rename(name.trim());
     return true;
   } catch (e) {
-    toast('warning', 'Cannot rename', errMsg(e));
+    toast('warning', tl('Cannot rename'), errMsg(e));
     return false;
   }
 }
@@ -194,10 +195,10 @@ export function duplicateWorkspace(id: string): string | null {
     }
     const r = duplicateInLibrary(base, id);
     commit(r.lib);
-    toast('success', `Duplicated as "${findWorkspace(r.lib, r.id)!.meta.name}"`);
+    toast('success', tt`Duplicated as "${findWorkspace(r.lib, r.id)!.meta.name}"`);
     return r.id;
   } catch (e) {
-    toast('error', 'Could not duplicate', errMsg(e));
+    toast('error', tl('Could not duplicate'), errMsg(e));
     return null;
   }
 }
@@ -205,7 +206,7 @@ export function duplicateWorkspace(id: string): string | null {
 export function deleteWorkspace(id: string): void {
   const w = findWorkspace(lib(), id);
   commit(deleteFromLibrary(lib(), id));
-  if (w) toast('info', `Deleted "${w.meta.name}"`);
+  if (w) toast('info', tt`Deleted "${w.meta.name}"`);
 }
 
 /** Copies a starter into the library and loads it. */
@@ -222,7 +223,7 @@ export function addStarter(starterId: string): string | null {
     loadWorkspace(r.id);
     return r.id;
   } catch (e) {
-    toast('error', 'Could not add the starter', errMsg(e));
+    toast('error', tl('Could not add the starter'), errMsg(e));
     return null;
   }
 }
@@ -247,14 +248,14 @@ export function exportWorkspace(id: string): void {
   a.download = workspaceFileName(ws.meta.name);
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-  toast('success', 'Workspace exported', a.download);
+  toast('success', tl('Workspace exported'), a.download);
 }
 
 /** Imports a `.htworkspace` file into the library (not loaded). Returns the new id. */
 export function importWorkspaceText(text: string, fileName = 'file'): string | null {
   const r = parseWorkspaceFile(text);
   if (!r.ok) {
-    toast('error', `Cannot import ${fileName}`, r.error);
+    toast('error', tt`Cannot import ${fileName}`, r.error);
     log.warn('workspaces', `Import of ${fileName} refused: ${r.error}`);
     return null;
   }
@@ -269,21 +270,21 @@ export function importWorkspaceText(text: string, fileName = 'file'): string | n
     const name = findWorkspace(added.lib, added.id)!.meta.name;
     toast(
       r.warnings.length ? 'warning' : 'success',
-      `Imported "${name}"`,
+      tt`Imported "${name}"`,
       [r.migratedFrom < 3 ? `Upgraded from format v${r.migratedFrom}.` : '', ...r.warnings]
         .filter(Boolean)
         .join(' '),
     );
     return added.id;
   } catch (e) {
-    toast('error', 'Could not import', errMsg(e));
+    toast('error', tl('Could not import'), errMsg(e));
     return null;
   }
 }
 
 export async function importWorkspaceFile(file: File): Promise<string | null> {
   if (file.size > 5_000_000) {
-    toast('error', `Cannot import ${file.name}`, 'The file is larger than 5 MB');
+    toast('error', tt`Cannot import ${file.name}`, tl('The file is larger than 5 MB'));
     return null;
   }
   return importWorkspaceText(await file.text(), file.name);

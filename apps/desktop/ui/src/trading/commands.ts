@@ -10,6 +10,7 @@ import { setChartPrefs, setPrefs, tradingPrefs } from './prefs';
 import { openTradingSetup } from './setupNav';
 import { linkLastTwo, useOco } from './oco';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Every P17 trading action in the Command Palette (Ctrl+K) and the hot-key editor. */
 const withInst = (fn: (id: string) => void) => () => {
   const id = activeInstrument();
@@ -18,7 +19,7 @@ const withInst = (fn: (id: string) => void) => () => {
 
 /** Order hot keys switched off in Settings → Trading. */
 function hotkeysOff(): void {
-  toast('info', 'Order hot keys are off', 'Turn them on in Settings → Trading.');
+  toast('info', tl('Order hot keys are off'), tl('Turn them on in Settings → Trading.'));
 }
 
 const base: Command[] = [

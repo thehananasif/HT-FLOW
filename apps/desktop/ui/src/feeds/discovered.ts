@@ -20,6 +20,7 @@ import { openWindow } from '../modules/workspaces/windowActions';
 import { newChartState } from '../charts/settings/globals';
 import { toast } from '@htflow/ui-kit';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /**
  * Binance USDⓈ-M futures beyond the six built-in symbols (state/instruments.ts LIVE_INSTRUMENTS):
  * every discovered symbol, including dated quarterlies, opens a live feed.
@@ -53,17 +54,21 @@ registerCommands([
     run: () => {
       void refreshSymbolLists().then((r) => {
         const err = useDiscovery.getState().error;
-        if (err) toast('error', 'Symbol list refresh failed', err);
+        if (err) toast('error', tl('Symbol list refresh failed'), err);
         else if (r) {
           const total = r.sources.reduce((n, s) => n + s.count, 0);
           const failed = r.sources.filter((s) => !s.ok).map((s) => s.label);
           toast(
             failed.length ? 'warning' : 'success',
-            `${total.toLocaleString()} symbols from ${r.sources.length} sources`,
+            tt`${total.toLocaleString()} symbols from ${r.sources.length} sources`,
             failed.length ? `Not reachable: ${failed.join(', ')} (kept the last list)` : undefined,
           );
         } else
-          toast('info', 'Symbol lists', 'The browser preview uses the built-in list (no CORS).');
+          toast(
+            'info',
+            tl('Symbol lists'),
+            tl('The browser preview uses the built-in list (no CORS).'),
+          );
       });
     },
   },

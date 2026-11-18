@@ -16,6 +16,7 @@ import { confirmAction } from './confirm';
 import { tradingPrefs, type ConfirmKind, type TradingPrefs } from './prefs';
 import { autoBracket, slippageReason, tradingDefaults } from './globalSettings';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 // Settings → Trading → max slippage: market orders that would sweep further are rejected.
 paper.preTradeChecks.push((req) => {
   const book = hub.peek(req.instrumentId)?.book;
@@ -169,7 +170,7 @@ export async function submitOrder(
     try {
       full.bracket = bracketFor(full.instrumentId, ref);
     } catch (e) {
-      toast('error', 'SL / TP not attached', (e as Error).message);
+      toast('error', tl('SL / TP not attached'), (e as Error).message);
       return null;
     }
   }
@@ -194,7 +195,7 @@ export async function submitOrder(
     if (!ok) return null;
   }
   const o = paper.place(full);
-  if (o.status === 'rejected') toast('error', 'Order rejected', o.reason);
+  if (o.status === 'rejected') toast('error', tl('Order rejected'), o.reason);
   return o;
 }
 

@@ -3,11 +3,12 @@ import { HelpCircle } from 'lucide-react';
 import { NumberInput, SegmentedControl, Slider, Tooltip } from '@htflow/ui-kit';
 import { RANGES, type HeatmapModuleSettings } from './model';
 
+import { tt } from '@htflow/i18n';
 /** (?) icon with a help tooltip. */
 export function Help({ text }: { text: string }) {
   return (
     <Tooltip content={<span className="hm-help-text">{text}</span>}>
-      <button type="button" className="hm-help" aria-label={`Help: ${text}`}>
+      <button type="button" className="hm-help" aria-label={tt`Help: ${text}`}>
         <HelpCircle size={12} />
       </button>
     </Tooltip>

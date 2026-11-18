@@ -34,7 +34,7 @@ import { listenNative, nativePage, type Bounds } from './native';
 import { checkAddress, normalizeAllowList, parseAllowText, urlPermitted } from './policy';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const BOOKMARKS_KEY = 'web-pages.bookmarks';
 
 /** Links from other windows (RSS, News) arrive as the cancelable `htflow:open-url` event. */
@@ -295,7 +295,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
             <span className="ellipsis">{tabTitle(t)}</span>
             <button
               className="web-tab-x"
-              aria-label={`Close tab ${tabTitle(t)}`}
+              aria-label={tt`Close tab ${tabTitle(t)}`}
               onClick={(e) => {
                 e.stopPropagation();
                 closeTab(t.id);
@@ -454,7 +454,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
               </button>
               <button
                 className="web-bm-x"
-                aria-label={`Remove bookmark ${b.title}`}
+                aria-label={tt`Remove bookmark ${b.title}`}
                 onClick={() => saveBookmarks(bookmarks.filter((x) => x.url !== b.url))}
               >
                 <X size={10} />
@@ -479,7 +479,7 @@ function WebPages({ windowId, state, setParams }: ModuleViewProps) {
           <iframe
             key={`${activeId}:${url}:${nonce[activeId] ?? 0}`}
             className="web-frame"
-            title={`Web page ${url}`}
+            title={tt`Web page ${url}`}
             src={url}
             sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
             referrerPolicy="no-referrer"

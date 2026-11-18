@@ -29,6 +29,7 @@ import { aiNative, errorText } from './native';
 import { keyVaultName, providerInfo, sanitizeConfigs, type ProviderConfig } from './providers';
 import { READ_TOOL_DEFS, runTool, TOOL_DEFS, TRADE_TOOLS, type ToolDeps } from './tools';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export interface AuditEntry {
   id: string;
   ts: number;
@@ -397,7 +398,7 @@ export async function send(conv: Conversation, opts: SendOptions): Promise<void>
       msg.image = { mediaType: cap.mediaType, data: cap.data };
       msg.hadImage = true;
     } catch (e) {
-      toast('warning', 'Screenshot failed', errorText(e));
+      toast('warning', tl('Screenshot failed'), errorText(e));
     }
   }
   if (!msg.text && !msg.image) return;
@@ -493,15 +494,15 @@ async function agentRun(): Promise<void> {
 export function startAgent(): boolean {
   if (st.agentRunning) return true;
   if (guard.isKilled) {
-    toast('error', 'Kill switch is on', 'Reset the kill switch in AI → Agent first');
+    toast('error', tl('Kill switch is on'), tl('Reset the kill switch in AI → Agent first'));
     return false;
   }
   const acc = paper.accounts.get(st.agent.accountId);
   if (acc && acc.kind !== 'paper' && !guard.isLiveArmed) {
     toast(
       'error',
-      'Live trading not armed',
-      'Arm live trading for this session or pick a paper account',
+      tl('Live trading not armed'),
+      tl('Arm live trading for this session or pick a paper account'),
     );
     return false;
   }
@@ -510,8 +511,8 @@ export function startAgent(): boolean {
   void agentRun();
   toast(
     'info',
-    'AI agent started',
-    `Every ${st.agent.intervalSec} s on ${acc?.name ?? st.agent.accountId}`,
+    tl('AI agent started'),
+    tt`Every ${st.agent.intervalSec} s on ${acc?.name ?? st.agent.accountId}`,
   );
   return true;
 }
@@ -524,7 +525,7 @@ export function stopAgent(): void {
   st.nextRunAt = null;
   if (st.agentConvId) stop(st.agentConvId);
   emit();
-  if (wasRunning) toast('info', 'AI agent stopped');
+  if (wasRunning) toast('info', tl('AI agent stopped'));
 }
 
 /** Kill switch: stops the agent and every AI request, cancels the agent's working orders. */
@@ -543,5 +544,10 @@ export function killSwitch(): void {
     summary: `Kill switch: agent stopped, ${n} agent orders cancelled`,
   });
   emit(true);
-  toast('error', 'AI kill switch', `Agent stopped and blocked; ${n} agent orders cancelled`, 8000);
+  toast(
+    'error',
+    tl('AI kill switch'),
+    tt`Agent stopped and blocked; ${n} agent orders cancelled`,
+    8000,
+  );
 }

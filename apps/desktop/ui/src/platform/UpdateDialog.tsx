@@ -1,7 +1,7 @@
 import { Button, Dialog } from '@htflow/ui-kit';
 import { checkForUpdates, currentChannel, installUpdate, useUpdates } from './updates';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** "Check for updates" dialog (Command Palette / Settings → About). */
 export function UpdateDialog() {
   const { open, phase, message, notes, hide } = useUpdates();
@@ -10,7 +10,7 @@ export function UpdateDialog() {
       open={open}
       onOpenChange={(o) => (o ? undefined : hide())}
       title={tl('Check for updates')}
-      description={`Channel: ${currentChannel()}. Updates are downloaded from GitHub Releases and verified with a signature before they are installed.`}
+      description={tt`Channel: ${currentChannel()}. Updates are downloaded from GitHub Releases and verified with a signature before they are installed.`}
       width={460}
     >
       <div className="col gap12" data-testid="update-dialog" data-phase={phase}>

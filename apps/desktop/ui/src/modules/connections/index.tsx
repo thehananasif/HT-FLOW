@@ -12,7 +12,7 @@ import { useConnections, venueOf } from './store';
 import { latencyLevel, providerById, type ConnectionConfig, type LatencyLevel } from './providers';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 function useTicker(ms = 1000) {
   const [, set] = useState(0);
   useEffect(() => {
@@ -270,7 +270,7 @@ function Connections({ onData }: { onData: () => void }) {
                     <button
                       type="button"
                       className="cx-link"
-                      aria-label={`Remove ${r.c.name}`}
+                      aria-label={tt`Remove ${r.c.name}`}
                       onClick={() => remove(r.c.id)}
                     >
                       ×

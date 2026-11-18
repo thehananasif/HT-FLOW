@@ -26,7 +26,7 @@ import { DEFAULT_FEEDS } from '../rss/store';
 import { openUrl, useStore } from '../rss/shared';
 import { nativeAvailable, nativeFeedAllowList } from '../rss/native';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 // ------------------------------------------------------------------ news data sources
 
 const CALENDAR_PAGE = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
@@ -162,7 +162,7 @@ export function ProvidersEditor({ value, onChange }: EditorProps<string[]>) {
             <td className="st-actions">
               <button
                 className="ht-icon-btn"
-                aria-label={`Raise ${label(id)}`}
+                aria-label={tt`Raise ${tl(label(id))}`}
                 disabled={i === 0}
                 onClick={() => move(i, -1)}
               >
@@ -170,7 +170,7 @@ export function ProvidersEditor({ value, onChange }: EditorProps<string[]>) {
               </button>
               <button
                 className="ht-icon-btn"
-                aria-label={`Lower ${label(id)}`}
+                aria-label={tt`Lower ${tl(label(id))}`}
                 disabled={i === list.length - 1}
                 onClick={() => move(i, 1)}
               >
@@ -218,7 +218,7 @@ export function ModuleTogglesEditor({ value, onChange }: EditorProps<string[]>) 
                   <input
                     type="checkbox"
                     className="st-check"
-                    aria-label={`Enable ${m.name}`}
+                    aria-label={tt`Enable ${tl(m.name)}`}
                     checked={enabled}
                     disabled={locked}
                     title={locked ? 'The Settings window cannot be disabled' : undefined}
@@ -308,7 +308,7 @@ export function ModuleFoldersEditor({ value, onChange }: EditorProps<string[]>) 
               <span className="grow">{f}</span>
               <button
                 className="ht-icon-btn"
-                aria-label={`Remove ${f}`}
+                aria-label={tt`Remove ${f}`}
                 onClick={() => onChange(value.filter((x) => x !== f))}
               >
                 <Trash2 size={12} />
@@ -440,7 +440,7 @@ export function LogPanel({ level }: { level: LogLevel }) {
           variant="outline"
           onClick={() => {
             void navigator.clipboard?.writeText(logText(shown.slice().reverse()));
-            toast('success', tl('Log copied'), `${shown.length} entries`);
+            toast('success', tl('Log copied'), tt`${shown.length} entries`);
           }}
         >
           <Copy size={12} /> {tl('Copy')}
@@ -502,7 +502,7 @@ export function TableLayoutsEditor({ value, onChange }: EditorProps<Record<strin
               </span>
               <button
                 className="ht-icon-btn"
-                aria-label={`Reset layout of ${id}`}
+                aria-label={tt`Reset layout of ${id}`}
                 onClick={() => {
                   const next = { ...value };
                   delete next[id];

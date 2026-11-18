@@ -12,7 +12,7 @@ import { ImportedFiles } from './import/ImportedList';
 import { SymbolLists } from './symbols';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const fmtDate = (ms: number) =>
   ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') : '—';
 
@@ -76,7 +76,7 @@ export function DataManager() {
     if (!window.confirm(`Delete ${what}? This cannot be undone.`)) return;
     try {
       const r = await dataApi.remove(inst, day, day);
-      toast('success', `Deleted ${r.filesDeleted} files`, `${formatBytes(r.bytesFreed)} freed`);
+      toast('success', tt`Deleted ${r.filesDeleted} files`, tt`${formatBytes(r.bytesFreed)} freed`);
       void refresh();
     } catch (e) {
       toast('error', tl('Delete failed'), String((e as Error).message));
@@ -85,7 +85,7 @@ export function DataManager() {
   const exp = async (inst: string, kind: 'trades' | 'depth', day?: string) => {
     try {
       const r = await dataApi.exportCsv(inst, kind, day, day);
-      toast('success', `Exported ${r.rows.toLocaleString()} rows`, r.path, 8000);
+      toast('success', tt`Exported ${r.rows.toLocaleString()} rows`, r.path, 8000);
     } catch (e) {
       toast('error', tl('Export failed'), String((e as Error).message));
     }

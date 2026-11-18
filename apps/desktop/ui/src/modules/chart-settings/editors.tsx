@@ -21,7 +21,7 @@ import {
   type RowDef,
 } from '../../charts/settings/schema';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Effective theme colour shown for an empty ("Theme") colour value. */
 function themeFallback(key: string): string {
   const t = theme();
@@ -70,7 +70,7 @@ function ColorEditor({
       {value ? (
         <button
           className="ht-icon-btn"
-          aria-label={`${label}: use theme colour`}
+          aria-label={tt`${label}: use theme colour`}
           title={tl('Use theme colour')}
           onClick={() => onChange('')}
         >
@@ -180,13 +180,13 @@ export function RowEditor({
       return (
         <span className="cs-line">
           <ColorEditor
-            label={`${label} colour`}
+            label={tt`${label} colour`}
             value={l.color}
             fallback={themeFallback(row.key)}
             onChange={(color) => onChange({ ...l, color })}
           />
           <LineStylePicker
-            aria-label={`${label} style`}
+            aria-label={tt`${label} style`}
             value={{ dash: toDash(l.style), width: l.width }}
             maxWidth={6}
             onChange={(v) => onChange({ ...l, style: fromDash(v.dash), width: v.width })}
@@ -223,7 +223,7 @@ export function RowEditor({
           />
           <button
             className="ht-icon-btn"
-            aria-label={`Clear ${label}`}
+            aria-label={tt`Clear ${label}`}
             onClick={() => onChange('')}
           >
             <Trash2 size={11} />

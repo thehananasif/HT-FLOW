@@ -40,12 +40,14 @@ export function scanHardcoded(source: string, fileName = 'x.tsx'): Hardcoded[] {
   const out: Hardcoded[] = [];
   const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
   const add = (n: ts.Node, kind: Hardcoded['kind'], text: string) => {
-    if (WORD.test(text)) out.push({ line: lineOf(n), kind, text: text.replace(/\s+/g, ' ').trim() });
+    if (WORD.test(text))
+      out.push({ line: lineOf(n), kind, text: text.replace(/\s+/g, ' ').trim() });
   };
   const isTranslateCall = (n: ts.Node): boolean =>
-    ts.isCallExpression(n) &&
-    ts.isIdentifier(n.expression) &&
-    ['t', 'tl', 'translateLiteral'].includes(n.expression.text);
+    (ts.isCallExpression(n) &&
+      ts.isIdentifier(n.expression) &&
+      ['t', 'tl', 'translateLiteral'].includes(n.expression.text)) ||
+    (ts.isTaggedTemplateExpression(n) && ts.isIdentifier(n.tag) && n.tag.text === 'tt');
 
   const visit = (n: ts.Node): void => {
     if (isTranslateCall(n)) return;
@@ -57,7 +59,8 @@ export function scanHardcoded(source: string, fileName = 'x.tsx'): Hardcoded[] {
       else if (ts.isJsxExpression(init) && init.expression) {
         const e = init.expression;
         if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e)) add(e, 'prop', e.text);
-        else if (ts.isTemplateExpression(e)) add(e, 'prop', e.head.text + e.templateSpans.map((s) => s.literal.text).join(' '));
+        else if (ts.isTemplateExpression(e))
+          add(e, 'prop', e.head.text + e.templateSpans.map((s) => s.literal.text).join(' '));
       }
     } else if (ts.isJsxExpression(n) && n.expression && n.parent && ts.isJsxElement(n.parent)) {
       const e = n.expression;

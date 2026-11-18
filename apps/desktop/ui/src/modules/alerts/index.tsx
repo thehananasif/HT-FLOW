@@ -30,7 +30,7 @@ import {
 } from './delivery';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Kinds the form can create (drawing alerts come from charts, indicator alerts from Indicators). */
 const KINDS: { id: AlertKind; label: string }[] = [
   { id: 'price-cross', label: 'Price crosses value' },
@@ -107,7 +107,7 @@ export async function addSoundFile(f: File): Promise<string | null> {
   }
   const list = getSetting('sounds.custom');
   if (list.length >= MAX_CUSTOM_SOUNDS) {
-    toast('error', tl('Too many sound files'), `Max ${MAX_CUSTOM_SOUNDS}.`);
+    toast('error', tl('Too many sound files'), tt`Max ${MAX_CUSTOM_SOUNDS}.`);
     return null;
   }
   let dataUrl = await readAsDataUrl(f);
@@ -121,7 +121,7 @@ export async function addSoundFile(f: File): Promise<string | null> {
     toast('error', tl('Could not add the sound'), err);
     return null;
   }
-  toast('success', tl('Sound added'), `${f.name} is saved in your profile.`);
+  toast('success', tl('Sound added'), tt`${f.name} is saved in your profile.`);
   return `custom:${id}`;
 }
 
@@ -619,7 +619,7 @@ function AlertsWindow() {
             <div key={a.id} className="al-row" data-testid="alert-row" data-kind={a.condition.kind}>
               <Toggle
                 checked={a.enabled}
-                label={`Enable ${describe(a.condition)}`}
+                label={tt`Enable ${describe(a.condition)}`}
                 onChange={(v) => alerts.update(a.id, { enabled: v })}
               />
               <div className="grow">
@@ -767,7 +767,8 @@ registerChartExtension({
             // Chart alerts keep the classic behaviour: repeat with a 30 s cool-down.
             { maxTriggers: 0, cooldownMs: 30_000 },
           );
-          if (r.ok) toast('success', tl('Alert created'), `${inst.symbol} price crosses ${label}`);
+          if (r.ok)
+            toast('success', tl('Alert created'), tt`${inst.symbol} price crosses ${label}`);
           else toast('error', tl('Alert not created'), r.errors.join(' · '));
         },
       },

@@ -32,7 +32,7 @@ import { useSetting } from '../../state/settings';
 import { journalStore, type JournalTag, type TagKind } from './store';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const PERIODS: { id: JournalPeriod; label: string }[] = [
   { id: 'today', label: 'Today' },
   { id: 'week', label: 'Week' },
@@ -354,7 +354,7 @@ function Detail({ trip }: { trip: RoundTrip }) {
               key={n}
               role="radio"
               aria-checked={m.rating === n}
-              aria-label={`${n} star${n > 1 ? 's' : ''}`}
+              aria-label={tt`${n} star${n > 1 ? 's' : ''}`}
               className={`jr-star ${n <= m.rating ? 'on' : ''}`}
               onClick={() => journalStore.setMeta(trip.id, { rating: m.rating === n ? 0 : n })}
             >
@@ -375,7 +375,7 @@ function Detail({ trip }: { trip: RoundTrip }) {
               })
             }
           >
-            <img src={a} alt={`Attachment ${i + 1}`} />
+            <img src={a} alt={tt`Attachment ${i + 1}`} />
           </button>
         ))}
         <label className="jr-att-add">

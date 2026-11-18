@@ -28,7 +28,7 @@ import { useWindows } from '../../../state/windows';
 import { showReplayOn } from '../../replay/ControlBar';
 import { useCsvImportUi } from './ui';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const PREVIEW_ROWS = 8;
 const DELIM_OPTIONS = [
   { value: ',', label: 'Comma ( , )' },
@@ -62,7 +62,7 @@ export async function replayImported(ds: ImportedDataset): Promise<void> {
       source: 'csv-import',
     });
     showReplayOn([...s.engines.keys()]);
-    toast('success', tl('Replay ready'), `${ds.name} · press Space on the chart to play`);
+    toast('success', tl('Replay ready'), tt`${ds.name} · press Space on the chart to play`);
   } catch (e) {
     toast('error', tl('Replay failed'), e instanceof Error ? e.message : String(e));
   }
@@ -187,7 +187,11 @@ export function ImportDialog() {
         source: result.kind,
       });
       setDone({ ds, result });
-      toast('success', `Imported ${result.rows.toLocaleString()} rows`, ds.instrument.displayName);
+      toast(
+        'success',
+        tt`Imported ${result.rows.toLocaleString()} rows`,
+        ds.instrument.displayName,
+      );
     } catch (e) {
       if ((e as Error).name !== 'AbortError')
         setFatal(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -199,7 +203,7 @@ export function ImportDialog() {
   const sel = (k: keyof Omit<CsvMapping, 'kind'>, label: string, optional = false) => (
     <Field label={label} key={k}>
       <Select
-        aria-label={`${label} column`}
+        aria-label={tt`${label} column`}
         value={String(map[k])}
         options={colOptions(headers, optional)}
         onChange={(v) => setCol(k, v)}

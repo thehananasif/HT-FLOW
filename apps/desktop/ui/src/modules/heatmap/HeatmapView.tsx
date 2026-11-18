@@ -74,7 +74,7 @@ import { HeatDrawings, HEATMAP_TOOLS } from './drawings';
 import { StressFeed, type StressResult } from './stress';
 import { registerHeatmapApi } from './api';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const TOOL_ICONS: Record<string, typeof Minus> = {
   'trend-line': TrendingUp,
   'horizontal-line': Minus,
@@ -261,8 +261,8 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
           setStressResult(r);
           toast(
             r.passed ? 'success' : 'warning',
-            `Heatmap stress test: ${r.fps.toFixed(0)} fps`,
-            `${r.columns} columns at ${stress.speed}× · heat ${r.heatMs.toFixed(1)} ms · draw ${r.drawMs.toFixed(1)} ms · p95 frame ${r.p95FrameMs.toFixed(1)} ms`,
+            tt`Heatmap stress test: ${r.fps.toFixed(0)} fps`,
+            tt`${r.columns} columns at ${stress.speed}× · heat ${r.heatMs.toFixed(1)} ms · draw ${r.drawMs.toFixed(1)} ms · p95 frame ${r.p95FrameMs.toFixed(1)} ms`,
           );
           setStress(null);
         }
@@ -361,7 +361,7 @@ export function HeatmapView({ windowId, state, setParams }: ModuleViewProps) {
     setParamsRef.current({
       savedGradients: { ...paramsRef.current.savedGradients, [name]: stops },
     });
-    toast('success', `Gradient “${name}” saved`);
+    toast('success', tt`Gradient “${name}” saved`);
   }, []);
   const startStress = useCallback(() => {
     setStressResult(null);

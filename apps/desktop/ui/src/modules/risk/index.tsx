@@ -16,7 +16,7 @@ import { calendar } from '../calendar/store';
 import { useStore } from '../rss/shared';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const RULES: { id: RiskRuleId; label: string; action: string; unit: string }[] = [
   {
     id: 'dailyLossLimit',
@@ -168,7 +168,7 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
   const commit = () => {
     if (toAll) {
       const n = riskStore.saveRulesForAll(draft);
-      toast('success', tl('Risk rules saved'), `All ${n} paper accounts (and new ones)`);
+      toast('success', tl('Risk rules saved'), tt`All ${n} paper accounts (and new ones)`);
     } else {
       riskStore.saveRules(acc.id, draft);
       toast('success', tl('Risk rules saved'), acc.name);

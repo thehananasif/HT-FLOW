@@ -13,6 +13,7 @@ import {
 import { fetchText, PersistedStore, userTimezone } from '../rss/shared';
 import { nativeAvailable, nativeCalendarFetch } from '../rss/native';
 
+import { tt } from '@htflow/i18n';
 export interface IcsSource {
   id: string;
   url: string;
@@ -249,8 +250,8 @@ setInterval(() => {
   for (const e of dueAlerts(allEvents(s), Date.now(), s.alertMinutes, s.alertImpact, fired)) {
     toast(
       'warning',
-      `${e.currency} ${e.title} in ${Math.max(1, Math.round((e.t - Date.now()) / 60_000))} min`,
-      `${timeLabel(e.t, userTimezone())} · ${e.impact} impact${e.sample ? ' · SAMPLE event, not a real release' : ''}`,
+      tt`${e.currency} ${e.title} in ${Math.max(1, Math.round((e.t - Date.now()) / 60_000))} min`,
+      tt`${timeLabel(e.t, userTimezone())} · ${e.impact} impact${e.sample ? ' · SAMPLE event, not a real release' : ''}`,
       8000,
     );
   }

@@ -62,7 +62,7 @@ import './chart-core.css';
 installChartCommands();
 import { SessionSelect } from './timeframes/TimeframeDialog';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 const COMPARE_COLORS = ['#4FA3F7', '#B07CF0', '#E8B04B', '#BDBDBD', '#64C8D8'];
 
@@ -402,7 +402,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             return toast(
               'info',
               tl('Historical data reloaded'),
-              `${store.trades.length.toLocaleString()} ticks`,
+              tt`${store.trades.length.toLocaleString()} ticks`,
             );
           case 'load-older':
             // Explicit request (palette / hot key): one more day before the first bar.

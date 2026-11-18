@@ -74,7 +74,7 @@ import { SCRIPT_TEMPLATES } from '@htflow/strategy';
 import { Summary, TradesTable, fmtTime } from './results';
 import './styles.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type MainTab = 'backtest' | 'editor' | 'live' | 'vps';
 type ResultTab = 'summary' | 'equity' | 'trades' | 'optimise' | 'log';
 
@@ -369,7 +369,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       { text: def.name, kind: 'setup' },
     ]);
     setRun({ sentToJournal: true });
-    toast('success', `${n} trades sent to the Journal`, tl('Tagged “backtest”.'));
+    toast('success', tt`${n} trades sent to the Journal`, tl('Tagged “backtest”.'));
   };
 
   const actions: WindowActions = {
@@ -790,27 +790,27 @@ function OptimisePanel({
       <div className="stg-axis">
         <Select
           small
-          aria-label={`${which.toUpperCase()} parameter`}
+          aria-label={tt`${which.toUpperCase()} parameter`}
           value={a.key}
           options={keys.map((k) => ({ value: k, label: def.inputs[k]!.label }))}
           onChange={(key) => setOpt({ [which]: defaultAxis(def, key, inputs) })}
         />
         <NumberInput
-          aria-label={`${which} from`}
+          aria-label={tt`${which} from`}
           value={a.from}
           step={step}
           onChange={(from) => setOpt({ [which]: { ...a, from } })}
         />
         <span className="stg-muted">→</span>
         <NumberInput
-          aria-label={`${which} to`}
+          aria-label={tt`${which} to`}
           value={a.to}
           step={step}
           onChange={(to) => setOpt({ [which]: { ...a, to } })}
         />
         <span className="stg-muted">{tl('step')}</span>
         <NumberInput
-          aria-label={`${which} step`}
+          aria-label={tt`${which} step`}
           value={a.step}
           step={step}
           min={step}
@@ -1099,7 +1099,7 @@ function stopAll(): void {
   const n = liveRuns.list().length + scriptRuns.killAll();
   for (const r of liveRuns.list()) writeStrategyExt(r.key, { live: false });
   liveRuns.stopAll(true);
-  toast('info', `${n} strategies stopped and flattened`);
+  toast('info', tt`${n} strategies stopped and flattened`);
 }
 
 registerModule({ id: 'strategies', view: Strategies });

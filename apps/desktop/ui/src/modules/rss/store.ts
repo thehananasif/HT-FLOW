@@ -21,6 +21,7 @@ import {
   nativeFeedFetch,
 } from './native';
 
+import { tt } from '@htflow/i18n';
 export const FOLDERS = [
   'Crypto news',
   'Crypto exchanges',
@@ -288,7 +289,7 @@ export async function refreshFeed(feedId: string, quiet = false, force = false):
     if (hits.length && !quiet)
       toast(
         'warning',
-        `Keyword: ${matchKeywords([hits[0]!.title, hits[0]!.summary], state.keywords).join(', ')}`,
+        tt`Keyword: ${matchKeywords([hits[0]!.title, hits[0]!.summary], state.keywords).join(', ')}`,
         hits[0]!.title,
       );
     return added.length;

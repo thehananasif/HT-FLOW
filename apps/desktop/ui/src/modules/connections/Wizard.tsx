@@ -16,7 +16,7 @@ import {
   type Provider,
 } from './providers';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 function blank(p: Provider): ConnectionConfig {
   return {
     id: `${p.id}-${Date.now().toString(36)}`,
@@ -170,7 +170,7 @@ export function ConnectionWizard({
     <Dialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title={`${edit ? 'Edit connection' : 'Add connection'} · Step ${provider ? 2 : 1} of 2`}
+      title={tt`${edit ? 'Edit connection' : 'Add connection'} · Step ${provider ? 2 : 1} of 2`}
       width={880}
     >
       <div className="cx-wizard">
@@ -376,7 +376,7 @@ export function ConnectionWizard({
                         'Field mapping (JSON paths: price, qty, side, timestamp; optional bids / asks)',
                       )}
                       error={mappingErr ?? err('mapping')}
-                      hint={`Subscribe sent: ${renderSubscribe(form.ws.subscribe ?? '', form.ws.symbol).text ?? 'nothing'}`}
+                      hint={tt`Subscribe sent: ${renderSubscribe(form.ws.subscribe ?? '', form.ws.symbol).text ?? 'nothing'}`}
                     >
                       <textarea
                         className="ht-input cx-json"

@@ -4,7 +4,7 @@ import { listImported, onImportedChange, removeImported } from '../../../feeds/i
 import { ImportDialog, replayImported, showOnChart } from './ImportDialog';
 import { openCsvImport } from './ui';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const fmt = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
 
 /** "Imported files" block of the Data manager: import button, dialog and the imported datasets. */
@@ -56,7 +56,7 @@ export function ImportedFiles() {
                       <button
                         type="button"
                         className="cx-link down"
-                        aria-label={`Remove ${d.id}`}
+                        aria-label={tt`Remove ${d.id}`}
                         onClick={() => removeImported(d.id)}
                       >
                         {tl('Remove')}

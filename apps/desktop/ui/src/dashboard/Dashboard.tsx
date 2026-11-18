@@ -107,7 +107,7 @@ import {
   restoreMainWindow,
 } from '../modules/layout-settings/display';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
 const components = { chart: ChartWindow, dom: DomWindow, module: ModuleWindow };
 
@@ -939,7 +939,7 @@ export function Dashboard({ version }: { version: string }) {
                 <span
                   className="ws-tab-x"
                   aria-hidden="true"
-                  title={`Close ${t.name}`}
+                  title={tt`Close ${t.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(t.id);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { t, translateLiteral as tl } from '@htflow/i18n';
+import { t, translateLiteral as tl, tt } from '@htflow/i18n';
 import {
   Button,
   Checkbox,
@@ -408,7 +408,7 @@ function CreateForm({
       <div
         className="strength"
         data-score={strength.score}
-        aria-label={`Password strength: ${strength.label}`}
+        aria-label={tt`Password strength: ${tl(strength.label)}`}
       >
         {[0, 1, 2, 3].map((i) => (
           <span key={i} data-on={strength.score > i} />

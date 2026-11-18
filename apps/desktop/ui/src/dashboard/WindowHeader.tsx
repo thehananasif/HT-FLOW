@@ -24,7 +24,7 @@ import { TimeframeHeader } from '../charts/timeframes/TimeframeDialog';
 import { confirmAction } from '../state/confirm';
 import { WindowMenuButton } from '../modules/workspaces/WindowMenu';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Closes a window, asking first when Settings → General → Confirmations requires it. */
 function closeWindow(api: IDockviewPanelHeaderProps['api']): void {
   const w = useWindows.getState().windows[api.id];
@@ -42,8 +42,8 @@ function LinkDot({ id, link }: { id: string; link: LinkColor }) {
       trigger={
         <button
           className="link-dot"
-          aria-label={`Link group: ${link}`}
-          title={`Link group: ${link}`}
+          aria-label={tt`Link group: ${tl(link)}`}
+          title={tt`Link group: ${tl(link)}`}
         >
           <span style={{ background: LINK_COLORS[link] }} />
         </button>

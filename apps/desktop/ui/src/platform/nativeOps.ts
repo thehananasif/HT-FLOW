@@ -8,6 +8,7 @@ import { toast } from '@htflow/ui-kit';
 import { getSetting } from '../state/settings';
 import { isTauri, native } from './native';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export interface BackupInfo {
   name: string;
   path: string;
@@ -59,15 +60,15 @@ export function currentNativePrefs(): NativePrefs {
 }
 
 const unavailable = (what: string) =>
-  toast('info', what, 'This needs the desktop app; it is not available in the web build.');
+  toast('info', what, tl('This needs the desktop app; it is not available in the web build.'));
 
 export async function runOpenLogFolder(): Promise<void> {
   if (!nativeOpsAvailable()) return unavailable('Log folder');
   try {
     const dir = await call<string>('open_log_folder');
-    toast('info', 'Log folder opened', dir);
+    toast('info', tl('Log folder opened'), dir);
   } catch (e) {
-    toast('error', 'Could not open the log folder', e instanceof Error ? e.message : String(e));
+    toast('error', tl('Could not open the log folder'), e instanceof Error ? e.message : String(e));
   }
 }
 
@@ -76,7 +77,11 @@ export async function runOpenBackupsFolder(): Promise<void> {
   try {
     await call<void>('open_backups_folder');
   } catch (e) {
-    toast('error', 'Could not open the backups folder', e instanceof Error ? e.message : String(e));
+    toast(
+      'error',
+      tl('Could not open the backups folder'),
+      e instanceof Error ? e.message : String(e),
+    );
   }
 }
 
@@ -90,10 +95,10 @@ export async function runBackupNow(): Promise<void> {
     });
     toast(
       'success',
-      'Backup created',
+      tl('Backup created'),
       `${b.name}${removed ? ` — ${removed} old backup${removed === 1 ? '' : 's'} deleted` : ''}`,
     );
   } catch (e) {
-    toast('error', 'Backup failed', e instanceof Error ? e.message : String(e));
+    toast('error', tl('Backup failed'), e instanceof Error ? e.message : String(e));
   }
 }

@@ -72,7 +72,7 @@ import { takePendingAction, type WorkspacesAction } from './menu';
 import { formatBytes, manageTree, removeWindowFromDoc, summarize } from './model';
 import { setLink } from './windowActions';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Pane = 'library' | 'manage' | 'links';
 
 export function windowLabel(s: WindowState): string {
@@ -84,7 +84,7 @@ export function windowLabel(s: WindowState): string {
 
 export function Thumbnail({ tiles, label }: { tiles: ThumbTile[]; label: string }) {
   return (
-    <div className="wsm-thumb" role="img" aria-label={`Layout of ${label}`}>
+    <div className="wsm-thumb" role="img" aria-label={tt`Layout of ${label}`}>
       {tiles.map((t) => (
         <span
           key={t.id}
@@ -216,7 +216,7 @@ function WorkspaceCard({
           type="button"
           className="wsm-star"
           aria-pressed={w.meta.favourite}
-          aria-label={`Favourite ${name}`}
+          aria-label={tt`Favourite ${name}`}
           onClick={(e) => {
             e.stopPropagation();
             toggleFavourite(w.meta.id);
@@ -249,7 +249,7 @@ function WorkspaceCard({
             },
           ]}
           trigger={
-            <IconButton label={`Actions for ${name}`} onClick={(e) => e.stopPropagation()}>
+            <IconButton label={tt`Actions for ${name}`} onClick={(e) => e.stopPropagation()}>
               <MoreHorizontal size={13} />
             </IconButton>
           }
@@ -390,7 +390,7 @@ function LibraryPane({
                 <Button
                   size="xs"
                   onClick={() => addStarter(s.id)}
-                  aria-label={`Use starter ${s.name}`}
+                  aria-label={tt`Use starter ${s.name}`}
                 >
                   {tl('Use')}
                 </Button>
@@ -719,7 +719,7 @@ function LinksPane() {
                   <span className="grow">{windowLabel(w)}</span>
                   <Select<LinkColor>
                     small
-                    aria-label={`Link group of ${windowLabel(w)}`}
+                    aria-label={tt`Link group of ${windowLabel(w)}`}
                     value={windowLink(w)}
                     onChange={(c) => setLink(id, c)}
                     options={LINK_COLOR_IDS.map((c) => ({

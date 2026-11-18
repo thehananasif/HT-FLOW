@@ -24,7 +24,7 @@ import { openTradingSetup } from './setupNav';
 import { nextOcoGroup, ocoGroupState, useOco } from './oco';
 import './trading.css';
 
-import { translateLiteral as tl } from '@htflow/i18n';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Local midnight (epoch ms): start of "today" for daily P&L. */
 export function startOfLocalDay(now = Date.now()): number {
   const d = new Date(now);
@@ -298,7 +298,7 @@ function WorkingOrders({ instrumentId, accountId }: { instrumentId: string; acco
         >
           <span className="grow tnum">{orderLineLabel(o, inst)}</span>
           {o.oco && !o.parentId && (
-            <span className="ot-badge" title={`OCO group ${o.oco}`} data-testid="tp-oco-badge">
+            <span className="ot-badge" title={tt`OCO group ${o.oco}`} data-testid="tp-oco-badge">
               {tl('OCO')}
             </span>
           )}

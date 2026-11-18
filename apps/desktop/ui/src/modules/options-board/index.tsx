@@ -12,7 +12,7 @@ import {
   toast,
   type MenuEntry,
 } from '@htflow/ui-kit';
-import { t, translateLiteral as tl } from '@htflow/i18n';
+import { t, translateLiteral as tl, tt } from '@htflow/i18n';
 import {
   analyzeStrategy,
   buildTemplate,
@@ -528,7 +528,7 @@ function ExpiryBlock({
       <td
         key="bid"
         className="up ob-click"
-        title={`Sell ${c.name} at the bid`}
+        title={tt`Sell ${c.name} at the bid`}
         data-testid={`bid-${c.name}`}
         onClick={() => onPick(c, 'sell')}
       >
@@ -540,7 +540,7 @@ function ExpiryBlock({
       <td
         key="ask"
         className="down ob-click"
-        title={`Buy ${c.name} at the ask`}
+        title={tt`Buy ${c.name} at the ask`}
         data-testid={`ask-${c.name}`}
         onClick={() => onPick(c, 'buy')}
       >
@@ -675,7 +675,7 @@ function Builder({
     if (!n) return;
     toast(
       'success',
-      `Paper options order: ${n} leg${n === 1 ? '' : 's'} filled`,
+      tt`Paper options order: ${n} leg${n === 1 ? '' : 's'} filled`,
       `${analysis.netPremium >= 0 ? 'Net credit' : 'Net debit'} ${fmtMoney(Math.abs(analysis.netPremium))}. ${t('options.paperNote')}`,
     );
     set({ legs: [], tab: 'positions' });
@@ -725,7 +725,7 @@ function Builder({
               min={isDeribit(p.underlying) ? 0.1 : 1}
               onChange={(v) => patchLeg(l.id, { qty: Math.sign(l.qty) * v })}
             />
-            <span className="mono ob-leg-name" title={`IV ${fmtIv(l.iv)}`}>
+            <span className="mono ob-leg-name" title={tt`IV ${fmtIv(l.iv)}`}>
               {l.name}
             </span>
             <NumberInput
