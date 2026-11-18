@@ -4,6 +4,18 @@ import { padRange, priceMapping, scaleLabel, scaleLevels, type PriceScaleMode } 
 import { inferPeriod, realSlot, slotAtOrBefore, virtualSlot, zoneOffsetMin } from './time';
 import { DEFAULT_STYLE, dashFor, pick, type ChartStyle } from './style';
 import type { ChartLayer, ChartPalette, ChartView, PriceTag, Rect, SlotSource } from './types';
+import { RectBatch } from './render/batch';
+import { parseColor } from './render/color';
+import { buildGridLines, buildVerticalGradient } from './render/geometry';
+import {
+  Canvas2DPainter,
+  resolveRenderer,
+  type Painter,
+  type PowerPreference,
+  type RendererKind,
+  type RendererPref,
+} from './render/painter';
+import { WebGL2Painter, probeWebGL2 } from './render/webgl2';
 
 export type MouseMode = 'pointer' | 'crosshair' | 'zoom' | 'scroll' | 'zoomxy';
 export type WheelBehavior = 'zoom-time' | 'zoom-xy' | 'scroll';
@@ -36,6 +48,10 @@ export interface ChartCoreOptions {
   maxFps: number;
   /** Minimum height of the main price pane when sub-panes are resized. */
   minMainHeight: number;
+  /** Geometry backend: auto = WebGL2 on a hardware GPU, else Canvas2D. */
+  renderer: RendererPref;
+  /** GPU choice of the WebGL2 context (Settings → Performance → Video adapter). */
+  powerPreference: PowerPreference;
 }
 
 const DEFAULTS: ChartCoreOptions = {
@@ -58,7 +74,21 @@ const DEFAULTS: ChartCoreOptions = {
   wheel: 'zoom-time',
   maxFps: 0,
   minMainHeight: 80,
+  renderer: 'canvas2d',
+  powerPreference: 'default',
 };
+
+/** Why the chart draws with the backend it does (debug overlay, tests). */
+export interface RendererState {
+  /** Backend in use. */
+  active: RendererKind;
+  /** What the options ask for. */
+  wanted: RendererPref;
+  /** Set when WebGL2 was wanted but is not used (context creation failed / lost / software GPU). */
+  fallback: '' | 'unavailable' | 'lost' | 'software';
+  /** GL renderer string (empty on Canvas2D). */
+  gpu: string;
+}
 
 /**
  * Pluggable pointer interaction (drawing tools, order dragging…). Handlers are asked in order;
@@ -103,8 +133,26 @@ interface PaneRect {
  * Redraws only when invalidated, at most once per animation frame.
  */
 export class ChartCore {
-  readonly canvas: HTMLCanvasElement;
-  readonly ctx: CanvasRenderingContext2D;
+  /** The 2D canvas (whole chart on Canvas2D; text / axes overlay above the GL canvas on WebGL2). */
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  /** WebGL2 canvas under `canvas` while the WebGL2 backend is active. */
+  glCanvas: HTMLCanvasElement | null = null;
+  private gl: WebGL2Painter | null = null;
+  private c2d: Canvas2DPainter;
+  private glLost = false;
+  private lostCanvas: HTMLCanvasElement | null = null;
+  private restoreHandle: (() => void) | null = null;
+  private glPower: PowerPreference = 'default';
+  private overlayAlpha = false;
+  private gridBatch = new RectBatch(64);
+  private bgBatch = new RectBatch(64);
+  rendererState: RendererState = {
+    active: 'canvas2d',
+    wanted: 'canvas2d',
+    fallback: '',
+    gpu: '',
+  };
   layers: ChartLayer[] = [];
   options: ChartCoreOptions;
   palette: ChartPalette;
@@ -183,18 +231,158 @@ export class ChartCore {
     this.instrument = instrument;
     this.palette = palette;
     this.rightOffset = this.options.rightMargin;
-    this.canvas = document.createElement('canvas');
-    this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
-    this.canvas.tabIndex = 0;
-    host.appendChild(this.canvas);
-    const ctx = this.canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw new Error('Canvas 2D not available');
+    const wantGl = this.resolveBackend() === 'webgl2';
+    const { canvas, ctx } = ChartCore.makeCanvas(wantGl);
+    this.canvas = canvas;
     this.ctx = ctx;
+    this.overlayAlpha = wantGl;
+    this.c2d = new Canvas2DPainter(ctx);
+    host.appendChild(this.canvas);
     this.resize();
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(host);
     this.bindEvents();
+    this.applyRenderer();
     this.loop();
+  }
+
+  /** 2D canvas; transparent when it is the overlay of the GL canvas (opaque keeps LCD text). */
+  private static makeCanvas(alpha: boolean): {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+  } {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+    canvas.tabIndex = 0;
+    const ctx = canvas.getContext('2d', { alpha });
+    if (!ctx) throw new Error('Canvas 2D not available');
+    return { canvas, ctx };
+  }
+
+  // ---------------------------------------------------------------- renderer backend
+
+  private resolveBackend(): RendererKind {
+    const pref = this.options.renderer;
+    if (pref === 'canvas2d') return 'canvas2d';
+    return resolveRenderer(pref, probeWebGL2(), this.glLost);
+  }
+
+  /** Active geometry backend. */
+  get backend(): RendererKind {
+    return this.gl ? 'webgl2' : 'canvas2d';
+  }
+
+  /** Switches between Canvas2D and WebGL2 to match `options.renderer` (and GL availability). */
+  private applyRenderer(): void {
+    if (this.destroyed) return;
+    const pref = this.options.renderer;
+    const want = this.resolveBackend();
+    let fallback: RendererState['fallback'] = '';
+    if (want === 'webgl2') {
+      if (this.gl && this.glPower !== this.options.powerPreference) this.dropGl();
+      if (!this.gl) {
+        if (!this.overlayAlpha) this.replaceCanvas(true);
+        const gc = document.createElement('canvas');
+        gc.style.cssText =
+          'position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;';
+        gc.dataset.role = 'chart-gl';
+        gc.width = this.canvas.width;
+        gc.height = this.canvas.height;
+        const painter = WebGL2Painter.create(gc, this.options.powerPreference);
+        if (painter) {
+          this.canvas.before(gc);
+          gc.addEventListener('webglcontextlost', this.onGlLost);
+          gc.addEventListener('webglcontextrestored', this.onGlRestored);
+          this.glCanvas = gc;
+          this.gl = painter;
+          this.glPower = this.options.powerPreference;
+        } else fallback = 'unavailable';
+      }
+    } else {
+      this.dropGl();
+      if (pref !== 'canvas2d') {
+        const probe = probeWebGL2();
+        fallback = this.glLost ? 'lost' : !probe.webgl2 ? 'unavailable' : 'software';
+      }
+    }
+    this.rendererState = {
+      active: this.backend,
+      wanted: pref,
+      fallback,
+      gpu: this.gl?.info.renderer ?? '',
+    };
+    this.canvas.dataset.renderer = this.backend;
+    this.invalidate();
+  }
+
+  private dropGl(): void {
+    if (!this.gl) return;
+    const gc = this.glCanvas;
+    gc?.removeEventListener('webglcontextlost', this.onGlLost);
+    gc?.removeEventListener('webglcontextrestored', this.onGlRestored);
+    this.gl.dispose();
+    gc?.remove();
+    this.gl = null;
+    this.glCanvas = null;
+  }
+
+  /** Context lost: draw with Canvas2D until the context is restored. */
+  private onGlLost = (e: Event): void => {
+    e.preventDefault();
+    this.glLost = true;
+    const gc = this.glCanvas;
+    if (gc) {
+      // Keep listening for the restore on the detached canvas.
+      gc.removeEventListener('webglcontextlost', this.onGlLost);
+      gc.remove();
+    }
+    this.gl = null;
+    this.glCanvas = null;
+    this.lostCanvas = gc;
+    this.applyRenderer();
+  };
+
+  private onGlRestored = (): void => {
+    this.lostCanvas?.removeEventListener('webglcontextrestored', this.onGlRestored);
+    this.lostCanvas = null;
+    this.glLost = false;
+    this.applyRenderer();
+  };
+
+  /** Replaces the 2D canvas (context attributes are fixed at creation), keeping its attributes. */
+  private replaceCanvas(alpha: boolean): void {
+    const old = this.canvas;
+    const { canvas, ctx } = ChartCore.makeCanvas(alpha);
+    for (const a of Array.from(old.attributes)) canvas.setAttribute(a.name, a.value);
+    canvas.width = old.width;
+    canvas.height = old.height;
+    const focused = document.activeElement === old;
+    old.replaceWith(canvas);
+    this.canvas = canvas;
+    this.ctx = ctx;
+    this.c2d = new Canvas2DPainter(ctx);
+    this.overlayAlpha = alpha;
+    this.abort.abort();
+    this.abort = new AbortController();
+    this.bindEvents();
+    if (focused) canvas.focus();
+  }
+
+  /** Simulates a lost WebGL context (diagnostics / tests); `restoreGlContext` brings it back. */
+  loseGlContext(): boolean {
+    const ext = this.gl?.gl.getExtension('WEBGL_lose_context');
+    if (!ext) return false;
+    this.restoreHandle = () => ext.restoreContext();
+    ext.loseContext();
+    return true;
+  }
+
+  restoreGlContext(): boolean {
+    const fn = this.restoreHandle;
+    this.restoreHandle = null;
+    if (!fn) return false;
+    fn();
+    return true;
   }
 
   destroy(): void {
@@ -202,6 +390,7 @@ export class ChartCore {
     cancelAnimationFrame(this.raf);
     this.ro?.disconnect();
     this.abort.abort();
+    this.dropGl();
     this.canvas.remove();
   }
 
@@ -235,8 +424,12 @@ export class ChartCore {
     const scaleChanged =
       (o.scaleMode && o.scaleMode !== this.options.scaleMode) ||
       (o.invertScale !== undefined && o.invertScale !== this.options.invertScale);
+    const backendChanged =
+      (o.renderer !== undefined && o.renderer !== this.options.renderer) ||
+      (o.powerPreference !== undefined && o.powerPreference !== this.options.powerPreference);
     this.options = { ...this.options, ...o };
     if (scaleChanged) this.autoScale = true;
+    if (backendChanged) this.applyRenderer();
     this.invalidate();
   }
 
@@ -309,7 +502,24 @@ export class ChartCore {
 
   /** Renders a PNG of the current frame (snapshot camera). */
   toDataURL(): string {
-    return this.canvas.toDataURL('image/png');
+    return this.snapshotCanvas().toDataURL('image/png');
+  }
+
+  /**
+   * The current frame as one canvas: the 2D canvas itself on Canvas2D, or a composite of the GL
+   * canvas and the 2D overlay on WebGL2 (snapshots, clipboard, screenshots).
+   */
+  snapshotCanvas(): HTMLCanvasElement {
+    const gc = this.glCanvas;
+    if (!gc) return this.canvas;
+    const out = document.createElement('canvas');
+    out.width = this.canvas.width;
+    out.height = this.canvas.height;
+    const c = out.getContext('2d');
+    if (!c) return this.canvas;
+    c.drawImage(gc, 0, 0);
+    c.drawImage(this.canvas, 0, 0);
+    return out;
   }
 
   /** Maximise / restore a sub-pane. */
@@ -348,6 +558,10 @@ export class ChartCore {
     this.height = Math.max(1, Math.floor(r.height));
     this.canvas.width = Math.floor(this.width * this.dpr);
     this.canvas.height = Math.floor(this.height * this.dpr);
+    if (this.glCanvas) {
+      this.glCanvas.width = this.canvas.width;
+      this.glCanvas.height = this.canvas.height;
+    }
     this.invalidate();
   }
 
@@ -599,21 +813,44 @@ export class ChartCore {
   }
 
   private render(): void {
+    if (this.gl?.isLost()) {
+      // Lost between the event and this frame: draw this one with Canvas2D.
+      this.glLost = true;
+      this.applyRenderer();
+    }
     const ctx = this.ctx;
     const v = this.computeView();
     this.lastView = v;
     const p = this.palette;
+    const gl = this.gl;
+    const paint: Painter = gl ?? this.c2d;
+    v.paint = paint;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    if (this.style.background2) {
-      const g = ctx.createLinearGradient(0, 0, 0, this.height);
-      g.addColorStop(0, p.chartBg);
-      g.addColorStop(1, this.style.background2);
-      ctx.fillStyle = g;
-    } else ctx.fillStyle = p.chartBg;
-    ctx.fillRect(0, 0, this.width, this.height);
+    if (gl) {
+      // Background on the GL canvas; the 2D overlay starts transparent.
+      gl.begin(this.width, this.height, this.dpr, parseColor(p.chartBg));
+      if (this.style.background2) {
+        const full = { x: 0, y: 0, w: this.width, h: this.height };
+        gl.rects(
+          buildVerticalGradient(this.bgBatch.clear(), full, p.chartBg, this.style.background2),
+        );
+      }
+      ctx.clearRect(0, 0, this.width, this.height);
+    } else {
+      if (this.style.background2) {
+        const g = ctx.createLinearGradient(0, 0, 0, this.height);
+        g.addColorStop(0, p.chartBg);
+        g.addColorStop(1, this.style.background2);
+        ctx.fillStyle = g;
+      } else ctx.fillStyle = p.chartBg;
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
     ctx.textBaseline = 'middle';
 
-    if (this.options.showGrid) this.drawGrid(v);
+    if (this.options.showGrid) {
+      if (gl && this.style.grid.line.style === 'solid') this.drawGridGl(v, gl);
+      else this.drawGrid(v);
+    }
     // Each layer that reserves bottom height gets its own stacked sub-pane rect.
     const panes = new Map(this.panes().map((pr) => [pr.layer, pr]));
     for (const l of this.layers) {
@@ -621,9 +858,11 @@ export class ChartCore {
       if ((l.bottomHeight?.() ?? 0) > 0 && !pr) continue;
       const lv = pr ? { ...v, bottom: { x: v.bottom.x, y: pr.y, w: v.bottom.w, h: pr.h } } : v;
       ctx.save();
+      paint.setClip(null);
       l.draw(lv);
       ctx.restore();
     }
+    paint.setClip(null);
     this.drawAxes(v);
     this.drawExternalCrosshair(v);
     this.drawCrosshair(v);
@@ -661,6 +900,23 @@ export class ChartCore {
 
   private priceLevels(v: ChartView): number[] {
     return scaleLevels(v.priceMin, v.priceMax, v.plot.h, this.options.scaleMode, 56);
+  }
+
+  /** Solid grid on the GL canvas: same positions as `drawGrid`, as crisp line rects. */
+  private drawGridGl(v: ChartView, gl: WebGL2Painter): void {
+    const gs = this.style.grid;
+    if (!gs.h && !gs.v) return;
+    const ys = gs.h ? this.priceLevels(v).map((px) => v.yOf(px)) : [];
+    const xs: number[] = [];
+    if (gs.v && gs.barStep > 0) {
+      const st = Math.max(1, Math.round(gs.barStep));
+      for (let i = Math.ceil(v.i0 / st) * st; i <= v.i1; i += st)
+        xs.push(v.xOf(i) - v.slotWidth / 2);
+    } else if (gs.v) for (const t of this.timeGridXs(v)) xs.push(t.x);
+    const s = gs.line;
+    const plotFull = { x: v.plot.x, y: 0, w: v.plot.w, h: v.plot.h };
+    const col = pick(s.color, v.palette.grid);
+    gl.rects(buildGridLines(this.gridBatch.clear(), plotFull, ys, xs, col, s.width));
   }
 
   private drawGrid(v: ChartView): void {
@@ -890,7 +1146,7 @@ export class ChartCore {
     ctx.fillStyle = v.palette.warning;
     ctx.textAlign = 'right';
     ctx.fillText(
-      `render ${avg.toFixed(2)} ms · slots ${v.i1 - v.i0 + 1}/${v.slotCount}`,
+      `${this.backend === 'webgl2' ? 'WebGL2' : 'Canvas2D'} · render ${avg.toFixed(2)} ms · slots ${v.i1 - v.i0 + 1}/${v.slotCount}`,
       v.plot.x + v.plot.w - 6,
       v.plot.h - 10,
     );

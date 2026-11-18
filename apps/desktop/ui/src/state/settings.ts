@@ -1437,6 +1437,21 @@ export const SCHEMA = {
     default: true,
     wired: true,
   }),
+  'chart.renderer': oneOf({
+    section: 'chart',
+    alsoIn: ['performance'],
+    group: 'Defaults',
+    label: 'Chart renderer',
+    help: 'Geometry backend of the charts. Auto uses WebGL2 on a hardware GPU (falls back to Canvas 2D when the context cannot be created or is lost); text and axes always use Canvas 2D.',
+    default: 'auto',
+    options: [
+      { value: 'auto', label: 'Auto' },
+      { value: 'webgl2', label: 'WebGL2 (GPU)' },
+      { value: 'canvas2d', label: 'Canvas 2D' },
+    ],
+    keywords: 'gpu webgl canvas renderer backend',
+    wired: true,
+  }),
   'chart.barSpacing': num({
     section: 'chart',
     group: 'Defaults',

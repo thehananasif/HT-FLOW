@@ -1,5 +1,6 @@
 import type { Instrument } from '@htflow/market-data';
 import type { PriceScaleMode } from './priceScale';
+import type { Painter } from './render/painter';
 
 export interface Rect {
   x: number;
@@ -85,6 +86,11 @@ export interface ChartView {
   baseValue?: number;
   /** Time of slot i (epoch ms). */
   timeAt?(i: number): number;
+  /**
+   * Geometry backend of this frame (Canvas2D or WebGL2). Layers send rect batches / polylines /
+   * pixel images here and keep text on `ctx`; use `painterOf(v)` (falls back to Canvas2D).
+   */
+  paint?: Painter;
 }
 
 /** One row of the data window (values at the cursor). */

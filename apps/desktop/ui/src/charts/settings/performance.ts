@@ -31,6 +31,23 @@ export function gpuPreference(
   return pick(v['common.heatmapAdapter']) ?? pick(v['performance.videoAdapter']) ?? 'default';
 }
 
+/**
+ * Chart geometry backend: Chart → Chart renderer wins; on Auto the global Performance → Renderer
+ * type decides (Auto there too = WebGL2 on a hardware GPU, else Canvas 2D).
+ */
+export function chartRenderer(v: SettingsValues = getSettings()): 'auto' | 'webgl2' | 'canvas2d' {
+  const ok = (x: unknown) => (x === 'webgl2' || x === 'canvas2d' ? x : null);
+  return ok(v['chart.renderer']) ?? ok(v['performance.renderer']) ?? 'auto';
+}
+
+/** WebGL2 chart power preference: Settings → Performance → Video adapter. */
+export function chartPowerPreference(
+  v: SettingsValues = getSettings(),
+): 'default' | 'high-performance' | 'low-power' {
+  const x = v['performance.videoAdapter'];
+  return x === 'high-performance' || x === 'low-power' ? x : 'default';
+}
+
 /** Minimum ms between frames for a draw loop capped at `fps` (0 = uncapped). */
 export function frameInterval(fps: number): number {
   return fps > 0 ? 1000 / fps - 1 : 0;

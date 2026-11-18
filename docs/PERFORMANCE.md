@@ -39,6 +39,10 @@ Data sets (deterministic, seeded):
 - Footprint rows: `mergeRows` ran for every visible bar on every frame. `RowCache` memoises the merged rows per bar and row size and rebuilds them when the bar's volume, trade count or price levels change, so closed bars are merged once and the live bar stays exact.
 - Together: the 2,461-cell footprint frame went from about 7.0 ms to about 4.6 ms of CPU on the machine below.
 
+## WebGL2 vs Canvas2D backend (round 7)
+
+`Footprint › Large footprint … Canvas2D / WebGL2 backend` draws the same 2,000+-cell frame with each backend (`chart.renderer`). Both build the same rect instances (`buildCandles`, `buildFootprintCell`, …); Canvas2D replays them as one `fillRect` per rect, WebGL2 uploads one `Float32Array` per bar and issues one instanced draw. On the machine below the WebGL2 path costs about 3.6 ms of CPU per frame against about 4.0 ms for Canvas2D (median; p95 6.2 vs 10.5 ms) — the remaining cost is row merging, colour grading and the cell text, which stays on the Canvas2D overlay. The GPU side is not in these numbers (headless contexts): with WebGL2 the browser no longer rasterises thousands of anti-aliased rects on the CPU / 2D path, which is where the real-app gain is; profile it with the WebView DevTools. Headless Chromium uses a software GL (SwiftShader), so `auto` keeps Canvas2D there and the e2e suite runs unchanged.
+
 ## Flaky timing tests (P29)
 
 Timing assertions in `pnpm test` are smoke checks only, because every suite shares the CPU. `heatmap/pixelBuffer.test.ts` now asserts determinism and cell counts and uses the median of 7 frames against a loose ceiling; `market-data/barTypes.test.ts` gets a 60 s timeout on the hour-of-prints equivalence tests (they are functional checks that took > 5 s under load); `tape.test.ts` uses the median of 3 runs; `market-catalog/searchBench.test.ts` keeps its median-of-7 per query but guards at 250 ms (it failed once at load average 21). Strict budgets live only in `pnpm bench`, whose own assertions are also generous (6× the budget) so that a slow machine never fails CI — the report shows the real Pass / Miss.
@@ -47,63 +51,65 @@ Timing assertions in `pnpm test` are smoke checks only, because every suite shar
 
 ## Machine
 
-- CPU: Intel(R) Xeon(R) Processor @ 2.10GHz (4 logical cores)
+- CPU: Intel(R) Xeon(R) Processor @ 2.30GHz (4 logical cores)
 - RAM: 16 GB
-- Load average at the end of the run: 4.83 / 5.49 / 2.83 (other work on the machine inflates p95)
-- OS: linux 6.18.44-fc-v445
+- Load average at the end of the run: 8.23 / 3.33 / 1.26 (other work on the machine inflates p95)
+- OS: linux 6.18.44-fc-v595
 - Node.js v22.23.4, Vitest (jsdom for the canvas modules), headless 2D context
-- Run: 2026-11-13 23:21 UTC
+- Run: 2026-11-18 13:37 UTC
 
 ## Results
-
-### Search
-
-| Measurement                                                        | Spec target                   | Budget    | Median  | p95     | Result |
-| ------------------------------------------------------------------ | ----------------------------- | --------- | ------- | ------- | ------ |
-| Instrument search over 10,000 symbols (8 query shapes incl. typos) | 10,000+ symbol search < 50 ms | ≤ 50.0 ms | 2.33 ms | 3.95 ms | Pass   |
-
-### Smart DOM
-
-| Measurement                                                                       | Spec target                                | Budget    | Median  | p95     | Result |
-| --------------------------------------------------------------------------------- | ------------------------------------------ | --------- | ------- | ------- | ------ |
-| Burst of 320 updates (20 / ms) → model update → full ladder draw, every column on | DOM update latency < 16 ms socket to pixel | ≤ 16.0 ms | 0.39 ms | 0.94 ms | Pass   |
-
-### Aggregation
-
-| Measurement                                                                 | Spec target                                       | Budget   | Median  | p95     | Result |
-| --------------------------------------------------------------------------- | ------------------------------------------------- | -------- | ------- | ------- | ------ |
-| 1M ticks → M1 cluster bars (columnar path, used when a chart loads history) | charts open with 1M+ ticks (P07: 10M ticks < 1 s) | ≤ 100 ms | 62.8 ms | 66.8 ms | Pass   |
 
 ### Charts
 
 | Measurement                                                     | Spec target                      | Budget    | Median  | p95     | Result |
 | --------------------------------------------------------------- | -------------------------------- | --------- | ------- | ------- | ------ |
-| Candles + profiles, 1,000,000 ticks (5760 M1 bars), pan / zoom  | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 0.78 ms | 3.21 ms | Pass   |
-| Candles zoomed out, ~1500 bars visible                          | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 2.62 ms | 6.18 ms | Pass   |
-| Footprint bid x ask, 1,000,000 ticks (1152 M5 bars), pan / zoom | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 0.69 ms | 1.12 ms | Pass   |
-| 8 charts, every chart redrawn in the same frame                 | open 8 charts at once at 60 fps  | ≤ 16.7 ms | 2.73 ms | 3.73 ms | Pass   |
+| Candles + profiles, 1,000,000 ticks (5760 M1 bars), pan / zoom  | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 1.02 ms | 6.64 ms | Pass   |
+| Candles zoomed out, ~1500 bars visible                          | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 2.52 ms | 6.71 ms | Pass   |
+| Footprint bid x ask, 1,000,000 ticks (1152 M5 bars), pan / zoom | 60 fps pan / zoom with 1M+ ticks | ≤ 16.7 ms | 1.09 ms | 6.53 ms | Pass   |
+| 8 charts, every chart redrawn in the same frame                 | open 8 charts at once at 60 fps  | ≤ 16.7 ms | 4.15 ms | 11.9 ms | Pass   |
 
 ### Footprint
 
-| Measurement                                                    | Spec target                      | Budget    | Median  | p95     | Result |
-| -------------------------------------------------------------- | -------------------------------- | --------- | ------- | ------- | ------ |
-| 2,461 visible cells (63 M15 bars, 1 tick per row) at 2560×1600 | 2,000 visible clusters at 60 fps | ≤ 16.7 ms | 3.63 ms | 5.47 ms | Pass   |
-| Switch footprint mode (update + first frame)                   | switching footprint mode < 50 ms | ≤ 50.0 ms | 0.59 ms | 0.82 ms | Pass   |
+| Measurement                                                                                                                                   | Spec target                      | Budget    | Median  | p95     | Result |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------- | ------- | ------- | ------ |
+| 2,461 visible cells (63 M15 bars, 1 tick per row) at 2560×1600                                                                                | 2,000 visible clusters at 60 fps | ≤ 16.7 ms | 4.08 ms | 9.90 ms | Pass   |
+| Large footprint (2,000+ cells, 2560×1600) — Canvas2D backend — CPU cost per frame (headless context): rects / draw-call stream, text included | 2,000 visible clusters at 60 fps | ≤ 16.7 ms | 3.98 ms | 10.5 ms | Pass   |
+| Large footprint (2,000+ cells, 2560×1600) — WebGL2 backend — CPU cost per frame (headless context): rects / draw-call stream, text included   | 2,000 visible clusters at 60 fps | ≤ 16.7 ms | 3.59 ms | 6.19 ms | Pass   |
+| Switch footprint mode (update + first frame)                                                                                                  | switching footprint mode < 50 ms | ≤ 50.0 ms | 0.61 ms | 5.14 ms | Pass   |
 
-### Time & Sales
+### Search
 
-| Measurement                                                            | Spec target                          | Budget          | Median              | p95                 | Result |
-| ---------------------------------------------------------------------- | ------------------------------------ | --------------- | ------------------- | ------------------- | ------ |
-| Smart Tape at 5,000 prints/s (84 prints + 45 visible rows per frame)   | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.41 ms             | 3.23 ms             | Pass   |
-| Smart Tape at 20,000 prints/s (334 prints + 45 visible rows per frame) | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.28 ms             | 2.82 ms             | Pass   |
-| Tape buffer ingest (aggregation by timestamp, 600k prints)             | 5,000 prints/s                       | ≥ 5000 prints/s | 21,667,650 prints/s | 19,011,910 prints/s | Pass   |
+| Measurement                                                        | Spec target                   | Budget    | Median  | p95     | Result |
+| ------------------------------------------------------------------ | ----------------------------- | --------- | ------- | ------- | ------ |
+| Instrument search over 10,000 symbols (8 query shapes incl. typos) | 10,000+ symbol search < 50 ms | ≤ 50.0 ms | 2.11 ms | 3.78 ms | Pass   |
+
+### Smart DOM
+
+| Measurement                                                                       | Spec target                                | Budget    | Median  | p95     | Result |
+| --------------------------------------------------------------------------------- | ------------------------------------------ | --------- | ------- | ------- | ------ |
+| Burst of 320 updates (20 / ms) → model update → full ladder draw, every column on | DOM update latency < 16 ms socket to pixel | ≤ 16.0 ms | 0.38 ms | 1.55 ms | Pass   |
+
+### Aggregation
+
+| Measurement                                                                 | Spec target                                       | Budget   | Median  | p95    | Result |
+| --------------------------------------------------------------------------- | ------------------------------------------------- | -------- | ------- | ------ | ------ |
+| 1M ticks → M1 cluster bars (columnar path, used when a chart loads history) | charts open with 1M+ ticks (P07: 10M ticks < 1 s) | ≤ 100 ms | 68.3 ms | 161 ms | Pass   |
 
 ### Heatmap
 
 | Measurement                                                                             | Spec target                            | Budget    | Median  | p95     | Result |
 | --------------------------------------------------------------------------------------- | -------------------------------------- | --------- | ------- | ------- | ------ |
-| Pixel buffer only, 2000 × 400 (588,787 cells)                                           | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 9.51 ms | 13.6 ms | Pass   |
-| Liquidity map, 2005 × 491 visible (bubbles, best bid / ask, DOM column on), live append | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 14.3 ms | 18.1 ms | Pass   |
+| Pixel buffer only, 2000 × 400 (588,787 cells)                                           | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 9.18 ms | 12.5 ms | Pass   |
+| Liquidity map, 2005 × 491 visible (bubbles, best bid / ask, DOM column on), live append | 30 fps with 400 levels × 2,000 columns | ≤ 33.3 ms | 16.6 ms | 24.7 ms | Pass   |
+
+### Time & Sales
+
+| Measurement                                                            | Spec target                          | Budget          | Median              | p95                 | Result |
+| ---------------------------------------------------------------------- | ------------------------------------ | --------------- | ------------------- | ------------------- | ------ |
+| Smart Tape at 5,000 prints/s (84 prints + 45 visible rows per frame)   | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.58 ms             | 5.95 ms             | Pass   |
+| Smart Tape at 20,000 prints/s (334 prints + 45 visible rows per frame) | 5,000 prints/s stays smooth (60 fps) | ≤ 16.7 ms       | 2.15 ms             | 6.53 ms             | Pass   |
+| Tape buffer ingest (aggregation by timestamp, 600k prints)             | 5,000 prints/s                       | ≥ 5000 prints/s | 24,607,085 prints/s | 15,582,070 prints/s | Pass   |
 
 <!-- bench:end -->
 

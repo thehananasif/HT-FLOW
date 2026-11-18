@@ -119,7 +119,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P08 — Chart engine core
 
-- [~] ChartCore renderer: Canvas2D with dirty-flag redraw at most once per animation frame (**WebGL2 instanced renderer pending**)
+- [x] ChartCore renderer: dirty-flag redraw at most once per animation frame; Canvas2D or WebGL2 backend (`chart.renderer` auto / webgl2 / canvas2d, Command Palette "Chart: Renderer — …"): instanced quads for candles / bars / wicks, footprint cells, volume and profile bars, grid; heatmap pixel buffer as a texture; solid indicator lines as triangle strips; text and axes on a Canvas2D overlay; falls back to Canvas2D on context failure / `webglcontextlost` and back on restore; honours `performance.videoAdapter`. Geometry builders shared by both backends (unit-tested)
 - [x] Shared time axis, right price axis, auto-scale + manual drag on price axis, double-click axis reset, wheel = zoom time, Ctrl + wheel = zoom price, Shift + wheel = scroll, drag = pan, Shift + drag = vertical move
 - [x] Crosshair with price / time tags, last-price line + coloured tag, bid / ask lines, session breaks with labels, dashed grid, OHLCV legend, debug overlay (render ms)
 - [x] Mouse modes: Pointer, Crosshair, Zoom (drag box), Scroll, ZoomXY
@@ -347,7 +347,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Stage 7 Aggregator (shared series per instrument + bar type) — in TypeScript on the UI side today
 - [x] Stage 8 Indicator engine (worker pool): `IndicatorPool` / `EngineHost` / `RemoteRuntime` in the SDK, `performance.workerCount` workers, incremental tail updates with changed-range replies, tape / feed indicators and tests on the main thread; pooled == main-thread results test over every poolable indicator
 - [~] Stage 9 UI streamer — 16 ms coalescing per subscription; hidden-window suppression and binary payloads pending
-- [~] Stage 10 Render — Canvas2D, redraw only when dirty (WebGL2 + SDF text pending)
+- [~] Stage 10 Render — Canvas2D or WebGL2 (instanced), redraw only when dirty (SDF text pending; text stays on the Canvas2D overlay)
 - [~] Stage 11 Actions — paper engine fills from the live book + tape; alerts / risk pending
 - [~] Stage 12 Observability — msgs/s, latency (EWMA), connection state per feed in the status bar and Connections window; p50 / p99, gaps counter in UI pending
 

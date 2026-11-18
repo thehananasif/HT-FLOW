@@ -213,6 +213,48 @@ describe('charts (headless frame cost)', () => {
     h.dispose();
   }, 120_000);
 
+  it('large footprint: Canvas2D vs WebGL2 backend frame time', () => {
+    // Same frame as above (one tick per row, ~2,000+ cells) drawn by each backend.
+    const h = chart('footprint', 900_000, 2560, 1600);
+    const core = h.main;
+    const fp = h.layers.footprint as FootprintLayer;
+    fp.settings.ticksPerRow = 1;
+    core.slotWidth = 36;
+    core.invalidate();
+    renderFrame(core);
+    const bars = h.series()!.bars;
+    const v = core.view!;
+    const mid = Math.round((bars[v.i1]!.h + bars[v.i1]!.l) / 2);
+    core.autoScale = false;
+    core.priceMin = mid - 78;
+    core.priceMax = mid + 78;
+    const results: Record<string, number> = {};
+    for (const renderer of ['canvas2d', 'webgl2'] as const) {
+      core.setOptions({ renderer });
+      expect(core.backend).toBe(renderer);
+      const m = measure(
+        (k) => {
+          core.rightOffset = 0.6 + (k % 2) * 0.01;
+          core.invalidate();
+          renderFrame(core);
+        },
+        { warmup: 10, runs: 120 },
+      );
+      results[renderer] = m.median;
+      record({
+        group: 'Footprint',
+        name: `Large footprint (2,000+ cells, 2560×1600) — ${renderer === 'webgl2' ? 'WebGL2' : 'Canvas2D'} backend`,
+        target: '2,000 visible clusters at 60 fps',
+        budget: FRAME_60,
+        unit: 'ms/frame',
+        notes: 'CPU cost per frame (headless context): rects / draw-call stream, text included',
+        ...m,
+      });
+    }
+    expect(results.webgl2).toBeLessThan(FRAME_60 * 6);
+    h.dispose();
+  }, 120_000);
+
   it('switching footprint mode', () => {
     const h = chart('footprint', 300_000, 1600, 900);
     const core = h.main;
