@@ -98,9 +98,16 @@ test('indicators: Options Board and Volatility Smile read the (mocked) options c
       timeout: 10_000,
     })
     .toMatch(/Deribit · .* · max pain 6,850/);
-  const all = await notices(page);
-  expect(all.find((n) => n.startsWith('Vol smile'))).toMatch(/Deribit · IV \d+–\d+% · .*ATM/);
-  expect(all.find((n) => n.startsWith('Margin zones'))).toMatch(/tiers 3\/5\/10\/25\/50\/100x/);
+  // Each note is written when that indicator's calc finishes (in a worker): wait for it rather than
+  // reading once, since the Windows runner computes them later than the Options Board note.
+  const note = (prefix: string) => async () =>
+    (await notices(page)).find((n) => n.startsWith(prefix)) ?? '';
+  await expect
+    .poll(note('Vol smile'), { timeout: 10_000 })
+    .toMatch(/Deribit · IV \d+–\d+% · .*ATM/);
+  await expect
+    .poll(note('Margin zones'), { timeout: 10_000 })
+    .toMatch(/tiers 3\/5\/10\/25\/50\/100x/);
 
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);

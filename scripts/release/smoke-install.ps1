@@ -26,7 +26,7 @@ $lnks | ForEach-Object { Write-Host "shortcut $($_.FullName)" }
 Check ($lnks | Where-Object { $_.FullName -like '*Programs*' }) 'Start-menu shortcut' -Soft
 Check ($lnks | Where-Object { $_.FullName -like '*Desktop*' }) 'desktop shortcut' -Soft
 
-foreach ($ext in 'htprofile', 'htworkspace', 'htind', 'htidea', 'httemplate') {
+foreach ($ext in 'htprofile', 'htworkspace', 'htind', 'htidea', 'httemplate', 'htstrat') {
   Check (Test-Path "HKCU:\Software\Classes\.$ext") "file association .$ext" -Soft
 }
 

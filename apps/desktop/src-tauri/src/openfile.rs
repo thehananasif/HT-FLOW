@@ -1,5 +1,5 @@
 //! P30 — file associations. Windows starts `htflow-desktop.exe "<file>"` for `.htprofile`,
-//! `.htworkspace`, `.htind` and `.httemplate`; the single-instance plugin forwards the
+//! `.htworkspace`, `.htind`, `.httemplate` and `.htstrat`; the single-instance plugin forwards the
 //! arguments of a second launch to the running app. Each existing, size-checked file is read and
 //! handed to the UI as an `htflow:open-file` event (queued until the UI calls `open_file_ready`),
 //! where the matching importer picks it up (see `ui/src/shell/openFile.ts`).
@@ -15,11 +15,12 @@ pub const MAX_BYTES: u64 = 32 * 1024 * 1024;
 pub const EVENT: &str = "htflow:open-file";
 
 /// Extension (lower-case, no dot) -> kind the UI routes on.
-pub const KINDS: [(&str, &str); 4] = [
+pub const KINDS: [(&str, &str); 5] = [
     ("htprofile", "profile"),
     ("htworkspace", "workspace"),
     ("htind", "indicator"),
     ("httemplate", "template"),
+    ("htstrat", "strategy"),
 ];
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -151,6 +152,7 @@ mod tests {
             "--flag",
             "a.htidea",
             "a.htind",
+            "s.htstrat",
             "b.exe",
             "c.HTPROFILE",
         ]
@@ -159,7 +161,11 @@ mod tests {
         let p = paths_from_args(args);
         assert_eq!(
             p,
-            vec![PathBuf::from("a.htind"), PathBuf::from("c.HTPROFILE")]
+            vec![
+                PathBuf::from("a.htind"),
+                PathBuf::from("s.htstrat"),
+                PathBuf::from("c.HTPROFILE")
+            ]
         );
     }
 

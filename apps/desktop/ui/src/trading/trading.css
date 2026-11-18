@@ -289,3 +289,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Drag handle on the left edge of a right-docked panel (round 7). */
+.panel-resize-handle {
+  flex: none;
+  width: 6px;
+  margin: 0 -3px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+  border-radius: 3px;
+}
+.panel-resize-handle:hover,
+.panel-resize-handle:focus-visible,
+.panel-resize-handle:active {
+  background: color-mix(in srgb, var(--ht-accent, #4f8cff) 55%, transparent);
+  outline: none;
+}

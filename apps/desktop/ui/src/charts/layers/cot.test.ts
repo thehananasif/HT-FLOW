@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { COT_MARKETS, cotMarketFor, cotReportFor } from './cotMarkets';
 import { cotData, resolveCot, sampleRows } from './cotModel';
 import { DEFAULT_CHART_TYPE_SETTINGS, sanitizeChartTypeSettings } from './settings';
@@ -26,7 +26,16 @@ const row = (date: string): CotRow => ({
 // Node test environment: the store reads the mock from `window`.
 (globalThis as { window?: unknown }).window = globalThis;
 
+// The web build downloads with a browser fetch; the tests are offline unless they say otherwise.
+beforeEach(() => {
+  vi.stubGlobal('fetch', async () => {
+    throw new TypeError('Failed to fetch');
+  });
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
+  (globalThis as { window?: unknown }).window = globalThis;
   delete window.__HTFLOW_COT_MOCK__;
   useCot.setState({ entries: {} });
 });

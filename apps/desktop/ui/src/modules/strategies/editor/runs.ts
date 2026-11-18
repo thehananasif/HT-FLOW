@@ -14,6 +14,7 @@ import { hub, paper, pnlTick } from '../../../state/market';
 import { instrumentById } from '../../../state/instruments';
 import { activeAccount } from '../../../trading/accounts';
 import { toStrategyInstrument } from '../shared';
+import { plotOverlay } from './plotOverlay';
 import { WorkerTransport } from './workerTransport';
 
 /**
@@ -155,6 +156,7 @@ export const scriptRuns = {
         instrument: sInst,
         limits: o.limits,
         account: () => accountOf(engine, accountId, o.instrumentId, runner?.last),
+        onPlot: () => plotOverlay.changed(),
         onLog: (l) => {
           run.logs.push(l);
           if (run.logs.length > 2000) run.logs.splice(0, run.logs.length - 2000);
@@ -224,6 +226,7 @@ export const scriptRuns = {
     if (run.status !== 'error') run.status = 'stopped';
     run.stoppedAt = Date.now();
     notify();
+    plotOverlay.changed();
   },
 
   /** Kill switch: stops every script run and flattens. Returns how many were running. */

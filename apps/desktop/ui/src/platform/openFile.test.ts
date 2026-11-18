@@ -26,6 +26,14 @@ describe('open-file routing', () => {
     expect(await routeOpenedFile(file('indicator'), true)).toBe('unhandled');
   });
 
+  it('routes .htstrat files to the strategy handler', async () => {
+    const fn = vi.fn();
+    const off = registerOpenFileHandler('strategy', fn);
+    expect(await routeOpenedFile(file('strategy', { ext: 'htstrat' }), true)).toBe('handled');
+    expect(fn).toHaveBeenCalledOnce();
+    off();
+  });
+
   it('reports read errors without calling handlers', async () => {
     const fn = vi.fn();
     const off = registerOpenFileHandler('workspace', fn);
