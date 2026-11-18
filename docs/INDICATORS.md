@@ -2,10 +2,8 @@
 
 Status of every Appendix B entry. **implemented** = available in the Indicators dialog (chart header "Indicators", chart right-click menu, command "Indicators…" / Ctrl+I), built on `@htflow/indicator-sdk` with a Vitest reference test in `packages/indicators/src/*.test.ts`. **pending** = listed in the dialog (greyed, cannot be added) but not built; the note says why (blocked data source, ambiguous spec entry).
 
-- Catalog entries: 281 (272 implemented, 9 pending)
-- Distinct indicator implementations: 191
-- Catalog entries: 281 (268 implemented, 13 pending)
-- Distinct indicator implementations: 187
+- Catalog entries: 281 (276 implemented, 5 pending)
+- Distinct indicator implementations: 195
 - Variants (Appendix B: "parameter variants … to reach 222") are presets of an implementation, e.g. RSI of CVD = RSI with source = Cumulative delta.
 - Multi-timeframe (MTF) entries wrap their base indicator: it is computed on the chart's own bars merged per higher-timeframe period (identical to a BarSeries of that timeframe built from the same trades) and mapped back to the chart; "last closed bar" (default, never repaints) or "forming bar" per input.
 - Crypto Metrics and OI entries read funding / open interest / liquidations from the market store (`DerivativesLog` in the SDK). Simulated and spot feeds have none: the legend then says "no data from this feed".
