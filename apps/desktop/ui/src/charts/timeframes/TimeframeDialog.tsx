@@ -1,17 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Lock, Pin, Plus, X } from 'lucide-react';
-import {
-  Button,
-  Checkbox,
-  Chip,
-  Dialog,
-  DropdownMenu,
-  Input,
-  MenuTrigger,
-  NumberInput,
-  Select,
-  type MenuEntry,
-} from '@htflow/ui-kit';
+import { Button, Checkbox, Chip, Dialog, Input, NumberInput, Select } from '@htflow/ui-kit';
 import {
   FULL_CAPABILITIES,
   specLabel,
@@ -23,7 +12,6 @@ import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import { useWindows } from '../../state/windows';
 import { hub } from '../../state/market';
 import {
-  openTimeframeDialog,
   paramsFor,
   sameBase,
   specFromParams,
@@ -32,6 +20,7 @@ import {
   withSession,
   type TfRow,
 } from './presets';
+import { IntervalMenu } from './IntervalMenu';
 import './timeframes.css';
 
 type Session = BarSpec['session'];
@@ -48,35 +37,13 @@ function setTimeframe(windowId: string, spec: BarSpec): void {
 
 /** Header quick chips (user-pinned favourites) + the TF menu with the timeframe dialog. */
 export function TimeframeHeader({ windowId, s }: { windowId: string; s: ChartWindowState }) {
-  const { rows, pinned, loaded, load } = useTimeframes();
+  const { pinned, loaded, load } = useTimeframes();
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
   const cur = s.timeframe as BarSpec;
   const caps = capsFor(s.instrumentId);
   const apply = (sp: BarSpec) => setTimeframe(windowId, withSession(sp, cur.session));
-  const items: MenuEntry[] = [
-    ...rows
-      .filter((r) => r.specs.length)
-      .map((r) => ({
-        kind: 'submenu' as const,
-        id: r.row,
-        label: r.row,
-        items: r.specs.map((sp) => {
-          const why = specUnavailableReason(sp, caps);
-          return {
-            id: JSON.stringify(sp),
-            label: specLabel(sp) + (why ? ' (no data)' : ''),
-            checked: sameBase(sp, cur),
-            disabled: !!why,
-            onSelect: () => apply(sp),
-          };
-        }),
-      })),
-    { kind: 'separator', id: 'sep' },
-    { id: 'dialog', label: 'Timeframe dialog…', onSelect: () => openTimeframeDialog(windowId) },
-    { id: 'configure', label: 'Configure…', onSelect: () => openTimeframeDialog(windowId, true) },
-  ];
   return (
     <>
       {pinned.map((sp) => (
@@ -92,10 +59,7 @@ export function TimeframeHeader({ windowId, s }: { windowId: string; s: ChartWin
         </Chip>
       ))}
       {!pinned.some((q) => sameBase(q, cur)) && <Chip selected>{specLabel(cur)}</Chip>}
-      <DropdownMenu
-        items={items}
-        trigger={<MenuTrigger aria-label="TF: Timeframe">TF</MenuTrigger>}
-      />
+      <IntervalMenu windowId={windowId} s={s} />
     </>
   );
 }

@@ -71,7 +71,7 @@ export const PENDING_TEMPLATES: string[] = [];
  * Kagi, Line Break; optional `session`).
  */
 export type TimeframeSpec = (
-  | { kind: 'time'; ms: number }
+  | { kind: 'time'; ms: number; cal?: 'month' }
   | { kind: 'tick' | 'volume' | 'delta'; n: number }
   | { kind: 'range' | 'rangex' | 'rangez'; ticks: number }
   | { kind: 'rangexv'; ticks: number; vol: number }

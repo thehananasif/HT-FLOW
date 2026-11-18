@@ -115,8 +115,7 @@ test('4 h via the TF menu and the command palette; left-scroll still loads older
 
   // TF menu → Minute → H4.
   await page.getByRole('button', { name: 'Timeframe' }).first().click();
-  await page.getByRole('menuitem', { name: 'Minute' }).click();
-  await page.getByRole('menuitem', { name: 'H4', exact: true }).click();
+  await page.getByRole('menuitem', { name: '4 hours', exact: true }).click();
   await expect(page.locator('.win-hdr .ht-chip', { hasText: 'H4' }).first()).toBeVisible();
   await expect.poll(() => barCount(page)).toBeGreaterThan(0);
   expect(await responsiveMs(page)).toBeLessThan(300);
