@@ -1,5 +1,6 @@
 import {
   HT,
+  MAX_FORMULA,
   SAMPLE_SCRIPT,
   compileFormula,
   defineIndicator,
@@ -24,11 +25,12 @@ export const CustomFormula = defineIndicator({
   description:
     'Plots an expression of bar values and functions, e.g. (close - sma(close, 20)) / stdev(close, 20). Prices are real prices.',
   formula:
-    'Names: open high low close hl2 hlc3 ohlc4 volume delta cvd buy sell trades bar_index tick; x[n] = n bars ago; sma ema rma wma sum highest lowest stdev change roc rsi cum atr crossover crossunder barssince abs min max sqrt log exp pow round floor ceil sign nz; + - * / % ^ < > == and or not ?:',
+    'Names: open high low close hl2 hlc3 ohlc4 volume delta cvd buy sell (buyVol, sellVol) trades bar_index tick; x[n] or ref(x, n) = n bars ago; sma ema rma wma sum highest lowest stdev change roc rsi cum atr crossover crossunder barssince abs min max sqrt log exp pow round floor ceil sign nz iff(c, a, b); + - * / % ^ < > == and or not ?:',
   inputs: {
     formula: input.string('Formula', '(close - sma(close, 20)) / stdev(close, 20)', {
-      maxLength: 400,
-      help: 'HT Script expression. Example: ema(delta, 10) - ema(delta, 30)',
+      maxLength: MAX_FORMULA,
+      editor: 'formula',
+      help: 'Expression of bar values and functions (open Edit for errors and a live preview). Example: ema(delta, 10) - ema(delta, 30)',
     }),
     unit: input.enum(
       'Result is',

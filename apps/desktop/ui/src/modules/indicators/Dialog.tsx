@@ -60,6 +60,8 @@ import { useWindows } from '../../state/windows';
 import { buildIndicatorConfig } from './config';
 import { allInstruments, instrumentById } from '../../state/instruments';
 import { isTauri } from '../../platform/native';
+import { InstrumentPickerButton } from '../../components/InstrumentPicker';
+import { FormulaInput } from './FormulaEditor';
 import { openScriptEditor } from './editorState';
 import { useScripts } from './scripts';
 import { readExt, useIndicatorDialog, writeExt } from './state';
@@ -474,7 +476,12 @@ export function IndicatorsDialog({
                 />
                 <div className="ind-body">
                   {tab === 'inputs' && (
-                    <InputsTab def={def} cfg={selected} onChange={(inputs) => update({ inputs })} />
+                    <InputsTab
+                      def={def}
+                      cfg={selected}
+                      windowId={windowId}
+                      onChange={(inputs) => update({ inputs })}
+                    />
                   )}
                   {tab === 'style' && (
                     <StyleTab def={def} cfg={selected} onChange={(styles) => update({ styles })} />
@@ -585,14 +592,53 @@ function Row({
   );
 }
 
-function InputControl({
+function InstrumentControl({
   d,
   value,
   onChange,
 }: {
   d: InputDef;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inst = value ? instrumentById(value) : undefined;
+  return (
+    <div className="ind-instrument">
+      <InstrumentPickerButton
+        className="ht-btn ht-btn--outline ht-btn--sm"
+        ariaLabel={d.label}
+        testId="ind-instrument"
+        value={value}
+        onPick={(_entry, feedId) => {
+          if (feedId) onChange(feedId);
+        }}
+      >
+        {inst ? `${inst.symbol} — ${inst.displayName}` : value ? value : 'Pick an instrument…'}
+      </InstrumentPickerButton>
+      {value && (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label="Clear instrument"
+          onClick={() => onChange('')}
+        >
+          <X size={12} />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function InputControl({
+  d,
+  value,
+  onChange,
+  windowId,
+}: {
+  d: InputDef;
   value: InputValue;
   onChange: (v: InputValue) => void;
+  windowId: string;
 }) {
   switch (d.type) {
     case 'int':
@@ -656,7 +702,18 @@ function InputControl({
           }))}
         />
       );
+    case 'instrument':
+      return <InstrumentControl d={d} value={value as string} onChange={onChange} />;
     case 'string':
+      if (d.editor === 'formula')
+        return (
+          <FormulaInput
+            windowId={windowId}
+            label={d.label}
+            value={value as string}
+            onChange={onChange}
+          />
+        );
       return (
         <Input
           aria-label={d.label}
@@ -672,10 +729,12 @@ function InputsTab({
   def,
   cfg,
   onChange,
+  windowId,
 }: {
   def: AnyIndicator;
   cfg: IndicatorConfig;
   onChange: (v: IndicatorConfig['inputs']) => void;
+  windowId: string;
 }) {
   const vals = resolveInputs(def.inputs, cfg.inputs) as Record<string, InputValue>;
   const entries = Object.entries(def.inputs);
@@ -684,7 +743,12 @@ function InputsTab({
     <div className="ind-form">
       {entries.map(([k, d]) => (
         <Row key={k} label={d.label} help={d.help}>
-          <InputControl d={d} value={vals[k]!} onChange={(v) => onChange({ ...vals, [k]: v })} />
+          <InputControl
+            d={d}
+            value={vals[k]!}
+            windowId={windowId}
+            onChange={(v) => onChange({ ...vals, [k]: v })}
+          />
         </Row>
       ))}
     </div>

@@ -1,6 +1,8 @@
 .ip-root {
   position: fixed;
   z-index: 1100;
+  /* Opened from inside a modal dialog (indicator inputs): Radix sets pointer-events: none on body. */
+  pointer-events: auto;
   display: flex;
   width: min(860px, calc(100vw - 16px));
   height: min(480px, calc(100vh - 16px));

@@ -179,9 +179,12 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 
 ## P14 — Indicator catalog (280+)
 
-- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 264 implemented (183 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
+- [x] All 281 Appendix B entries catalogued (`docs/INDICATORS.md`): 272 implemented (191 distinct implementations, the rest are presets and multi-timeframe wrappers); each tested against hand-computed values and incremental = full recompute
 - [x] SDK feeds (funding, open interest, liquidations, depth) and a multi-timeframe wrapper (last closed bar or forming bar)
-- [ ] 17 pending entries: Options Board, Options Position, Volatility Smile and Options Risk Profile need an options-chain provider in the SDK; four COT entries need a CFTC data source; Account Info Display and Position Sizing Tracker need account data in the indicator context; Spread, Ratio, Correlation and Beta need a second-instrument input; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
+- [x] Second-instrument input (`instrument` param type with the symbol picker; bars of the chart timeframe aligned to the chart's timestamps, gaps forward-filled): Spread, Ratio, Correlation (rolling Pearson), Beta (rolling)
+- [x] Read-only account context (paper / live store): Account Info Display, Position Sizing Tracker; Options Position and Options Risk Profile read the paper account's open option positions
+- [x] Custom Formula: sandboxed expression language (tokenizer + parser + evaluator, no eval; length and nesting limits) with an editor dialog (syntax errors, live preview); Custom script (`.htind`) with `let` bindings, several `plot()` outputs, line-numbered editor, import / export
+- [ ] 9 pending entries: Options Board and Volatility Smile need an options chain in the indicator context (simulated / Deribit sources exist but are not wired into the indicator feeds); four COT entries need a CFTC data source; Market Profile & TPO is a chart template (P09); CMS and Margin Zones are not defined in Appendix B
 
 ## P15 — Smart DOM
 

@@ -12,6 +12,13 @@
 
 - Web Pages in the desktop app: each panel opens its page in a dedicated native `webpage-<id>` window (Rust `webpage_cmds.rs`, no `unstable` multi-webview). The window has no IPC or capabilities (the capability is scoped to `main` only, Tauri also rejects custom commands from remote origins), loads http / https only (an `on_navigation` handler cancels `file:`, `javascript:`, `data:`, `tauri:`, custom schemes and URLs with credentials), supports a per-panel domain allow-list (`example.com` incl. subdomains, `*.example.com`), and routes `window.open` / `target=_blank` to the same window or the system browser. Commands: open / navigate / back / forward / reload / close / set bounds / always-on-top / set policy / open external; size and position are remembered per panel. UI: allow-list editor, new-window and always-on-top options, "Open in system browser", six `Web Pages: …` palette commands; the web build keeps the iframe. Unit tests (Rust + TS) for URL validation, scheme blocking and allow-list matching, plus a Playwright spec. Security review in `docs/SECURITY-AUDIT.md`.
 
+### Indicators
+
+- Second-instrument input: indicators can take an `instrument` parameter (symbol picker); the other symbol's bars of the chart timeframe are aligned to the chart's bars (gaps forward-filled). New Spread, Ratio, Correlation (rolling Pearson of returns or prices) and Beta (rolling) indicators.
+- Read-only account context in the indicator framework (paper / live store). New Account Info Display and Position Sizing Tracker (fixed-fractional size from risk %, stop ticks and tick value); Options Position and Options Risk Profile draw the paper account's open option legs (strike levels, break-evens, profit / loss zones).
+- Custom Formula: new editor dialog (Edit next to the formula) with line:col syntax errors and a live preview of the last bars; the language gained `iff`, `ref`, `buyVol` / `sellVol`, a 1000-character limit and a 48-level nesting limit (deeply nested input no longer risks a stack overflow). `.htind` scripts accept `let` bindings.
+- Only Options Board, Volatility Smile (need an options chain feed), the four COT entries, Market Profile & TPO, CMS and Margin Zones remain pending in the Indicators dialog.
+
 ## Unreleased — round 6
 
 ### Security
