@@ -20,7 +20,7 @@ import {
   Slider,
   toast,
 } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { plural, t } from '@htflow/i18n';
 import { formatPrice, specKey, specLabel, TIMEFRAME_PRESETS } from '@htflow/market-data';
 import {
   ALERT_TRIGGERS,
@@ -721,7 +721,7 @@ export function ObjectsList(_props: ModuleViewProps) {
       <div className="row gap8 dr-objects-head">
         <span className="muted">
           {instrumentOf(win.instrumentId)?.symbol ?? win.instrumentId} ·{' '}
-          {t('drawings.objectsCount', { n: items.length, s: items.length === 1 ? '' : 's' })}
+          {t('drawings.objectsCount', { n: items.length, s: plural(items.length) })}
         </span>
         <div className="grow" />
         <Button size="xs" disabled={!items.length} onClick={() => mutate(windowId, () => [])}>

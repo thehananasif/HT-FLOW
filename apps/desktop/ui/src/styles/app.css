@@ -73,7 +73,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-left: 12px;
+  padding-inline-start: 12px;
   background: var(--ht-bg);
   border-bottom: 1px solid var(--ht-divider);
   font-size: 12px;
@@ -442,7 +442,7 @@
 }
 .chart-hosts.split .chart-host:first-of-type {
   flex: 0 0 34%;
-  border-right: 1px solid var(--ht-divider);
+  border-inline-end: 1px solid var(--ht-divider);
 }
 .chart-host {
   position: relative;
@@ -496,7 +496,7 @@
 .lots-filter button {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: 0;
   background: transparent;
   color: var(--ht-text-soft);
@@ -517,7 +517,7 @@
   align-items: center;
   gap: 2px;
   padding: 6px 0;
-  border-right: 1px solid var(--ht-divider);
+  border-inline-end: 1px solid var(--ht-divider);
   background: var(--ht-bg);
   overflow: visible;
   z-index: 5;
@@ -597,7 +597,7 @@
   color: var(--ht-text-soft);
   font-size: 12px;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
 }
 .st-item:hover:not(:disabled) {
   background: var(--ht-surface3);
@@ -664,7 +664,7 @@
 .dom-trader {
   width: 260px;
   flex: none;
-  border-left: 1px solid var(--ht-divider);
+  border-inline-start: 1px solid var(--ht-divider);
   display: flex;
 }
 
@@ -769,7 +769,7 @@
   background: var(--ht-surface1);
   color: var(--ht-text-secondary);
   font-weight: 400;
-  text-align: left;
+  text-align: start;
   padding: 6px 8px;
   border-bottom: 1px solid var(--ht-border);
 }
@@ -959,7 +959,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--ht-divider);
+  border-inline-end: 1px solid var(--ht-divider);
 }
 .login-brand {
   font-size: 20px;
@@ -1070,7 +1070,7 @@
 }
 .strength em {
   font-style: normal;
-  margin-left: 6px;
+  margin-inline-start: 6px;
 }
 .recovery-grid {
   display: grid;
@@ -1089,7 +1089,7 @@
 }
 .recovery-grid li span {
   color: var(--ht-text-tertiary);
-  margin-right: 4px;
+  margin-inline-end: 4px;
 }
 
 /* ---------------- gallery ---------------- */
@@ -1192,7 +1192,7 @@
 }
 .titlebar > .win-controls {
   flex: none;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .sidetools {
   min-height: 0;

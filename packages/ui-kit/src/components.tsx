@@ -278,7 +278,7 @@ export function NumberInput({
     [value, decimals, step, min, max, onChange],
   );
   return (
-    <div className={cx('ht-num-input', className)}>
+    <div className={cx('ht-num-input', className)} dir="ltr">
       <input
         className="tnum"
         aria-label={ariaLabel}

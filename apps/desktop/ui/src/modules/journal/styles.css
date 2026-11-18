@@ -142,7 +142,7 @@
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  text-align: left;
+  text-align: start;
   padding: 8px 10px;
   cursor: pointer;
   white-space: nowrap;

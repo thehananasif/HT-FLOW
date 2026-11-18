@@ -65,4 +65,4 @@ pnpm e2e
 
 ## Licence
 
-MIT for HT Flow code. Geist and Geist Mono fonts: SIL Open Font License 1.1 (`packages/ui-kit/src/fonts/OFL-Geist.txt`).
+MIT for HT Flow code. Geist and Geist Mono fonts: SIL Open Font License 1.1 (`packages/ui-kit/src/fonts/OFL-Geist.txt`). Noto Nastaliq Urdu (Urdu UI): SIL Open Font License 1.1 (`packages/ui-kit/src/fonts/OFL-NotoNastaliqUrdu.txt`).

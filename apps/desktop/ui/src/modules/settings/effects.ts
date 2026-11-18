@@ -3,6 +3,7 @@
  * notifications (position, show, duration, max), layout direction (RTL flag), hotkey overrides,
  * paper-engine commissions, sound triggers, log capture and clear-on-logout.
  */
+import { isLocale, setLocale } from '@htflow/i18n';
 import { applyTheme, configureToasts, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
 import type { Trade } from '@htflow/market-data';
 import { setHotkeyOverrides } from '../../shell/commands';
@@ -149,6 +150,8 @@ export function installSettingsEffects(): void {
       const el = document.documentElement;
       el.dir = layoutDirection(v);
       el.lang = v['general.language'];
+      const lang = v['general.language'];
+      setLocale(isLocale(lang) ? lang : 'en');
     }
     // Settings → Data → recorder: turns the native tick-store recorder on / off and applies its
     // disk budget / retention (desktop only; only on a change so the Data Manager's own toggle

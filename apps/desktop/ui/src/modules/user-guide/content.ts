@@ -1,4 +1,5 @@
 import { parseFrontMatter, parseMarkdown, sectionsOf } from './markdown';
+import { getLocale } from '@htflow/i18n';
 import type { Article } from './search';
 
 /**
@@ -58,9 +59,29 @@ export function buildArticles(raw: Record<string, string>, lang = 'en'): Article
   return out.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
-/** Language of the guide (translations go in docs/user-guide/<lang>/; English is the fallback). */
+/** Language of the guide: the UI language (translations go in docs/user-guide/<lang>/). */
 export function guideLanguage(): string {
-  return 'en';
+  return getLocale();
 }
 
-export const ARTICLES: Article[] = buildArticles(RAW, guideLanguage());
+/**
+ * Articles in `lang`; every article without a translation falls back to its English version, so a
+ * partly translated folder (or none at all, as for Urdu today) never leaves the guide empty.
+ */
+export function articlesFor(lang: string, raw: Record<string, string> = RAW): Article[] {
+  const english = buildArticles(raw, 'en');
+  if (lang === 'en') return english;
+  const translated = new Map(buildArticles(raw, lang).map((a) => [a.file, a]));
+  return english.map((a) => translated.get(a.file) ?? a);
+}
+
+export const ARTICLES: Article[] = buildArticles(RAW, 'en');
+
+const cache = new Map<string, Article[]>();
+/** The articles for the current UI language (English fallback per article), cached per language. */
+export function currentArticles(): Article[] {
+  const lang = guideLanguage();
+  let a = cache.get(lang);
+  if (!a) cache.set(lang, (a = articlesFor(lang)));
+  return a;
+}

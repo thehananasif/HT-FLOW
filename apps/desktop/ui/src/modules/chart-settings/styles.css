@@ -67,14 +67,14 @@
   color: var(--ht-text-primary);
   font: inherit;
   font-weight: 600;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .cs-sec-static {
   cursor: default;
 }
 .cs-count {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--ht-text-tertiary);
   font-weight: 400;
   font-size: 11px;
@@ -91,7 +91,7 @@
   padding: 1px 10px 1px 26px;
 }
 .cs-row--indent {
-  padding-left: 44px;
+  padding-inline-start: 44px;
 }
 .cs-row:hover {
   background: var(--ht-hover);
@@ -104,7 +104,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 8px;
+  padding-inline-end: 8px;
 }
 .cs-editor {
   display: flex;
@@ -171,7 +171,7 @@
   padding: 8px 12px;
 }
 .cs-templates .cs-row {
-  padding-left: 12px;
+  padding-inline-start: 12px;
 }
 .cs-tpl {
   display: flex;

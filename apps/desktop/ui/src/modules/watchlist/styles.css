@@ -71,7 +71,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .wl-head .r,

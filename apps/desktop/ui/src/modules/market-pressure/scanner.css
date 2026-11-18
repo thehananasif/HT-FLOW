@@ -64,7 +64,7 @@
   position: relative;
 }
 .scan-c[data-align='left'] {
-  text-align: left;
+  text-align: start;
 }
 .scan-c[data-align='center'] {
   text-align: center;
@@ -78,7 +78,7 @@
   display: block;
   height: 18px;
   line-height: 18px;
-  padding-right: 4px;
+  padding-inline-end: 4px;
 }
 .scan-bar > i {
   position: absolute;
@@ -127,7 +127,7 @@
   top: 1px;
   bottom: 1px;
   width: 3px;
-  margin-left: -1px;
+  margin-inline-start: -1px;
   border-radius: 1px;
   background: var(--ht-text-primary);
 }

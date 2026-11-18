@@ -353,7 +353,7 @@ function Ladder({
   };
 
   return (
-    <div className="dom-canvas-wrap" data-notes={domStore.notes(instrumentId).size}>
+    <div className="dom-canvas-wrap" dir="ltr" data-notes={domStore.notes(instrumentId).size}>
       <canvas
         ref={ref}
         data-testid="dom-ladder"

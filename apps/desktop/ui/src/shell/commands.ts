@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { translateLiteral } from '@htflow/i18n';
 
 export type CommandGroup =
   | 'Platform'
@@ -67,8 +68,9 @@ export function registerCommands(cmds: Command[]): () => void {
 export function commands(): Command[] {
   return [...registry.values()].map((c) => {
     const o = overrides[c.id];
-    if (!o) return c;
-    return { ...c, shortcut: effectiveShortcut(c.id), scope: effectiveScope(c.id) };
+    const label = translateLiteral(c.label);
+    if (!o) return label === c.label ? c : { ...c, label };
+    return { ...c, label, shortcut: effectiveShortcut(c.id), scope: effectiveScope(c.id) };
   });
 }
 

@@ -11,7 +11,7 @@
   color: var(--ht-text-secondary);
 }
 .dm-indent {
-  padding-left: 28px !important;
+  padding-inline-start: 28px !important;
 }
 .dm-actions {
   display: flex;
@@ -49,12 +49,12 @@
   white-space: nowrap;
 }
 .dm-preview caption {
-  text-align: left;
+  text-align: start;
   padding: 4px 0;
 }
 .dm-errors ul {
   margin: 4px 0 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   max-height: 160px;
   overflow: auto;
 }
