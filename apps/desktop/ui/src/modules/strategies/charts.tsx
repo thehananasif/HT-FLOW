@@ -16,7 +16,7 @@ export const DEFAULT_STYLE: ResultStyle = {
   heatHigh: '#20C77A',
 };
 
-function useCanvas(
+export function useCanvas(
   draw: (g: CanvasRenderingContext2D, w: number, h: number) => void,
   deps: unknown[],
 ) {
