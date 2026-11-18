@@ -249,7 +249,6 @@ function sameItem(a: AnyItem, b: AnyItem): boolean {
     if (x !== y && !(x !== x && y !== y)) return false;
     n++;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _k in rb) n--;
   return n === 0;
 }

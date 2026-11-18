@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — round 7
+
+### Performance — indicator lag
+
+- Applying indicators no longer freezes the app: bars go to the indicator workers as packed typed arrays, once per worker instead of once per indicator as cloned objects (10 indicators on 50,000 bars: 4.5 s → ~0.2–0.35 s of main-thread time).
+- Live ticks with indicators: workers reply with changed list items only, skip the full-history diff for indicators that never rewrite the past (`stableHistory`), and keep one message in flight per indicator (main thread 316 ms → ~1.6 ms per tick with 10 indicators).
+- ZigZag, Fair Value Gaps and Order Blocks full recomputes are linear instead of quadratic (ZigZag 6.5 s → 28 ms on 50,000 bars).
+- New SDK hints `stableHistory` / `listsAppendOnly` (optional, backward compatible); golden tests compare the live path with a full recompute for every registered indicator; `pnpm bench` measures applying 10 indicators and tick throughput; an e2e check samples the frame cadence after adding indicators.
+
 ## Unreleased — round 6
 
 ### Security

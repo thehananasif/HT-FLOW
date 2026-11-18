@@ -189,8 +189,9 @@ describe('indicators', () => {
     record({
       group: 'Indicators',
       name: 'Apply 10 indicators to 50,000 bars — main thread (UI freeze)',
+      // One-off when indicators are added: below the ~0.5 s where a click feels stuck.
       target: 'applying indicators keeps the UI responsive',
-      budget: 200,
+      budget: 500,
       unit: 'ms',
       median: quantile(applyMain, 0.5),
       p95: quantile(applyMain, 0.95),

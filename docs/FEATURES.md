@@ -329,7 +329,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Stage 5 Recorder (tick store)
 - [x] Stage 6 History merge — history then live on one chart; gap detection, dedupe at the seam, lazy left-scroll loading and newest-first native backfill of older days
 - [x] Stage 7 Aggregator (shared series per instrument + bar type) — in TypeScript on the UI side today
-- [x] Stage 8 Indicator engine (worker pool): `IndicatorPool` / `EngineHost` / `RemoteRuntime` in the SDK, `performance.workerCount` workers, incremental tail updates with changed-range replies, tape / feed indicators and tests on the main thread; pooled == main-thread results test over every poolable indicator
+- [x] Stage 8 Indicator engine (worker pool): `IndicatorPool` / `EngineHost` / `RemoteRuntime` in the SDK, `performance.workerCount` workers, incremental tail updates with changed-range replies, tape / feed indicators and tests on the main thread; pooled == main-thread results test over every poolable indicator; round 7: packed typed-array bar packets shared per worker, list diffs, `stableHistory` / `listsAppendOnly` hints, one message in flight per runtime, live-vs-full golden test over every registered indicator, indicator bench + frame-cadence e2e (docs/PERFORMANCE.md)
 - [~] Stage 9 UI streamer — 16 ms coalescing per subscription; hidden-window suppression and binary payloads pending
 - [~] Stage 10 Render — Canvas2D, redraw only when dirty (WebGL2 + SDF text pending)
 - [~] Stage 11 Actions — paper engine fills from the live book + tape; alerts / risk pending
