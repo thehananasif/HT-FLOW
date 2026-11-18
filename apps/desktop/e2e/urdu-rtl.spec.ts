@@ -40,6 +40,17 @@ test('Urdu: language picker + palette switch to RTL, translated menu, charts sta
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ur');
 
+  // The Settings page heading and its section list switch to Urdu, and so does the ribbon.
+  await page.keyboard.press('Control+,');
+  const settingsWin = page.getByTestId('settings-window');
+  await expect(settingsWin.locator('h2').first()).toHaveText('عمومی');
+  await expect(settingsWin.getByRole('button', { name: 'ظاہری شکل' })).toBeVisible();
+  await expect(settingsWin.getByText('زبان اور خطہ')).toBeVisible();
+  await expect(page.getByTestId('ribbon-watchlist')).toContainText('واچ لسٹ');
+  await expect(page.getByTestId('ribbon-connections')).toContainText('کنکشنز');
+  await expect(page.getByRole('navigation', { name: 'ربن' })).toBeVisible();
+  await page.screenshot({ path: '../../docs/screenshots/urdu-settings.png' });
+
   // The chart survives the live switch, stays LTR, and its right-click menu is in Urdu.
   // Settings shares a tab group with the chart: bring the chart tab back.
   await page.getByText('CLZ6 Footprint', { exact: true }).first().click();
@@ -57,9 +68,9 @@ test('Urdu: language picker + palette switch to RTL, translated menu, charts sta
 
   // Command Palette switches back.
   await page.keyboard.press('Control+k');
-  const p2 = page.getByRole('dialog', { name: 'Command palette' });
-  await p2.getByPlaceholder('Search commands, symbols, layouts…').fill('Language');
-  await p2.getByRole('option', { name: /Language: English/ }).click();
+  const p2 = page.getByRole('dialog', { name: 'کمانڈ پیلیٹ' });
+  await p2.getByPlaceholder('کمانڈز، سمبلز، لے آؤٹس تلاش کریں…').fill('Language');
+  await p2.getByRole('option', { name: /زبان: English/ }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   expect(errors).toEqual([]);
