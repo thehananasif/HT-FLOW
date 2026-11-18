@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { getLocale, subscribeLocale } from '@htflow/i18n';
 import { Toaster, TooltipProvider } from '@htflow/ui-kit';
 import { backend } from './backend';
 import { useSession } from './state/session';
@@ -14,6 +15,8 @@ const osWindowLabel = secondaryLabel();
 
 export function App() {
   const session = useSession((s) => s.session);
+  // A language change remounts the UI so every t() string re-renders (state lives in stores).
+  const locale = useSyncExternalStore(subscribeLocale, getLocale);
   const [version, setVersion] = useState('');
   useEffect(() => void backend.appVersion().then(setVersion), []);
   const gallery = import.meta.env.DEV && new URLSearchParams(location.search).has('gallery');
@@ -24,9 +27,9 @@ export function App() {
       ) : gallery ? (
         <Gallery />
       ) : session ? (
-        <Dashboard version={version} />
+        <Dashboard key={locale} version={version} />
       ) : (
-        <LoginScreen />
+        <LoginScreen key={locale} />
       )}
       <PlatformHost secondary={!!osWindowLabel} />
       <Toaster />

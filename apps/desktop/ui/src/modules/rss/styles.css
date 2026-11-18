@@ -32,7 +32,7 @@
   display: inline-block;
   width: 6px;
   height: 6px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   border-radius: 50%;
   background: var(--ht-warning);
   vertical-align: middle;
@@ -75,7 +75,7 @@
 .rss-tree {
   overflow: auto;
   padding: 8px 6px;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
 }
 .rss-tree-title {
   color: var(--ht-text-secondary);
@@ -95,11 +95,11 @@
   background: transparent;
   color: var(--ht-text-soft);
   font-size: 12px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .rss-node--feed {
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 .rss-node--kw {
   margin-top: 6px;
@@ -119,12 +119,12 @@
 }
 .rss-list {
   overflow: auto;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
 }
 .rss-item {
   width: 100%;
   display: block;
-  text-align: left;
+  text-align: start;
   padding: 8px 10px;
   border: 0;
   border-bottom: 1px solid var(--ht-divider);

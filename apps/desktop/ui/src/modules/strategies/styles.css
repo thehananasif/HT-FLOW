@@ -25,7 +25,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px 6px;
-  border-right: 1px solid var(--ht-divider);
+  border-inline-end: 1px solid var(--ht-divider);
   overflow: hidden auto;
 }
 .stg-item {
@@ -43,7 +43,7 @@
   border: 1px solid transparent;
   background: none;
   color: var(--ht-text-secondary);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .stg-item:hover {
@@ -74,7 +74,7 @@
   min-width: 0;
   overflow: auto;
   padding: 8px 10px;
-  border-right: 1px solid var(--ht-divider);
+  border-inline-end: 1px solid var(--ht-divider);
 }
 .stg-desc {
   margin: 0 0 6px;
@@ -358,7 +358,7 @@
 }
 .stg-deps {
   margin: 0;
-  padding-left: 16px;
+  padding-inline-start: 16px;
   color: var(--ht-text-secondary);
 }
 .stg-actions {
@@ -410,7 +410,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  margin-right: 5px;
+  margin-inline-end: 5px;
   background: var(--ht-text-tertiary);
 }
 .stg-chip-dot[data-status='live'] {
@@ -423,7 +423,7 @@
   background: var(--ht-down);
 }
 .stg-chip-state {
-  margin-left: 5px;
+  margin-inline-start: 5px;
   font-size: 10px;
   color: var(--ht-text-tertiary);
 }

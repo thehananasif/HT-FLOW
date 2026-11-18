@@ -19,7 +19,7 @@
   flex: none;
   overflow-y: auto;
   padding: 6px;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
   background: var(--ht-surface1);
 }
 .ip-node {
@@ -34,11 +34,11 @@
   background: none;
   color: var(--ht-text-soft);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .ip-node[data-depth='1'] {
-  padding-left: 22px;
+  padding-inline-start: 22px;
   color: var(--ht-text-secondary);
 }
 .ip-node:hover {
@@ -142,7 +142,7 @@
   color: var(--ht-text-primary);
 }
 .ip-front {
-  margin-left: 6px;
+  margin-inline-start: 6px;
   color: var(--ht-text-tertiary);
   font-size: 11px;
 }

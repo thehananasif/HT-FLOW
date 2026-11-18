@@ -24,7 +24,7 @@
   color: var(--ht-text-primary);
 }
 .ap-head .ap-px {
-  text-align: left;
+  text-align: start;
 }
 .ap-body {
   flex: 1;
@@ -61,7 +61,7 @@
   line-height: 22px;
 }
 .ap-row .ap-px {
-  text-align: left;
+  text-align: start;
   color: var(--ht-text-soft);
 }
 .ap-row .ap-volume {

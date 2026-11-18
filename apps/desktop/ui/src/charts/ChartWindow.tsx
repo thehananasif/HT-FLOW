@@ -559,6 +559,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           <div
             ref={hostsRef}
             className={isSplit ? 'chart-hosts split' : 'chart-hosts'}
+            dir="ltr"
             onContextMenu={capture}
             onDoubleClick={(e) => {
               if (e.ctrlKey) fullscreen();

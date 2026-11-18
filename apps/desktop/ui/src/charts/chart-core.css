@@ -3,7 +3,7 @@
   flex: 0 0 188px;
   min-width: 0;
   overflow: auto;
-  border-left: 1px solid var(--ht-divider);
+  border-inline-start: 1px solid var(--ht-divider);
   background: var(--ht-surface-1);
   font-size: 11px;
 }

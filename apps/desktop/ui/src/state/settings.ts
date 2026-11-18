@@ -496,8 +496,8 @@ function validateFolders(v: unknown): string[] | undefined {
 export const RTL_LANGUAGES: string[] = ['ur', 'ar'];
 
 const LANGUAGES: EnumOption<'en' | 'ur' | 'hi' | 'ar' | 'es' | 'ru' | 'tr' | 'zh'>[] = [
-  { value: 'en', label: 'English — 100%' },
-  { value: 'ur', label: 'اردو Urdu (RTL) — coming', disabled: true },
+  { value: 'en', label: 'English' },
+  { value: 'ur', label: 'اردو (Urdu, RTL)' },
   { value: 'hi', label: 'हिन्दी Hindi — coming', disabled: true },
   { value: 'ar', label: 'العربية Arabic (RTL) — coming', disabled: true },
   { value: 'es', label: 'Español — coming', disabled: true },
@@ -527,7 +527,7 @@ export const SCHEMA = {
     section: 'general',
     group: 'Language & region',
     label: 'Language',
-    help: 'User-interface language. English is complete; the other languages are being translated (RTL languages mirror the layout but never charts or numbers).',
+    help: 'User-interface language, applied live. English and اردو (Urdu, right-to-left) are available; the other languages are being translated. RTL languages mirror the layout but never charts, price ladders or numbers.',
     default: 'en',
     options: LANGUAGES,
     keywords: 'locale translation urdu hindi arabic spanish russian turkish chinese',
@@ -536,7 +536,7 @@ export const SCHEMA = {
     section: 'general',
     group: 'Language & region',
     label: 'Layout direction (RTL preview)',
-    help: 'Automatic follows the language (always left-to-right until Urdu / Arabic ship). "Right to left" previews the mirrored layout now: panels and menus mirror; charts, price ladders and numbers never do.',
+    help: 'Automatic follows the language (right-to-left for Urdu). "Right to left" previews the mirrored layout now: panels and menus mirror; charts, price ladders and numbers never do.',
     default: 'auto',
     options: [
       { value: 'auto', label: 'Automatic (by language)' },

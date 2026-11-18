@@ -58,7 +58,7 @@
   cursor: pointer;
 }
 .sdom-lot + .sdom-lot {
-  border-left: 1px solid var(--ht-border);
+  border-inline-start: 1px solid var(--ht-border);
 }
 .sdom-lot.on {
   background: var(--ht-text-primary);

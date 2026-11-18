@@ -10,7 +10,7 @@
 .ug-toc {
   overflow: auto;
   padding: 8px;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -29,7 +29,7 @@
 .ug-item {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   padding: 4px 8px;
   border: 0;
   border-radius: var(--ht-r-cell);
@@ -79,7 +79,7 @@
 .ug-article ul,
 .ug-article ol {
   margin: 0.6em 0;
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
 }
 .ug-article li {
   margin: 0.2em 0;
@@ -108,7 +108,7 @@
 }
 .ug-table th,
 .ug-table td {
-  text-align: left;
+  text-align: start;
   padding: 4px 8px;
   border-bottom: 1px solid var(--ht-divider);
 }
@@ -134,11 +134,11 @@
   margin-bottom: 4px;
 }
 .ug-sub {
-  padding-left: 20px;
+  padding-inline-start: 20px;
   font-size: 11px;
 }
 .ug-new {
-  margin-left: 6px;
+  margin-inline-start: 6px;
   padding: 0 5px;
   border-radius: 8px;
   font-size: 9px;
@@ -179,18 +179,18 @@
 .ug-callout {
   margin: 0.8em 0;
   padding: 6px 12px;
-  border-left: 3px solid var(--ht-text-tertiary);
+  border-inline-start: 3px solid var(--ht-text-tertiary);
   background: var(--ht-surface2);
   border-radius: var(--ht-r-cell);
 }
 .ug-callout-warning {
-  border-left-color: #e5a50a;
+  border-inline-start-color: #e5a50a;
 }
 .ug-callout-tip {
-  border-left-color: #2ea043;
+  border-inline-start-color: #2ea043;
 }
 .ug-callout-new {
-  border-left-color: #58a6ff;
+  border-inline-start-color: #58a6ff;
 }
 .ug-callout-title {
   font-size: 0.8em;

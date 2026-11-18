@@ -175,7 +175,7 @@
   top: 2px;
   width: 14px;
   height: 14px;
-  margin-left: -7px;
+  margin-inline-start: -7px;
   border-radius: 50%;
   background: var(--ht-text-primary);
   pointer-events: none;
@@ -190,7 +190,7 @@
   cursor: pointer;
 }
 .rp-mark span {
-  margin-left: 2px;
+  margin-inline-start: 2px;
 }
 .rp-row {
   display: flex;
@@ -234,7 +234,7 @@
   top: -3px;
   width: 7px;
   height: 7px;
-  margin-left: -3px;
+  margin-inline-start: -3px;
   transform: rotate(45deg);
   background: var(--ht-text-tertiary);
   cursor: pointer;

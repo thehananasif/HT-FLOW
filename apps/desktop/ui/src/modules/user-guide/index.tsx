@@ -5,7 +5,7 @@ import { commands, onCommandsChange, registerCommands, type Command } from '../.
 import { moduleDef } from '../../shell/modules';
 import { useWindows } from '../../state/windows';
 import { registerModule, type ModuleViewProps } from '../registry';
-import { ARTICLES, guideImage } from './content';
+import { currentArticles, guideImage } from './content';
 import { parseInline, type Block, type Inline, type ListItem } from './markdown';
 import { searchArticles, sections, type Article } from './search';
 import { consumeGuideRequest, helpTopicFor, openGuide, useGuideRequest } from './topics';
@@ -26,7 +26,7 @@ function resolveLink(
   if (!m) return null;
   const file = m[1]!.replace(/\.md$/, '').split('/').pop()!;
   if (!file) return { kind: 'guide', article: current.id, anchor: m[2] };
-  const target = ARTICLES.find((a) => a.file === file || a.id === file);
+  const target = currentArticles().find((a) => a.file === file || a.id === file);
   return target ? { kind: 'guide', article: target.id, anchor: m[2] } : null;
 }
 
@@ -252,10 +252,12 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
   const anchor = typeof state.params?.anchor === 'string' ? state.params.anchor : '';
   const fontSize = Number(state.params?.fontSize) || 13;
   const request = useGuideRequest();
-  const hits = useMemo(() => searchArticles(ARTICLES, query), [query]);
+  const hits = useMemo(() => searchArticles(currentArticles(), query), [query]);
   const article =
-    ARTICLES.find((a) => a.id === wanted) ?? (query ? hits[0]?.article : ARTICLES[0]) ?? null;
-  const groups = useMemo(() => sections(ARTICLES), []);
+    currentArticles().find((a) => a.id === wanted) ??
+    (query ? hits[0]?.article : currentArticles()[0]) ??
+    null;
+  const groups = useMemo(() => sections(currentArticles()), []);
   const scroller = useRef<HTMLElement>(null);
 
   const nav: Nav = (id, a) => setParams({ article: id, anchor: a ?? '', query: '' });
@@ -275,9 +277,9 @@ function UserGuide({ state, setParams }: ModuleViewProps) {
     else el.scrollTop = 0;
   }, [article?.id, anchor]);
 
-  const idx = article ? ARTICLES.indexOf(article) : -1;
-  const prev = idx > 0 ? ARTICLES[idx - 1] : undefined;
-  const next = idx >= 0 ? ARTICLES[idx + 1] : undefined;
+  const idx = article ? currentArticles().indexOf(article) : -1;
+  const prev = idx > 0 ? currentArticles()[idx - 1] : undefined;
+  const next = idx >= 0 ? currentArticles()[idx + 1] : undefined;
 
   return (
     <div className="ug-win" data-testid="user-guide">

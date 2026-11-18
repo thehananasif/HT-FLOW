@@ -120,7 +120,7 @@ test('settings: Chart + About pages, DOM setting applies, RTL flag, modules, pri
   expect(json.values['dom.rowHeight']).toBe(30);
   expect(json.values['privacy.telemetry']).toBe('off');
 
-  // RTL flag mirrors the document direction; Urdu is listed as coming.
+  // RTL flag mirrors the document direction; Urdu is selectable, Hindi is listed as coming.
   await win.getByRole('button', { name: 'General', exact: true }).click();
   const dir = win.getByLabel('Layout direction (RTL preview)', { exact: true });
   await dir.selectOption('rtl');
@@ -129,7 +129,7 @@ test('settings: Chart + About pages, DOM setting applies, RTL flag, modules, pri
   await dir.selectOption('auto');
   await win.getByRole('button', { name: 'Apply', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-  await expect(win.getByRole('option', { name: /Urdu.*coming/ })).toBeDisabled();
+  await expect(win.getByRole('option', { name: /Hindi.*coming/ })).toBeDisabled();
 
   // Custom modules: registered modules listed; Settings itself cannot be disabled.
   await win.getByRole('button', { name: 'Custom modules', exact: true }).click();

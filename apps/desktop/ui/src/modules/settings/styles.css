@@ -452,10 +452,13 @@
   word-break: break-word;
 }
 
-/* ---- right-to-left layout (Settings → General → Layout direction; Urdu / Arabic later).
+/* ---- right-to-left layout (Urdu, or Settings → General → Layout direction).
  * The chrome mirrors; charts, DOM ladders, tapes, tables of numbers and every number stay LTR. */
 :root[dir='rtl'] canvas,
 :root[dir='rtl'] .tnum,
+:root[dir='rtl'] .ht-num-input,
+:root[dir='rtl'] input[type='number'],
+:root[dir='rtl'] .chart-hosts,
 :root[dir='rtl'] .dom-canvas-wrap,
 :root[dir='rtl'] .chart-host,
 :root[dir='rtl'] [data-testid='dom-ladder'],

@@ -13,11 +13,11 @@
   gap: 6px;
   padding: 8px;
   overflow: auto;
-  border-right: 1px solid var(--ht-divider);
+  border-inline-end: 1px solid var(--ht-divider);
 }
 .hte-settings {
-  border-right: none;
-  border-left: 1px solid var(--ht-divider);
+  border-inline-end: none;
+  border-inline-start: 1px solid var(--ht-divider);
 }
 .hte-side-head,
 .hte-side-foot {

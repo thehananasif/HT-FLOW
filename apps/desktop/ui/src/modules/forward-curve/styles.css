@@ -67,7 +67,7 @@
   width: 330px;
   flex: none;
   overflow-y: auto;
-  border-left: 1px solid var(--ht-divider);
+  border-inline-start: 1px solid var(--ht-divider);
 }
 .fc.fc .fc-table th.r,
 .fc.fc .fc-table td.r {

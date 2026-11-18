@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ChartCore } from '@htflow/chart-engine';
-import { t } from '@htflow/i18n';
+import { plural, t } from '@htflow/i18n';
 import {
   deserialize,
   isTool,
@@ -262,7 +262,7 @@ export function runToolCommand(tool: ToolId, windowId = activeChartId()): void {
       return;
     }
     writeIndicators(windowId, []);
-    toast('success', t('drawings.removedIndicators', { n, s: n === 1 ? '' : 's' }));
+    toast('success', t('drawings.removedIndicators', { n, s: plural(n) }));
   }
 }
 

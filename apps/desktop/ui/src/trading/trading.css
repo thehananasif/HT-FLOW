@@ -91,7 +91,7 @@
   padding: 0 4px;
   border-radius: 4px;
   background: var(--ht-surface2);
-  border-left: 2px solid currentColor;
+  border-inline-start: 2px solid currentColor;
 }
 .ot-order > span:first-child {
   color: var(--ht-text-primary);

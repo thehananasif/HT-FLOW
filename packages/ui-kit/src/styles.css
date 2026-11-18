@@ -12,6 +12,16 @@
   font-display: block;
 }
 
+/* Urdu (SIL OFL): used only for Arabic-script text, only when the UI language is Urdu (below). */
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('./fonts/NotoNastaliqUrdu-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F, U+2010-2011, U+204F, U+2E41;
+}
+
 :root {
   --ht-bg: #000;
   --ht-surface1: #0b0b0b;
@@ -430,14 +440,14 @@ button {
 .ht-num-input .ht-num-unit {
   display: flex;
   align-items: center;
-  padding-right: 6px;
+  padding-inline-end: 6px;
   color: var(--ht-text-tertiary);
   font-size: 12px;
 }
 .ht-num-input .ht-stepper {
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--ht-border);
+  border-inline-start: 1px solid var(--ht-border);
 }
 .ht-num-input .ht-stepper button {
   flex: 1;
@@ -500,7 +510,7 @@ button {
   content: '';
   width: 8px;
   height: 4px;
-  border-left: 2px solid var(--ht-accent-text);
+  border-inline-start: 2px solid var(--ht-accent-text);
   border-bottom: 2px solid var(--ht-accent-text);
   transform: rotate(-45deg) translate(1px, -1px);
 }
@@ -705,7 +715,7 @@ button {
   flex: none;
 }
 .ht-menu-item .ht-menu-sc {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--ht-text-tertiary);
   font-size: 11px;
   font-family: var(--ht-mono);
@@ -808,11 +818,25 @@ button {
   margin-bottom: 2px;
 }
 .ht-toast[data-kind='success'] {
-  border-left: 3px solid var(--ht-up);
+  border-inline-start: 3px solid var(--ht-up);
 }
 .ht-toast[data-kind='error'] {
-  border-left: 3px solid var(--ht-down);
+  border-inline-start: 3px solid var(--ht-down);
 }
 .ht-toast[data-kind='warning'] {
-  border-left: 3px solid var(--ht-warning);
+  border-inline-start: 3px solid var(--ht-warning);
+}
+
+/* Urdu UI: Nastaliq for Arabic-script text (Latin and digits stay Geist), taller lines so the
+ * script's tall ascenders / descenders are not clipped. Charts, ladders and number fields are
+ * dir="ltr" / canvas and keep their own fonts. */
+:root[lang='ur'] {
+  --ht-font: 'Noto Nastaliq Urdu', 'Geist', 'Segoe UI', system-ui, sans-serif;
+}
+:root[lang='ur'] body {
+  line-height: 1.7;
+}
+:root[lang='ur'] canvas,
+:root[lang='ur'] .tnum {
+  line-height: 1.35;
 }

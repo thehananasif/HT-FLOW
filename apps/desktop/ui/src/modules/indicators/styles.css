@@ -5,7 +5,7 @@
 .ht-dialog:has(.ind-dlg) .ht-dialog-desc {
   padding: 0 16px;
   display: inline-block;
-  margin-right: 8px;
+  margin-inline-end: 8px;
 }
 .ht-dialog:has(.ind-dlg) .ht-dialog-desc {
   font-size: 12px;
@@ -36,7 +36,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
   overflow: auto;
 }
 .ind-cats button {
@@ -51,7 +51,7 @@
   color: var(--ht-text-soft);
   font-size: 13px;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
 }
 .ind-cats button:hover {
   background: var(--ht-surface2);
@@ -67,7 +67,7 @@
 .ind-mid {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
   min-height: 0;
 }
 .ind-catalog {
@@ -321,7 +321,7 @@
 }
 .fe-preview th,
 .fe-preview td {
-  text-align: left;
+  text-align: start;
   padding: 2px 12px 2px 0;
   color: var(--ht-text-soft);
 }
