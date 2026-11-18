@@ -100,12 +100,20 @@ export function toWire(msgs: readonly ChatMsg[]): AiMessage[] {
     const parts: AiPart[] = [];
     if (m.role === 'tool') {
       for (const r of m.toolResults ?? [])
-        parts.push({ type: 'toolResult', id: r.id, name: r.name, content: r.content, isError: r.isError });
+        parts.push({
+          type: 'toolResult',
+          id: r.id,
+          name: r.name,
+          content: r.content,
+          isError: r.isError,
+        });
       if (parts.length) out.push({ role: 'user', parts });
       continue;
     }
     if (m.role === 'user') {
-      const text = m.context ? `${m.text}\n\n<screen_context>\n${m.context}\n</screen_context>` : m.text;
+      const text = m.context
+        ? `${m.text}\n\n<screen_context>\n${m.context}\n</screen_context>`
+        : m.text;
       if (text) parts.push({ type: 'text', text });
       if (m.image) parts.push({ type: 'image', mediaType: m.image.mediaType, data: m.image.data });
       else if (m.hadImage) parts.push({ type: 'text', text: '[earlier screenshot not resent]' });
@@ -150,7 +158,13 @@ export interface TurnDeps {
 export async function runTurn(conv: Conversation, d: TurnDeps): Promise<void> {
   for (let step = 0; step < d.maxSteps; step++) {
     if (d.signal.stopped) return;
-    const msg: ChatMsg = { id: uid('m'), role: 'assistant', text: '', pending: true, ts: Date.now() };
+    const msg: ChatMsg = {
+      id: uid('m'),
+      role: 'assistant',
+      text: '',
+      pending: true,
+      ts: Date.now(),
+    };
     const request = {
       provider: conv.provider,
       model: conv.model,
@@ -167,7 +181,12 @@ export async function runTurn(conv: Conversation, d: TurnDeps): Promise<void> {
     const onEvent = (e: AiEvent) => {
       if (e.kind === 'text') msg.text += e.text;
       else if (e.kind === 'toolCall')
-        calls.push({ id: e.id, name: e.name, arguments: e.arguments, ...(e.signature ? { signature: e.signature } : {}) });
+        calls.push({
+          id: e.id,
+          name: e.name,
+          arguments: e.arguments,
+          ...(e.signature ? { signature: e.signature } : {}),
+        });
       else if (e.kind === 'usage') msg.usage = { input: e.input, output: e.output };
       else if (e.kind === 'done') msg.stopReason = e.stopReason;
       else if (e.kind === 'error') msg.error = e.message;
@@ -184,13 +203,24 @@ export async function runTurn(conv: Conversation, d: TurnDeps): Promise<void> {
     d.onChange();
     if (msg.error || msg.stopReason === 'cancelled' || d.signal.stopped || !calls.length) return;
     const results: ToolResultRec[] = [];
-    const tool: ChatMsg = { id: uid('m'), role: 'tool', text: '', toolResults: results, ts: Date.now() };
+    const tool: ChatMsg = {
+      id: uid('m'),
+      role: 'tool',
+      text: '',
+      toolResults: results,
+      ts: Date.now(),
+    };
     conv.messages.push(tool);
     for (const c of calls) {
       let out: ToolOutcome;
       if (!d.tools.some((t) => t.name === c.name))
-        out = { ok: false, result: { error: `Tool ${c.name} is not available` }, summary: 'not available' };
-      else if (d.signal.stopped) out = { ok: false, result: { error: 'Stopped by the user' }, summary: 'stopped' };
+        out = {
+          ok: false,
+          result: { error: `Tool ${c.name} is not available` },
+          summary: 'not available',
+        };
+      else if (d.signal.stopped)
+        out = { ok: false, result: { error: 'Stopped by the user' }, summary: 'stopped' };
       else {
         try {
           out = await d.runTool(c.name, c.arguments);
@@ -198,7 +228,12 @@ export async function runTurn(conv: Conversation, d: TurnDeps): Promise<void> {
           out = { ok: false, result: { error: String(e) }, summary: String(e) };
         }
       }
-      results.push({ id: c.id, name: c.name, content: JSON.stringify(out.result), isError: !out.ok });
+      results.push({
+        id: c.id,
+        name: c.name,
+        content: JSON.stringify(out.result),
+        isError: !out.ok,
+      });
       tool.text += `${out.ok ? '✓' : '✗'} ${c.name}: ${out.summary}\n`;
       d.onChange();
     }

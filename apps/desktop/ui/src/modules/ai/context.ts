@@ -91,7 +91,7 @@ export function collectSnapshot(accountId: string, now = Date.now()): ScreenSnap
     (activeId && windows[activeId]?.kind !== 'module' ? windows[activeId] : undefined) ??
     Object.values(windows).find((w) => w.kind === 'chart') ??
     Object.values(windows).find((w) => w.kind !== 'module');
-  const instrumentId = active && active.kind !== 'module' ? active.instrumentId : null;
+  const instrumentId = active && 'instrumentId' in active ? active.instrumentId : null;
   const store = instrumentId ? hub.peek(instrumentId) : undefined;
   const tick = store?.instrument.tickSize ?? 1;
   const px = (v: number | undefined) =>
@@ -121,7 +121,10 @@ export function collectSnapshot(accountId: string, now = Date.now()): ScreenSnap
         instrument: p.instrumentId,
         qty: p.qty,
         avgPrice: round(p.avgPx * t),
-        unrealized: m !== undefined ? Number(paper.unrealized(accountId, p.instrumentId, m).toFixed(2)) : null,
+        unrealized:
+          m !== undefined
+            ? Number(paper.unrealized(accountId, p.instrumentId, m).toFixed(2))
+            : null,
       };
     }),
     workingOrders: paper.workingOrders(accountId).length,

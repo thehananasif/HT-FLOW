@@ -130,7 +130,12 @@ export function createMockNative(script: MockScript = {}, log: MockLog = { reque
       if (req.tools?.length && script.toolCalls?.length && !answeredTools) {
         let n = 0;
         for (const c of script.toolCalls)
-          onEvent({ kind: 'toolCall', id: `mock-call-${++n}`, name: c.name, arguments: c.arguments });
+          onEvent({
+            kind: 'toolCall',
+            id: `mock-call-${++n}`,
+            name: c.name,
+            arguments: c.arguments,
+          });
         onEvent({ kind: 'done', stopReason: 'tool_use' });
         running.delete(requestId);
         return;

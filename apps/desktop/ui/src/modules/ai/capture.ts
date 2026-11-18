@@ -24,7 +24,12 @@ function opaque(c: string): boolean {
 }
 
 /** Draws the DOM layer (boxes + text) and the canvases of `root` onto `ctx`. */
-export function paintDom(ctx: CanvasRenderingContext2D, root: Element, vw: number, vh: number): void {
+export function paintDom(
+  ctx: CanvasRenderingContext2D,
+  root: Element,
+  vw: number,
+  vh: number,
+): void {
   const all = root.querySelectorAll<HTMLElement>('body *');
   const skip = (el: Element) => !!el.closest('[data-ai-exclude]');
   for (const el of all) {

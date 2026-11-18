@@ -2550,6 +2550,38 @@ export const SCHEMA = {
     help: 'Delete the session and market-data caches whenever you log out. Settings, journal and layouts are kept.',
     default: false,
   }),
+  'privacy.aiScreenshot': oneOf({
+    section: 'privacy',
+    group: 'AI assistant',
+    label: 'Send screenshots to AI',
+    help: 'When you ask the AI about the screen: ask before each screenshot, send automatically, or never send one. Screenshots show only the HT Flow window and go only to the provider you chose.',
+    default: 'ask',
+    options: [
+      { value: 'ask', label: 'Always ask' },
+      { value: 'auto', label: 'Send automatically' },
+      { value: 'never', label: 'Never' },
+    ],
+    keywords: 'ai llm screenshot vision privacy',
+    wired: true,
+  }),
+  'privacy.aiContext': bool({
+    section: 'privacy',
+    group: 'AI assistant',
+    label: 'Send screen context to AI',
+    help: 'Attach a text summary of the active symbol, timeframe, prices, positions, P&L and recent order flow to your AI questions.',
+    default: true,
+    keywords: 'ai llm context privacy',
+    wired: true,
+  }),
+  'privacy.aiTools': bool({
+    section: 'privacy',
+    group: 'AI assistant',
+    label: 'Let chat read market data',
+    help: 'In chat mode the AI may call read-only tools (market data, order flow, positions, account). Trading tools are only offered in agent mode.',
+    default: true,
+    keywords: 'ai llm tools function calling',
+    wired: true,
+  }),
 
   // ---------------------------------------------------------------- Logs
   'logs.level': oneOf({

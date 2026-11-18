@@ -228,8 +228,13 @@ export function sanitizeConfigs(raw: unknown): ProviderConfig[] {
   return out;
 }
 
-export function newCustomId(existing: readonly ProviderConfig[]): string {
-  let n = 1;
-  while (existing.some((c) => c.id === `custom-${n}`)) n++;
-  return `custom-${n}`;
+/** A free config id: the provider kind itself, else `<kind>-<n>`. */
+export function newCustomId(
+  existing: readonly ProviderConfig[],
+  kind: ProviderKind = 'custom',
+): string {
+  if (kind !== 'custom' && !existing.some((c) => c.id === kind)) return kind;
+  let n = kind === 'custom' ? 1 : 2;
+  while (existing.some((c) => c.id === `${kind}-${n}`)) n++;
+  return `${kind}-${n}`;
 }

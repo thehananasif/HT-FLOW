@@ -174,7 +174,11 @@ const round = (v: number, d = 8) => Number(v.toFixed(d));
 const args = (a: unknown): Record<string, unknown> =>
   a && typeof a === 'object' && !Array.isArray(a) ? (a as Record<string, unknown>) : {};
 const num = (v: unknown): number | undefined =>
-  typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : undefined;
+  typeof v === 'number' && Number.isFinite(v)
+    ? v
+    : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))
+      ? Number(v)
+      : undefined;
 const fail = (summary: string): ToolOutcome => ({ ok: false, result: { error: summary }, summary });
 
 function windowTrades(m: MarketView, minutes: number, now: number): Trade[] {
@@ -199,7 +203,10 @@ export function flowStats(trades: readonly Trade[], tick: number, bigQty?: numbe
     }
     levels.set(t.px, l);
     const m = Math.floor(t.ts / 60_000) * 60_000;
-    perMin.set(m, (perMin.get(m) ?? 0) + (t.side === 'buy' ? t.qty : t.side === 'sell' ? -t.qty : 0));
+    perMin.set(
+      m,
+      (perMin.get(m) ?? 0) + (t.side === 'buy' ? t.qty : t.side === 'sell' ? -t.qty : 0),
+    );
   }
   const sorted = [...levels.entries()].sort((a, b) => b[1].bid + b[1].ask - (a[1].bid + a[1].ask));
   const sizes = trades.map((t) => t.qty).sort((a, b) => a - b);
@@ -219,11 +226,19 @@ export function flowStats(trades: readonly Trade[], tick: number, bigQty?: numbe
     })),
     cumulativeDeltaPerMinute: [...perMin.entries()]
       .sort((a, b) => a[0] - b[0])
-      .map(([ts, d]) => ({ minute: new Date(ts).toISOString().slice(11, 16), cumDelta: round((cum += d)) })),
+      .map(([ts, d]) => ({
+        minute: new Date(ts).toISOString().slice(11, 16),
+        cumDelta: round((cum += d)),
+      })),
     largePrints: trades
       .filter((t) => threshold > 0 && t.qty >= threshold)
       .slice(-10)
-      .map((t) => ({ price: round(t.px * tick), qty: t.qty, side: t.side, time: new Date(t.ts).toISOString() })),
+      .map((t) => ({
+        price: round(t.px * tick),
+        qty: t.qty,
+        side: t.side,
+        time: new Date(t.ts).toISOString(),
+      })),
   };
 }
 
@@ -249,7 +264,8 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
         hi = Math.max(hi, t.px);
         lo = Math.min(lo, t.px);
       }
-      const p = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? null : round(v * m.tickSize));
+      const p = (v: number | undefined) =>
+        v === undefined || !Number.isFinite(v) ? null : round(v * m.tickSize);
       const result = {
         instrument: id,
         symbol: m.symbol,
@@ -257,7 +273,9 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
         bid: p(m.bestBid),
         ask: p(m.bestAsk),
         spread:
-          m.bestBid !== undefined && m.bestAsk !== undefined && Number.isFinite(m.bestAsk - m.bestBid)
+          m.bestBid !== undefined &&
+          m.bestAsk !== undefined &&
+          Number.isFinite(m.bestAsk - m.bestBid)
             ? round((m.bestAsk - m.bestBid) * m.tickSize)
             : null,
         tickSize: m.tickSize,
@@ -274,7 +292,11 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
       const m = id ? d.market(id) : undefined;
       if (!id || !m) return fail('Unknown instrument');
       const s = flowStats(windowTrades(m, num(a.minutes) ?? 15, now), m.tickSize);
-      return { ok: true, result: { instrument: id, ...s }, summary: `${m.symbol} delta ${s.delta}` };
+      return {
+        ok: true,
+        result: { instrument: id, ...s },
+        summary: `${m.symbol} delta ${s.delta}`,
+      };
     }
     case 'get_positions': {
       const pos = d.paper.allPositions(accountId).map((p) => {
@@ -285,11 +307,17 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
           qty: p.qty,
           avgPrice: round(p.avgPx * tick),
           unrealized:
-            m?.lastPx !== undefined ? round(d.paper.unrealized(accountId, p.instrumentId, m.lastPx), 2) : null,
+            m?.lastPx !== undefined
+              ? round(d.paper.unrealized(accountId, p.instrumentId, m.lastPx), 2)
+              : null,
           realized: round(p.realized, 2),
         };
       });
-      return { ok: true, result: { account: accountId, positions: pos }, summary: `${pos.length} positions` };
+      return {
+        ok: true,
+        result: { account: accountId, positions: pos },
+        summary: `${pos.length} positions`,
+      };
     }
     case 'get_account': {
       if (!account) return fail('Unknown account');
@@ -359,13 +387,21 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
         tag: AGENT_TAG,
         bracket:
           sl || tp
-            ? { ...(sl ? { slTicks: Math.round(sl) } : {}), ...(tp ? { tpTicks: [Math.round(tp)] } : {}) }
+            ? {
+                ...(sl ? { slTicks: Math.round(sl) } : {}),
+                ...(tp ? { tpTicks: [Math.round(tp)] } : {}),
+              }
             : undefined,
       });
       if (order.status === 'rejected') return fail(`Rejected: ${order.reason ?? 'risk check'}`);
       return {
         ok: true,
-        result: { orderId: order.id, status: order.status, filled: order.filled, avgFillPrice: order.filled ? round(order.avgFillPx * m.tickSize) : null },
+        result: {
+          orderId: order.id,
+          status: order.status,
+          filled: order.filled,
+          avgFillPrice: order.filled ? round(order.avgFillPx * m.tickSize) : null,
+        },
         summary: `${desc} → ${order.status}`,
       };
     }
@@ -377,7 +413,9 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
       const qty = num(a.qty);
       if (d.guard.isKilled) return fail('Rejected: AI kill switch is on');
       if (qty !== undefined && qty > d.guard.limits.maxQty)
-        return fail(`Rejected: AI limit: quantity ${qty} is above the maximum ${d.guard.limits.maxQty}`);
+        return fail(
+          `Rejected: AI limit: quantity ${qty} is above the maximum ${d.guard.limits.maxQty}`,
+        );
       const changes: { px?: number; stopPx?: number; qty?: number } = {};
       const px = num(a.price);
       const stop = num(a.stopPrice);
@@ -385,7 +423,10 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
       if (stop !== undefined) changes.stopPx = Math.round(stop / tick);
       if (qty !== undefined) changes.qty = qty;
       if (!Object.keys(changes).length) return fail('Nothing to change');
-      if (d.guard.limits.confirmEachTrade && !(await d.confirm(`Modify ${o.id}: ${JSON.stringify(a)}`)))
+      if (
+        d.guard.limits.confirmEachTrade &&
+        !(await d.confirm(`Modify ${o.id}: ${JSON.stringify(a)}`))
+      )
         return fail('Rejected: the user declined the change');
       const ok = d.paper.modify(o.id, changes);
       return ok
@@ -396,20 +437,31 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
       const o = typeof a.orderId === 'string' ? d.paper.orders.get(a.orderId) : undefined;
       if (!o || o.accountId !== accountId) return fail('No such order');
       const ok = d.paper.cancel(o.id);
-      return ok ? { ok: true, result: { orderId: o.id, cancelled: true }, summary: `Cancelled ${o.id}` } : fail('Not cancellable');
+      return ok
+        ? { ok: true, result: { orderId: o.id, cancelled: true }, summary: `Cancelled ${o.id}` }
+        : fail('Not cancellable');
     }
     case 'close_position': {
       const id = instrument();
       if (!id) return fail('Unknown instrument');
       const pos = d.paper.position(accountId, id);
-      if (!pos.qty) return { ok: true, result: { closed: false, reason: 'flat' }, summary: `${id} already flat` };
+      if (!pos.qty)
+        return {
+          ok: true,
+          result: { closed: false, reason: 'flat' },
+          summary: `${id} already flat`,
+        };
       if (d.guard.isKilled) return fail('Rejected: AI kill switch is on');
       if (account && account.kind !== 'paper' && !d.guard.isLiveArmed)
         return fail('Rejected: live trading is not armed');
       if (d.guard.limits.confirmEachTrade && !(await d.confirm(`Close ${pos.qty} ${id} at market`)))
         return fail('Rejected: the user declined');
       d.paper.flatten(accountId, id);
-      return { ok: true, result: { closed: true, qty: pos.qty }, summary: `Closed ${pos.qty} ${id}` };
+      return {
+        ok: true,
+        result: { closed: true, qty: pos.qty },
+        summary: `Closed ${pos.qty} ${id}`,
+      };
     }
     case 'set_alert': {
       const id = instrument();
@@ -418,7 +470,9 @@ export async function runTool(name: string, rawArgs: unknown, d: ToolDeps): Prom
       if (!id || !m || px === undefined) return fail('symbol and price are required');
       const dir = a.direction === 'up' || a.direction === 'down' ? a.direction : 'any';
       const err = d.addAlert(id, Math.round(px / m.tickSize), dir);
-      return err ? fail(err) : { ok: true, result: { created: true }, summary: `Alert ${m.symbol} ${dir} ${px}` };
+      return err
+        ? fail(err)
+        : { ok: true, result: { created: true }, summary: `Alert ${m.symbol} ${dir} ${px}` };
     }
     default:
       return fail(`Unknown tool ${name}`);
