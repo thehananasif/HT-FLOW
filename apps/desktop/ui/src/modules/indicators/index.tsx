@@ -28,6 +28,7 @@ import type { BarSpec, MarketStore } from '@htflow/market-data';
 import { t } from '@htflow/i18n';
 import { Chip, toast } from '@htflow/ui-kit';
 import { createCotFeed } from '../../state/cotFeed';
+import { createOptionsFeed } from '../../state/optionsFeed';
 import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { registerCommands, registerPaletteProvider } from '../../shell/commands';
@@ -71,6 +72,14 @@ const accountDeps: AccountFeedDeps = {
 
 /** Indicator scene per chart window (right-click hit testing on the legend). */
 const scenes = new Map<string, IndicatorScene>();
+
+/** Legend notices ("title: note") of every indicator on every chart; read by the e2e tests. */
+if (typeof window !== 'undefined')
+  (window as unknown as { __htflowIndicatorNotices?: () => string[] }).__htflowIndicatorNotices =
+    () =>
+      [...scenes.values()].flatMap((sc) =>
+        sc.items.map((it) => `${it.title}: ${it.rt.notice ?? ''}`),
+      );
 
 /** Context items for indicators under the cursor (P26: settings / hide / remove / move pane). */
 function indicatorItems(windowId: string, uids: string[]): MenuEntry[] {
@@ -243,6 +252,7 @@ registerChartExtension({
     const derivatives = new DerivativesLog();
     const detachFeeds = derivatives.attach(store);
     const cotFeed = createCotFeed(store.instrument.symbol, () => ctx.core.invalidate());
+    const optionsFeed = createOptionsFeed(store, () => ctx.core.invalidate());
     const data: BarData = {
       get bars() {
         return ctx.series()?.bars ?? [];
@@ -255,6 +265,9 @@ registerChartExtension({
       derivatives,
       get cot() {
         return cotFeed.data();
+      },
+      get options() {
+        return optionsFeed.data();
       },
       depth: {
         get version() {
@@ -307,6 +320,7 @@ registerChartExtension({
         );
       }
       if (def.category === 'cot') cotFeed.ensure();
+      if (def.needsOptions) optionsFeed.ensure();
       const pool = poolable(def) ? indicatorPool() : null;
       if (pool) return pool.create(eff, spec, () => core.invalidate());
       return new IndicatorRuntime(eff, inputs);
@@ -392,6 +406,7 @@ registerChartExtension({
       }
       detachFeeds();
       cotFeed.detach();
+      optionsFeed.detach();
       if (contexts.get(ctx.windowId) === ctx) contexts.delete(ctx.windowId);
       if (scenes.get(ctx.windowId) === scene) scenes.delete(ctx.windowId);
       core.pointerHandlers = core.pointerHandlers.filter((p) => p !== ph);

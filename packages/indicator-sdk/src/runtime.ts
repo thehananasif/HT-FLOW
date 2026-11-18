@@ -120,6 +120,7 @@ export class IndicatorRuntime {
       aux: (id) => this.aux(id),
       account: null,
       cot: undefined,
+      options: undefined,
       notice: (text) => {
         this.pendingNotice = text;
       },
@@ -130,7 +131,8 @@ export class IndicatorRuntime {
     return (
       ((data.derivatives?.version ?? 0) * 1e6 + (data.depth?.version ?? 0)) * 1e3 +
       ((data.account?.()?.version ?? 0) % 1e3) +
-      (data.cot?.version ?? 0) * 7919
+      (data.cot?.version ?? 0) * 7919 +
+      (data.options?.version ?? 0) * 104729
     );
   }
 
@@ -217,6 +219,7 @@ export class IndicatorRuntime {
     ctx.depth = data.depth;
     ctx.account = data.account?.() ?? null;
     ctx.cot = data.cot;
+    ctx.options = data.options;
     const outs = Object.values(this.outputs);
     for (const o of outs) if (o instanceof ListOut) o.truncate(from);
     for (let i = from; i < to; i++) {
@@ -340,6 +343,7 @@ export function computeIndicator(
     aux?: BarData['aux'];
     account?: BarData['account'];
     cot?: BarData['cot'];
+    options?: BarData['options'];
   } = {},
 ): IndicatorRuntime {
   const rt = new IndicatorRuntime(def, raw);
@@ -353,6 +357,7 @@ export function computeIndicator(
     aux: opts.aux,
     account: opts.account,
     cot: opts.cot,
+    options: opts.options,
   });
   return rt;
 }
