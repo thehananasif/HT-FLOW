@@ -34,6 +34,8 @@ export interface ReaderState {
   refreshMin: number;
   /** Items kept per feed in the offline cache. */
   maxPerFeed: number;
+  /** Version of the built-in default feed set already merged into this profile. */
+  defaultsVersion?: number;
 }
 
 export const REFRESH_CHOICES = [0, 5, 15, 30, 60, 240] as const;
@@ -122,6 +124,8 @@ export function normalizeReaderState(raw: unknown): ReaderState {
   s.keywords = normalizeKeywords(
     Array.isArray(raw.keywords) ? raw.keywords.filter((k) => typeof k === 'string') : [],
   );
+  const dv = num(raw.defaultsVersion);
+  if (dv !== undefined) s.defaultsVersion = dv;
   const r = num(raw.refreshMin);
   s.refreshMin = r !== undefined && r >= 0 && r <= 1440 ? Math.round(r) : DEFAULT_REFRESH_MIN;
   const m = num(raw.maxPerFeed);

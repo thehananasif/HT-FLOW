@@ -3,6 +3,7 @@ import {
   dueAlerts,
   isHttpUrl,
   mergeEvents,
+  nativeEventsToCalendar,
   parseIcs,
   sampleCalendarIcs,
   timeLabel,
@@ -10,6 +11,7 @@ import {
   type ImpactFilter,
 } from '@htflow/info';
 import { fetchText, PersistedStore, userTimezone } from '../rss/shared';
+import { nativeAvailable, nativeCalendarFetch } from '../rss/native';
 
 export interface IcsSource {
   id: string;
@@ -18,6 +20,15 @@ export interface IcsSource {
   name?: string;
   lastFetched?: number;
   lastError?: string;
+}
+
+/** The built-in public weekly economic calendar (fetched natively, cached). */
+export interface PublicCalendar {
+  events: CalendarEvent[];
+  fetchedAt?: number;
+  error?: string;
+  /** The last refresh failed and `events` are the cached ones. */
+  stale?: boolean;
 }
 
 /** An event plus where it came from (sample events are never presented as real). */
@@ -31,6 +42,10 @@ export interface CalendarSettings {
   sources: IcsSource[];
   /** Offline cache of fetched events per source id. */
   cache: Record<string, CalendarEvent[]>;
+  /** Fetch the public economic calendar (Settings → Data → Data sources). */
+  publicOn: boolean;
+  pub: PublicCalendar;
+  /** Last resort only: show labelled sample events while no real calendar data exists. */
   showSample: boolean;
   impact: ImpactFilter;
   showOnCharts: boolean;
@@ -49,6 +64,8 @@ export function defaultCalendar(): CalendarSettings {
     version: 1,
     sources: [],
     cache: {},
+    publicOn: true,
+    pub: { events: [] },
     showSample: true,
     impact: 'all',
     showOnCharts: true,
@@ -83,11 +100,20 @@ export function normalizeCalendar(raw: unknown): CalendarSettings {
             isObj(e) && typeof e.t === 'number' && typeof e.title === 'string',
         );
     }
+  const rp = isObj(raw.pub) ? raw.pub : {};
+  const pub: PublicCalendar = {
+    events: nativeEventsToCalendar(rp.events),
+    fetchedAt: typeof rp.fetchedAt === 'number' ? rp.fetchedAt : undefined,
+    error: typeof rp.error === 'string' ? rp.error : undefined,
+    stale: rp.stale === true || undefined,
+  };
   const m = Number(raw.alertMinutes);
   return {
     version: 1,
     sources: sources.map((s) => ({ ...s, enabled: s.enabled !== false })),
     cache,
+    publicOn: raw.publicOn !== false,
+    pub,
     showSample: raw.showSample !== false,
     impact: imp(raw.impact, d.impact),
     showOnCharts: raw.showOnCharts !== false,
@@ -121,13 +147,48 @@ function sampleEvents(now: number): CalEvent[] {
   return sampleCache.events;
 }
 
-/** All events: user ICS sources (cached) + the bundled SAMPLE set when enabled or nothing else exists. */
+/** True while only the bundled SAMPLE set could be shown (no real data at all). */
+export function usingSample(s: CalendarSettings = calendar.get()): boolean {
+  return s.showSample && !hasRealEvents(s);
+}
+
+function hasRealEvents(s: CalendarSettings): boolean {
+  return (
+    (s.publicOn && s.pub.events.length > 0) ||
+    s.sources.some((x) => x.enabled && (s.cache[x.id]?.length ?? 0) > 0)
+  );
+}
+
+/** All events: the public calendar + user ICS sources (cached); SAMPLE only as a last resort. */
 export function allEvents(s: CalendarSettings = calendar.get(), now = Date.now()): CalEvent[] {
-  const real = s.sources
-    .filter((x) => x.enabled)
-    .map((x) => (s.cache[x.id] ?? []).map((e) => ({ ...e, sourceId: x.id, sample: false })));
-  const hasReal = real.some((l) => l.length);
-  return mergeEvents([...real, ...(s.showSample || !hasReal ? [sampleEvents(now)] : [])]);
+  const lists: CalEvent[][] = [];
+  if (s.publicOn)
+    lists.push(s.pub.events.map((e) => ({ ...e, sourceId: 'public', sample: false })));
+  for (const x of s.sources.filter((y) => y.enabled))
+    lists.push((s.cache[x.id] ?? []).map((e) => ({ ...e, sourceId: x.id, sample: false })));
+  if (usingSample(s)) lists.push(sampleEvents(now));
+  return mergeEvents(lists);
+}
+
+let publicBusy = false;
+export async function refreshPublic(force = false): Promise<void> {
+  if (publicBusy || !calendar.get().publicOn || !nativeAvailable()) return;
+  publicBusy = true;
+  const set = (p: Partial<PublicCalendar>) =>
+    calendar.update((s) => ({ ...s, pub: { ...s.pub, ...p } }));
+  try {
+    const r = await nativeCalendarFetch(force);
+    set({
+      events: nativeEventsToCalendar(r.events),
+      fetchedAt: r.fetchedAt,
+      error: r.stale ? (r.error ?? 'offline') : undefined,
+      stale: r.stale || undefined,
+    });
+  } catch (e) {
+    set({ error: e instanceof Error ? e.message : String(e), stale: true });
+  } finally {
+    publicBusy = false;
+  }
 }
 
 export async function refreshSource(id: string): Promise<void> {
@@ -154,7 +215,8 @@ export async function refreshSource(id: string): Promise<void> {
   }
 }
 
-export async function refreshCalendars(): Promise<void> {
+export async function refreshCalendars(force = false): Promise<void> {
+  void refreshPublic(force);
   await Promise.all(
     calendar
       .get()
@@ -172,6 +234,11 @@ export function addSource(url: string): string | null {
   void refreshSource(id);
   return null;
 }
+
+// Refresh the public calendar every 30 minutes (the native side also rate-limits).
+setInterval(() => {
+  if (calendar.loaded) void refreshPublic();
+}, 30 * 60_000);
 
 // "Alert N min before" — runs once the profile's calendar settings are loaded.
 const fired = new Set<string>();

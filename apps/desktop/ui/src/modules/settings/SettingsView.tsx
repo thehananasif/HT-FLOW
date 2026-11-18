@@ -64,6 +64,7 @@ import {
   TableLayoutsEditor,
   ModuleTogglesEditor,
   ProvidersEditor,
+  DataSourcesEditor,
 } from './panels';
 import {
   ClocksEditor,
@@ -449,6 +450,8 @@ export function SettingsView({
                 return <CommissionRulesEditor key={k} {...props} />;
               case 'clocks':
                 return <ClocksEditor key={k} {...props} />;
+              case 'dataSources':
+                return <DataSourcesEditor key={k} />;
               case 'providers':
                 return <ProvidersEditor key={k} {...props} />;
               case 'moduleToggles':

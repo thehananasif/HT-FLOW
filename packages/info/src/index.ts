@@ -9,3 +9,4 @@ export * from './ics';
 export * from './calendar';
 export * from './reader';
 export * from './news';
+export * from './native';
