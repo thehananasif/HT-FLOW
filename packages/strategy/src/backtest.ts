@@ -193,8 +193,17 @@ export class Backtest {
     return n ? Math.min(1, this.i / n) : 1;
   }
 
-  /** Processes trades for up to `budgetMs` of CPU; returns true when finished. */
-  step(budgetMs = Infinity): boolean {
+  /** Backtest clock: time of the last processed trade (epoch ms). */
+  get now(): number {
+    return this.clock;
+  }
+
+  /**
+   * Processes trades for up to `budgetMs` of CPU; returns true when finished. `pause` is checked
+   * after every trade: when it returns true the step returns early (asynchronous strategies,
+   * e.g. HT Editor scripts in a worker, answer before the next trade is replayed).
+   */
+  step(budgetMs = Infinity, pause?: () => boolean): boolean {
     if (this.done) return true;
     const t0 = performance.now();
     const trades = this.data.trades;
@@ -208,6 +217,7 @@ export class Backtest {
       this.runner.onTrade(t);
       // Walk-forward windows: nothing can happen after the window has closed and been flattened.
       if (t.ts >= stopAt && this.flat()) break;
+      if (pause?.()) return false;
       if ((++k & 1023) === 0) {
         this.prune();
         if (performance.now() - t0 > budgetMs) return false;

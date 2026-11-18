@@ -1,0 +1,153 @@
+/* HT Editor */
+.hte {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) 250px;
+  overflow: hidden;
+}
+.hte-side,
+.hte-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  overflow: auto;
+  border-right: 1px solid var(--ht-divider);
+}
+.hte-settings {
+  border-right: none;
+  border-left: 1px solid var(--ht-divider);
+}
+.hte-side-head,
+.hte-side-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.hte-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.hte-list li {
+  display: flex;
+  align-items: stretch;
+}
+.hte-list .stg-item {
+  flex: 1;
+  min-width: 0;
+}
+.hte-x {
+  background: none;
+  border: none;
+  color: var(--ht-text-tertiary);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.hte-x:hover {
+  color: var(--ht-down);
+}
+.hte-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.hte-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ht-divider);
+  flex-wrap: wrap;
+}
+.hte-toolbar .grow {
+  flex: 1;
+}
+.hte-name {
+  width: 180px;
+}
+.hte-kill {
+  background: var(--ht-down);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+.hte-files {
+  display: flex;
+  gap: 1px;
+  border-bottom: 1px solid var(--ht-divider);
+  overflow-x: auto;
+}
+.hte-file {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--ht-text-secondary);
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.hte-file[aria-selected='true'] {
+  color: var(--ht-text-primary);
+  border-bottom-color: var(--ht-text-primary);
+}
+.hte-editor {
+  flex: 1 1 55%;
+  min-height: 160px;
+  overflow: hidden;
+}
+.hte-code {
+  height: 100%;
+}
+.hte-results {
+  flex: 1 1 45%;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--ht-divider);
+}
+.hte-result-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 8px;
+}
+.hte-problems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+}
+.hte-problems li.error {
+  color: var(--ht-down);
+}
+.hte-problems li.warning {
+  color: var(--ht-warning, #e0b040);
+}
+.hte-problems button {
+  background: none;
+  border: none;
+  color: var(--ht-text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  padding: 0;
+}
+.hte-runs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

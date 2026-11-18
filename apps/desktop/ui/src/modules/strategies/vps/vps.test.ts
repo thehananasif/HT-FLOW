@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { asAnyStrategy, defineStrategy, registerStrategy } from '@htflow/strategy';
 import { bundleHeader, buildRunnerBundle, jsLiteral, sha256Hex } from './bundle';
 import { HeadlessRunner, type RunnerConfig, type RunnerState } from './core';
+import { compileProject } from '../editor/compile';
 import { endpointFor, feedForInstrument, parseFrame } from './feeds';
 import { createMockNative, MOCK_FINGERPRINT } from './native';
 import {
@@ -123,6 +124,36 @@ describe('headless runner core', () => {
     const st = JSON.parse(out.state) as RunnerState;
     expect(st.status).toBe('error');
     expect(st.error).toMatch(/Risk cap/);
+  });
+
+  it('runs an HT Editor script in-process behind the bridge', () => {
+    const c = compileProject([
+      {
+        name: 'strategy.ts',
+        source: `export const meta = { name: 'Flip', timeframe: '5t' };
+export function onBar(bar: Bar) {
+  if (position().side === 'flat') buy(1, { label: 'in' });
+  else close('out');
+}`,
+      },
+    ]);
+    const { out, io: sink } = io();
+    const r = new HeadlessRunner(
+      { ...cfg('script:x'), script: { project: c.project!, params: {} } },
+      sink,
+    );
+    for (let i = 0; i < 60; i++)
+      r.onTrade({
+        ts: 1000 + i * 1000,
+        px: 650_000 + (i % 7),
+        qty: 1,
+        side: i % 2 ? 'buy' : 'sell',
+        id: i,
+      });
+    expect(r.bridge).not.toBeNull();
+    expect(out.trips.length).toBeGreaterThan(2);
+    r.stop('test');
+    expect((JSON.parse(out.state) as RunnerState).position.qty).toBe(0);
   });
 
   it('rejects unknown strategies', () => {

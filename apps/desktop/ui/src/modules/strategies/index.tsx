@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import type { RawInputs } from '@htflow/indicator-sdk';
 import { resolveInputs } from '@htflow/indicator-sdk';
-import { formatPrice } from '@htflow/market-data';
 import {
   DEFAULT_BACKTEST,
   GRID_LIMITS,
@@ -19,7 +18,6 @@ import {
   type BacktestConfig,
   type BacktestData,
   type BacktestResult,
-  type BacktestTrade,
   type FillModel,
   type Objective,
   type OptimizeRow,
@@ -34,7 +32,6 @@ import {
   Table,
   Tabs,
   toast,
-  type TableColumn,
 } from '@htflow/ui-kit';
 import { registerCommands } from '../../shell/commands';
 import { instrumentById } from '../../state/instruments';
@@ -60,7 +57,6 @@ import {
   money,
   openModule,
   pct,
-  ratio,
   signedMoney,
   specOf,
   specValue,
@@ -72,9 +68,13 @@ import { VPS_EVENT, VpsPanel, type VpsAction } from './vps/panel';
 import { allTemplates } from '../../trading/atmStore';
 import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
+import { HtEditor, editorMounted, type EditorActions } from './editor/HtEditor';
+import { scriptRuns } from './editor/runs';
+import { SCRIPT_TEMPLATES } from '@htflow/strategy';
+import { Summary, TradesTable, fmtTime } from './results';
 import './styles.css';
 
-type MainTab = 'backtest' | 'live' | 'vps';
+type MainTab = 'backtest' | 'editor' | 'live' | 'vps';
 type ResultTab = 'summary' | 'equity' | 'trades' | 'optimise' | 'log';
 
 interface CostSetup {
@@ -221,8 +221,6 @@ function sanitizeStyle(raw: unknown): ResultStyle {
   };
 }
 
-const fmtTime = (ts: number) => new Date(ts).toISOString().slice(5, 19).replace('T', ' ');
-
 function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const p = state.params ?? {};
   const strategyId =
@@ -239,7 +237,8 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const cost = sanitizeCost(p.cost, def);
   const opt = sanitizeOpt(p.opt, def, inputs);
   const style = sanitizeStyle(p.style);
-  const tab: MainTab = p.tab === 'live' || p.tab === 'vps' ? p.tab : 'backtest';
+  const tab: MainTab =
+    p.tab === 'live' || p.tab === 'vps' || p.tab === 'editor' ? p.tab : 'backtest';
   const rtab: ResultTab = (['summary', 'equity', 'trades', 'optimise', 'log'] as const).includes(
     p.resultTab as ResultTab,
   )
@@ -412,6 +411,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
           onChange={(t) => setParams({ tab: t })}
           tabs={[
             { value: 'backtest', label: 'Backtest' },
+            { value: 'editor', label: 'HT Editor' },
             { value: 'live', label: `Running (${liveRuns.list().length})` },
             { value: 'vps', label: 'VPS runner' },
           ]}
@@ -419,6 +419,20 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       </div>
       {tab === 'live' && <LivePanel />}
       {tab === 'vps' && <VpsPanel />}
+      {tab === 'editor' && (
+        <HtEditor
+          windowId={windowId}
+          params={p}
+          setParams={setParams}
+          onDeployVps={() => {
+            setParams({ tab: 'vps' });
+            setTimeout(
+              () => window.dispatchEvent(new CustomEvent(VPS_EVENT, { detail: 'deploy' })),
+              60,
+            );
+          }}
+        />
+      )}
       {tab === 'backtest' && (
         <div className="stg-body">
           <aside className="stg-list" aria-label="Strategy list">
@@ -723,155 +737,6 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
           </section>
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  cls,
-  testId,
-}: {
-  label: string;
-  value: string;
-  cls?: string;
-  testId?: string;
-}) {
-  return (
-    <div className="stg-stat">
-      <span>{label}</span>
-      <b className={`tnum ${cls ?? ''}`} data-testid={testId}>
-        {value}
-      </b>
-    </div>
-  );
-}
-
-function Summary({ r }: { r: BacktestResult }) {
-  const s = r.stats;
-  const days = Math.max(1, (r.to - r.from) / 86_400_000);
-  return (
-    <div className="stg-summary" data-testid="strategy-summary">
-      <div className="stg-stats">
-        <Stat
-          label="Net P&L"
-          value={signedMoney(s.netPnl, 2)}
-          cls={tone(s.netPnl)}
-          testId="strategy-net"
-        />
-        <Stat label="Trades" value={String(s.trades)} testId="strategy-trades-count" />
-        <Stat label="Win rate" value={pct(s.winRate)} />
-        <Stat label="Profit factor" value={ratio(s.profitFactor)} />
-        <Stat label="Expectancy" value={signedMoney(s.expectancy, 2)} cls={tone(s.expectancy)} />
-        <Stat
-          label="Expectancy (R)"
-          value={Number.isNaN(s.expectancyR) ? '—' : `${s.expectancyR.toFixed(2)} R`}
-        />
-        <Stat
-          label="Max drawdown"
-          value={money(s.maxDrawdown, 2)}
-          cls={s.maxDrawdown > 0 ? 'down' : ''}
-        />
-        <Stat label="Monte-Carlo DD 95%" value={money(s.monteCarloDd95, 2)} />
-        <Stat label="Sharpe / trade" value={ratio(s.sharpe)} />
-        <Stat label="Sortino / trade" value={ratio(s.sortino)} />
-        <Stat label="Avg win / loss" value={`${money(s.avgWin)} / ${money(s.avgLoss)}`} />
-        <Stat label="Commission" value={money(s.commission, 2)} />
-        <Stat label="Long / short" value={`${s.longTrades} / ${s.shortTrades}`} />
-        <Stat label="Return" value={pct(s.returnPct, 2)} cls={tone(s.returnPct)} />
-        <Stat label="Avg bars held" value={s.avgBarsHeld.toFixed(1)} />
-        <Stat label="Trades / day" value={(s.trades / days).toFixed(1)} />
-      </div>
-      <p className="stg-muted tnum">
-        {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} UTC ·{' '}
-        {r.ticks.toLocaleString()} ticks · {r.barCount} bars · fills:{' '}
-        {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks} tick
-        slippage · {money(r.config.commissionPerUnit, 2)}/side. Sharpe and Sortino use per-trade net
-        P&L (not annualised).
-      </p>
-    </div>
-  );
-}
-
-function TradesTable({ r }: { r: BacktestResult }) {
-  const inst = r.config.instrument;
-  const px = (v: number) => formatPrice(v, inst);
-  const columns: TableColumn<BacktestTrade>[] = [
-    { key: 'n', header: '#', width: 40, numeric: true, sortable: true, render: (t) => t.n },
-    {
-      key: 'side',
-      header: 'Side',
-      width: 56,
-      sortable: true,
-      render: (t) => (
-        <span className={t.side === 'long' ? 'up' : 'down'}>
-          {t.side === 'long' ? 'Long' : 'Short'}
-        </span>
-      ),
-    },
-    { key: 'qty', header: 'Qty', width: 44, numeric: true, sortable: true },
-    {
-      key: 'entryTs',
-      header: 'Entry',
-      width: 118,
-      sortable: true,
-      render: (t) => fmtTime(t.entryTs),
-    },
-    {
-      key: 'entryPx',
-      header: 'Price',
-      width: 80,
-      numeric: true,
-      sortable: true,
-      render: (t) => px(t.entryPx),
-    },
-    { key: 'exitTs', header: 'Exit', width: 118, sortable: true, render: (t) => fmtTime(t.exitTs) },
-    {
-      key: 'exitPx',
-      header: 'Price',
-      width: 80,
-      numeric: true,
-      sortable: true,
-      render: (t) => px(t.exitPx),
-    },
-    {
-      key: 'net',
-      header: 'Net',
-      width: 84,
-      numeric: true,
-      sortable: true,
-      render: (t) => <span className={tone(t.net)}>{signedMoney(t.net, 2)}</span>,
-    },
-    {
-      key: 'r',
-      header: 'R',
-      width: 50,
-      numeric: true,
-      sortable: true,
-      sortValue: (t) => t.r ?? -Infinity,
-      render: (t) => (t.r === null ? '—' : t.r.toFixed(2)),
-    },
-    { key: 'maeTicks', header: 'MAE', width: 48, numeric: true, sortable: true },
-    { key: 'mfeTicks', header: 'MFE', width: 48, numeric: true, sortable: true },
-    { key: 'entryLabel', header: 'Signal', sortable: true },
-    {
-      key: 'exitReason',
-      header: 'Exit',
-      width: 70,
-      sortable: true,
-      render: (t) => t.exitLabel || t.exitReason,
-    },
-  ];
-  return (
-    <div className="stg-table" data-testid="strategy-trades">
-      <Table
-        aria-label="Backtest trades"
-        columns={columns}
-        rows={r.trades}
-        rowId={(t) => String(t.n)}
-        empty="No trades"
-      />
     </div>
   );
 }
@@ -1218,7 +1083,7 @@ function attachToActiveChart(strategyId?: string): void {
 }
 
 function stopAll(): void {
-  const n = liveRuns.list().length;
+  const n = liveRuns.list().length + scriptRuns.killAll();
   for (const r of liveRuns.list()) writeStrategyExt(r.key, { live: false });
   liveRuns.stopAll(true);
   toast('info', `${n} strategies stopped and flattened`);
@@ -1234,7 +1099,23 @@ const withWindow = (fn: (a: WindowActions) => void) => () => {
   }, 50);
 };
 
+const withEditor = (fn: (a: EditorActions) => void) =>
+  withWindow((w) => {
+    w.setTab('editor');
+    setTimeout(() => {
+      const e = editorMounted[editorMounted.length - 1]?.actions;
+      if (e) fn(e);
+    }, 80);
+  });
+
 registerCommands([
+  {
+    id: 'strategies.editor',
+    label: 'Open HT Editor (write your own strategy)',
+    group: 'Trading',
+    keywords: 'code editor script strategy javascript typescript automate',
+    run: withWindow((a) => a.setTab('editor')),
+  },
   {
     id: 'strategies.open',
     label: 'Open Strategies',
@@ -1324,6 +1205,50 @@ registerCommands([
       writeStrategyExt(id, { live: !ext.live });
     },
   },
+  ...(
+    [
+      [
+        'editor-new',
+        'HT Editor: New strategy',
+        'code script new strategy write',
+        (a) => a.newStrategy(),
+      ],
+      [
+        'editor-open',
+        'HT Editor: Open / import .htstrat…',
+        'open import htstrat file strategy code',
+        (a) => a.importFile(),
+      ],
+      ['editor-save', 'HT Editor: Save strategy', 'save script code', (a) => a.save()],
+      [
+        'editor-export',
+        'HT Editor: Export .htstrat',
+        'export htstrat file script',
+        (a) => a.exportFile(),
+      ],
+      [
+        'editor-backtest',
+        'HT Editor: Backtest strategy',
+        'backtest script code run history',
+        (a) => a.backtest(),
+      ],
+      ['editor-run', 'HT Editor: Run on paper', 'run paper live script start', (a) => a.paper()],
+      ['editor-stop', 'HT Editor: Stop strategy runs', 'stop script run', (a) => a.stop()],
+    ] as [string, string, string, (a: EditorActions) => void][]
+  ).map(([id, label, keywords, fn]) => ({
+    id: `strategies.${id}`,
+    label,
+    group: 'Trading' as const,
+    keywords,
+    run: withEditor(fn),
+  })),
+  ...SCRIPT_TEMPLATES.map((t) => ({
+    id: `strategies.editor-template-${t.id}`,
+    label: `HT Editor: New from template ${t.name}`,
+    group: 'Trading' as const,
+    keywords: `template script ${t.description}`,
+    run: withEditor((a) => a.newStrategy(t.id)),
+  })),
   {
     id: 'strategies.stop-all',
     label: 'Strategies: Stop all and flatten',

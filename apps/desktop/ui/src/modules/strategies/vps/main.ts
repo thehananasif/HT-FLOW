@@ -14,6 +14,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { lockdownRealm } from '@htflow/strategy';
 import { HeadlessRunner, type RunnerConfig } from './core';
 import { endpointFor, parseFrame } from './feeds';
 
@@ -60,6 +61,9 @@ function main(): void {
     /* none */
   }
   writeFileSync('pid', String(process.pid));
+  // HT Editor scripts: user code may not reach the network or other code loaders; the runner
+  // keeps its own WebSocket feed and timers (captured by the code below at call time).
+  if (cfg.script) lockdownRealm(['WebSocket', 'setTimeout', 'setInterval']);
   const r = new HeadlessRunner(
     cfg,
     {

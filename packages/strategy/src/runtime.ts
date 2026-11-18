@@ -137,6 +137,11 @@ export class StrategyRunner {
     host.engine.postFillHooks.push(this.hook);
   }
 
+  /** The context hooks receive (hosts that act outside a hook, e.g. HT Editor scripts). */
+  get context(): StrategyContext<InputDefs, unknown> {
+    return this.ctx;
+  }
+
   /** Removes the fill hook from the engine (live runners). */
   dispose(): void {
     if (this.disposed) return;

@@ -194,6 +194,53 @@ every Tauri command.
 
 New native commands (`apps/desktop/src-tauri/src/feed_cmds.rs`): `feed_fetch` accepts https URLs only, no credentials, no IP literals / localhost / `.local`, a host on the allow-list (built-in defaults: cointelegraph.com, decrypt.co, cryptoslate.com, www.theblock.co, www.coindesk.com, blog.kraken.com, www.federalreserve.gov, www.ecb.europa.eu, www.bankofengland.co.uk, www.sec.gov, www.cftc.gov, www.eia.gov, plus hosts the user added via `feed_allow_add`, persisted in `feed-hosts.json`); redirects only to allow-listed https hosts; 3 MB / 15 s caps; no cookies. Feed text is reduced to plain text in Rust and links must be http(s), so no raw HTML reaches the UI. `calendar_fetch` contacts only `nfs.faireconomy.media` (public weekly JSON, no key) at most every 15 minutes. `net_fetch_text` is unchanged and still used for ICS / browser preview.
 
+## HT Editor sandbox
+
+User-written strategies (HT Editor, docs/STRATEGY-API.md) are untrusted code. Design:
+
+- **Isolation.** The code runs only in a dedicated module Web Worker
+  (`modules/strategies/editor/sandbox.worker.ts`), one per backtest / run: no DOM, no access to
+  the app's state, stores, vault or Tauri IPC. The worker holds the user's modules and a thin API
+  shim (`SandboxCore`); it never touches an order engine.
+- **No network / code loading.** Before any user code is evaluated, `lockdownRealm()` overwrites
+  `fetch`, `XMLHttpRequest`, `WebSocket`, `WebSocketStream`, `EventSource`, `WebTransport`,
+  `RTCPeerConnection`, `importScripts`, `indexedDB`, `caches`, `BroadcastChannel`, `Worker`,
+  `SharedWorker`, `eval`, `setTimeout`, `setInterval` and `Function` on the global object (and
+  deletes them from its prototypes where configurable), and replaces the `constructor` of the
+  plain / async / generator / async-generator function prototypes, so
+  `(() => {}).constructor('return this')()` cannot reach the global object. In addition every
+  module is compiled as a function whose parameters shadow those names plus `self`, `globalThis`,
+  `window`, `process`, `require`, `postMessage`, storage, etc. Code is strict mode, so `this` is
+  `undefined` in functions. The compiler (Sucrase) turns `import` / `import()` into a sandbox
+  `require` that resolves only the strategy's own files and `'ht'`; a post-compile check refuses
+  any surviving `import(` / `import.meta`.
+- **CPU budget.** Each callback is timed inside the sandbox (over budget → error, run stopped) and
+  watched from the main thread: no answer within budget + 1.5 s → `worker.terminate()` (the only
+  way to stop a runaway synchronous loop), the run is flattened and marked as errored.
+- **Memory guard.** Bounded buffers: 20,000 bars per series (footprints only on the last 500), at
+  most 20 intents / 50 log lines / 32 plot points per callback, 500-character log lines; the
+  host caps stored logs (2,000) and plots (200,000) and drops over-long replies. Browsers expose
+  no per-worker heap limit, so a strategy that grows its own arrays without bound can still use
+  memory until the worker is stopped (residual risk; one worker per run limits the blast radius).
+- **Message-based API, validated on the host.** The worker only returns data (`CallResult`).
+  Every intent is re-validated on the main thread (`validateIntent`: shape, side, type, finite
+  positive quantity ≤ max order size, the strategy's max position, prices within 20 % of the last
+  price, bracket distances, labels sanitized, order-id format) and then placed through the order
+  engine, whose pre-trade checks include the **RiskEngine** (daily loss, max position, orders per
+  minute, trading hours, locks) and the slippage guard. A spoofed `postMessage` from user code can
+  only produce intents that pass the same validation.
+- **Live trading** requires a connector that supports live orders (none yet), an arming dialog
+  (type the symbol + acknowledgement), the editor's limits and the account's risk rules; the KILL
+  button stops every strategy and flattens.
+- **VPS runner.** On the user's own VPS the script runs in-process in the runner (same
+  `SandboxCore`, bridge and validation; `lockdownRealm` keeps only the runner's WebSocket and
+  timers). Node's process cannot interrupt a synchronous infinite loop there: the runner's
+  heartbeat goes stale and the app shows "No heartbeat" (restart / stop from the VPS tab).
+- **Residual / to verify.** The worker evaluates code with `new Function`. The desktop CSP has
+  no `'unsafe-eval'`; Tauri attaches the CSP header to HTML documents only, so the worker script
+  (its own response) is expected to allow it — verify on Windows (WebView2) before release
+  (BLOCKERS). Side channels such as timing (`performance.now`, `Date`) remain available.
+
 ## Remaining (not changed, with rationale)
 
 - **`vault_get` returns secrets to the WebView.** By design (alert delivery runs in the UI). An
@@ -231,7 +278,7 @@ reports capped and pruned; open-file extension allow-list; `net_post_json` restr
 Discord hosts; `net_fetch_text` http(s)-only with 5 MB / 15 s caps and no cookies; custom WS
 frame caps; data export file names built from validated dates and sanitized instruments; tick-store
 instrument directories sanitized; no `unsafe` in the workspace; no TLS verification disabled;
-no `dangerouslySetInnerHTML`, `innerHTML`, `eval` or `new Function` in the UI; external links
+no `dangerouslySetInnerHTML`, `innerHTML`, `eval` or `new Function` in the UI (the only `new Function` is the HT Editor sandbox worker, above); external links
 open only for http(s); release workflow validates the tag before using it in shell commands and
 passes event data through `env`.
 

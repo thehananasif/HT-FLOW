@@ -133,6 +133,7 @@ export function makeRunnerConfig(a: {
   startingBalance?: number;
   commissionPerUnit?: number;
   now?: number;
+  script?: RunnerConfig['script'];
 }): RunnerConfig {
   return {
     v: RUNNER_PROTOCOL,
@@ -151,6 +152,7 @@ export function makeRunnerConfig(a: {
     },
     maxPosition: a.maxPosition,
     deployedAt: a.now ?? Date.now(),
+    ...(a.script ? { script: a.script } : {}),
   };
 }
 

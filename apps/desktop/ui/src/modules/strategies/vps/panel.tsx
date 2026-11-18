@@ -25,7 +25,10 @@ import {
   toStrategyInstrument,
   tone,
 } from '../shared';
+import { compileProject } from '../editor/compile';
+import { useScripts, vpsDeployRequest } from '../editor/store';
 import { loadRunnerCore } from './bundle';
+import type { RunnerConfig } from './core';
 import { feedForInstrument, SUPPORTED_FEEDS } from './feeds';
 import { errorCode, errorText, vaultKey, vpsNative } from './native';
 import {
@@ -936,7 +939,17 @@ function DeployDialog({
   onDeployed(d: Deployment): void;
 }) {
   const insts = allInstruments(true).filter((i) => feedForInstrument(i.id));
-  const [strategyId, setStrategy] = useState(existing?.strategyId ?? STRATEGIES[0]!.id);
+  const scripts = useScripts();
+  const [strategyId, setStrategy] = useState(
+    existing?.strategyId ??
+      (vpsDeployRequest.projectId ? `script:${vpsDeployRequest.projectId}` : STRATEGIES[0]!.id),
+  );
+  useEffect(() => {
+    vpsDeployRequest.projectId = null;
+  }, []);
+  const script = strategyId.startsWith('script:')
+    ? scripts.find((x) => `script:${x.id}` === strategyId)
+    : undefined;
   const [instrumentId, setInst] = useState(
     existing?.instrumentId ?? insts[0]?.id ?? 'binance-futures:BTCUSDT',
   );
@@ -948,12 +961,22 @@ function DeployDialog({
     existing && modes.includes(existing.startMode) ? existing.startMode : modes[0]!,
   );
   const [busy, setBusy] = useState<string | null>(null);
-  const def = strategyById(strategyId);
+  const builtin = strategyById(strategyId);
+  const def = builtin ?? (script ? { name: script.name, inputs: {} } : undefined);
   const inst = insts.find((i) => i.id === instrumentId);
   const feed = feedForInstrument(instrumentId);
 
   const deploy = async () => {
     if (!def || !inst || !feed) return;
+    let scriptCfg: RunnerConfig['script'];
+    if (script) {
+      const c = compileProject(script.files);
+      if (!c.project) {
+        toast('error', 'The strategy does not compile', c.diagnostics[0]?.message);
+        return;
+      }
+      scriptCfg = { project: c.project, params: script.params };
+    }
     const runnerId =
       existing?.runnerId ??
       newRunnerId(
@@ -971,6 +994,7 @@ function DeployDialog({
       feed,
       bars: barSpecOf(bars),
       maxPosition: maxPos,
+      script: scriptCfg,
     });
     try {
       setBusy('Bundling the runner…');
@@ -1020,7 +1044,10 @@ function DeployDialog({
         <Field label="Strategy">
           <Select
             value={strategyId}
-            options={STRATEGIES.map((s) => ({ value: s.id, label: s.name }))}
+            options={[
+              ...STRATEGIES.map((s) => ({ value: s.id, label: s.name })),
+              ...scripts.map((x) => ({ value: `script:${x.id}`, label: `HT Editor: ${x.name}` })),
+            ]}
             onChange={(v) => {
               setStrategy(v);
               setInputs({});

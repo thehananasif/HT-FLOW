@@ -320,6 +320,10 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [ ] VPS runner pending: live order routing (needs a broker connector), user-registered (non built-in) strategies in the bundle
 - [x] Web Pages in the desktop app: one native `webpage-<id>` window per panel (http/https only, `on_navigation` scheme + per-panel domain allow-list, new-window links in the same window or system browser, no IPC / capabilities, size and position remembered, optional always-on-top), address bar, back / forward / reload, bookmarks, allow-list editor, palette commands (`Web Pages: …`); web build keeps the iframe
 - [ ] Web Pages page window is not docked inside the panel (separate window) and is untested on Windows WebView2; strategy code editor, `.ts` / `.py` / `.htstrat` loading, Python runner, no-code rule builder
+- [x] HT Editor (round 7): write strategies in JavaScript / TypeScript-like syntax against the HT Strategy API (docs/STRATEGY-API.md) — CodeMirror 6 editor (highlighting, API + indicator-id autocomplete, compile / lint / runtime error markers, multiple files with imports), templates (MA cross, delta breakout, VWAP reversion, footprint imbalance), params as a settings form; sandboxed Web Worker (no DOM / network, CPU budget + watchdog, bounded buffers), every order validated on the main thread and by the risk engine; Backtest (equity, trades, stats, plots, log), Paper on the live feed, Live behind arming + KILL switch (needs a live-order connector), Deploy to my VPS (script in the runner bundle), runs list with stop / logs; save locally, `.htstrat` import / export; Command Palette entries
+- [ ] VPS runner pending: live order routing (needs a broker connector)
+- [ ] HT Editor pending: live order routing (no connector supports live orders yet), plots on the main chart windows (shown on the backtest's Plots chart), `.htstrat` file association (import via the editor)
+- [ ] Web Pages in the desktop app needs a native child webview (links open in the system browser); `.py` loading, Python runner, no-code rule builder
 
 ## P29 — QA, performance & hardening
 
