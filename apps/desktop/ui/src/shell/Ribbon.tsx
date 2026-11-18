@@ -55,7 +55,7 @@ export function Ribbon({ compact }: { compact?: boolean }) {
       {groups.map(({ group, items }, gi) => (
         <Fragment key={group}>
           {gi > 0 && <div className="ribbon-sep" />}
-          <div className="ribbon-group" role="group" aria-label={group}>
+          <div className="ribbon-group" role="group" aria-label={tl(group)}>
             {items.map((m) => {
               const Icon = MODULE_ICONS[m.id] ?? MODULE_ICONS.chart!;
               return (

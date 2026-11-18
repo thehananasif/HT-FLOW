@@ -85,7 +85,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             const prev = list[i - 1];
             const header =
               row.kind === 'item' && (prev?.kind !== 'item' || prev.item.group !== row.item.group)
-                ? row.item.group
+                ? tl(row.item.group)
                 : null;
             const key = rowKey(row);
             return (
@@ -125,7 +125,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 function CommandRow({ command: c }: { command: Command }) {
   return (
     <>
-      <span className="palette-group">{c.group}</span>
+      <span className="palette-group">{tl(c.group)}</span>
       <span className="palette-label">{tl(c.label)}</span>
       {c.shortcut && <Kbd>{c.shortcut}</Kbd>}
     </>

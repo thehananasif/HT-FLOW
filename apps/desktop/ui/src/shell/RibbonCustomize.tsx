@@ -57,8 +57,8 @@ export function RibbonCustomize() {
         {RIBBON_GROUPS.map((g) => {
           const ids = groupIds(g, order);
           return (
-            <section key={g} className="ht-rc-group" aria-label={g}>
-              <h4>{g}</h4>
+            <section key={g} className="ht-rc-group" aria-label={tl(g)}>
+              <h4>{tl(g)}</h4>
               {ids.map((id, i) => (
                 <div
                   key={id}

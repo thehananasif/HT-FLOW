@@ -9,7 +9,7 @@ export function ConfirmHost() {
   return (
     <Dialog open onOpenChange={(o) => !o && req.resolve(false)} title={tl(req.title)} width={380}>
       <p className="st-confirm-body" data-testid="confirm-body">
-        {req.body}
+        {tl(req.body)}
       </p>
       <div className="row gap8 st-confirm-actions">
         <div className="grow" />
@@ -28,7 +28,7 @@ export function ConfirmHost() {
           autoFocus
           onClick={() => req.resolve(true)}
         >
-          {req.confirmLabel}
+          {tl(req.confirmLabel)}
         </Button>
       </div>
     </Dialog>

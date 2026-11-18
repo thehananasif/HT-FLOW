@@ -332,7 +332,7 @@ export function HotkeysEditor({
         {groups.map((g) => (
           <tbody key={g}>
             <tr className="st-hk-group">
-              <td colSpan={5}>{g}</td>
+              <td colSpan={5}>{tl(g)}</td>
             </tr>
             {shown
               .filter((r) => r.c.group === g)
