@@ -116,6 +116,8 @@ export function DataSourcesEditor() {
 const PROVIDER_LABELS: Record<string, string> = {
   'binance-futures': 'Binance USD-M futures (live)',
   'bybit-linear': 'Bybit linear (live)',
+  'bybit-spot': 'Bybit spot (live)',
+  'bybit-inverse': 'Bybit inverse (live)',
   replay: 'Replay (recorded data)',
   mock: 'Simulator (mock feed)',
 };

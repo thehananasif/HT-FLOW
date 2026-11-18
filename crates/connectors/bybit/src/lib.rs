@@ -1187,6 +1187,8 @@ mod category_tests {
         tokio::spawn(async move {
             let (sock, _) = listener.accept().await.unwrap();
             let path_tx = got_tx.clone();
+            // The handshake callback's error type is fixed by tungstenite.
+            #[allow(clippy::result_large_err)]
             let cb = move |req: &Request, resp: Response| {
                 path_tx.send(req.uri().path().to_string()).unwrap();
                 Ok(resp)

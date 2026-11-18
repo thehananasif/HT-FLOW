@@ -454,6 +454,8 @@ const KNOWN_PROVIDERS = [
   'binance-spot',
   'binance-coinm',
   'bybit-linear',
+  'bybit-spot',
+  'bybit-inverse',
   'okx-swap',
   'bitget',
   'deribit',

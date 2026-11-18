@@ -123,6 +123,8 @@ export const LIVE_VENUES = [
   'binance-coinm',
   'binance-spot',
   'bybit-linear',
+  'bybit-inverse',
+  'bybit-spot',
   'okx-swap',
   'whitebit',
   'phemex',

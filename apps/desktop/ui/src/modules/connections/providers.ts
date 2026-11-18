@@ -129,10 +129,20 @@ export const PROVIDERS: Provider[] = [
     market: 'USDT-M futures',
   }),
   crypto('bitmex', 'BitMEX', PERP),
-  crypto('bybit', 'Bybit', ['Trades', 'L2 depth'], {
+  crypto('bybit', 'Bybit', ['Trades', 'L2 depth', 'Funding', 'OI'], {
     venue: 'bybit-linear',
     testSymbol: 'BTCUSDT',
     market: 'Linear perps',
+  }),
+  crypto('bybit-spot', 'Bybit Spot', ['Trades', 'L2 depth'], {
+    venue: 'bybit-spot',
+    testSymbol: 'BTCUSDT',
+    market: 'Spot',
+  }),
+  crypto('bybit-inverse', 'Bybit Inverse', ['Trades', 'L2 depth', 'Funding', 'OI'], {
+    venue: 'bybit-inverse',
+    testSymbol: 'BTCUSD',
+    market: 'Inverse perps and futures (sizes in USD contracts)',
   }),
   crypto('deribit', 'Deribit', ['Trades', 'L2 depth', 'Funding', 'Liquidations', 'OI'], {
     venue: 'deribit',

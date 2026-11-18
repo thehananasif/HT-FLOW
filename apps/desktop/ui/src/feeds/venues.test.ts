@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { feedProviders, providerFor } from './registry';
 import { OKX_SWAP } from './okx';
 import { BINANCE_COINM, BINANCE_SPOT } from './binance';
+import { BYBIT_INVERSE, BYBIT_SPOT } from './bybit';
+import { STREAMING_VENUES } from '@htflow/market-catalog';
 import { LIVE_VENUES, toStats } from '../state/liveFeed';
 import { PROVIDERS } from '../modules/connections/providers';
 
@@ -15,6 +17,22 @@ describe('live venue feed providers', () => {
       expect(p?.desktopOnly).toBe(true);
     }
     expect(providerFor('okx-swap:ETH-USDT-SWAP')?.label).toBe('OKX (live)');
+  });
+
+  it('streams Bybit spot and inverse (inverse sizes are USD contracts)', () => {
+    expect(BYBIT_SPOT[0]!.id).toBe('bybit-spot:BTCUSDT');
+    expect(BYBIT_SPOT[0]!.displayName).toBe('BTCUSDT Spot');
+    expect(BYBIT_INVERSE[0]!.id).toBe('bybit-inverse:BTCUSD');
+    expect(BYBIT_INVERSE[0]!.currency).toBe('USD');
+    expect(BYBIT_INVERSE[0]!.qtyPrecision).toBe(0);
+    for (const prefix of ['bybit-spot:', 'bybit-inverse:', 'bybit-linear:']) {
+      expect(feedProviders().find((x) => x.prefix === prefix)?.desktopOnly).toBe(true);
+    }
+    expect(providerFor('bybit-inverse:ETHUSD')?.label).toBe('Bybit Inverse (live)');
+    for (const v of ['bybit-spot', 'bybit-inverse'] as const) {
+      expect(LIVE_VENUES).toContain(v);
+      expect(STREAMING_VENUES.has(v)).toBe(true);
+    }
   });
 
   it('every live venue is available in the Connections catalog with a test symbol', () => {
