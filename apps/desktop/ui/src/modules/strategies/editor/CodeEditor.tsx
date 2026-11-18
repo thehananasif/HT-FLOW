@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { EditorState, Compartment } from '@codemirror/state';
-import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view';
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+  drawSelection,
+} from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import {
   autocompletion,
@@ -10,7 +16,12 @@ import {
   type CompletionContext,
   type CompletionResult,
 } from '@codemirror/autocomplete';
-import { bracketMatching, indentOnInput, syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+import {
+  bracketMatching,
+  indentOnInput,
+  syntaxHighlighting,
+  HighlightStyle,
+} from '@codemirror/language';
 import { javascript } from '@codemirror/lang-javascript';
 import { lintGutter, setDiagnostics, type Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
@@ -23,19 +34,34 @@ const highlight = HighlightStyle.define([
   { tag: [tags.string, tags.special(tags.string)], color: 'var(--htc-str, #c3e88d)' },
   { tag: tags.number, color: 'var(--htc-num, #f78c6c)' },
   { tag: tags.comment, color: 'var(--htc-comment, #6b7a90)', fontStyle: 'italic' },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--htc-fn, #82aaff)' },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
+    color: 'var(--htc-fn, #82aaff)',
+  },
   { tag: tags.typeName, color: 'var(--htc-type, #ffcb6b)' },
   { tag: tags.propertyName, color: 'var(--htc-prop, #89ddff)' },
   { tag: tags.bool, color: 'var(--htc-num, #f78c6c)' },
 ]);
 
 const theme = EditorView.theme({
-  '&': { height: '100%', fontSize: '12.5px', backgroundColor: 'var(--bg-1, #0f1318)', color: 'var(--fg-1, #d8dee9)' },
+  '&': {
+    height: '100%',
+    fontSize: '12.5px',
+    backgroundColor: 'var(--bg-1, #0f1318)',
+    color: 'var(--fg-1, #d8dee9)',
+  },
   '.cm-scroller': { fontFamily: 'var(--font-mono, ui-monospace, monospace)', lineHeight: '1.5' },
-  '.cm-gutters': { backgroundColor: 'var(--bg-2, #141a21)', color: 'var(--fg-3, #6b7a90)', border: 'none' },
+  '.cm-gutters': {
+    backgroundColor: 'var(--bg-2, #141a21)',
+    color: 'var(--fg-3, #6b7a90)',
+    border: 'none',
+  },
   '.cm-activeLine': { backgroundColor: 'rgba(255,255,255,0.03)' },
   '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--accent, #4fc3f7)' },
-  '.cm-tooltip': { backgroundColor: 'var(--bg-2, #141a21)', border: '1px solid var(--border, #263241)' },
+  '.cm-tooltip': {
+    backgroundColor: 'var(--bg-2, #141a21)',
+    border: '1px solid var(--border, #263241)',
+  },
 });
 
 function htCompletions(ctx: CompletionContext): CompletionResult | null {
@@ -111,9 +137,17 @@ export function CodeEditor({ value, onChange, diagnostics, docKey, ariaLabel }: 
         syntaxHighlighting(highlight),
         autocompletion({ override: [htCompletions] }),
         lintGutter(),
-        keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...historyKeymap,
+          ...completionKeymap,
+          indentWithTab,
+        ]),
         theme,
-        label.current.of(EditorView.contentAttributes.of({ 'aria-label': ariaLabel ?? 'Strategy code' })),
+        label.current.of(
+          EditorView.contentAttributes.of({ 'aria-label': ariaLabel ?? 'Strategy code' }),
+        ),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString());
         }),

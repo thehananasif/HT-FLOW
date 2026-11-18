@@ -311,7 +311,8 @@ export class SandboxCore {
         kind: 'load',
         file: project.entry,
       } satisfies ScriptError;
-    const tf = typeof meta.timeframe === 'string' && parseTimeframe(meta.timeframe) ? meta.timeframe : '5m';
+    const tf =
+      typeof meta.timeframe === 'string' && parseTimeframe(meta.timeframe) ? meta.timeframe : '5m';
     const tfs = Array.isArray(meta.timeframes)
       ? meta.timeframes
           .filter((x): x is string => typeof x === 'string' && !!parseTimeframe(x))
@@ -401,12 +402,17 @@ export class SandboxCore {
     if (name === 'ht' || name === '@htflow/strategy-api') return this.api;
     const key = this.resolve(name);
     const rec = key ? this.modules.get(key) : undefined;
-    if (!rec) throw new Error(`Cannot import '${name}': only the strategy's own files and 'ht' are available`);
+    if (!rec)
+      throw new Error(
+        `Cannot import '${name}': only the strategy's own files and 'ht' are available`,
+      );
     if (rec.state !== 'new') return rec.exports;
     rec.state = 'loading';
     const shadow = SHADOWED_GLOBALS.map(() => undefined);
     const api = API_NAMES.map((n) => this.api[n]);
-    const body = rec.factory(...shadow, ...api, rec.exports, (n: string) => this.require(String(n)));
+    const body = rec.factory(...shadow, ...api, rec.exports, (n: string) =>
+      this.require(String(n)),
+    );
     body();
     rec.state = 'done';
     return rec.exports;
@@ -432,7 +438,11 @@ export class SandboxCore {
       }
       const n = s.bars.length;
       // Memory guard: bounded history; old bars lose their footprint.
-      for (let i = Math.max(0, n - list.length - this.limits.footprintBars); i < n - this.limits.footprintBars; i++)
+      for (
+        let i = Math.max(0, n - list.length - this.limits.footprintBars);
+        i < n - this.limits.footprintBars;
+        i++
+      )
         if (s.bars[i]!.clusters?.size) s.bars[i]!.clusters = new Map();
       if (n > this.limits.maxBars) {
         const cut = n - this.limits.maxBars;
@@ -466,7 +476,8 @@ export class SandboxCore {
   }
 
   private seriesOf(tf: unknown): Series | undefined {
-    const key = tf === undefined || tf === '' || tf === this.description?.timeframe ? '' : String(tf);
+    const key =
+      tf === undefined || tf === '' || tf === this.description?.timeframe ? '' : String(tf);
     return this.series.get(key);
   }
 
@@ -507,7 +518,8 @@ export class SandboxCore {
     const bracket: BracketIntent = {};
     if (typeof o.stop === 'number') bracket.stop = o.stop;
     if (typeof o.target === 'number') bracket.target = [o.target];
-    else if (Array.isArray(o.target)) bracket.target = o.target.filter((x) => typeof x === 'number');
+    else if (Array.isArray(o.target))
+      bracket.target = o.target.filter((x) => typeof x === 'number');
     if (typeof o.trail === 'number') bracket.trail = o.trail;
     const cid = `c${++this.cid}`;
     const ok = this.push(
@@ -539,7 +551,11 @@ export class SandboxCore {
       })
       .join(' ')
       .slice(0, 500);
-    this.push(this.frame.logs, { ts: this.frame.snapshot.time, level, text }, this.limits.maxLogsPerCall);
+    this.push(
+      this.frame.logs,
+      { ts: this.frame.snapshot.time, level, text },
+      this.limits.maxLogsPerCall,
+    );
   }
 
   private makeApi(): Record<string, unknown> {
@@ -580,7 +596,8 @@ export class SandboxCore {
       cancel: (id: unknown) =>
         typeof id === 'string' &&
         this.push(this.frame.intents, { op: 'cancel', cid: id }, this.limits.maxIntentsPerCall),
-      cancelAll: () => this.push(this.frame.intents, { op: 'cancelAll' }, this.limits.maxIntentsPerCall),
+      cancelAll: () =>
+        this.push(this.frame.intents, { op: 'cancelAll' }, this.limits.maxIntentsPerCall),
       position: () => {
         const p = this.frame.snapshot.position;
         return {
@@ -595,7 +612,12 @@ export class SandboxCore {
       bars: (tf?: unknown, count?: unknown) => {
         const { s, end } = this.visible(tf);
         if (!s) {
-          if (tf !== undefined && tf !== '' && this.description && !this.description.timeframes.includes(String(tf)))
+          if (
+            tf !== undefined &&
+            tf !== '' &&
+            this.description &&
+            !this.description.timeframes.includes(String(tf))
+          )
             this.logLine('warn', [`bars('${String(tf)}'): declare it in meta.timeframes`]);
           return [];
         }
@@ -686,7 +708,11 @@ export class SandboxCore {
     const sync = () => {
       const s = this.seriesOf(entry.tf);
       if (!s) return 0;
-      const data: BarData = { bars: s.bars, version: s.version, tickSize: this.instrument.tickSize };
+      const data: BarData = {
+        bars: s.bars,
+        version: s.version,
+        tickSize: this.instrument.tickSize,
+      };
       entry.rt.update(data);
       return this.visible(entry.tf).end;
     };
@@ -704,7 +730,8 @@ export class SandboxCore {
         const end = sync();
         const n = typeof count === 'number' && count > 0 ? Math.min(end, Math.floor(count)) : end;
         const out: number[] = [];
-        for (let i = end - n; i < end; i++) out.push(read(typeof output === 'string' ? output : first, i));
+        for (let i = end - n; i < end; i++)
+          out.push(read(typeof output === 'string' ? output : first, i));
         return out;
       },
     });

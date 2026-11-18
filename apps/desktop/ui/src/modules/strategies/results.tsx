@@ -153,4 +153,3 @@ export function TradesTable({ r }: { r: BacktestResult }) {
     </div>
   );
 }
-

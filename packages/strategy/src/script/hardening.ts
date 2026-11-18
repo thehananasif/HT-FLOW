@@ -101,7 +101,8 @@ export function lockdownRealm(keep: readonly string[] = []): string[] {
     let proto: object | null = Object.getPrototypeOf(g) as object | null;
     while (proto) {
       try {
-        if (Object.prototype.hasOwnProperty.call(proto, name)) delete (proto as Record<string, unknown>)[name];
+        if (Object.prototype.hasOwnProperty.call(proto, name))
+          delete (proto as Record<string, unknown>)[name];
       } catch {
         /* non-configurable: shadowed below */
       }
@@ -115,12 +116,9 @@ export function lockdownRealm(keep: readonly string[] = []): string[] {
     }
   }
   // Function constructors reachable from any function value.
-  const ctors = [
-    function () {},
-    async function () {},
-    function* () {},
-    async function* () {},
-  ].map((f) => Object.getPrototypeOf(f) as object);
+  const ctors = [function () {}, async function () {}, function* () {}, async function* () {}].map(
+    (f) => Object.getPrototypeOf(f) as object,
+  );
   for (const p of ctors) {
     try {
       Object.defineProperty(p, 'constructor', {

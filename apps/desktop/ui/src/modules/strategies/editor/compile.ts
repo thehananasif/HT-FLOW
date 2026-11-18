@@ -25,7 +25,10 @@ export interface CompileOutput {
 function codeOnly(src: string): string {
   return src.replace(
     /\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/g,
-    (m) => (m.startsWith('/') ? m.replace(/[^\n]/g, ' ') : m[0] + m.slice(1, -1).replace(/[^\n]/g, ' ') + m.slice(-1)),
+    (m) =>
+      m.startsWith('/')
+        ? m.replace(/[^\n]/g, ' ')
+        : m[0] + m.slice(1, -1).replace(/[^\n]/g, ' ') + m.slice(-1),
   );
 }
 
@@ -35,7 +38,9 @@ function lineCol(src: string, index: number): { line: number; column: number } {
   return { line, column: index - before.lastIndexOf('\n') - 1 };
 }
 
-const RISKY = [...new Set([...REALM_BLOCKED, 'globalThis', 'self', 'window', 'document', 'process', 'require'])];
+const RISKY = [
+  ...new Set([...REALM_BLOCKED, 'globalThis', 'self', 'window', 'document', 'process', 'require']),
+];
 
 /** Static checks on top of the compiler (API misuse, sandbox-blocked globals). */
 export function lintFile(file: StrategyFile, entry: boolean): Diagnostic[] {
@@ -51,10 +56,16 @@ export function lintFile(file: StrategyFile, entry: boolean): Diagnostic[] {
   for (const m of file.source.matchAll(/\bindicator\(\s*['"]([\w-]+)['"]/g))
     if (code.slice(m.index, m.index + 9) === 'indicator' && !indicatorById(m[1]!))
       warn(m.index, `Unknown indicator '${m[1]}'`);
-  if (entry && !/export\s+(async\s+)?function\s+(onBar|onTick)\b|export\s+const\s+(onBar|onTick)\b/.test(code))
+  if (
+    entry &&
+    !/export\s+(async\s+)?function\s+(onBar|onTick)\b|export\s+const\s+(onBar|onTick)\b/.test(code)
+  )
     warn(0, 'The strategy file must export onBar(bar) or onTick(tick)', 'error');
   if (/\bexport\s+async\s+function\b/.test(code))
-    warn(code.search(/\bexport\s+async\s+function\b/), 'Hooks run synchronously: async hooks are not awaited');
+    warn(
+      code.search(/\bexport\s+async\s+function\b/),
+      'Hooks run synchronously: async hooks are not awaited',
+    );
   return out;
 }
 
@@ -75,7 +86,8 @@ export function compileProject(files: StrategyFile[]): CompileOutput {
         production: true,
       }).code;
       const bad = forbiddenSyntax(code);
-      if (bad) diagnostics.push({ file: f.name, line: 1, column: 0, message: bad, severity: 'error' });
+      if (bad)
+        diagnostics.push({ file: f.name, line: 1, column: 0, message: bad, severity: 'error' });
       else modules.push({ name: f.name, code });
     } catch (e) {
       const loc = (e as { loc?: { line: number; column: number } }).loc;

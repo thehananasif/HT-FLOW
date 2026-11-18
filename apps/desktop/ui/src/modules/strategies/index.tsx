@@ -221,7 +221,6 @@ function sanitizeStyle(raw: unknown): ResultStyle {
   };
 }
 
-
 function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const p = state.params ?? {};
   const strategyId =
@@ -1208,11 +1207,31 @@ registerCommands([
   },
   ...(
     [
-      ['editor-new', 'HT Editor: New strategy', 'code script new strategy write', (a) => a.newStrategy()],
-      ['editor-open', 'HT Editor: Open / import .htstrat…', 'open import htstrat file strategy code', (a) => a.importFile()],
+      [
+        'editor-new',
+        'HT Editor: New strategy',
+        'code script new strategy write',
+        (a) => a.newStrategy(),
+      ],
+      [
+        'editor-open',
+        'HT Editor: Open / import .htstrat…',
+        'open import htstrat file strategy code',
+        (a) => a.importFile(),
+      ],
       ['editor-save', 'HT Editor: Save strategy', 'save script code', (a) => a.save()],
-      ['editor-export', 'HT Editor: Export .htstrat', 'export htstrat file script', (a) => a.exportFile()],
-      ['editor-backtest', 'HT Editor: Backtest strategy', 'backtest script code run history', (a) => a.backtest()],
+      [
+        'editor-export',
+        'HT Editor: Export .htstrat',
+        'export htstrat file script',
+        (a) => a.exportFile(),
+      ],
+      [
+        'editor-backtest',
+        'HT Editor: Backtest strategy',
+        'backtest script code run history',
+        (a) => a.backtest(),
+      ],
       ['editor-run', 'HT Editor: Run on paper', 'run paper live script start', (a) => a.paper()],
       ['editor-stop', 'HT Editor: Stop strategy runs', 'stop script run', (a) => a.stop()],
     ] as [string, string, string, (a: EditorActions) => void][]

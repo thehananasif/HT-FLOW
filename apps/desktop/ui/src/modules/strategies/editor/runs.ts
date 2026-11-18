@@ -162,14 +162,18 @@ export const scriptRuns = {
         },
         onError: (e) => fail(e.line ? `${e.message} (line ${e.line})` : e.message),
       });
-      runner = new StrategyRunner(bridge.strategy(), {}, {
-        engine,
-        accountId,
-        instrument: sInst,
-        bars: o.bars ?? bridge.spec,
-        tag: run.tag,
-        tradesBetween: (a, b) => store.tradesBetween(a, b),
-      });
+      runner = new StrategyRunner(
+        bridge.strategy(),
+        {},
+        {
+          engine,
+          accountId,
+          instrument: sInst,
+          bars: o.bars ?? bridge.spec,
+          tag: run.tag,
+          tradesBetween: (a, b) => store.tradesBetween(a, b),
+        },
+      );
       bridge.attach(runner);
       run.bridge = bridge;
       run.runner = runner;
@@ -201,7 +205,9 @@ export const scriptRuns = {
     } catch (e) {
       const err = e as { message?: string; line?: number };
       if (!disposers.has(id)) transport.dispose();
-      fail(err?.message ? (err.line ? `${err.message} (line ${err.line})` : err.message) : String(e));
+      fail(
+        err?.message ? (err.line ? `${err.message} (line ${err.line})` : err.message) : String(e),
+      );
     }
     return run;
   },
@@ -211,7 +217,8 @@ export const scriptRuns = {
     const run = runs.get(id);
     if (!run) return;
     if (flatten && run.runner) run.runner.flatten(`strategy ${reason}`, true);
-    if (run.bridge && run.status === 'running') void Promise.resolve(run.bridge.stop()).catch(() => {});
+    if (run.bridge && run.status === 'running')
+      void Promise.resolve(run.bridge.stop()).catch(() => {});
     disposers.get(id)?.();
     disposers.delete(id);
     if (run.status !== 'error') run.status = 'stopped';

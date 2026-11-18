@@ -318,7 +318,12 @@ export class ScriptBridge {
       case 'tick':
         return {
           kind: 'tick',
-          trade: { ts: q.trade.ts, px: q.trade.px, qty: q.trade.qty, side: q.trade.side === 'sell' ? 'sell' : 'buy' },
+          trade: {
+            ts: q.trade.ts,
+            px: q.trade.px,
+            qty: q.trade.qty,
+            side: q.trade.side === 'sell' ? 'sell' : 'buy',
+          },
           snapshot,
           bars,
         };
@@ -379,7 +384,9 @@ export class ScriptBridge {
         t: p.t,
         value: p.value,
         overlay: p.overlay !== false,
-        ...(typeof p.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(p.color) ? { color: p.color } : {}),
+        ...(typeof p.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(p.color)
+          ? { color: p.color }
+          : {}),
       };
       this.plots.push(pt);
       this.opts.onPlot?.(pt);
@@ -586,7 +593,9 @@ export function accountOf(
   const acc = engine?.accounts.get(accountId);
   if (!engine || !acc) return { balance: 0, equity: 0, dayPnl: 0, currency: 'USD' };
   const open =
-    mark !== undefined && Number.isFinite(mark) ? engine.unrealized(accountId, instrumentId, mark) : 0;
+    mark !== undefined && Number.isFinite(mark)
+      ? engine.unrealized(accountId, instrumentId, mark)
+      : 0;
   const equity = acc.balance + open;
   return {
     balance: acc.balance,

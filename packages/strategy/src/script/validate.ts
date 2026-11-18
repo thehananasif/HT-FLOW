@@ -95,7 +95,8 @@ export function validateIntent(
     return bad('Order type must be market, limit or stop');
   if (!isNum(r.qty) || r.qty <= 0) return bad('Quantity must be a positive number');
   const qty = Math.round(r.qty * 1e8) / 1e8;
-  if (qty > lim.maxOrderQty) return bad(`Quantity ${qty} exceeds the max order size ${lim.maxOrderQty}`);
+  if (qty > lim.maxOrderQty)
+    return bad(`Quantity ${qty} exceeds the max order size ${lim.maxOrderQty}`);
   const signed = r.side === 'buy' ? qty : -qty;
   const pos = st.position + (st.pending ?? 0);
   const reducing = pos !== 0 && Math.sign(signed) === -Math.sign(pos) && qty <= Math.abs(pos);

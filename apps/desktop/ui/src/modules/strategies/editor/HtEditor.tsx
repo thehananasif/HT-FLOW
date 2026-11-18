@@ -20,14 +20,33 @@ import {
   type ScriptDescription,
   type StrategyProject,
 } from '@htflow/strategy';
-import { Badge, Button, Checkbox, Dialog, Input, NumberInput, Select, Table, Tabs, toast } from '@htflow/ui-kit';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  Input,
+  NumberInput,
+  Select,
+  Table,
+  Tabs,
+  toast,
+} from '@htflow/ui-kit';
 import { downloadText } from '../../../components/DataTable.utils';
 import { instrumentById } from '../../../state/instruments';
 import { DEFAULT_STYLE, EquityCanvas, useCanvas } from '../charts';
 import { backtestInstruments, loadHistory, rangeOf, sanitizeData, type DataSetup } from '../data';
 import { liveRuns } from '../live';
 import { Summary, TradesTable, fmtTime } from '../results';
-import { BAR_SPECS, InputsForm, cssVar, signedMoney, specOf, toStrategyInstrument, tone } from '../shared';
+import {
+  BAR_SPECS,
+  InputsForm,
+  cssVar,
+  signedMoney,
+  specOf,
+  toStrategyInstrument,
+  tone,
+} from '../shared';
 import { CodeEditor } from './CodeEditor';
 import { compileProject, type Diagnostic } from './compile';
 import { liveRouters, runStats, scriptRuns, type LiveOrderRouter, type ScriptRun } from './runs';
@@ -62,7 +81,10 @@ export function sanitizeSettings(raw: unknown): EditorSettings {
     typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d;
   return {
     data: sanitizeData(r.data),
-    bars: typeof r.bars === 'string' && (r.bars === '' || BAR_SPECS.some((b) => b.value === r.bars)) ? r.bars : '',
+    bars:
+      typeof r.bars === 'string' && (r.bars === '' || BAR_SPECS.some((b) => b.value === r.bars))
+        ? r.bars
+        : '',
     maxOrderQty: n(r.maxOrderQty, 5, 0.0001, 1e6),
     maxPosition: n(r.maxPosition, 5, 0.0001, 1e6),
     dailyLoss: n(r.dailyLoss, 1000, 0, 1e9),
@@ -119,16 +141,28 @@ export function paramDefs(params: Record<string, ParamDecl>): InputDefs {
   for (const [k, d] of Object.entries(params)) {
     switch (d.type) {
       case 'int':
-        out[k] = input.int(d.label, d.default, { min: d.min ?? -1e9, max: d.max ?? 1e9, step: d.step ?? 1 });
+        out[k] = input.int(d.label, d.default, {
+          min: d.min ?? -1e9,
+          max: d.max ?? 1e9,
+          step: d.step ?? 1,
+        });
         break;
       case 'float':
-        out[k] = input.float(d.label, d.default, { min: d.min ?? -1e12, max: d.max ?? 1e12, step: d.step ?? 0.1 });
+        out[k] = input.float(d.label, d.default, {
+          min: d.min ?? -1e12,
+          max: d.max ?? 1e12,
+          step: d.step ?? 0.1,
+        });
         break;
       case 'bool':
         out[k] = input.bool(d.label, d.default);
         break;
       case 'choice':
-        out[k] = input.enum(d.label, d.default, d.options.map((o) => [o, o] as const));
+        out[k] = input.enum(
+          d.label,
+          d.default,
+          d.options.map((o) => [o, o] as const),
+        );
         break;
       default:
         out[k] = input.string(d.label, d.default, { maxLength: 256 });
@@ -150,7 +184,6 @@ export interface EditorActions {
 }
 export const editorMounted: { id: string; actions: EditorActions }[] = [];
 
-
 function useRunsVersion(): number {
   return useSyncExternalStore(scriptRuns.subscribe, scriptRuns.version);
 }
@@ -166,10 +199,16 @@ export function HtEditor({
   setParams(p: Record<string, unknown>): void;
   onDeployVps(): void;
 }) {
-  const ed = params.editor && typeof params.editor === 'object' ? (params.editor as Record<string, unknown>) : {};
+  const ed =
+    params.editor && typeof params.editor === 'object'
+      ? (params.editor as Record<string, unknown>)
+      : {};
   const settings = sanitizeSettings(ed.settings);
   const st = useEditors((s) => s.byWindow[windowId]);
-  if (!st) useEditors.setState((s) => ({ byWindow: { ...s.byWindow, [windowId]: initial(ed.projectId) } }));
+  if (!st)
+    useEditors.setState((s) => ({
+      byWindow: { ...s.byWindow, [windowId]: initial(ed.projectId) },
+    }));
   const state = st ?? initial(ed.projectId);
   const set = (p: Partial<EditorState>) => useEditors.getState().set(windowId, p);
   const scripts = useScripts();
@@ -184,7 +223,8 @@ export function HtEditor({
   const setSettings = (p: Partial<EditorSettings>) =>
     setParams({ editor: { ...ed, settings: { ...settings, ...p } } });
   const setProject = (p: StrategyProject) => set({ project: p });
-  const dirty = JSON.stringify(project.files) !== state.savedJson || !scripts.some((s) => s.id === project.id);
+  const dirty =
+    JSON.stringify(project.files) !== state.savedJson || !scripts.some((s) => s.id === project.id);
 
   const compiled = useMemo(() => compileProject(project.files), [project.files]);
   const diagnostics = useMemo(() => {
@@ -236,7 +276,9 @@ export function HtEditor({
   const desc = state.desc;
   const defs = useMemo(() => paramDefs(desc?.params ?? {}), [desc]);
   const inst = instrumentById(settings.data.instrumentId) ?? instruments[0];
-  const barsSpec = settings.bars ? specOf(settings.bars) : (parseTimeframe(desc?.timeframe ?? '5m') ?? undefined);
+  const barsSpec = settings.bars
+    ? specOf(settings.bars)
+    : (parseTimeframe(desc?.timeframe ?? '5m') ?? undefined);
   const limits = {
     maxOrderQty: settings.maxOrderQty,
     maxPosition: settings.maxPosition,
@@ -366,7 +408,10 @@ export function HtEditor({
   };
 
   const exportFile = () => {
-    downloadText(`${project.name.replace(/[^\w-]+/g, '_') || 'strategy'}.htstrat`, serializeHtstrat(project));
+    downloadText(
+      `${project.name.replace(/[^\w-]+/g, '_') || 'strategy'}.htstrat`,
+      serializeHtstrat(project),
+    );
   };
 
   const importText = (text: string) => {
@@ -412,18 +457,33 @@ export function HtEditor({
   }, [windowId]);
 
   const updateFile = (source: string) =>
-    setProject({ ...project, files: project.files.map((f, i) => (i === file ? { ...f, source } : f)) });
+    setProject({
+      ...project,
+      files: project.files.map((f, i) => (i === file ? { ...f, source } : f)),
+    });
 
   const addFile = () => {
     let k = 1;
     while (project.files.some((f) => f.name === `util${k}.ts`)) k++;
     const name = `util${k}.ts`;
-    setProject({ ...project, files: [...project.files, { name, source: `// import { helper } from './util${k}';\nexport function helper(x: number) {\n  return x;\n}\n` }] });
+    setProject({
+      ...project,
+      files: [
+        ...project.files,
+        {
+          name,
+          source: `// import { helper } from './util${k}';\nexport function helper(x: number) {\n  return x;\n}\n`,
+        },
+      ],
+    });
     set({ file: project.files.length });
   };
 
   const renameFile = (i: number) => {
-    const name = window.prompt('File name (letters, digits, - or _; .ts or .js)', project.files[i]!.name);
+    const name = window.prompt(
+      'File name (letters, digits, - or _; .ts or .js)',
+      project.files[i]!.name,
+    );
     if (!name || name === project.files[i]!.name) return;
     if (!validFileName(name) || project.files.some((f) => f.name === name))
       return toast('error', 'Invalid or duplicate file name');
@@ -523,8 +583,16 @@ export function HtEditor({
           <Badge kind={errors ? 'error' : 'default'}>
             {errors ? `${errors} error${errors > 1 ? 's' : ''}` : 'Compiled'}
           </Badge>
-          <Button size="xs" variant="primary" disabled={busy} onClick={() => void backtest()} data-testid="hte-backtest">
-            {busy ? `${state.phase === 'loading' ? 'Loading' : 'Backtesting'} ${Math.round(state.progress * 100)}%` : 'Backtest'}
+          <Button
+            size="xs"
+            variant="primary"
+            disabled={busy}
+            onClick={() => void backtest()}
+            data-testid="hte-backtest"
+          >
+            {busy
+              ? `${state.phase === 'loading' ? 'Loading' : 'Backtesting'} ${Math.round(state.progress * 100)}%`
+              : 'Backtest'}
           </Button>
           <Button size="xs" onClick={() => void startRun('paper')} data-testid="hte-paper">
             Paper
@@ -532,13 +600,27 @@ export function HtEditor({
           <Button size="xs" onClick={() => setArmOpen(true)} data-testid="hte-live">
             Live…
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => { vpsDeployRequest.projectId = project.id; if (dirty) saveProject(project); onDeployVps(); }} data-testid="hte-vps">
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => {
+              vpsDeployRequest.projectId = project.id;
+              if (dirty) saveProject(project);
+              onDeployVps();
+            }}
+            data-testid="hte-vps"
+          >
             Deploy to my VPS
           </Button>
           <Button size="xs" variant="ghost" onClick={stopAll}>
             Stop
           </Button>
-          <button className="hte-kill" onClick={kill} data-testid="hte-kill" title="Stop every strategy and flatten">
+          <button
+            className="hte-kill"
+            onClick={kill}
+            data-testid="hte-kill"
+            title="Stop every strategy and flatten"
+          >
             KILL
           </button>
         </div>
@@ -600,7 +682,16 @@ export function HtEditor({
               <ul className="hte-problems" data-testid="hte-problems">
                 {diagnostics.map((d, i) => (
                   <li key={i} className={d.severity}>
-                    <button onClick={() => set({ file: Math.max(0, project.files.findIndex((f) => f.name === d.file)) })}>
+                    <button
+                      onClick={() =>
+                        set({
+                          file: Math.max(
+                            0,
+                            project.files.findIndex((f) => f.name === d.file),
+                          ),
+                        })
+                      }
+                    >
                       {d.file}:{d.line}:{d.column + 1}
                     </button>{' '}
                     {d.message}
@@ -629,7 +720,12 @@ export function HtEditor({
             ) : (
               <pre className="stg-log" data-testid="hte-log">
                 {res.logs.length
-                  ? res.logs.map((l) => `${fmtTime(l.ts)}  ${l.level === 'info' ? '' : l.level.toUpperCase() + ' '}${l.text}`).join('\n')
+                  ? res.logs
+                      .map(
+                        (l) =>
+                          `${fmtTime(l.ts)}  ${l.level === 'info' ? '' : l.level.toUpperCase() + ' '}${l.text}`,
+                      )
+                      .join('\n')
                   : 'No log lines.'}
                 {`\n\n${res.calls} sandbox calls, slowest ${res.maxCallMs.toFixed(1)} ms`}
               </pre>
@@ -652,7 +748,9 @@ export function HtEditor({
             <p className="stg-muted">No params exported.</p>
           )
         ) : (
-          <p className="stg-muted">{compiled.project ? 'Reading the strategy…' : 'Fix the errors to see the parameters.'}</p>
+          <p className="stg-muted">
+            {compiled.project ? 'Reading the strategy…' : 'Fix the errors to see the parameters.'}
+          </p>
         )}
         <div className="stg-subhead">Data</div>
         <div className="stg-inputs">
@@ -662,8 +760,13 @@ export function HtEditor({
               small
               aria-label="Instrument"
               value={settings.data.instrumentId}
-              options={instruments.map((i) => ({ value: i.id, label: `${i.symbol} · ${i.exchange}` }))}
-              onChange={(instrumentId) => setSettings({ data: { ...settings.data, instrumentId, source: '' } })}
+              options={instruments.map((i) => ({
+                value: i.id,
+                label: `${i.symbol} · ${i.exchange}`,
+              }))}
+              onChange={(instrumentId) =>
+                setSettings({ data: { ...settings.data, instrumentId, source: '' } })
+              }
             />
           </label>
           <label className="stg-input-row">
@@ -678,11 +781,25 @@ export function HtEditor({
           </label>
           <label className="stg-input-row">
             <span>From hour</span>
-            <NumberInput aria-label="From hour" value={settings.data.fromHour} min={0} max={23} unit="UTC" onChange={(fromHour) => setSettings({ data: { ...settings.data, fromHour } })} />
+            <NumberInput
+              aria-label="From hour"
+              value={settings.data.fromHour}
+              min={0}
+              max={23}
+              unit="UTC"
+              onChange={(fromHour) => setSettings({ data: { ...settings.data, fromHour } })}
+            />
           </label>
           <label className="stg-input-row">
             <span>Length</span>
-            <NumberInput aria-label="Hours" value={settings.data.hours} min={1} max={720} unit="h" onChange={(hours) => setSettings({ data: { ...settings.data, hours } })} />
+            <NumberInput
+              aria-label="Hours"
+              value={settings.data.hours}
+              min={1}
+              max={720}
+              unit="h"
+              onChange={(hours) => setSettings({ data: { ...settings.data, hours } })}
+            />
           </label>
           <label className="stg-input-row">
             <span>Bars</span>
@@ -690,41 +807,85 @@ export function HtEditor({
               small
               aria-label="Bars"
               value={settings.bars}
-              options={[{ value: '', label: `Script (${desc?.timeframe ?? '5m'})` }, ...BAR_SPECS.map((b) => ({ value: b.value, label: b.label }))]}
+              options={[
+                { value: '', label: `Script (${desc?.timeframe ?? '5m'})` },
+                ...BAR_SPECS.map((b) => ({ value: b.value, label: b.label })),
+              ]}
               onChange={(bars) => setSettings({ bars })}
             />
           </label>
           <label className="stg-input-row">
             <span>Commission</span>
-            <NumberInput aria-label="Commission per side" value={settings.commissionPerUnit} min={0} max={1000} step={0.25} unit="$/side" onChange={(commissionPerUnit) => setSettings({ commissionPerUnit })} />
+            <NumberInput
+              aria-label="Commission per side"
+              value={settings.commissionPerUnit}
+              min={0}
+              max={1000}
+              step={0.25}
+              unit="$/side"
+              onChange={(commissionPerUnit) => setSettings({ commissionPerUnit })}
+            />
           </label>
           <label className="stg-input-row">
             <span>Slippage</span>
-            <NumberInput aria-label="Slippage" value={settings.slippageTicks} min={0} max={100} unit="ticks" onChange={(slippageTicks) => setSettings({ slippageTicks })} />
+            <NumberInput
+              aria-label="Slippage"
+              value={settings.slippageTicks}
+              min={0}
+              max={100}
+              unit="ticks"
+              onChange={(slippageTicks) => setSettings({ slippageTicks })}
+            />
           </label>
         </div>
         <div className="stg-subhead">Risk limits</div>
         <div className="stg-inputs">
           <label className="stg-input-row">
             <span>Max order qty</span>
-            <NumberInput aria-label="Max order quantity" value={settings.maxOrderQty} min={0.0001} max={1e6} onChange={(maxOrderQty) => setSettings({ maxOrderQty })} />
+            <NumberInput
+              aria-label="Max order quantity"
+              value={settings.maxOrderQty}
+              min={0.0001}
+              max={1e6}
+              onChange={(maxOrderQty) => setSettings({ maxOrderQty })}
+            />
           </label>
           <label className="stg-input-row">
             <span>Max position</span>
-            <NumberInput aria-label="Max position" value={settings.maxPosition} min={0.0001} max={1e6} onChange={(maxPosition) => setSettings({ maxPosition })} />
+            <NumberInput
+              aria-label="Max position"
+              value={settings.maxPosition}
+              min={0.0001}
+              max={1e6}
+              onChange={(maxPosition) => setSettings({ maxPosition })}
+            />
           </label>
           <label className="stg-input-row">
             <span>Daily loss</span>
-            <NumberInput aria-label="Daily loss limit" value={settings.dailyLoss} min={0} max={1e9} unit="$" onChange={(dailyLoss) => setSettings({ dailyLoss })} />
+            <NumberInput
+              aria-label="Daily loss limit"
+              value={settings.dailyLoss}
+              min={0}
+              max={1e9}
+              unit="$"
+              onChange={(dailyLoss) => setSettings({ dailyLoss })}
+            />
           </label>
           <label className="stg-input-row">
             <span>CPU budget</span>
-            <NumberInput aria-label="CPU budget per callback" value={settings.budgetMs} min={10} max={5000} unit="ms" onChange={(budgetMs) => setSettings({ budgetMs })} />
+            <NumberInput
+              aria-label="CPU budget per callback"
+              value={settings.budgetMs}
+              min={10}
+              max={5000}
+              unit="ms"
+              onChange={(budgetMs) => setSettings({ budgetMs })}
+            />
           </label>
         </div>
         <p className="stg-muted">
-          Paper and live runs also pass the account&apos;s risk rules (Risk module). Daily loss applies to
-          backtests through the same risk engine.
+          Paper and live runs also pass the account&apos;s risk rules (Risk module). Daily loss
+          applies to backtests through the same risk engine.
         </p>
       </aside>
       {armOpen && (
@@ -764,16 +925,45 @@ function RunsPanel({
         onRowActivate={(r) => setLogRun(r.id)}
         columns={[
           { key: 'name', header: 'Strategy', width: 140, render: (r) => r.name },
-          { key: 'mode', header: 'Mode', width: 60, render: (r) => (r.mode === 'live' ? <b className="down">LIVE</b> : 'Paper') },
-          { key: 'inst', header: 'Instrument', width: 100, render: (r) => instrumentById(r.instrumentId)?.symbol ?? r.instrumentId },
+          {
+            key: 'mode',
+            header: 'Mode',
+            width: 60,
+            render: (r) => (r.mode === 'live' ? <b className="down">LIVE</b> : 'Paper'),
+          },
+          {
+            key: 'inst',
+            header: 'Instrument',
+            width: 100,
+            render: (r) => instrumentById(r.instrumentId)?.symbol ?? r.instrumentId,
+          },
           {
             key: 'status',
             header: 'Status',
             width: 80,
-            render: (r) => <span className={r.status === 'error' ? 'down' : r.status === 'running' ? 'up' : ''} title={r.error}>{r.status}</span>,
+            render: (r) => (
+              <span
+                className={r.status === 'error' ? 'down' : r.status === 'running' ? 'up' : ''}
+                title={r.error}
+              >
+                {r.status}
+              </span>
+            ),
           },
-          { key: 'pos', header: 'Pos', width: 50, numeric: true, render: (r) => runStats(r).position },
-          { key: 'trades', header: 'Trades', width: 56, numeric: true, render: (r) => runStats(r).trades },
+          {
+            key: 'pos',
+            header: 'Pos',
+            width: 50,
+            numeric: true,
+            render: (r) => runStats(r).position,
+          },
+          {
+            key: 'trades',
+            header: 'Trades',
+            width: 56,
+            numeric: true,
+            render: (r) => runStats(r).trades,
+          },
           {
             key: 'net',
             header: 'Net',
@@ -810,7 +1000,12 @@ function RunsPanel({
       {sel && (
         <pre className="stg-log" data-testid="hte-run-log">
           {sel.error ? `ERROR ${sel.error}\n` : ''}
-          {sel.logs.length ? sel.logs.slice(-300).map((l) => `${fmtTime(l.ts || sel.startedAt)}  ${l.text}`).join('\n') : 'No log lines yet.'}
+          {sel.logs.length
+            ? sel.logs
+                .slice(-300)
+                .map((l) => `${fmtTime(l.ts || sel.startedAt)}  ${l.text}`)
+                .join('\n')
+            : 'No log lines yet.'}
         </pre>
       )}
     </div>
@@ -831,7 +1026,10 @@ function PlotCanvas({ res }: { res: ScriptBacktestResult }) {
         g.fillText('No overlay plots (use plot(name, value)).', pad.l, h / 2);
         return;
       }
-      const ys = [...pts.map((p) => p.value), ...trades.flatMap((t) => [t.entryPx * tick, t.exitPx * tick])];
+      const ys = [
+        ...pts.map((p) => p.value),
+        ...trades.flatMap((t) => [t.entryPx * tick, t.exitPx * tick]),
+      ];
       const lo = Math.min(...ys);
       const hi = Math.max(...ys);
       const t0 = res.result.from;
@@ -879,7 +1077,9 @@ function PlotCanvas({ res }: { res: ScriptBacktestResult }) {
     },
     [res],
   );
-  return <canvas ref={ref} className="stg-canvas" aria-label="Strategy plots" data-testid="hte-plots" />;
+  return (
+    <canvas ref={ref} className="stg-canvas" aria-label="Strategy plots" data-testid="hte-plots" />
+  );
 }
 
 function ArmDialog({
@@ -917,7 +1117,12 @@ function ArmDialog({
           <>
             <label className="stg-input-row">
               <span>Account</span>
-              <Select small value={routerId} options={routers.map((r) => ({ value: r.id, label: r.label }))} onChange={setRouter} />
+              <Select
+                small
+                value={routerId}
+                options={routers.map((r) => ({ value: r.id, label: r.label }))}
+                onChange={setRouter}
+              />
             </label>
             <ul className="tnum">
               <li>Max order qty: {settings.maxOrderQty}</li>
@@ -927,9 +1132,17 @@ function ArmDialog({
             </ul>
             <label className="stg-input-row">
               <span>Type {symbol} to arm</span>
-              <Input aria-label="Confirm symbol" value={typed} onChange={(e) => setTyped(e.target.value)} />
+              <Input
+                aria-label="Confirm symbol"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+              />
             </label>
-            <Checkbox checked={ack} onChange={setAck} label="I understand this strategy trades real money" />
+            <Checkbox
+              checked={ack}
+              onChange={setAck}
+              label="I understand this strategy trades real money"
+            />
           </>
         )}
         <div className="stg-dialog-foot">

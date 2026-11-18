@@ -18,7 +18,13 @@ import {
 } from '@htflow/strategy';
 import { compileProject } from './compile';
 
-const INST = { id: 'mock:ESZ6', symbol: 'ESZ6', tickSize: 0.25, tickValue: 12.5, pricePrecision: 2 };
+const INST = {
+  id: 'mock:ESZ6',
+  symbol: 'ESZ6',
+  tickSize: 0.25,
+  tickValue: 12.5,
+  pricePrecision: 2,
+};
 const CFG: Omit<BacktestConfig, 'bars'> = {
   instrument: INST,
   startingBalance: 50_000,
@@ -75,7 +81,9 @@ function core(source: string, params: Record<string, unknown> = {}) {
 
 describe('compiler', () => {
   it('strips TypeScript and reports syntax errors with a line', () => {
-    const ok = compileProject([file('export function onBar(b: Bar): void { const x: number = 1; }')]);
+    const ok = compileProject([
+      file('export function onBar(b: Bar): void { const x: number = 1; }'),
+    ]);
     expect(ok.project).not.toBeNull();
     const bad = compileProject([file('export function onBar(b) {\n  const = 3;\n}')]);
     expect(bad.project).toBeNull();
@@ -91,7 +99,9 @@ describe('compiler', () => {
   });
 
   it('turns dynamic import() into a blocked require', () => {
-    const { c } = core("export function onBar() { import('https://x.example/a.js').catch(() => {}); }");
+    const { c } = core(
+      "export function onBar() { import('https://x.example/a.js').catch(() => {}); }",
+    );
     const r = c.call({ kind: 'bar', index: 0, snapshot: SNAP, bars: { '': [bar(0, 20_000)] } });
     // require() of anything but the project's own files is refused (async: no throw here).
     expect(r.error).toBeUndefined();
@@ -106,7 +116,12 @@ describe('sandbox API bridge', () => {
        export function onBar(b) { log('n', params.n, b.close); }`,
       { n: 99 },
     );
-    expect(desc).toMatchObject({ name: 'T', timeframe: '1m', timeframes: ['5m'], hooks: ['onBar'] });
+    expect(desc).toMatchObject({
+      name: 'T',
+      timeframe: '1m',
+      timeframes: ['5m'],
+      hooks: ['onBar'],
+    });
     expect(desc.params.n).toMatchObject({ type: 'int', default: 3 });
     const r = c.call({ kind: 'bar', index: 0, snapshot: SNAP, bars: { '': [bar(0, 20_000)] } });
     expect(r.logs[0]!.text).toBe('n 5 5000'); // clamped to max; ticks → price
@@ -129,7 +144,15 @@ describe('sandbox API bridge', () => {
     expect(r.error).toBeUndefined();
     expect(r.logs[0]!.text).toBe('5000 6 2 flat 2');
     expect(r.intents).toEqual([
-      { op: 'order', cid: 'c1', side: 'buy', type: 'market', qty: 2, bracket: { stop: 8, target: [8, 16] }, label: 'go' },
+      {
+        op: 'order',
+        cid: 'c1',
+        side: 'buy',
+        type: 'market',
+        qty: 2,
+        bracket: { stop: 8, target: [8, 16] },
+        label: 'go',
+      },
       { op: 'order', cid: 'c2', side: 'sell', type: 'limit', qty: 1, price: 5005 },
       { op: 'cancel', cid: 'c1' },
     ]);
@@ -137,7 +160,12 @@ describe('sandbox API bridge', () => {
 
   it('ignores order calls while trading is disabled', () => {
     const { c } = core('export function onBar() { buy(1); }');
-    const r = c.call({ kind: 'bar', index: 0, snapshot: { ...SNAP, canTrade: false }, bars: { '': [bar(0, 1)] } });
+    const r = c.call({
+      kind: 'bar',
+      index: 0,
+      snapshot: { ...SNAP, canTrade: false },
+      bars: { '': [bar(0, 1)] },
+    });
     expect(r.intents).toEqual([]);
   });
 
@@ -158,7 +186,11 @@ describe('sandbox API bridge', () => {
 
   it('reports a CPU budget overrun', () => {
     const c = new SandboxCore(INST, { ...DEFAULT_LIMITS, budgetMs: 5 });
-    c.load(compile(file('export function onBar() { const t = Date.now(); while (Date.now() - t < 30) {} }')));
+    c.load(
+      compile(
+        file('export function onBar() { const t = Date.now(); while (Date.now() - t < 30) {} }'),
+      ),
+    );
     const r = c.call({ kind: 'bar', index: 0, snapshot: SNAP, bars: { '': [bar(0, 1)] } });
     expect(r.error?.kind).toBe('budget');
   });
@@ -181,20 +213,42 @@ describe('sandbox API bridge', () => {
     const ev: HostEvent = { kind: 'bar', index: 0, snapshot: SNAP, bars: { '': [bar(0, 1)] } };
     expect(c.call(ev).logs[0]!.text).toBe('42');
     const d = new SandboxCore(INST, DEFAULT_LIMITS);
-    expect(() => d.load(compile(file("import x from 'fs';\nexport function onBar() { x; }")))).toThrow();
+    expect(() =>
+      d.load(compile(file("import x from 'fs';\nexport function onBar() { x; }"))),
+    ).toThrow();
   });
 });
 
 describe('order validation', () => {
   const st = { last: 20_000, position: 0 };
   const lim = { ...DEFAULT_ORDER_LIMITS, maxOrderQty: 5, maxPosition: 3 };
-  const order = (o: Record<string, unknown>) => ({ op: 'order', cid: 'c1', side: 'buy', type: 'market', qty: 1, ...o });
+  const order = (o: Record<string, unknown>) => ({
+    op: 'order',
+    cid: 'c1',
+    side: 'buy',
+    type: 'market',
+    qty: 1,
+    ...o,
+  });
 
   it('accepts a valid bracket order and converts prices to ticks', () => {
-    const v = validateIntent(order({ type: 'limit', price: 4999.75, bracket: { stop: 8, target: [4] } }), INST, lim, st);
+    const v = validateIntent(
+      order({ type: 'limit', price: 4999.75, bracket: { stop: 8, target: [4] } }),
+      INST,
+      lim,
+      st,
+    );
     expect(v).toEqual({
       ok: true,
-      intent: { op: 'order', cid: 'c1', side: 'buy', type: 'limit', qty: 1, px: 19_999, bracket: { stopTicks: 8, targetTicks: [4] } },
+      intent: {
+        op: 'order',
+        cid: 'c1',
+        side: 'buy',
+        type: 'limit',
+        qty: 1,
+        px: 19_999,
+        bracket: { stopTicks: 8, targetTicks: [4] },
+      },
     });
   });
 
@@ -217,7 +271,9 @@ describe('order validation', () => {
   });
 
   it('allows reducing orders beyond the position limit check', () => {
-    expect(validateIntent(order({ side: 'sell', qty: 3 }), INST, lim, { last: 20_000, position: 3 }).ok).toBe(true);
+    expect(
+      validateIntent(order({ side: 'sell', qty: 3 }), INST, lim, { last: 20_000, position: 3 }).ok,
+    ).toBe(true);
     expect(validateIntent({ op: 'drop-tables' }, INST, lim, st).ok).toBe(false);
   });
 });
@@ -253,9 +309,15 @@ describe('templates', () => {
     '%s backtests without errors',
     async (id) => {
       const tpl = SCRIPT_TEMPLATES.find((t) => t.id === id)!;
-      const r = await runScriptBacktest(compile(file(tpl.source)), new InProcessTransport(), data, CFG, {
-        bars: { kind: 'time', ms: 60_000 },
-      });
+      const r = await runScriptBacktest(
+        compile(file(tpl.source)),
+        new InProcessTransport(),
+        data,
+        CFG,
+        {
+          bars: { kind: 'time', ms: 60_000 },
+        },
+      );
       expect(r.error).toBeNull();
       expect(r.calls).toBeGreaterThan(100);
     },
@@ -285,7 +347,9 @@ describe('.htstrat', () => {
     expect(parseHtstrat(serializeHtstrat(p))).toEqual(p);
     expect(() => parseHtstrat('{}')).toThrow(/Not a .htstrat/);
     expect(() =>
-      parseHtstrat(JSON.stringify({ format: 'htstrat', version: 1, files: [{ name: '../x.ts', source: '' }] })),
+      parseHtstrat(
+        JSON.stringify({ format: 'htstrat', version: 1, files: [{ name: '../x.ts', source: '' }] }),
+      ),
     ).toThrow(/Invalid file name/);
   });
 });

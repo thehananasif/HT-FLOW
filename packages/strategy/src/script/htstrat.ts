@@ -72,10 +72,7 @@ export function normalizeProject(raw: unknown, now = Date.now()): StrategyProjec
         params[k] = v as number | boolean | string;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : now);
   return {
-    id:
-      typeof r.id === 'string' && /^[\w-]{1,64}$/.test(r.id)
-        ? r.id
-        : `stg-${now.toString(36)}`,
+    id: typeof r.id === 'string' && /^[\w-]{1,64}$/.test(r.id) ? r.id : `stg-${now.toString(36)}`,
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim().slice(0, 80) : 'Strategy',
     files,
     params,

@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — round 7
+
+### HT Editor (Strategies)
+
+- New **HT Editor** tab in Strategies: write your own strategies in JavaScript / TypeScript-like
+  syntax (CodeMirror 6 with highlighting, API and indicator autocomplete, error markers, multiple
+  files / tabs with `import`), four templates (MA cross, delta breakout, VWAP reversion, footprint
+  imbalance), `params` shown as a settings form. Reference: `docs/STRATEGY-API.md`.
+- Strategies run in a locked-down Web Worker sandbox (no DOM, no network, no `eval` /
+  `Function`, CPU budget with a watchdog that terminates the worker, bounded buffers); the main
+  thread validates every order and the risk engine checks it. Documented in
+  `docs/SECURITY-AUDIT.md` (HT Editor sandbox).
+- Backtest with the existing deterministic backtester (equity curve, trades, stats, plots, log),
+  Paper on the live feed, Live behind an arming dialog and a KILL switch (only for connectors
+  with live order routing — none yet), Deploy to my VPS (the compiled script ships in the VPS
+  runner bundle), runs list with stop and logs.
+- Save strategies in the profile, import / export `.htstrat` files; Command Palette: open, new,
+  new from template, open / import, save, export, backtest, run on paper, stop.
+- `@htflow/strategy`: `SandboxCore`, `ScriptBridge`, `validateIntent`, `runScriptBacktest`,
+  `Backtest.step(budget, pause)` for asynchronous strategies.
+
 ## Unreleased — round 6
 
 ### Security

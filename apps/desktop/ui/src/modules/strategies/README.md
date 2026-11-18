@@ -103,8 +103,18 @@ account, maxPosition }`) + the prebuilt runner core (CommonJS for Node 22, ~240 
 8. **Not done.** Live order routing from the VPS needs a broker connector (see BLOCKERS). Only
    built-in strategies are bundled (user-registered strategies are not yet).
 
+## HT Editor (`editor/`)
+
+User strategies in JavaScript / TypeScript-like syntax (docs/STRATEGY-API.md). `compile.ts`
+(Sucrase: strips types, ES modules → sandbox `require`, plus lint), `CodeEditor.tsx`
+(CodeMirror 6), `sandbox.worker.ts` + `workerTransport.ts` (locked-down worker with a watchdog),
+`runs.ts` (paper / live runs, kill switch, live-router registry), `store.ts` (saved projects),
+`HtEditor.tsx` (the tab). The pure parts live in `packages/strategy/src/script/`: `SandboxCore`
+(user-side API), `ScriptBridge` (host side: events, validation via `validateIntent`, orders through
+the runner's context and the engine's risk checks), `runScriptBacktest`, templates, `.htstrat`.
+Security model: docs/SECURITY-AUDIT.md, "HT Editor sandbox".
+
 ## Not built
 
-- The Monaco code editor, `.ts` / `.py` / `.htstrat` file loading, and the embedded Python runner
-  (Monaco would be a new dependency).
+- `.py` file loading and an embedded Python runner.
 - The no-code rule builder.

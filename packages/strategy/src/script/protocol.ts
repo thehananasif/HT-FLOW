@@ -24,7 +24,14 @@ export interface CompiledProject {
 
 /** A `param.*` declaration as plain data (turned into an InputDef on the host). */
 export type ParamDecl =
-  | { type: 'int' | 'float'; label: string; default: number; min?: number; max?: number; step?: number }
+  | {
+      type: 'int' | 'float';
+      label: string;
+      default: number;
+      min?: number;
+      max?: number;
+      step?: number;
+    }
   | { type: 'bool'; label: string; default: boolean }
   | { type: 'choice'; label: string; default: string; options: string[] }
   | { type: 'string'; label: string; default: string };
