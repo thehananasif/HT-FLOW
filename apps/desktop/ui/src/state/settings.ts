@@ -10,6 +10,7 @@
  * `onSettingChange(key, fn)` (anywhere).
  */
 import { create } from 'zustand';
+import { translateLiteral as tl } from '@htflow/i18n';
 import {
   THEMES,
   sanitizeLayout,
@@ -57,7 +58,7 @@ export type SectionId =
   | 'modules'
   | 'about';
 
-export const SECTIONS: { id: SectionId; label: string; description: string }[] = [
+const SECTION_DEFS: { id: SectionId; label: string; description: string }[] = [
   {
     id: 'general',
     label: 'General',
@@ -178,6 +179,19 @@ export const SECTIONS: { id: SectionId; label: string; description: string }[] =
     description: 'Version, open-source licences, links and update preferences.',
   },
 ];
+
+/** Section list; `label` / `description` resolve in the active language when read. */
+export const SECTIONS: { id: SectionId; label: string; description: string }[] = SECTION_DEFS.map(
+  (s) => ({
+    id: s.id,
+    get label() {
+      return tl(s.label);
+    },
+    get description() {
+      return tl(s.description);
+    },
+  }),
+);
 
 interface BaseDef<T> {
   section: SectionId;
@@ -2990,8 +3004,38 @@ export type SettingsValues = { [K in SettingKey]: ValueOf<(typeof SCHEMA)[K]> };
 
 export const SETTING_KEYS = Object.keys(SCHEMA) as SettingKey[];
 
+const localizedDefs = new Map<string, SettingDef>();
+
+/**
+ * The definition of a setting. Its user-visible texts (`group`, `label`, `help`, `placeholder`,
+ * `patternHint`, `unit`, option labels) resolve in the active language when read; everything else
+ * is the raw schema entry.
+ */
 export function settingDef(key: SettingKey): SettingDef {
-  return SCHEMA[key] as SettingDef;
+  let v = localizedDefs.get(key);
+  if (!v) {
+    const raw = SCHEMA[key] as SettingDef;
+    const text = (name: string) => ({
+      get(this: unknown) {
+        const x = (raw as unknown as Record<string, unknown>)[name];
+        return typeof x === 'string' ? tl(x) : x;
+      },
+    });
+    const opts = (name: 'options' | 'special') => ({
+      get() {
+        const x = (raw as unknown as Record<string, EnumOption[] | undefined>)[name];
+        return x?.map((o) => ({ ...o, label: tl(o.label) }));
+      },
+    });
+    const d = Object.create(raw) as SettingDef;
+    for (const n of ['group', 'label', 'help', 'placeholder', 'patternHint', 'unit'])
+      if (n in raw) Object.defineProperty(d, n, text(n));
+    for (const n of ['options', 'special'] as const)
+      if (n in raw) Object.defineProperty(d, n, opts(n));
+    v = d;
+    localizedDefs.set(key, v);
+  }
+  return v;
 }
 
 /** Settings shown on a page (home section or `alsoIn`), in schema order. */
