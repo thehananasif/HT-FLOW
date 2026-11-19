@@ -7,6 +7,7 @@ import { ghostBars, REPLAY_SPEEDS, type ReplayEngine } from '@htflow/replay';
 import { specKey, type Bar } from '@htflow/market-data';
 import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import { registerChartExtension, type ChartExtensionContext } from '../../charts/extensions';
+import { chartAction } from '../../charts/bus';
 import { registerCommands } from '../../shell/commands';
 import { useWindows } from '../../state/windows';
 import { paper } from '../../state/market';
@@ -66,8 +67,18 @@ export const replayControls = {
   stepBack: (id: string, spec: BarSpec) =>
     act(id, (e) => replaySession()?.group.stepBackBar(spec, e)),
   stepTick: (id: string) => act(id, (e) => replaySession()?.group.stepTick(e)),
-  seek: (id: string, t: number) => act(id, (e) => replaySession()?.group.seek(t, e)),
+  /** Jump / Go to time: the replay clock moves there, and so does the view (newest bar at the right). */
+  seek: (id: string, t: number) => {
+    act(id, (e) => replaySession()?.group.seek(t, e));
+    anchorReplayCharts();
+  },
 };
+
+/** Puts the newest replay bar back at the right margin of every chart showing a replay instrument. */
+export function anchorReplayCharts(): void {
+  for (const [wid, w] of Object.entries(useWindows.getState().windows))
+    if (w.kind === 'chart' && isReplayId(w.instrumentId)) chartAction('go-latest', wid);
+}
 
 function Timeline({ id, e }: { id: string; e: ReplayEngine }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -226,7 +237,8 @@ function ReplayOverlay({ windowId, state }: { windowId: string; state: ChartWind
           {fmtClock(e.time)}
         </span>
         <span className="muted tnum">
-          {e.tradeIndex.toLocaleString()} / {e.dataset.trades.length.toLocaleString()} {tl('ticks')}
+          {e.progressTrades.done.toLocaleString()} / {e.progressTrades.total.toLocaleString()}{' '}
+          {tl('ticks')}
         </span>
       </div>
       <Timeline id={id} e={e} />
@@ -594,18 +606,34 @@ function syncCommands(): void {
 }
 useWindows.subscribe(syncCommands);
 
+/** The chart a replay is shown on: the active chart, else the first one. */
+function replayChartId(): string | undefined {
+  const { activeId, windows } = useWindows.getState();
+  const charts = Object.entries(windows).filter(([, w]) => w.kind === 'chart');
+  return (activeId && windows[activeId]?.kind === 'chart' ? activeId : null) ?? charts[0]?.[0];
+}
+
+/** Bar length of the chart the replay will be shown on (turns "History before start" bars into time). */
+export function replayChartBarMs(): number | undefined {
+  const id = replayChartId();
+  const w = id ? useWindows.getState().windows[id] : undefined;
+  if (w?.kind !== 'chart') return undefined;
+  const spec = specOf(w as ChartWindowState);
+  return spec.kind === 'time' ? spec.ms : undefined;
+}
+
 /** Switches the active chart (and its link group) to the replay instrument. */
 export function showReplayOn(replayIds: string[]): void {
-  const { activeId, windows, patch } = useWindows.getState();
-  const charts = Object.entries(windows).filter(([, w]) => w.kind === 'chart');
-  const first =
-    (activeId && windows[activeId]?.kind === 'chart' ? activeId : null) ?? charts[0]?.[0];
+  const { patch } = useWindows.getState();
+  const first = replayChartId();
   if (!first || !replayIds[0]) {
     toast('info', tl('Open a chart to show the replay'));
     return;
   }
   patch(first, { instrumentId: replayIds[0] } as Partial<WindowState>);
   useWindows.getState().setActive(first);
+  // Already on the replay (maybe panned into the history): back to the newest bar.
+  chartAction('go-latest', first);
   // Further synced instruments go to charts that show their source instrument.
   for (const rid of replayIds.slice(1)) {
     const src = sourceIdOf(rid);

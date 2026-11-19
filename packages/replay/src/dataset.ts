@@ -100,6 +100,11 @@ export interface ReplayDataset {
   deltas: DeltaLog;
   /** Book at `start`, when known. */
   initialBook?: BookSnapshot;
+  /**
+   * Set when look-back trades ("History before start") precede `start`: the time of the first one.
+   * They are already visible when the clock sits at `start` and are never replayed.
+   */
+  historyStart?: number;
 }
 
 /** Which recorded layers to replay (P35 setup "data layers"). */

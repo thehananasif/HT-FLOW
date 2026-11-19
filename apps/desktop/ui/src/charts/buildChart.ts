@@ -193,6 +193,8 @@ export function buildChart(
       const c = mk(hosts[0]!);
       c.slotWidth = 118;
       c.options.rightMargin = 1;
+      // A narrow window still shows a few bars of context (they collapse to candles).
+      c.minVisibleSlots = 3;
       c.rightOffset = 0.6;
       c.setSource(barSource(series()));
       c.valueAt = closeAt;

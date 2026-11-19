@@ -281,6 +281,7 @@ Build order followed so far: **Section 8 fast-track** — P01 → P02 → P03 �
 - [x] Hide future bars toggle with ghost candles (never fed to the store), fills stamped in replay time (`PaperEngine.setClock`), B / S fill tags, economic-event markers on the timeline, bookmarks and loop saved per template, Replay window opens in its own split
 - [x] Missing-data download: "Exchange history" replay source (trades for the last 24 h, bar-level ticks up to 30 days, no depth) via the native backfill; source auto-chosen by range coverage; range validation and empty-range errors in the setup
 - [x] Stop replay (control bar, palette, Replay window) returns every replay chart to its live instrument and closes replay positions; Session P&L shows realized + open; scheduler sheds load at high speed
+- [x] History before start (Replay setup: bars or days, default 1 day, max 5 days): look-back ticks loaded from the same source before the clock starts and drawn as normal bars; the chart follows the newest replay bar at the right margin (auto-scroll, kept through step / speed / seek), panning stops following until Go to latest; footprint charts keep at least 3 bars on screen until zoomed
 - [ ] Exchange history has no depth (heatmap / DOM use the one-level trade book); exchange download is desktop-only (the browser preview needs a stand-in)
 
 ## P25 — Workspaces, layouts, linking

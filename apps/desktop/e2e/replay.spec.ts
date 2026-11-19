@@ -256,3 +256,75 @@ test('an invalid replay range is reported and blocks Start', async ({ page }) =>
   await expect(page.getByText('To is in the future')).toBeVisible();
   await expect(page.getByTestId('replay-start')).toBeDisabled();
 });
+
+test('replay chart shows the history before start and keeps the newest bar at the right edge', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'replay-lookback');
+  await expect(page.getByTestId('chart-footprint')).toBeVisible();
+  await page.getByTestId('chart-footprint').click({ position: { x: 200, y: 200 } });
+  await page.getByTestId('ribbon-replay').click();
+  await expect(page.getByTestId('replay-window')).toBeVisible();
+  // "History before start" is part of the setup (default: one day, drawn as normal bars).
+  await expect(page.getByLabel('History before start')).toHaveValue('1');
+  await page.getByTestId('replay-start').click();
+  await expect(page.getByLabel('Running replay')).toBeVisible({ timeout: 30_000 });
+  const bar = page.getByTestId('replay-bar');
+  await expect(bar).toBeVisible({ timeout: 20_000 });
+  // The tick counter counts only the replayed range, not the history.
+  await expect(bar.locator('.rp-clock .muted')).toHaveText(/^0 \/ [\d,]+ ticks$/);
+
+  const chart = page.getByTestId('chart-footprint');
+  const canvas = chart.locator('canvas[data-bars-left]').first();
+  const view = async () => {
+    const [px, pw] = ((await canvas.getAttribute('data-plot')) ?? '0,0').split(',').map(Number);
+    return {
+      left: Number(await canvas.getAttribute('data-bars-left')),
+      lastX: Number(await canvas.getAttribute('data-last-x')),
+      plotX: px!,
+      plotW: pw!,
+    };
+  };
+  // History is drawn before the replay start: bars to the left of the newest one.
+  await expect.poll(async () => (await view()).left, { timeout: 10_000 }).toBeGreaterThan(0);
+  const box = (await canvas.boundingBox())!;
+  let v = await view();
+  const at = (f: number) => box.x + v.plotX + v.plotW * f;
+  // Wide footprint bars: zoom out (wheel); the view stays anchored on the newest bar.
+  await page.mouse.move(at(0.5), box.y + box.height * 0.3);
+  for (let i = 0; i < 8; i++) {
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(30);
+  }
+  await expect.poll(async () => (await view()).left, { timeout: 10_000 }).toBeGreaterThan(20);
+  v = await view();
+  expect(v.lastX).toBeGreaterThan(0.85);
+  expect(v.lastX).toBeLessThanOrEqual(1);
+
+  // Playing keeps the newest bar at the right edge (auto-scroll).
+  await bar.getByRole('button', { name: '1000×' }).click();
+  await page.getByTestId('replay-play').click();
+  await page.waitForTimeout(1500);
+  await page.getByTestId('replay-play').click();
+  v = await view();
+  expect(v.left).toBeGreaterThan(20);
+  expect(v.lastX).toBeGreaterThan(0.85);
+
+  // Panning into the history stops following; "Go to latest" anchors again.
+  await page.mouse.move(at(0.2), box.y + box.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(at(0.8), box.y + box.height * 0.3, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await view()).lastX).toBeLessThan(0.8);
+  // Stays put while the replay plays (the user is reading the history).
+  const panned = (await view()).lastX;
+  await page.getByTestId('replay-step-bar').click();
+  await page.waitForTimeout(300);
+  expect((await view()).lastX).toBeGreaterThanOrEqual(panned);
+  expect((await view()).lastX).toBeLessThan(0.85);
+  await page.getByTitle('Go to latest').first().click();
+  await expect.poll(async () => (await view()).lastX).toBeGreaterThan(0.85);
+  expect(errors).toEqual([]);
+});

@@ -167,6 +167,19 @@ export class ChartCore {
   rightOffset: number;
   /** Settings → Chart → auto-scroll: off keeps the view still when new bars arrive. */
   autoScroll = true;
+  /**
+   * The view is anchored to the newest bar (it follows new bars when auto-scroll is on). Panning
+   * the newest bar away from the right margin turns it off; "Go to latest" (reset) turns it back on.
+   */
+  follow = true;
+  /**
+   * Fewest slots kept on screen until the user zooms: very wide bars (footprint) shrink to fit a
+   * narrow plot instead of showing a single bar. 0 = off.
+   */
+  minVisibleSlots = 0;
+  private userZoomed = false;
+  private preferredSlotWidth = 0;
+  private autoSlotWidth = -1;
   private lastTime: number | null = null;
   autoScale = true;
   priceMin = 0;
@@ -467,9 +480,25 @@ export class ChartCore {
     this.invalidate();
   }
 
+  /** Scrolls to a right offset (slots between the newest slot and the right edge), e.g. a scroll bar. */
+  setRightOffset(offset: number): void {
+    this.rightOffset = offset;
+    this.follow = isAnchored(offset, this.options.rightMargin, this.slotWidth);
+    this.invalidate();
+  }
+
+  /** Scrolls the newest bar back to the right margin and follows new bars again (scale untouched). */
+  goLatest(): void {
+    this.rightOffset = this.options.rightMargin;
+    this.follow = true;
+    this.invalidate();
+  }
+
   /** Go to the latest data and re-enable auto-scale (Ctrl+R "Reset chart"). */
   reset(): void {
     this.rightOffset = this.options.rightMargin;
+    this.follow = true;
+    this.userZoomed = false;
     this.autoScale = true;
     this.invalidate();
   }
@@ -479,6 +508,7 @@ export class ChartCore {
     const n = this.source.count();
     const visible = this.plotRect().w / this.slotWidth;
     this.rightOffset = this.vpos(n - 1, n) - this.vpos(i, n) - visible / 2;
+    this.follow = isAnchored(this.rightOffset, this.options.rightMargin, this.slotWidth);
     this.invalidate();
   }
 
@@ -697,11 +727,28 @@ export class ChartCore {
     const aw = this.axisWidths();
     const plot = this.plotRect();
     const n = this.source.count();
-    if (!this.autoScroll && n > 0) {
+    if (n > 0) {
+      // Following: the newest bar keeps its place at the right margin. Panned away (or auto-scroll
+      // off): the bars on screen stay where they are while new ones arrive.
       const appended = appendedSlots(this.source.timeAt, n, this.lastTime);
-      this.rightOffset = offsetAfterGrowth(this.rightOffset, appended, false);
+      this.rightOffset = offsetAfterGrowth(
+        this.rightOffset,
+        appended,
+        this.autoScroll && this.follow,
+      );
     }
     this.lastTime = n > 0 ? this.source.timeAt(n - 1) : null;
+    if (this.minVisibleSlots > 0 && !this.userZoomed && plot.w > 0) {
+      // Set by a template / setting since the last fit: that is the preferred width.
+      if (this.slotWidth !== this.autoSlotWidth) this.preferredSlotWidth = this.slotWidth;
+      this.slotWidth = fitSlotWidth(
+        this.preferredSlotWidth,
+        plot.w,
+        this.minVisibleSlots + Math.max(0, this.options.rightMargin) + 0.5,
+        this.options.minSlotWidth,
+      );
+      this.autoSlotWidth = this.slotWidth;
+    }
     const sw = this.slotWidth;
     const gaps = this.gapsActive(n);
     const period = gaps ? this.period(n) : 0;
@@ -881,6 +928,19 @@ export class ChartCore {
     if (this.showDebug) this.drawDebug(v);
     // Tests (and tools) wait on this instead of sleeping: it changes only after a frame is drawn.
     this.canvas.dataset.frame = String(++this.frameCount);
+    // Viewport test hooks: where the newest slot sits (fraction of the plot width), how many slots
+    // are drawn to its left, and the plot's x / width in CSS px.
+    if (v.slotCount > 0) {
+      const last = v.slotCount - 1;
+      const pos = viewportStats(v.xOf(last), v.slotAt(v.plot.x), last, v.plot.x, v.plot.w);
+      this.canvas.dataset.lastX = pos.lastX.toFixed(3);
+      this.canvas.dataset.barsLeft = String(pos.barsLeft);
+      this.canvas.dataset.plot = `${Math.round(v.plot.x)},${Math.round(v.plot.w)}`;
+    } else {
+      delete this.canvas.dataset.lastX;
+      delete this.canvas.dataset.barsLeft;
+      delete this.canvas.dataset.plot;
+    }
     for (const fn of this.priceListeners) fn(this.priceMin, this.priceMax);
     // Lazy history: tell listeners when the left edge is past the first slot.
     if (v.slotCount > 0 && this.pastStartListeners.size) {
@@ -1266,7 +1326,10 @@ export class ChartCore {
       this.options.maxSlotWidth,
       Math.max(this.options.minSlotWidth, this.slotWidth * factor),
     );
-    this.rightOffset = (right - x) / sw - 0.5 - (lastV - slotF);
+    this.userZoomed = true;
+    // Anchored to the newest bar: zoom around it so it stays at the right margin.
+    if (!(this.follow && this.autoScroll))
+      this.rightOffset = (right - x) / sw - 0.5 - (lastV - slotF);
     this.slotWidth = sw;
   }
 
@@ -1282,6 +1345,7 @@ export class ChartCore {
       this.zoomPrice(y, factor);
     } else if (e.shiftKey || w === 'scroll') {
       this.rightOffset -= (e.deltaY || e.deltaX) / this.slotWidth / 2;
+      this.follow = isAnchored(this.rightOffset, this.options.rightMargin, this.slotWidth);
     } else {
       // Wheel = zoom time, keeping the slot under the cursor fixed.
       this.zoomTime(x, factor);
@@ -1375,7 +1439,10 @@ export class ChartCore {
         this.maximizedPane = null;
         for (const fn of this.paneListeners) fn(d.layerId, h);
       } else if (d.kind === 'pan') {
-        if (!d.shift) this.rightOffset = d.rightOffset + dx / this.slotWidth;
+        if (!d.shift) {
+          this.rightOffset = d.rightOffset + dx / this.slotWidth;
+          this.follow = isAnchored(this.rightOffset, this.options.rightMargin, this.slotWidth);
+        }
         if ((!this.autoScale || d.shift || this.mouseMode === 'zoomxy') && !this.linkedPrice) {
           this.autoScale = false;
           const shift = (sign * dy) / v.tickPx;
@@ -1390,6 +1457,7 @@ export class ChartCore {
         this.priceMin = mid - half;
         this.priceMax = mid + half;
       } else if (d.kind === 'time-axis') {
+        this.userZoomed = true;
         this.slotWidth = Math.min(
           this.options.maxSlotWidth,
           Math.max(this.options.minSlotWidth, d.slotWidth * Math.exp(-dx * 0.01)),
@@ -1425,7 +1493,9 @@ export class ChartCore {
         const s0 = this.vpos(v.slotAt(Math.min(z.x0, z.x1)), n);
         const s1 = this.vpos(v.slotAt(Math.max(z.x0, z.x1)), n);
         this.slotWidth = Math.min(this.options.maxSlotWidth, v.plot.w / Math.max(1, s1 - s0 + 1));
+        this.userZoomed = true;
         this.rightOffset = this.vpos(n - 1, n) - s1;
+        this.follow = isAnchored(this.rightOffset, this.options.rightMargin, this.slotWidth);
         this.autoScale = false;
         const a = v.pxAt(Math.min(z.y0, z.y1));
         const b = v.pxAt(Math.max(z.y0, z.y1));
@@ -1475,4 +1545,37 @@ export function offsetAfterGrowth(
 ): number {
   if (autoScroll || appended <= 0) return rightOffset;
   return rightOffset - appended;
+}
+
+/**
+ * True when the newest slot sits at the right margin (within one slot or 12 px, whichever is
+ * wider): the view counts as "following" and keeps the newest bar there as bars arrive.
+ */
+export function isAnchored(rightOffset: number, rightMargin: number, slotWidth = 10): boolean {
+  const tol = Math.max(1, 12 / Math.max(0.1, slotWidth));
+  return rightOffset > -tol && rightOffset <= Math.max(0, rightMargin) + tol;
+}
+
+/** Newest slot position as a fraction of the plot width, and the number of slots left of it on screen. */
+export function viewportStats(
+  lastSlotX: number,
+  leftEdgeSlot: number,
+  lastSlot: number,
+  plotX: number,
+  plotW: number,
+): { lastX: number; barsLeft: number } {
+  const lastX = plotW > 0 ? (lastSlotX - plotX) / plotW : 0;
+  const first = Math.max(0, Math.ceil(leftEdgeSlot - 1e-9));
+  return { lastX, barsLeft: Math.max(0, lastSlot - first) };
+}
+
+/** Slot width that keeps `slots` slots in a plot `plotW` px wide, never wider than `preferred`. */
+export function fitSlotWidth(
+  preferred: number,
+  plotW: number,
+  slots: number,
+  minSlotWidth: number,
+): number {
+  if (!(plotW > 0) || !(slots > 0)) return preferred;
+  return Math.max(minSlotWidth, Math.min(preferred, plotW / slots));
 }
