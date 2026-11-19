@@ -883,7 +883,7 @@ export function Dashboard({ version }: { version: string }) {
           <Button
             size="xs"
             variant="ghost"
-            title="Trading Panel"
+            title={tl('Trading Panel')}
             aria-pressed={tradingPanel}
             onClick={() => useWindows.getState().setTradingPanel(!tradingPanel)}
           >
