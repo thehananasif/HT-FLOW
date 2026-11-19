@@ -9,8 +9,10 @@ import { ErrorBoundary } from './platform/ErrorBoundary';
 import './feeds/load';
 import './modules/load';
 import './state/tableLayouts';
+import { installIntrospection } from './platform/introspect';
 
 applyTheme('dark');
+installIntrospection();
 
 // Block the WebView's native context menu everywhere except inputs (we draw our own menus).
 window.addEventListener('contextmenu', (e) => {

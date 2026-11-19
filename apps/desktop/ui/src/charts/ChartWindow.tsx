@@ -326,18 +326,24 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     if (!core) return;
     core.snapshotCanvas().toBlob((blob) => {
       if (!blob) return;
-      const item =
-        typeof ClipboardItem !== 'undefined' ? new ClipboardItem({ 'image/png': blob }) : null;
-      if (item && navigator.clipboard?.write)
-        void navigator.clipboard
-          .write([item])
-          .then(() => toast('success', tl('Chart copied as PNG')));
-      else {
+      const save = () => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `htflow-${store.instrument.symbol}.png`;
         a.click();
-      }
+      };
+      const item =
+        typeof ClipboardItem !== 'undefined' ? new ClipboardItem({ 'image/png': blob }) : null;
+      if (item && navigator.clipboard?.write)
+        // Clipboard access can be refused (permission, focus): save the PNG instead of failing.
+        void navigator.clipboard.write([item]).then(
+          () => toast('success', tl('Chart copied as PNG')),
+          () => {
+            save();
+            toast('info', tl('Clipboard unavailable: chart saved as PNG'));
+          },
+        );
+      else save();
     });
   };
 

@@ -95,8 +95,10 @@ function RecoveryDialog({ words, onDone }: { words: string[]; onDone: () => void
         <Button
           size="sm"
           onClick={() => {
-            void navigator.clipboard?.writeText(words.join(' '));
-            toast('success', tl('Recovery code copied'));
+            void Promise.resolve(navigator.clipboard?.writeText(words.join(' '))).then(
+              () => toast('success', tl('Recovery code copied')),
+              () => toast('error', tl('Copy failed'), tl('Clipboard access was denied')),
+            );
           }}
         >
           {tl('Copy')}

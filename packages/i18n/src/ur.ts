@@ -1330,6 +1330,8 @@ export const ur: Strings = {
   'ui.reset-password.5c4b': 'پاس ورڈ ری سیٹ کریں',
   'ui.animated-background.72fb': 'متحرک پس منظر:',
   'ui.chart-copied-as-png.a0d5': 'چارٹ PNG کی صورت میں کاپی ہو گیا',
+  'ui.clipboard-unavailable-chart-saved.c7a1':
+    'کلپ بورڈ دستیاب نہیں: چارٹ PNG کے طور پر محفوظ ہو گیا',
   'ui.date-is-before-the.6a65': 'تاریخ دستیاب ہسٹری سے پہلے کی ہے',
   'ui.full-screen-is-not.4bf3': 'مکمل اسکرین دستیاب نہیں',
   'ui.chart-refreshed.9349': 'چارٹ ریفریش ہو گیا',
