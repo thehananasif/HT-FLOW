@@ -814,7 +814,7 @@ export function Dashboard({ version }: { version: string }) {
   return (
     <div className="app-root">
       <TitleBar>
-        <div className="titlebar-brand">
+        <div className="titlebar-brand" title="HT Flow">
           <BrandIcon size={16} />
           <span className="tb-logo">
             {tl('HT')}
@@ -824,13 +824,18 @@ export function Dashboard({ version }: { version: string }) {
         </div>
         <WorkspaceMenu
           trigger={
-            <button className="tb-workspace" data-testid="workspace-menu">
-              <span className="muted">{tl('Workspace:')}</span> {doc.name} ▾
+            <button
+              className="tb-workspace"
+              data-testid="workspace-menu"
+              title={`${tl('Workspace:')} ${doc.name}`}
+            >
+              <span className="muted tb-ws-label">{tl('Workspace:')}</span>{' '}
+              <span className="tb-ws-name">{doc.name}</span> ▾
             </button>
           }
         />
-        <div className="tb-group">
-          <span className="muted">{tl('Layout')}</span>
+        <div className="tb-group tb-layout">
+          <span className="muted tb-label">{tl('Layout')}</span>
           <SegmentedControl
             aria-label={tl('Layout presets')}
             value={preset}
@@ -847,8 +852,8 @@ export function Dashboard({ version }: { version: string }) {
           />
         </div>
         {singleChart && firstChart?.kind === 'chart' && (
-          <div className="tb-group">
-            <span className="muted">{tl('Main chart')}</span>
+          <div className="tb-group tb-mainchart">
+            <span className="muted tb-label">{tl('Main chart')}</span>
             {CHART_TEMPLATES.filter((t) => !t.more).map((t) => (
               <Chip
                 key={t.id}
@@ -860,23 +865,29 @@ export function Dashboard({ version }: { version: string }) {
             ))}
           </div>
         )}
-        <div className="tb-group">
-          <Button size="xs" variant="ghost" onClick={() => split('right')}>
-            <ArrowRightToLine size={13} /> {tl('Split right')}
+        <div className="tb-group tb-actions">
+          <Button
+            size="xs"
+            variant="ghost"
+            title={tl('Split right')}
+            onClick={() => split('right')}
+          >
+            <ArrowRightToLine size={13} /> <span className="tb-txt">{tl('Split right')}</span>
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => split('below')}>
-            <ArrowDownToLine size={13} /> {tl('Split down')}
+          <Button size="xs" variant="ghost" title={tl('Split down')} onClick={() => split('below')}>
+            <ArrowDownToLine size={13} /> <span className="tb-txt">{tl('Split down')}</span>
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => detach()}>
-            <ExternalLink size={13} /> {tl('Detach window')}
+          <Button size="xs" variant="ghost" title={tl('Detach window')} onClick={() => detach()}>
+            <ExternalLink size={13} /> <span className="tb-txt">{tl('Detach window')}</span>
           </Button>
           <Button
             size="xs"
             variant="ghost"
+            title="Trading Panel"
             aria-pressed={tradingPanel}
             onClick={() => useWindows.getState().setTradingPanel(!tradingPanel)}
           >
-            <PanelRight size={13} /> {tl('Panel')}
+            <PanelRight size={13} /> <span className="tb-txt">{tl('Panel')}</span>
           </Button>
         </div>
         <HelpMenu />

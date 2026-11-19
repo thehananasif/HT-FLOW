@@ -1055,9 +1055,18 @@ export class ChartCore {
     ctx.textAlign = 'left';
     ctx.font = v.font(ax.fontSize);
     const base = v.baseValue ?? 0;
+    // Scale labels never sit under a price tag (current price, bid / ask, order tags): skip them.
+    const half = ax.fontSize / 2 + 2;
+    const covered = this.options.priceAxis
+      ? v.tags.map((t) => {
+          const ty = v.yOf(t.px);
+          return [ty - 9 - half, ty - 9 + (t.sub ? 32 : 18) + half] as const;
+        })
+      : [];
     for (const px of this.priceLevels(v)) {
       const y = v.yOf(px);
       if (y < 8 || y > a.h - 8) continue;
+      if (covered.some(([t0, t1]) => y >= t0 && y <= t1)) continue;
       ctx.fillText(
         scaleLabel(px, this.options.scaleMode, base, (x) => formatPrice(x, v.instrument)),
         a.x + 8,
