@@ -13,7 +13,6 @@
  * Exit code 1 when any check or crawled control fails. Report: test-results/native-report/.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { remote } from 'webdriverio';
@@ -269,44 +268,27 @@ async function nativePaths(d: Driver, b: Browser): Promise<StepResult[]> {
   return out;
 }
 
-/** Second app launch with a file path argument (Explorer double-click / file association). */
+/**
+ * File association (.htstrat double-click). tauri-driver forwards `tauri:options.args` to WebView2
+ * as browser switches ("Ignoring switch with invalid name"), not to the app's own argv, so a second
+ * launch with a file path cannot be driven here. The command-line → HT Editor route is covered by
+ * the unit tests (openFile / openfile.rs) and the manual checklist (docs/MANUAL-TEST-CHECKLIST.md).
+ */
 async function fileAssociation(): Promise<StepResult[]> {
-  const out: StepResult[] = [];
-  if (WEB) {
-    out.push({
+  return [
+    {
       surface: 'Native paths',
       control: 'File association (.htstrat via command line)',
       role: 'check',
       status: 'skip',
       effect: '',
-      notes: ['native only'],
-    });
-    return out;
-  }
-  const dir = join(tmpdir(), 'htflow-native-test');
-  mkdirSync(dir, { recursive: true });
-  const file = join(dir, 'Native Smoke.htstrat');
-  writeFileSync(
-    file,
-    JSON.stringify({
-      format: 'htstrat',
-      version: 1,
-      name: 'Native Smoke',
-      code: 'export default function onBar(ctx) {}',
-    }),
-  );
-  const b = await session([file]);
-  try {
-    const d = await boot(b, 'nativefile');
-    await check(d, 'File association (.htstrat via command line)', out, async () => {
-      const ok = await waitFor(d, `document.querySelector('[data-testid="hte-backtest"]')`, 20_000);
-      if (!ok) throw new Error('HT Editor did not open for the file passed on the command line');
-      return 'HT Editor opened the file';
-    });
-  } finally {
-    await b.deleteSession().catch(() => undefined);
-  }
-  return out;
+      notes: [
+        WEB
+          ? 'native only'
+          : 'not drivable under tauri-driver (args go to WebView2); manual checklist item',
+      ],
+    },
+  ];
 }
 
 async function crawl(d: Driver): Promise<ReportPart> {
@@ -390,6 +372,10 @@ async function main() {
   console.log(
     `native report: ${report.totals.controls} steps, ${report.totals.fail} failures, ${report.totals.warn} warnings → ${OUT}/index.html`,
   );
+  for (const part of parts)
+    for (const c of part.commands ?? [])
+      if (part.name !== 'native-crawl')
+        console.log(`  ${c.status.toUpperCase().padEnd(4)} ${c.control}: ${c.notes.join(' | ')}`);
   for (const f of report.failures) console.log(`  FAIL ${f}`);
   process.exit(report.failures.length ? 1 : 0);
 }
