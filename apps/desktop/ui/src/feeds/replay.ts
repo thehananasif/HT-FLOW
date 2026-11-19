@@ -8,13 +8,18 @@ import {
 } from '@htflow/market-data';
 import {
   DEFAULT_LAYERS,
+  DEFAULT_LOOKBACK,
+  loadLookback,
+  lookbackMs,
   MemorySource,
   ReplayEngine,
   ReplayGroup,
   ReplayScheduler,
   SimulatedSource,
+  withLookback,
   type ReplayDataSource,
   type ReplayLayers,
+  type ReplayLookback,
 } from '@htflow/replay';
 import { pickSourceId } from '../modules/replay/logic';
 import { registerFeedProvider } from './registry';
@@ -46,6 +51,13 @@ export interface ReplayConfig {
   source?: string;
   /** Replay template this session was started from: its bookmarks and loop are saved back to it. */
   templateId?: string;
+  /**
+   * "History before start": bars / days loaded before `from` and drawn as normal bars, so the
+   * chart has context and the newest replay bar sits at the right edge. Default 1 day.
+   */
+  lookback?: ReplayLookback;
+  /** Bar length (ms) that turns a look-back in bars into time (the replay chart's timeframe). */
+  lookbackBarMs?: number;
 }
 
 export interface ReplaySession {
@@ -155,11 +167,20 @@ export async function startReplay(
       l: ReplayLayers,
       p?: (x: number) => void,
     ) => Promise<Awaited<ReturnType<ReplayDataSource['load']>>>;
-    const data = await load(src, config.from, config.to, config.layers, (p) =>
-      onProgress?.((i + p) / n),
+    // Main range first (0..70 %), then the look-back before it (70..100 %).
+    const main = await load(src, config.from, config.to, config.layers, (p) =>
+      onProgress?.((i + p * 0.7) / n),
     );
+    const pre = await loadLookback(
+      s,
+      src,
+      main.start,
+      lookbackMs(config.lookback ?? DEFAULT_LOOKBACK, config.lookbackBarMs),
+      (p) => onProgress?.((i + 0.7 + p * 0.3) / n),
+    );
+    const data = withLookback(main, pre);
     const rinst = replayInstrument(src);
-    if (!data.trades.length)
+    if (!main.trades.length)
       throw new Error(
         `No ticks for ${rinst.symbol} between ${fmtWhen(config.from)} and ${fmtWhen(config.to)} in "${s.label}". Pick a range the source covers (see "Available" in the setup).`,
       );

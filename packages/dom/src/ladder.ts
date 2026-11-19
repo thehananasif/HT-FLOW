@@ -1,6 +1,7 @@
 import { formatCompact, formatPrice, type Instrument, type OrderBook } from '@htflow/market-data';
 import type { Order, Position } from '@htflow/trading';
 import { cumulativeDepth } from './analytics';
+import { barLength, fitColumns, fitFontSize, fitRowHeight, nextCentre } from './autobalance';
 import type { DomModel } from './model';
 import {
   BUILTIN_TEMPLATES,
@@ -81,6 +82,8 @@ export class DomLadder {
   grouping = 1;
   /** Book levels drawn per side (Settings → DOM levels). 0 = all. */
   maxLevels = 0;
+  /** Fit row height, font and column widths to the window (no clipped numbers, no sideways scroll). */
+  autoFit = true;
   /** Override labels per column (e.g. "Vol (S)"). */
   labels: Partial<Record<DomColumnId, string>> = {};
   private width = 0;
@@ -89,6 +92,9 @@ export class DomLadder {
   private boxes: ColumnBox[] = [];
   private scale = 1;
   private curFont = '';
+  private rh = 0;
+  private nRows = 1;
+  private fs = 12;
 
   constructor(readonly canvas: DomSurface) {}
 
@@ -97,8 +103,14 @@ export class DomLadder {
     this.layoutColumns();
   }
 
+  /** Displayed row height (the template's, grown / shrunk to fill the window when auto-fit is on). */
   get rowHeight(): number {
-    return this.template.style.rowHeight;
+    return this.rh || this.template.style.rowHeight;
+  }
+
+  /** Font size actually drawn (never taller than the row allows). */
+  get fontSize(): number {
+    return this.fs;
   }
 
   get headerHeight(): number {
@@ -129,20 +141,46 @@ export class DomLadder {
   }
 
   private layoutColumns(): void {
+    const st = this.template.style;
     const vis = this.template.columns.filter((c) => c.visible);
-    const total = vis.reduce((a, c) => a + c.width, 0) || 1;
+    // Rows: the template's height, fitted so the ladder fills the window with an odd row count.
+    const avail = this.height - st.headerHeight;
+    if (this.autoFit && this.height > 0) {
+      const fit = fitRowHeight(avail, st.rowHeight);
+      this.rh = fit.rowHeight;
+      this.nRows = fit.rows;
+    } else {
+      this.rh = st.rowHeight;
+      this.nRows = Math.max(1, Math.floor(avail / st.rowHeight));
+    }
+    this.fs = this.autoFit ? fitFontSize(st.fontSize, this.rh) : st.fontSize;
+    // Columns: drop the lowest-priority ones that cannot fit instead of scrolling sideways.
+    const widths =
+      this.autoFit && this.width > 0
+        ? fitColumns(vis, this.width, this.fs)
+        : (() => {
+            const total = vis.reduce((a, c) => a + c.width, 0) || 1;
+            const k = this.width > 0 ? this.width / total : 1;
+            let used = 0;
+            return vis.map((c, i) => {
+              const w = i === vis.length - 1 ? this.width - used : Math.floor(c.width * k);
+              used += w;
+              return { id: c.id, w: Math.max(0, w) };
+            });
+          })();
+    const kept = new Set(widths.map((w) => w.id));
+    const total = vis.filter((c) => kept.has(c.id)).reduce((a, c) => a + c.width, 0) || 1;
     this.scale = this.width > 0 ? this.width / total : 1;
     let x = 0;
-    this.boxes = vis.map((c, i) => {
-      const w = i === vis.length - 1 ? this.width - x : Math.floor(c.width * this.scale);
-      const r = { id: c.id, x, w: Math.max(0, w) };
+    this.boxes = widths.map((c) => {
+      const r = { id: c.id as DomColumnId, x, w: c.w };
       x += r.w;
       return r;
     });
   }
 
   get rows(): number {
-    return Math.max(1, Math.floor((this.height - this.headerHeight) / this.rowHeight));
+    return this.nRows;
   }
 
   scroll(rows: number): void {
@@ -194,19 +232,28 @@ export class DomLadder {
 
   private updateCentre(ref: number): void {
     const g = this.grouping;
-    if (Number.isNaN(ref)) return;
-    const snapped = Math.round(ref / g) * g;
-    if (Number.isNaN(this.centerPx)) {
-      this.centerPx = snapped;
+    const style = this.template.style;
+    if (style.centring === 'auto') {
+      // Legacy band mode: re-centre when price leaves the middle band of the ladder.
+      if (Number.isNaN(ref)) return;
+      const snapped = Math.round(ref / g) * g;
+      if (Number.isNaN(this.centerPx)) this.centerPx = snapped;
+      else if (!this.paused) {
+        const band = Math.max(1, Math.floor(this.rows * style.centreBand)) * g;
+        if (Math.abs(ref - this.centerPx) > band) this.centerPx = snapped;
+      }
       return;
     }
-    if (this.paused) return;
-    const mode = this.template.style.centring;
-    if (mode === 'always') this.centerPx = snapped;
-    else if (mode === 'auto') {
-      const band = Math.max(1, Math.floor(this.rows * this.template.style.centreBand)) * g;
-      if (Math.abs(ref - this.centerPx) > band) this.centerPx = snapped;
-    }
+    const mode =
+      style.centring === 'always' ? 'always' : style.centring === 'manual' ? 'off' : 'out-of-view';
+    this.centerPx = nextCentre({
+      mode,
+      centre: this.centerPx,
+      ref,
+      rows: this.rows,
+      g,
+      paused: this.paused,
+    });
   }
 
   private font(ctx: CanvasRenderingContext2D, weight: number, size: number): void {
@@ -224,7 +271,7 @@ export class DomLadder {
     const t = this.template;
     const st = t.style;
     const p = st.palette;
-    const fs = st.fontSize;
+    const fs = this.fs;
     const { book, model } = f;
     const g = this.grouping;
     const ref = !Number.isNaN(f.lastPx) ? f.lastPx : book.mid;
@@ -559,7 +606,7 @@ export class DomLadder {
             }
             if (size > 0) {
               const isBig = big > 0 && size >= big;
-              const w = maxBook > 0 ? Math.max(2, (size / maxBook) * cw) : 0;
+              const w = barLength(size, maxBook, cw);
               ctx.fillStyle = isBig ? tint : rgba(tint, 0.6);
               if (side === 'bid') ctx.fillRect(cx + cw - w, y + 1, w, h - 2);
               else ctx.fillRect(cx, y + 1, w, h - 2);
