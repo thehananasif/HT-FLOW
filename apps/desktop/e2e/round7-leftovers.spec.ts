@@ -154,13 +154,8 @@ test('HT Editor plot() lines are drawn on the instrument chart during a paper ru
         if (!g || !c.width || !c.height) continue;
         const d = g.getImageData(0, 0, c.width, c.height).data;
         for (let i = 0; i < d.length; i += 4)
-          if (
-            d[i]! > 130 &&
-            d[i + 2]! > 130 &&
-            d[i + 1]! < d[i]! - 70 &&
-            d[i + 2]! > d[i + 1]! + 70
-          )
-            n++;
+          // Near-pure #ff00ff only: the footprint's own purple cells must not count.
+          if (d[i]! > 200 && d[i + 2]! > 200 && d[i + 1]! < 80) n++;
       }
       return n;
     });
