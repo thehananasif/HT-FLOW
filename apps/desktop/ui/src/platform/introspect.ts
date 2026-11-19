@@ -3,6 +3,8 @@ import { commands, runCommand } from '../shell/commands';
 import { isModuleBuilt } from '../modules/registry';
 import { SECTIONS } from '../state/settings';
 import { useWindows } from '../state/windows';
+import { logBuffer } from '../state/log';
+import { osEntries } from './osWindows';
 
 /**
  * Read-only introspection for the "click everything" crawlers (Playwright
@@ -20,6 +22,10 @@ export interface Introspection {
   settingsSections(): { id: string; label: string }[];
   /** Number of module / chart / DOM windows in the current layout. */
   windowCount(): number;
+  /** Separate OS windows the main window has registered (label + window ids, no contents). */
+  osWindows(): { label: string; ids: string[] }[];
+  /** The last `n` warning / error log lines (source + message), for test failure messages. */
+  recentProblems(n: number): string[];
 }
 
 declare global {
@@ -46,6 +52,13 @@ export const introspection: Introspection = {
   runCommand: (id) => runCommand(id),
   settingsSections: () => SECTIONS.map((s) => ({ id: s.id, label: s.label })),
   windowCount: () => Object.keys(useWindows.getState().windows).length,
+  osWindows: () => osEntries().map((e) => ({ label: e.label, ids: [...e.ids] })),
+  recentProblems: (n) =>
+    logBuffer
+      .snapshot()
+      .filter((e) => e.level === 'warn' || e.level === 'error')
+      .slice(-Math.max(0, n))
+      .map((e) => `${e.source}: ${e.message}`.slice(0, 300)),
 };
 
 export function installIntrospection(): void {

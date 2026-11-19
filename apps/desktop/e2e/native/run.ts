@@ -220,7 +220,11 @@ async function nativePaths(d: Driver, b: Browser): Promise<StepResult[]> {
       await d.sleep(500);
       n2 = await count();
     }
-    if (!WEB && n1 <= n0) throw new Error('no OS window appeared');
+    if (!WEB && n1 <= n0) {
+      const reg = JSON.stringify(await intro(d, 'osWindows()'));
+      const probs = ((await intro(d, 'recentProblems(5)')) as string[]).join(' | ');
+      throw new Error(`no OS window appeared (registry ${reg}; log: ${probs || 'none'})`);
+    }
     if (n2 > n0) throw new Error('OS window did not close on re-attach');
     return `OS windows ${n0}→${n1}→${n2}`;
   });
