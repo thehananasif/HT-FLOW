@@ -199,16 +199,30 @@ async function nativePaths(d: Driver, b: Browser): Promise<StepResult[]> {
     return `windows ${n}→${m}`;
   });
   await check(d, 'Detach the active window to an OS window, then re-attach', out, async () => {
-    const handles0 = (await b.getWindowHandles()).length;
+    // Ask the app which secondary windows exist: msedgedriver does not list a new WebView2
+    // window as a WebDriver handle, so getWindowHandles() cannot see it.
+    const count = async () => {
+      if (WEB) return (await b.getWindowHandles()).length;
+      const r = await invokeNative(d, 'os_window_list');
+      if (!r.startsWith('ok: ')) throw new Error(`os_window_list: ${r}`);
+      return (r.match(/"label"/g) ?? []).length;
+    };
+    const n0 = await count();
     await intro(d, `runCommand('detach-os')`);
-    await d.sleep(2500);
-    const handles1 = (await b.getWindowHandles()).length;
+    let n1 = n0;
+    for (let i = 0; i < 20 && n1 <= n0; i++) {
+      await d.sleep(500);
+      n1 = await count();
+    }
     await intro(d, `runCommand('window.reattach-all')`);
-    await d.sleep(2000);
-    const handles2 = (await b.getWindowHandles()).length;
-    if (!WEB && handles1 <= handles0) throw new Error('no OS window appeared');
-    if (handles2 > handles0) throw new Error('OS window did not close on re-attach');
-    return `OS windows ${handles0}→${handles1}→${handles2}`;
+    let n2 = n1;
+    for (let i = 0; i < 20 && n2 > n0; i++) {
+      await d.sleep(500);
+      n2 = await count();
+    }
+    if (!WEB && n1 <= n0) throw new Error('no OS window appeared');
+    if (n2 > n0) throw new Error('OS window did not close on re-attach');
+    return `OS windows ${n0}→${n1}→${n2}`;
   });
   await check(d, 'Binance symbol discovery', out, () =>
     invokeNative(d, 'instruments_list', { venue: 'binance', refresh: true }, 90_000),
