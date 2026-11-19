@@ -1,14 +1,34 @@
-import { useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { toast } from '@htflow/ui-kit';
 import { parseMarkdown, type Block, type Inline } from './markdown';
+import { splitLevels } from './levels';
+import { LevelChip } from './Cards';
 
 import { translateLiteral as tl } from '@htflow/i18n';
+/** Price chips are on for finished replies; `ref` is the active chart's last price. */
+export const LevelsContext = createContext<{ enabled: boolean; ref: number | null }>({
+  enabled: false,
+  ref: null,
+});
+
+function LevelText({ v }: { v: string }) {
+  const { enabled, ref } = useContext(LevelsContext);
+  if (!enabled) return <>{v}</>;
+  return (
+    <>
+      {splitLevels(v, { ref }).map((part, i) =>
+        typeof part === 'string' ? part : <LevelChip key={i} value={part.value} text={part.text} />,
+      )}
+    </>
+  );
+}
+
 function inl(nodes: Inline[], key = ''): ReactNode[] {
   return nodes.map((n, i) => {
     const k = `${key}${i}`;
     switch (n.t) {
       case 'text':
-        return n.v;
+        return <LevelText key={k} v={n.v} />;
       case 'code':
         return <code key={k}>{n.v}</code>;
       case 'b':

@@ -134,12 +134,16 @@ describe('order card risk maths', () => {
       stopLossTicks: 8,
       takeProfitTicks: 16,
     });
-    const market = proposalToArgs({ side: 'buy', type: 'market', qty: 1, stopPrice: 1 }, {
-      ...p,
-      type: 'market',
-      entry: 5000,
-      stopLoss: null,
-    }, 0.25);
+    const market = proposalToArgs(
+      { side: 'buy', type: 'market', qty: 1, stopPrice: 1 },
+      {
+        ...p,
+        type: 'market',
+        entry: 5000,
+        stopLoss: null,
+      },
+      0.25,
+    );
     expect(market).not.toHaveProperty('price');
     expect(market).not.toHaveProperty('stopPrice');
     expect(market).not.toHaveProperty('stopLossTicks');
@@ -271,7 +275,14 @@ describe('context checkboxes', () => {
 
   it('includes everything by default', () => {
     const text = formatContext(snap, 0);
-    for (const k of ['active instrument', 'timeframe', 'indicators', 'last:', 'account', 'positions'])
+    for (const k of [
+      'active instrument',
+      'timeframe',
+      'indicators',
+      'last:',
+      'account',
+      'positions',
+    ])
       expect(text).toContain(k);
   });
 
