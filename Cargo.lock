@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-ai"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -2084,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-auth"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "argon2 0.5.3",
  "base64 0.22.1",
@@ -2100,7 +2100,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-binance"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2117,7 +2117,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-bitfinex"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2129,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-bitget"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2142,7 +2142,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-bybit"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2159,7 +2159,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-common"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-core-types",
@@ -2175,7 +2175,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-deribit"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2188,7 +2188,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-kraken"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2201,7 +2201,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-okx"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-phemex"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2227,7 +2227,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-connector-whitebit"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "futures-util",
  "htflow-connector-common",
@@ -2239,7 +2239,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-core-types"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -2247,7 +2247,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-cot"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2255,7 +2255,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-desktop"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2295,7 +2295,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-tick-store"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "crc32fast",
  "htflow-core-types",
@@ -2309,7 +2309,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-vault"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chacha20poly1305",
  "rand 0.8.8",
@@ -2322,7 +2322,7 @@ dependencies = [
 
 [[package]]
 name = "htflow-vps"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "russh",

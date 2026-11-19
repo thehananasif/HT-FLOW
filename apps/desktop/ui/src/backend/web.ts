@@ -218,7 +218,7 @@ export function createWebBackend(): Backend {
       const raw = current.profile.data['vault:' + key];
       return raw ? dec.decode(await open(current.key, raw)) : null;
     },
-    appVersion: async () => '0.1.0-web',
+    appVersion: async () => '1.0.0-web',
     window: { minimize() {}, toggleMaximize() {}, close() {} },
   };
 }
