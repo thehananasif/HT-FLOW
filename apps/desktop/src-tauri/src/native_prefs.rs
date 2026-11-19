@@ -76,12 +76,29 @@ fn save(root: &Path, prefs: &NativePrefs) -> std::io::Result<()> {
 /// default feature switches wry would pass, because a custom value replaces them.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn browser_args(adapter: &str) -> String {
+    browser_args_with(
+        adapter,
+        std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS")
+            .ok()
+            .as_deref(),
+    )
+}
+
+/// Tauri's `additional_browser_args` replaces WebView2's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`
+/// instead of adding to it, so anything already set there (e.g. msedgedriver's
+/// `--remote-debugging-port` under tauri-driver, or a user's own flags) is appended here.
+pub fn browser_args_with(adapter: &str, env_args: Option<&str>) -> String {
     let base = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
-    match adapter {
+    let mut args = match adapter {
         "high-performance" => format!("{base} --force_high_performance_gpu"),
         "low-power" => format!("{base} --force_low_power_gpu"),
         _ => base.to_string(),
+    };
+    if let Some(extra) = env_args.map(str::trim).filter(|e| !e.is_empty()) {
+        args.push(' ');
+        args.push_str(extra);
     }
+    args
 }
 
 /// Data root plus the prefs read at start-up, managed as Tauri state.
@@ -134,5 +151,19 @@ mod tests {
         assert_eq!((l.logs_keep_days, l.max_backups), (365, 1));
         assert_eq!(l.video_adapter, "auto");
         let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod browser_args_tests {
+    use super::browser_args_with;
+
+    #[test]
+    fn keeps_existing_webview2_args() {
+        let a = browser_args_with("high-performance", Some("--remote-debugging-port=9222"));
+        assert!(a.contains("--force_high_performance_gpu"));
+        assert!(a.ends_with(" --remote-debugging-port=9222"));
+        assert!(!browser_args_with("default", Some("  ")).ends_with(' '));
+        assert!(!browser_args_with("default", None).contains("remote-debugging"));
     }
 }
