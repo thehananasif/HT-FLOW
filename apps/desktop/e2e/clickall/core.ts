@@ -19,7 +19,10 @@ export interface Driver {
   /** Evaluates a JavaScript expression in the page and returns its JSON value. */
   exec<T>(expression: string): Promise<T>;
   /** Real (trusted) click on the element matching the CSS selector. */
-  click(selector: string, opts?: { button?: 'left' | 'right'; x?: number; y?: number }): Promise<void>;
+  click(
+    selector: string,
+    opts?: { button?: 'left' | 'right'; x?: number; y?: number },
+  ): Promise<void>;
   /** Right-click at client coordinates. */
   contextClick?(x: number, y: number): Promise<void>;
   press(key: string): Promise<void>;
@@ -368,7 +371,8 @@ export async function crawlSurface(
       }
     }
     const dialog = after.layers.find(
-      (l) => (l.startsWith('dialog:') || l.startsWith('alertdialog:')) && !before.layers.includes(l),
+      (l) =>
+        (l.startsWith('dialog:') || l.startsWith('alertdialog:')) && !before.layers.includes(l),
     );
     if (dialog && opts.dialogs !== false) {
       await exerciseDialog(d, name, dialog.replace(/^[a-z]+:/, ''), steps, layout);

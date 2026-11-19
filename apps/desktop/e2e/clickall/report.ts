@@ -26,7 +26,11 @@ export interface Report {
 }
 
 /** Bugs this crawler found in the app and that were fixed (see docs/CHANGELOG.md, round 7). */
-export const FIXED_BUGS: string[] = [];
+export const FIXED_BUGS: string[] = [
+  'Chart › Snapshot (copy PNG): unhandled rejection when clipboard access is refused — now saves the PNG and says so',
+  'Settings › Logs › Copy: false "copied" toast + unhandled rejection when the clipboard is denied — now "Copy failed"',
+  'Create account › recovery code Copy: same clipboard rejection — now "Copy failed"',
+];
 
 export function writePart(dir: string, part: ReportPart): void {
   mkdirSync(join(dir, 'parts'), { recursive: true });
@@ -76,7 +80,9 @@ export function renderHtml(r: Report): string {
   const surfaces = r.parts
     .flatMap((p) => p.surfaces)
     .map(
-      (s) => `<section><h3>${esc(s.group)} › ${esc(s.name)} <small>${s.steps.length} steps · ${s.durationMs} ms</small></h3>
+      (
+        s,
+      ) => `<section><h3>${esc(s.group)} › ${esc(s.name)} <small>${s.steps.length} steps · ${s.durationMs} ms</small></h3>
 ${s.screenshot ? `<a href="${esc(s.screenshot)}"><img loading="lazy" src="${esc(s.screenshot)}" alt=""></a>` : ''}
 ${s.layout.overflow.length || s.layout.overlap.length ? `<ul class="bad">${[...s.layout.overflow.map((o) => `overflow: ${o}`), ...s.layout.overlap.map((o) => `overlap: ${o}`)].map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
 <table><thead><tr><th>Result</th><th>Surface</th><th>Control</th><th>Role</th><th>Effect</th><th>Notes</th></tr></thead><tbody>${s.steps.map(row).join('')}</tbody></table></section>`,

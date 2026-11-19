@@ -9,7 +9,10 @@
  * Shard-friendly: one test per module chunk / command slice, and the file runs in parallel mode,
  * so `playwright test --shard=1/3` splits it across machines.
  */
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { manualChecklist } from './clickall/checklist';
 import { crawlSurface, failuresOf, runCommands, takeErrors, type Driver } from './clickall/core';
 import { isDestructiveCommand, UNDO_AFTER } from './clickall/policy';
 import { writePart, type ReportPart } from './clickall/report';
@@ -89,6 +92,14 @@ test.describe('click everything', { tag: '@clickall' }, () => {
     // Every ribbon module has an "Open" command in the palette.
     const ids = new Set(cmds.map((c) => c.id));
     expect(mods.filter((m) => !ids.has(`open.${m.id}`)).map((m) => m.id)).toEqual([]);
+    // `WRITE_CHECKLIST=1 pnpm e2e:clickall -g registry` regenerates docs/MANUAL-TEST-CHECKLIST.md.
+    if (process.env.WRITE_CHECKLIST) {
+      const sections = await intro<{ id: string; label: string }[]>(page, 'settingsSections()');
+      writeFileSync(
+        join(REPORT_DIR, '..', '..', '..', '..', 'docs', 'MANUAL-TEST-CHECKLIST.md'),
+        manualChecklist(mods, cmds, sections),
+      );
+    }
   });
 
   test('shell: title bar, ribbon, status bar, trading panel, side tools, chart', async ({
@@ -142,7 +153,10 @@ test.describe('click everything', { tag: '@clickall' }, () => {
             .getByRole('menuitem')
             .first()
             .waitFor({ timeout: 2000 })
-            .then(() => true, () => false);
+            .then(
+              () => true,
+              () => false,
+            );
           if (ok) return;
         }
         await resetLayout(page);
@@ -256,7 +270,8 @@ test.describe('click everything', { tag: '@clickall' }, () => {
         await takeErrors(d);
         const batch = mine.slice(i, i + 12);
         steps.push(...(await runCommands(d, batch)));
-        for (const c of batch) if (UNDO_AFTER[c.id]) await runCommands(d, [{ id: UNDO_AFTER[c.id]!, label: 'undo' }]);
+        for (const c of batch)
+          if (UNDO_AFTER[c.id]) await runCommands(d, [{ id: UNDO_AFTER[c.id]!, label: 'undo' }]);
       }
       if (slice === 0)
         for (const c of sampledOut)
@@ -268,7 +283,12 @@ test.describe('click everything', { tag: '@clickall' }, () => {
             effect: '',
             notes: ['same handler as the sampled commands of this family'],
           });
-      finish({ name: `commands-${slice}`, runner: 'playwright-web', surfaces: [], commands: steps });
+      finish({
+        name: `commands-${slice}`,
+        runner: 'playwright-web',
+        surfaces: [],
+        commands: steps,
+      });
     });
   }
 
@@ -291,6 +311,11 @@ test.describe('click everything', { tag: '@clickall' }, () => {
       await page.waitForTimeout(150);
     }
     await ctx.close();
-    finish({ name: 'commands-destructive', runner: 'playwright-web', surfaces: [], commands: steps });
+    finish({
+      name: 'commands-destructive',
+      runner: 'playwright-web',
+      surfaces: [],
+      commands: steps,
+    });
   });
 });

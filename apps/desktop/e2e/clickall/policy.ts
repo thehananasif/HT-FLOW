@@ -59,7 +59,9 @@ export const BENIGN_CONSOLE: { re: RegExp; why: string }[] = [
 
 export function isDestructive(label: string, testid?: string): boolean {
   const s = `${label} ${testid ?? ''}`.trim();
-  return DESTRUCTIVE.some((re) => re.test(label) || (testid ? re.test(testid) : false) || re.test(s));
+  return DESTRUCTIVE.some(
+    (re) => re.test(label) || (testid ? re.test(testid) : false) || re.test(s),
+  );
 }
 
 export function isDestructiveCommand(id: string, label: string): boolean {

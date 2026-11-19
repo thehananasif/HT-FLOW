@@ -14,7 +14,7 @@
     if (typeof a === 'string') return a;
     try {
       return JSON.stringify(a);
-    } catch (e) {
+    } catch {
       return String(a);
     }
   };
@@ -28,11 +28,15 @@
     var r = e && e.reason;
     push('unhandledrejection', r && r.message ? r.message : fmt(r));
   });
+  // A Content-Security-Policy block (e.g. the HT Editor sandbox worker) is an app error.
+  document.addEventListener('securitypolicyviolation', function (e) {
+    push('csp', e.violatedDirective + ' blocked ' + (e.blockedURI || 'inline'));
+  });
   var origError = console.error;
   console.error = function () {
     try {
       push('console.error', Array.prototype.map.call(arguments, fmt).join(' '));
-    } catch (x) {
+    } catch {
       /* ignore */
     }
     return origError.apply(console, arguments);
@@ -84,7 +88,11 @@
     var cs = getComputedStyle(el);
     var parentClip = cs.position === 'fixed' ? null : ancestorClip(el.parentElement);
     var clip = parentClip || { x1: 0, y1: 0, x2: window.innerWidth, y2: window.innerHeight };
-    if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible' || cs.contain.indexOf('paint') >= 0) {
+    if (
+      cs.overflowX !== 'visible' ||
+      cs.overflowY !== 'visible' ||
+      cs.contain.indexOf('paint') >= 0
+    ) {
       clip = intersect(clip, rectOf(el));
     }
     if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') {
@@ -129,7 +137,10 @@
       if (!visibleBox(el)) continue;
       // A listbox rendered inline (not a popup) is part of the window, not a layer.
       var role = el.getAttribute('role');
-      if (role === 'listbox' && !el.closest('[data-radix-popper-content-wrapper], .ht-combo-list, .palette'))
+      if (
+        role === 'listbox' &&
+        !el.closest('[data-radix-popper-content-wrapper], .ht-combo-list, .palette')
+      )
         continue;
       if (el.closest('.palette') && role !== 'dialog') continue;
       out.push({ el: el, role: role, label: labelOf(el, true) });
@@ -158,7 +169,16 @@
     'summary',
   ].join(',');
   // Roles that are distinct actions even when they share a class (never capped).
-  var UNCAPPED = { tab: 1, menuitem: 1, menuitemcheckbox: 1, menuitemradio: 1, switch: 1, checkbox: 1, radio: 1, select: 1 };
+  var UNCAPPED = {
+    tab: 1,
+    menuitem: 1,
+    menuitemcheckbox: 1,
+    menuitemradio: 1,
+    switch: 1,
+    checkbox: 1,
+    radio: 1,
+    select: 1,
+  };
   var REPEAT_CAP = 4;
 
   function roleOf(el) {
@@ -174,7 +194,8 @@
     var s =
       el.getAttribute('aria-label') ||
       (el.getAttribute('aria-labelledby') &&
-        (document.getElementById(el.getAttribute('aria-labelledby').split(' ')[0]) || {}).textContent) ||
+        (document.getElementById(el.getAttribute('aria-labelledby').split(' ')[0]) || {})
+          .textContent) ||
       (el.tagName === 'SELECT' && el.closest('label') && el.closest('label').textContent) ||
       (el.textContent || '').trim() ||
       el.getAttribute('title') ||
@@ -214,7 +235,12 @@
       var el = els[i];
       var role = roleOf(el);
       // Nested interactive: a button inside a menuitem / tab is the same control.
-      if (el.parentElement && el.parentElement.closest(CONTROL_SEL) && el.parentElement.closest(CONTROL_SEL) !== el && root.contains(el.parentElement.closest(CONTROL_SEL)))
+      if (
+        el.parentElement &&
+        el.parentElement.closest(CONTROL_SEL) &&
+        el.parentElement.closest(CONTROL_SEL) !== el &&
+        root.contains(el.parentElement.closest(CONTROL_SEL))
+      )
         continue;
       var box = visibleBox(el);
       if (!box) continue;
@@ -249,7 +275,12 @@
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
       var role = roleOf(el);
-      if (el.parentElement && el.parentElement.closest(CONTROL_SEL) && el.parentElement.closest(CONTROL_SEL) !== el && root.contains(el.parentElement.closest(CONTROL_SEL)))
+      if (
+        el.parentElement &&
+        el.parentElement.closest(CONTROL_SEL) &&
+        el.parentElement.closest(CONTROL_SEL) !== el &&
+        root.contains(el.parentElement.closest(CONTROL_SEL))
+      )
         continue;
       if (!visibleBox(el)) continue;
       if (keyOf(el, role, labelOf(el), counts) === key) return el;
@@ -279,7 +310,8 @@
 
   // ----------------------------------------------------------------------------- state
 
-  var VOLATILE = /^(up|down|flash.*|tick.*|pos|neg|blink.*|pulse.*|is-.*hover.*|.*focus.*|dv-active.*|dv-inactive.*|.*-hover|live|delayed|stale)$/;
+  var VOLATILE =
+    /^(up|down|flash.*|tick.*|pos|neg|blink.*|pulse.*|is-.*hover.*|.*focus.*|dv-active.*|dv-inactive.*|.*-hover|live|delayed|stale)$/;
   function hash(str) {
     var x = 2166136261;
     for (var i = 0; i < str.length; i++) {
@@ -294,15 +326,31 @@
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
       var tag = el.tagName;
-      if (tag === 'svg' || tag === 'path' || tag === 'g' || tag === 'line' || tag === 'rect') continue;
-      var cls = typeof el.className === 'string' ? el.className.split(/\s+/).filter(function (c) { return c && !VOLATILE.test(c); }).join('.') : '';
+      if (tag === 'svg' || tag === 'path' || tag === 'g' || tag === 'line' || tag === 'rect')
+        continue;
+      var cls =
+        typeof el.className === 'string'
+          ? el.className
+              .split(/\s+/)
+              .filter(function (c) {
+                return c && !VOLATILE.test(c);
+              })
+              .join('.')
+          : '';
       var st =
         (el.getAttribute('aria-selected') || '') +
         (el.getAttribute('aria-pressed') || '') +
         (el.getAttribute('aria-checked') || '') +
         (el.getAttribute('aria-expanded') || '') +
         (el.getAttribute('data-state') || '');
-      var v = tag === 'INPUT' ? (el.type === 'checkbox' || el.type === 'radio' ? String(el.checked) : el.value) : tag === 'SELECT' ? el.value : '';
+      var v =
+        tag === 'INPUT'
+          ? el.type === 'checkbox' || el.type === 'radio'
+            ? String(el.checked)
+            : el.value
+          : tag === 'SELECT'
+            ? el.value
+            : '';
       parts.push(tag + '.' + cls + st + v);
     }
     var intro = window.__HTFLOW_INTROSPECT__;
@@ -324,7 +372,8 @@
 
   // ----------------------------------------------------------------------------- layout checks
 
-  var SKIP_TEXT = '[role="tooltip"], .ht-toasts, [aria-hidden="true"], .sr-only, .visually-hidden, script, style, noscript, canvas';
+  var SKIP_TEXT =
+    '[role="tooltip"], .ht-toasts, [aria-hidden="true"], .sr-only, .visually-hidden, script, style, noscript, canvas';
   function textBoxes(root) {
     var out = [];
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -339,8 +388,12 @@
       range.selectNodeContents(n);
       var rs = range.getClientRects();
       for (var i = 0; i < rs.length; i++) {
-        var r = intersect({ x1: rs[i].left, y1: rs[i].top, x2: rs[i].right, y2: rs[i].bottom }, clip);
-        if (w(r) >= 3 && h(r) >= 3) out.push({ el: el, r: r, text: n.nodeValue.trim().slice(0, 40) });
+        var r = intersect(
+          { x1: rs[i].left, y1: rs[i].top, x2: rs[i].right, y2: rs[i].bottom },
+          clip,
+        );
+        if (w(r) >= 3 && h(r) >= 3)
+          out.push({ el: el, r: r, text: n.nodeValue.trim().slice(0, 40) });
       }
       if (out.length > 2500) break;
     }
@@ -350,7 +403,8 @@
     var s = el.tagName.toLowerCase();
     var tid = el.getAttribute('data-testid');
     if (tid) return s + '[data-testid=' + tid + ']';
-    if (typeof el.className === 'string' && el.className.trim()) s += '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.');
+    if (typeof el.className === 'string' && el.className.trim())
+      s += '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.');
     return s;
   }
   function overlaps(root) {
@@ -369,7 +423,10 @@
         var area = w(o) * h(o);
         var minArea = Math.min(w(a.r) * h(a.r), w(b.r) * h(b.r));
         if (w(o) > 2 && h(o) > 3 && area > 0.25 * minArea) {
-          found.push({ a: describe(a.el) + ' "' + a.text + '"', b: describe(b.el) + ' "' + b.text + '"' });
+          found.push({
+            a: describe(a.el) + ' "' + a.text + '"',
+            b: describe(b.el) + ' "' + b.text + '"',
+          });
           if (found.length >= 20) break;
         }
       }
@@ -380,7 +437,11 @@
     var rb = rectOf(root);
     var found = [];
     // A root that scrolls horizontally (the ribbon) holds wider content by design.
-    if (getComputedStyle(root).overflowX === 'auto' || getComputedStyle(root).overflowX === 'scroll') return found;
+    if (
+      getComputedStyle(root).overflowX === 'auto' ||
+      getComputedStyle(root).overflowX === 'scroll'
+    )
+      return found;
     var reported = [];
     var all = root.getElementsByTagName('*');
     for (var i = 0; i < all.length && found.length < 20; i++) {
@@ -404,7 +465,16 @@
       for (var k = 0; k < reported.length; k++) if (reported[k].contains(el)) dup = true;
       if (dup) continue;
       reported.push(el);
-      found.push(describe(el) + ' (' + Math.round(r.left - rb.x1) + '..' + Math.round(r.right - rb.x1) + ' of ' + Math.round(rb.x2 - rb.x1) + 'px)');
+      found.push(
+        describe(el) +
+          ' (' +
+          Math.round(r.left - rb.x1) +
+          '..' +
+          Math.round(r.right - rb.x1) +
+          ' of ' +
+          Math.round(rb.x2 - rb.x1) +
+          'px)',
+      );
     }
     return found;
   }

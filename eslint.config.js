@@ -34,4 +34,12 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
+  {
+    // Plain-JS test helpers: the crawler's in-page probe (browser) and the Node loader hook.
+    files: ['apps/desktop/e2e/**/*.{js,mjs}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 );
