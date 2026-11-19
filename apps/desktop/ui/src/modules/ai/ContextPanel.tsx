@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { Checkbox } from '@htflow/ui-kit';
 import { t } from '@htflow/i18n';
 import { hub } from '../../state/market';
-import { activeInstrument } from '../../state/windows';
 import { collectSnapshot, type ContextInclude } from './context';
 import { ai, agentDayPnlOfAccount, setInclude } from './runtime';
 import { footprintRows, sparkline } from './thumb';
@@ -118,7 +117,7 @@ export function ContextPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [slow],
   );
-  const id = activeInstrument();
+  const id = snap.instrumentId;
   const store = id ? hub.peek(id) : undefined;
   const tick = store?.instrument.tickSize ?? 1;
   const prec = store?.instrument.pricePrecision ?? 2;

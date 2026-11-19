@@ -39,7 +39,8 @@ test('AI: chat with screenshot consent + read tool, agent run, audit, kill switc
   await win.getByTestId('ai-send').click();
   await page.getByRole('button', { name: 'Send screenshot' }).click();
 
-  await expect(win.getByTestId('ai-tool-msg')).toContainText('get_market_data');
+  await expect(win.getByTestId('ai-step').first()).toContainText('get_market_data');
+  await expect(win.getByTestId('ai-step').first()).toHaveAttribute('data-state', 'ok');
   await expect(win.getByTestId('ai-msg-assistant').last()).toContainText('Tool results received');
   await expect(win.getByTestId('ai-msg-user')).toContainText('screenshot sent');
   const sent = await page.evaluate(() => {
@@ -69,10 +70,9 @@ test('AI: chat with screenshot consent + read tool, agent run, audit, kill switc
   // Agent: start (paper), a scheduled run calls tools; audit records them; kill switch stops it.
   await win.getByRole('tab', { name: 'Agent' }).click();
   await win.getByTestId('ai-agent-start').click();
-  await expect(win.getByText('Agent running')).toBeVisible();
+  await expect(win.getByTestId('ai-agent-status')).toHaveText('Agent running');
   await win.getByTestId('ai-kill').click();
-  await expect(win.getByText('Kill switch on')).toBeVisible();
-  await expect(win.getByText('Agent stopped')).toBeVisible();
+  await expect(win.getByTestId('ai-agent-status')).toHaveText('Kill switch on');
   await expect(win.getByTestId('ai-agent-start')).toBeVisible();
 
   await win.getByRole('tab', { name: 'Audit log' }).click();
@@ -111,4 +111,98 @@ test('AI: stop a streaming reply', async ({ page }) => {
   await expect(win.getByTestId('ai-send')).toBeVisible();
   const text = await win.getByTestId('ai-msg-assistant').last().innerText();
   expect(text).not.toContain('fourteen');
+});
+
+test('AI: price chip draws a chart line, quick action, order card Confirm / Reject, agent dashboard Start / Kill', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'ai3', { reply: 'placeholder', tokenMs: 5 });
+  await page.getByTestId('ribbon-ai').click();
+  const win = page.getByTestId('ai-window');
+  await expect(win.getByTestId('ai-context-panel')).toBeVisible();
+
+  // The context panel ticks the last price; the model "mentions" it as a level.
+  const last = win.getByTestId('ai-ctx-last');
+  await expect(last).toHaveText(/\d/);
+  const price = ((await last.textContent()) ?? '').trim();
+  await page.evaluate((px) => {
+    (window as unknown as { __HTFLOW_AI_MOCK__: { reply: string } }).__HTFLOW_AI_MOCK__.reply =
+      `Key support sits at ${px} so watch it.`;
+  }, price);
+  // Unchecking a context part is reflected in what is sent.
+  await win.getByTestId('ai-ctx-check-positions').getByRole('checkbox').uncheck();
+  await win.getByTestId('ai-input').fill('/levels');
+  await expect(win.getByTestId('ai-slash')).toBeVisible();
+  await win.getByTestId('ai-input').press('Control+Enter');
+  const chip = win.getByTestId('ai-level-chip').first();
+  await expect(chip).toBeVisible({ timeout: 15_000 });
+  await chip.click();
+  await expect(page.getByText('Line drawn on the chart')).toBeVisible();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await chip.click();
+  await expect(page.getByText('Line removed')).toBeVisible();
+  await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  const ctxSent = await page.evaluate(() => {
+    const log = (
+      window as unknown as {
+        __HTFLOW_AI_LOG__: { requests: { messages: { parts: { text?: string }[] }[] }[] };
+      }
+    ).__HTFLOW_AI_LOG__;
+    return log.requests[0]!.messages[0]!.parts.map((p) => p.text ?? '').join('');
+  });
+  expect(ctxSent).toContain('<screen_context>');
+  expect(ctxSent).not.toContain('positions:');
+
+  if (process.env.AI_SHOT)
+    await page.screenshot({ path: '../../docs/screenshots/ai-page.png', animations: 'disabled' });
+
+  // Quick action sends a ready-made question.
+  await win.getByTestId('ai-qa-risk').click();
+  await expect(win.getByTestId('ai-msg-user').last()).toContainText('Risk check my open positions');
+
+  // Agent dashboard: the model proposes an order; the card asks Confirm / Edit / Reject.
+  await page.evaluate(() => {
+    (window as unknown as { __HTFLOW_AI_MOCK__: object }).__HTFLOW_AI_MOCK__ = Object.assign(
+      (window as unknown as { __HTFLOW_AI_MOCK__: object }).__HTFLOW_AI_MOCK__,
+      {
+        toolCalls: [
+          {
+            name: 'place_order',
+            arguments: {
+              side: 'buy',
+              type: 'market',
+              qty: 1,
+              stopLossTicks: 20,
+              takeProfitTicks: 40,
+            },
+          },
+        ],
+      },
+    );
+  });
+  await win.getByRole('tab', { name: 'Agent' }).click();
+  await win.getByTestId('ai-agent-start').click();
+  const card = win.getByTestId('ai-order-card');
+  await expect(card).toBeVisible({ timeout: 15_000 });
+  await expect(card.getByTestId('ai-order-r')).toHaveText('2R');
+  await card.getByTestId('ai-order-edit').click();
+  await card.getByTestId('ai-order-edit').click();
+  await card.getByTestId('ai-order-confirm').click();
+  await expect(win.getByTestId('ai-timeline')).toContainText('place_order');
+
+  // Second proposal: Reject.
+  await win.getByTestId('ai-agent-stop').click();
+  await expect(win.getByTestId('ai-agent-status')).toHaveText('Agent paused');
+  await win.getByTestId('ai-agent-start').click();
+  await expect(win.getByTestId('ai-order-card')).toBeVisible({ timeout: 15_000 });
+  await win.getByTestId('ai-order-reject').click();
+  await expect(win.getByTestId('ai-timeline')).toContainText('declined');
+
+  // Kill switch.
+  await expect(win.getByTestId('ai-gauges')).toBeVisible();
+  await win.getByTestId('ai-kill').click();
+  await expect(win.getByTestId('ai-agent-status')).toHaveText('Kill switch on');
+  expect(errors).toEqual([]);
 });

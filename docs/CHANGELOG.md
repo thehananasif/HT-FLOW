@@ -2,6 +2,8 @@
 
 ## Unreleased — round 7
 
+- AI page redesigned as a live trading tool: conversation rail, context panel with include checkboxes, clickable price chips (chart line / alert), order cards with risk and R-multiple and Confirm / Edit / Reject, tool-step cards, quick actions, slash commands, image drop / paste, keyboard shortcuts, palette entries, Agent dashboard with gauges and timeline, Providers cards with Test connection; Urdu and RTL.
+
 ### Added
 
 - **Urdu coverage across the whole UI** — Settings pages (every section, group, label, help text, option and placeholder), ribbon and module names, command groups, hot-key scopes, command labels, toasts, confirm dialogs, table headers and most dialogs now show in Urdu when the language is اردو. ~2,900 new `en.ts` / `ur.ts` entries (trading terms stay English; placeholders kept exactly). How: UI text is wrapped in `translateLiteral()` (`tl`) / the new `tt` tagged template (`tt\`Help: ${name}\``looks up the pattern`Help: {0}`) / `t()`; the settings schema, ribbon modules and command groups are resolved lazily through getters so stored values and ids stay English; the ui-kit components (Button, IconButton, RibbonButton, Tabs, SegmentedControl, Field, Checkbox, Toggle, Select, Badge, EmptyState, Tooltip, menus, Dialog, Sheet, toasts, pickers) translate plain-text props themselves (`@htflow/ui-kit`now depends on`@htflow/i18n`). `translateLiteral`also handles strings with`{placeholders}`; command labels translate "Group: Name" and "Open <module>" forms.

@@ -8,7 +8,7 @@ import { backend } from '../../backend';
 import { hub, paper, PAPER_ACCOUNT } from '../../state/market';
 import { useSession } from '../../state/session';
 import { askConfirm } from '../../state/confirm';
-import { activeInstrument } from '../../state/windows';
+import { activeInstrument, useWindows } from '../../state/windows';
 import { activityLog } from '../activity/log';
 import { addAlert } from '../alerts/api';
 import { getSetting } from '../../state/settings';
@@ -512,7 +512,11 @@ export function clearAudit(): void {
 }
 
 function resolveSymbol(symbol: string | undefined): string | null {
-  if (!symbol) return activeInstrument();
+  if (!symbol) {
+    // The AI window itself is usually the active one: fall back to the first chart.
+    const chart = Object.values(useWindows.getState().windows).find((w) => w.kind === 'chart');
+    return activeInstrument() ?? (chart && 'instrumentId' in chart ? chart.instrumentId : null);
+  }
   if (symbol.includes(':')) return symbol;
   const s = symbol.toUpperCase();
   const store = hub.stores().find((x) => x.instrument.symbol.toUpperCase() === s);
