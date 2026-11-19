@@ -49,7 +49,8 @@ describe('validation', () => {
     expect(validateSetting('appearance.uiScale', 112)).toEqual({ ok: true, value: 110 });
   });
   it('rejects disabled enum options (languages not yet translated)', () => {
-    expect(validateSetting('general.language', 'ur').ok).toBe(false);
+    expect(validateSetting('general.language', 'ar').ok).toBe(false);
+    expect(validateSetting('general.language', 'ur').ok).toBe(true);
     expect(validateSetting('general.language', 'en').ok).toBe(true);
     expect(validateSetting('appearance.theme', 'neon').ok).toBe(false);
   });

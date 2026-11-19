@@ -452,10 +452,13 @@
   word-break: break-word;
 }
 
-/* ---- right-to-left layout (Settings → General → Layout direction; Urdu / Arabic later).
+/* ---- right-to-left layout (Urdu, or Settings → General → Layout direction).
  * The chrome mirrors; charts, DOM ladders, tapes, tables of numbers and every number stay LTR. */
 :root[dir='rtl'] canvas,
 :root[dir='rtl'] .tnum,
+:root[dir='rtl'] .ht-num-input,
+:root[dir='rtl'] input[type='number'],
+:root[dir='rtl'] .chart-hosts,
 :root[dir='rtl'] .dom-canvas-wrap,
 :root[dir='rtl'] .chart-host,
 :root[dir='rtl'] [data-testid='dom-ladder'],
@@ -474,4 +477,51 @@
 }
 :root[dir='rtl'] .ht-toasts {
   text-align: right;
+}
+.st-restart {
+  margin-left: 6px;
+  font-size: 10px;
+  font-style: normal;
+  color: var(--ht-warn, var(--ht-text-tertiary));
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+/* Round 7: the section list scrolls at small window heights (Import / Reset stay reachable). */
+.st-root {
+  max-height: 100%;
+  overflow: hidden;
+}
+.st-nav {
+  min-height: 0;
+  overflow-y: auto;
+}
+.st-nav-foot {
+  flex: none;
+}
+.st-root {
+  overflow-x: auto;
+}
+.st-nav {
+  flex: 0 1 210px;
+  min-width: 132px;
+}
+.st-nav-item {
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-main {
+  min-width: 180px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.st-body {
+  min-height: 120px;
+}
+.st-foot {
+  flex: none;
 }

@@ -37,6 +37,7 @@ import {
 } from './shared';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Sel =
   | { kind: 'all' }
   | { kind: 'folder'; name: string }
@@ -48,7 +49,7 @@ export function Highlighted({ text, keywords }: { text: string; keywords: readon
     <>
       {highlightSegments(text, keywords).map((s, i) =>
         s.keyword ? (
-          <mark key={i} className="info-kw" title={`Keyword: ${s.keyword}`}>
+          <mark key={i} className="info-kw" title={tt`Keyword: ${s.keyword}`}>
             {s.text}
           </mark>
         ) : (
@@ -113,18 +114,22 @@ function FeedDialog({
       width={460}
     >
       <div className="col gap12">
-        <Field label="Feed URL (RSS 2.0, RSS 1.0 or Atom)" error={err}>
+        <Field label={tl('Feed URL (RSS 2.0, RSS 1.0 or Atom)')} error={err}>
           <Input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://…/rss.xml"
+            placeholder={tl('https://…/rss.xml')}
             autoFocus
           />
         </Field>
-        <Field label="Name">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Optional" />
+        <Field label={tl('Name')}>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={tl('Optional')}
+          />
         </Field>
-        <Field label="Folder">
+        <Field label={tl('Folder')}>
           <Select
             value={folder}
             onChange={setFolder}
@@ -140,10 +145,10 @@ function FeedDialog({
                 onClose();
               }}
             >
-              Remove feed
+              {tl('Remove feed')}
             </Button>
           )}
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tl('Cancel')}</Button>
           <Button variant="primary" onClick={save}>
             {feed ? 'Save' : 'Add feed'}
           </Button>
@@ -200,11 +205,11 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
       aria-pressed={sel.kind === 'feed' && sel.id === f.id}
       onClick={() => setSel({ kind: 'feed', id: f.id })}
       onDoubleClick={() => setDialog({ open: true, feed: f })}
-      title={`${f.url}${f.unverified ? '\nDefault feed — URL not verified' : ''}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
+      title={tt`${f.url}${f.lastError ? `\nLast error: ${f.lastError}` : ''}\nDouble-click to edit`}
     >
       <span className="grow ellipsis">
-        {f.title}
-        {f.lastError && <span className="warn-dot" aria-label="fetch failed" />}
+        {tl(f.title)}
+        {f.lastError && <span className="warn-dot" aria-label={tl('fetch failed')} />}
       </span>
       <span className="tnum muted">{counts.feeds.get(f.id) || ''}</span>
     </button>
@@ -215,7 +220,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
     <div className="module-window rss-window" data-testid="rss-reader">
       <div className="info-toolbar">
         <Button size="sm" variant="primary" onClick={() => setDialog({ open: true, feed: null })}>
-          + Add feed URL
+          {tl('+ Add feed URL')}
         </Button>
         <Button
           size="sm"
@@ -227,10 +232,10 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
         >
           {busy ? 'Refreshing…' : 'Refresh'}
         </Button>
-        <span className="muted">Every</span>
+        <span className="muted">{tl('Every')}</span>
         <Select
           small
-          aria-label="Refresh interval"
+          aria-label={tl('Refresh interval')}
           value={String(s.refreshMin)}
           onChange={(v) => reader.set({ ...reader.get(), refreshMin: Number(v) })}
           options={REFRESH_CHOICES.map((m) => ({
@@ -239,10 +244,32 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
           }))}
         />
         <span className="grow" />
-        {sampleShown && <Badge kind="delayed">Offline sample shown</Badge>}
-        {failing > 0 && (
-          <span className="muted">{failing} feed(s) unreachable — cached items shown</span>
+        {sampleShown && <Badge kind="delayed">{tl('Offline sample shown')}</Badge>}
+        {!sampleShown && s.items.length === 0 && !failing && (
+          <span className="muted" data-testid="rss-loading">
+            {tl('Loading feeds…')}
+          </span>
         )}
+        {failing > 0 && (
+          <span className="muted">
+            {failing} {tl('feed(s) offline or failing — cached items shown')}
+          </span>
+        )}
+        <Button
+          size="sm"
+          disabled={counts.total === 0}
+          onClick={() =>
+            reader.set(
+              setRead(
+                reader.get(),
+                s.items.filter((i) => !i.read).map((i) => i.id),
+                true,
+              ),
+            )
+          }
+        >
+          {tl('Mark all read')}
+        </Button>
         <Button
           size="sm"
           onClick={() =>
@@ -255,16 +282,20 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
                   if (!addFeed(f.xmlUrl, f.title, f.folder || 'Imported')) added++;
                 toast(
                   'success',
-                  `OPML: ${added} feed(s) added`,
-                  `${doc.feeds.length - added} skipped (duplicate or invalid)`,
+                  tt`OPML: ${added} feed(s) added`,
+                  tt`${doc.feeds.length - added} skipped (duplicate or invalid)`,
                 );
               } catch (e) {
-                toast('error', 'OPML import failed', e instanceof Error ? e.message : String(e));
+                toast(
+                  'error',
+                  tl('OPML import failed'),
+                  e instanceof Error ? e.message : String(e),
+                );
               }
             })
           }
         >
-          Import OPML
+          {tl('Import OPML')}
         </Button>
         <Button
           size="sm"
@@ -279,18 +310,18 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
             )
           }
         >
-          Export OPML
+          {tl('Export OPML')}
         </Button>
       </div>
       <div className="rss-cols">
-        <nav className="rss-tree" aria-label="Folders">
-          <div className="rss-tree-title">Folders</div>
+        <nav className="rss-tree" aria-label={tl('Folders')}>
+          <div className="rss-tree-title">{tl('Folders')}</div>
           <button
             className="rss-node"
             aria-pressed={sel.kind === 'all'}
             onClick={() => setSel({ kind: 'all' })}
           >
-            <span className="grow">All items</span>
+            <span className="grow">{tl('All items')}</span>
             <span className="tnum muted">{counts.total || ''}</span>
           </button>
           {folders.map((fo) => (
@@ -321,7 +352,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
                 <button
                   key={k}
                   className="ht-chip"
-                  title="Remove keyword"
+                  title={tl('Remove keyword')}
                   onClick={() => reader.set({ ...s, keywords: s.keywords.filter((x) => x !== k) })}
                 >
                   {k} ×
@@ -329,7 +360,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
               ))}
             </div>
             <Input
-              placeholder="Add keyword + Enter"
+              placeholder={tl('Add keyword + Enter')}
               value={kwText}
               onChange={(e) => setKwText(e.target.value)}
               onKeyDown={(e) => {
@@ -344,7 +375,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
           </div>
         </nav>
         <div className="rss-list" role="list">
-          {list.length === 0 && <div className="tbl-empty">No items</div>}
+          {list.length === 0 && <div className="tbl-empty">{tl('No items')}</div>}
           {list.map((i) => (
             <button
               key={i.id}
@@ -369,18 +400,18 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
         </div>
         <article className="rss-pane">
           {!item ? (
-            <div className="tbl-empty">Select an item</div>
+            <div className="tbl-empty">{tl('Select an item')}</div>
           ) : (
             <>
               <div className="muted">
-                {feedById.get(item.feedId)?.title} ·{' '}
+                {tl(feedById.get(item.feedId)?.title)} ·{' '}
                 {new Date(item.published ?? item.fetchedAt).toLocaleString('en-GB', {
                   timeZone: tz,
                 })}
                 {item.sample && (
                   <>
                     {' '}
-                    <Badge kind="delayed">offline sample — not real news</Badge>
+                    <Badge kind="delayed">{tl('offline sample — not real news')}</Badge>
                   </>
                 )}
               </div>
@@ -400,7 +431,7 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
               <div className="grow" />
               <div className="row gap8 wrap">
                 <Button variant="primary" disabled={!item.link} onClick={() => openUrl(item.link)}>
-                  Open in browser
+                  {tl('Open in browser')}
                 </Button>
                 {tags.slice(0, 2).map((t) => {
                   const inst = instrumentForTag(tagLabel(t));
@@ -413,10 +444,12 @@ function RssReader({ state: win, setParams }: ModuleViewProps) {
                         inst ? `Show ${inst} in the active chart` : 'No instrument for this tag'
                       }
                       onClick={() =>
-                        inst && !openChartFor(inst) && toast('info', 'Open a chart window first')
+                        inst &&
+                        !openChartFor(inst) &&
+                        toast('info', tl('Open a chart window first'))
                       }
                     >
-                      Open chart {tagLabel(t)}
+                      {tl('Open chart')} {tagLabel(t)}
                     </Button>
                   );
                 })}

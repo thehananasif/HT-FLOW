@@ -3,6 +3,7 @@ import { Kbd } from '@htflow/ui-kit';
 import { commands, onCommandsChange, paletteItems, type Command } from './commands';
 import { rowKey, searchPalette, type PaletteRow } from './paletteSearch';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Ctrl+K — searches commands, indicators, settings, instruments, layouts and modules. */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState('');
@@ -41,15 +42,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         className="palette"
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={tl('Command palette')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <input
           ref={inputRef}
           className="palette-input"
-          placeholder="Search commands, symbols, layouts…"
+          placeholder={tl('Search commands, symbols, layouts…')}
           role="combobox"
-          aria-label="Search commands, symbols, layouts"
+          aria-label={tl('Search commands, symbols, layouts')}
           aria-expanded={list.length > 0}
           aria-controls="palette-list"
           aria-autocomplete="list"
@@ -76,7 +77,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           className="palette-list"
           id="palette-list"
           role="listbox"
-          aria-label="Results"
+          aria-label={tl('Results')}
           tabIndex={-1}
         >
           {list.map((row, i) => {
@@ -84,7 +85,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             const prev = list[i - 1];
             const header =
               row.kind === 'item' && (prev?.kind !== 'item' || prev.item.group !== row.item.group)
-                ? row.item.group
+                ? tl(row.item.group)
                 : null;
             const key = rowKey(row);
             return (
@@ -106,15 +107,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     <CommandRow command={row.command} />
                   ) : (
                     <>
-                      <span className="palette-label">{row.item.label}</span>
-                      {row.item.hint && <span className="palette-hint">{row.item.hint}</span>}
+                      <span className="palette-label">{tl(row.item.label)}</span>
+                      {row.item.hint && <span className="palette-hint">{tl(row.item.hint)}</span>}
                     </>
                   )}
                 </div>
               </Fragment>
             );
           })}
-          {!list.length && <div className="palette-empty">No matches</div>}
+          {!list.length && <div className="palette-empty">{tl('No matches')}</div>}
         </div>
       </div>
     </div>
@@ -124,8 +125,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 function CommandRow({ command: c }: { command: Command }) {
   return (
     <>
-      <span className="palette-group">{c.group}</span>
-      <span className="palette-label">{c.label}</span>
+      <span className="palette-group">{tl(c.group)}</span>
+      <span className="palette-label">{tl(c.label)}</span>
       {c.shortcut && <Kbd>{c.shortcut}</Kbd>}
     </>
   );

@@ -1,5 +1,5 @@
 import { DropdownMenu, MenuTrigger, type MenuEntry } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl } from '@htflow/i18n';
 import { useWindows } from '../../state/windows';
 import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../../state/instruments';
 import { isTauri } from '../../backend';
@@ -68,7 +68,7 @@ export function InstrumentPicker({
     <DropdownMenu
       items={items}
       trigger={
-        <MenuTrigger data-testid="tape-instrument" title="Instrument">
+        <MenuTrigger data-testid="tape-instrument" title={tl('Instrument')}>
           {instrumentById(current)?.symbol ?? current}
           {!fixed && <span className="tape-follow">{t('tape.follow')}</span>}
         </MenuTrigger>

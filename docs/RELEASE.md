@@ -14,7 +14,7 @@ signatures), WiX and NSIS. Code signing with a paid certificate is out of scope 
 | `*.sig`, `latest.json`                  | Only when the signing secret is set: updater signatures and the update manifest                                                                      |
 
 File associations registered by the installers: `.htprofile`, `.htworkspace`, `.htind`,
-`.httemplate`. Opening one starts HT Flow (or hands the file to the running instance); the core emits an
+`.httemplate`, `.htstrat`. Opening one starts HT Flow (or hands the file to the running instance); the core emits an
 `htflow:open-file` event and the UI routes it to the matching importer (see "Opening files" below).
 
 ## Cut a release
@@ -120,3 +120,7 @@ remove everything.
   survives. The smoke test is informational (it does not fail the build) until it has been seen green.
 - `latest.json` generation is unit-tested (`scripts/release/latest-json.test.ts`).
 - The NSIS hook (`src-tauri/windows/installer-hooks.nsh`) compiles with `makensis -WX` against a stub.
+
+## Icon and logo sources
+
+Owner-supplied originals live in `apps/desktop/branding/` (`app-icon.webp`, `hanan-trade-logo.webp`). Run `python3 apps/desktop/branding/generate.py` (Pillow) to rebuild `src-tauri/icons/*` (incl. `installer/*.bmp` used by the NSIS and WiX bundles), `ui/public/favicon.png` and `ui/public/brand/*`. Commit the regenerated files.

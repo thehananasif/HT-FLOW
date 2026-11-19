@@ -104,6 +104,7 @@ function validSpec(x: unknown): x is BarSpec {
     ([key, v]) =>
       key === 'kind' ||
       key === 'session' ||
+      (key === 'cal' ? v === 'month' : false) ||
       (key === 'wicks' ? typeof v === 'boolean' : typeof v === 'number' && Number.isFinite(v)),
   );
 }
@@ -130,6 +131,26 @@ export function sanitizePinned(raw: unknown): BarSpec[] {
   return raw.filter(validSpec).slice(0, 12);
 }
 
+/** Bar kinds a custom interval can have (the "Add custom interval" units). */
+const CUSTOM_KINDS = new Set<BarKind>(['time', 'tick', 'volume', 'range']);
+
+/** Saved custom intervals: valid, unique, time / tick / volume / range only. */
+export function sanitizeCustom(raw: unknown): BarSpec[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BarSpec[] = [];
+  for (const x of raw) {
+    if (!validSpec(x) || !CUSTOM_KINDS.has(x.kind) || out.some((o) => sameSpec(o, x))) continue;
+    out.push(x);
+  }
+  return out.slice(0, 60);
+}
+
+export function sanitizeCollapsed(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((x): x is string => typeof x === 'string').slice(0, 60)
+    : [];
+}
+
 export const defaultRows = (): TfRow[] =>
   TIMEFRAME_PRESETS.map((r) => ({ row: r.row, kind: r.kind, specs: r.specs.slice() }));
 
@@ -138,28 +159,48 @@ const KEY = 'chart-types.timeframes';
 interface TfState {
   rows: TfRow[];
   pinned: BarSpec[];
+  /** User-defined intervals ("Add custom interval"), saved to the profile. */
+  custom: BarSpec[];
+  /** Ids of the timeframe-menu groups that are collapsed. */
+  collapsed: string[];
   loaded: boolean;
   load(): Promise<void>;
   addChip(row: string, spec: BarSpec): void;
   removeChip(row: string, spec: BarSpec): void;
   togglePin(spec: BarSpec): void;
+  addCustom(spec: BarSpec): void;
+  removeCustom(spec: BarSpec): void;
+  toggleGroup(id: string): void;
   reset(): void;
 }
 
 /** User timeframe presets and pinned header chips — saved per user profile. */
 export const useTimeframes = create<TfState>((set, get) => {
   const save = () => {
-    const { rows, pinned } = get();
-    void backend.saveSettings(KEY, { rows, pinned }).catch(() => {});
+    const { rows, pinned, custom, collapsed } = get();
+    void backend.saveSettings(KEY, { rows, pinned, custom, collapsed }).catch(() => {});
   };
   return {
     rows: defaultRows(),
     pinned: DEFAULT_PINNED,
+    custom: [],
+    collapsed: [],
     loaded: false,
     async load() {
       try {
-        const v = await backend.loadSettings<{ rows?: unknown; pinned?: unknown }>(KEY);
-        set({ rows: sanitizeRows(v?.rows), pinned: sanitizePinned(v?.pinned), loaded: true });
+        const v = await backend.loadSettings<{
+          rows?: unknown;
+          pinned?: unknown;
+          custom?: unknown;
+          collapsed?: unknown;
+        }>(KEY);
+        set({
+          rows: sanitizeRows(v?.rows),
+          pinned: sanitizePinned(v?.pinned),
+          custom: sanitizeCustom(v?.custom),
+          collapsed: sanitizeCollapsed(v?.collapsed),
+          loaded: true,
+        });
       } catch {
         set({ loaded: true });
       }
@@ -192,8 +233,25 @@ export const useTimeframes = create<TfState>((set, get) => {
       });
       save();
     },
+    addCustom(spec) {
+      if (get().custom.some((c) => sameSpec(c, spec))) return;
+      set({ custom: [...get().custom, spec] });
+      save();
+    },
+    removeCustom(spec) {
+      set({
+        custom: get().custom.filter((c) => !sameSpec(c, spec)),
+        pinned: get().pinned.filter((p) => !sameSpec(p, spec)),
+      });
+      save();
+    },
+    toggleGroup(id) {
+      const c = get().collapsed;
+      set({ collapsed: c.includes(id) ? c.filter((x) => x !== id) : [...c, id] });
+      save();
+    },
     reset() {
-      set({ rows: defaultRows(), pinned: DEFAULT_PINNED });
+      set({ rows: defaultRows(), pinned: DEFAULT_PINNED, custom: [] });
       save();
     },
   };

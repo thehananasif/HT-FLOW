@@ -133,4 +133,76 @@ export class DerivativesLog implements DerivativesData {
   }
 }
 
+/** One trader category of a weekly CFTC Commitments of Traders row. */
+export interface CotGroupData {
+  /** Stable key: commercial, noncommercial, nonreportable, producer, swap, managed, other, dealer, assetmgr, levmoney. */
+  key: string;
+  label: string;
+  long: number;
+  short: number;
+  net: number;
+  netChange: number;
+}
+
+/** One weekly report (positions as of Tuesday `t`, published the Friday after). */
+export interface CotWeekData {
+  /** Report date (Tuesday 00:00 UTC), ms. */
+  t: number;
+  openInterest: number;
+  groups: readonly CotGroupData[];
+}
+
+/** Weekly COT history for the chart's instrument (undefined when the host has none yet). */
+export interface CotData {
+  /** Bumped when the rows change. */
+  readonly version: number;
+  readonly report: 'legacy' | 'disagg' | 'tff';
+  readonly market: string;
+  /** Oldest first. */
+  readonly weeks: readonly CotWeekData[];
+}
+
+/** Ms after the Tuesday report date when the data became public (Friday 20:30 UTC). */
+export const COT_RELEASE_LAG_MS = (3 * 24 + 20.5) * 3_600_000;
+
+/** One strike of an expiry, calls and puts side by side (normalised from the host's chain). */
+export interface OptionStrikeData {
+  strike: number;
+  callOi: number;
+  putOi: number;
+  callVolume: number;
+  putVolume: number;
+  /** Implied volatility, decimal (0.55 = 55 %); null when the contract has no quote. */
+  callIv: number | null;
+  putIv: number | null;
+}
+
+export interface OptionExpiryData {
+  /** Expiry time, ms. */
+  expiry: number;
+  /** Forward / futures price the series is priced off. */
+  forward: number;
+  /** Ascending by strike. */
+  strikes: readonly OptionStrikeData[];
+}
+
+/**
+ * Options chain of the chart's underlying (Options Board, Volatility Smile). Loaded lazily by the
+ * host once such an indicator is on the chart; undefined while loading or when the instrument has
+ * no chain. `simulated` chains must always be labelled as such.
+ */
+export interface OptionsData {
+  /** Bumped when the chain is refreshed. */
+  readonly version: number;
+  readonly root: string;
+  /** Venue name ("Deribit") or "Sim". */
+  readonly sourceLabel: string;
+  readonly simulated: boolean;
+  /** Underlying / index price. */
+  readonly spot: number;
+  readonly updatedAt: number;
+  /** Soonest first. */
+  readonly expiries: readonly OptionExpiryData[];
+}
+
 export const NO_FEED_NOTICE = 'no data from this feed';

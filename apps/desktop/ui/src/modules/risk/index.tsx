@@ -16,6 +16,7 @@ import { calendar } from '../calendar/store';
 import { useStore } from '../rss/shared';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const RULES: { id: RiskRuleId; label: string; action: string; unit: string }[] = [
   {
     id: 'dailyLossLimit',
@@ -128,7 +129,7 @@ function PasswordDialog({
           else onClose();
         }}
       >
-        <Field label="Override password" error={err}>
+        <Field label={tl('Override password')} error={err}>
           <Input
             type="password"
             value={pw}
@@ -138,7 +139,7 @@ function PasswordDialog({
           />
         </Field>
         <Button type="submit" variant="primary">
-          Confirm
+          {tl('Confirm')}
         </Button>
       </form>
     </Dialog>
@@ -167,10 +168,10 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
   const commit = () => {
     if (toAll) {
       const n = riskStore.saveRulesForAll(draft);
-      toast('success', 'Risk rules saved', `All ${n} paper accounts (and new ones)`);
+      toast('success', tl('Risk rules saved'), tt`All ${n} paper accounts (and new ones)`);
     } else {
       riskStore.saveRules(acc.id, draft);
-      toast('success', 'Risk rules saved', acc.name);
+      toast('success', tl('Risk rules saved'), acc.name);
     }
     setDirty(false);
   };
@@ -188,7 +189,7 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
       <div className="risk-head">
         <select
           className="ht-select ht-select--sm"
-          aria-label="Account"
+          aria-label={tl('Account')}
           value={acc.id}
           onChange={(e) => {
             setAccount(e.target.value);
@@ -216,24 +217,24 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
             size="xs"
             onClick={() => (riskStore.hasOverride() ? setAsk('unlock') : riskStore.unlock(acc.id))}
           >
-            Unlock (override)
+            {tl('Unlock (override)')}
           </Button>
         </div>
       )}
       <div className="risk-meters">
         <Meter
           testId="risk-meter-daily"
-          label="Daily loss"
+          label={tl('Daily loss')}
           text={`${usd(Math.min(0, st.dayPnl))} / ${draft.dailyLossLimit.enabled ? usd(draft.dailyLossLimit.value) : 'off'}`}
           used={st.dailyLossUsed}
         />
         <Meter
-          label="Trailing drawdown"
+          label={tl('Trailing drawdown')}
           text={`${usd(st.drawdown)} / ${draft.trailingDrawdown.enabled ? usd(draft.trailingDrawdown.value) : 'off'}`}
           used={st.trailingUsed}
         />
         <Meter
-          label="Trades today"
+          label={tl('Trades today')}
           text={`${st.tradesToday} / ${draft.maxTradesPerDay.enabled ? draft.maxTradesPerDay.value : '∞'}`}
           used={draft.maxTradesPerDay.enabled ? st.tradesToday / draft.maxTradesPerDay.value : 0}
         />
@@ -246,10 +247,10 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
               <input
                 type="checkbox"
                 checked={rule.enabled}
-                aria-label={r.label}
+                aria-label={tl(r.label)}
                 onChange={(e) => edit({ ...draft, [r.id]: { ...rule, enabled: e.target.checked } })}
               />
-              <span className="risk-rule-name">{r.label}</span>
+              <span className="risk-rule-name">{tl(r.label)}</span>
               <span className="risk-rule-val">
                 {r.id === 'tradingHours' ? (
                   <>
@@ -307,8 +308,8 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
       </div>
       <div className="risk-news muted" data-testid="risk-news-feed">
         <span className="grow">
-          News feed: Economic Calendar · {news.length} high-impact event
-          {news.length === 1 ? '' : 's'} this week
+          {tl('News feed: Economic Calendar ·')} {news.length} {tl('high-impact event')}
+          {news.length === 1 ? '' : 's'} {tl('this week')}
           {nextNews ? ` · next: ${nextNews.title} ${new Date(nextNews.ts).toLocaleString()}` : ''}
         </span>
         <label className="ht-check">
@@ -320,14 +321,14 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
               calendar.set({ ...calendar.get(), newsFlattenSample: e.target.checked })
             }
           />
-          Count SAMPLE events
+          {tl('Count SAMPLE events')}
         </label>
       </div>
       {errors.length > 0 && <div className="risk-err">{errors.join(' · ')}</div>}
       <div className="risk-foot">
         <select
           className="ht-select ht-select--sm"
-          aria-label="Preset"
+          aria-label={tl('Preset')}
           value=""
           onChange={(e) => {
             const tz = localTimeZone();
@@ -336,19 +337,19 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
           }}
         >
           <option value="" disabled>
-            Preset…
+            {tl('Preset…')}
           </option>
           {RISK_PRESETS.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.label}
+              {tl(p.label)}
             </option>
           ))}
-          <option value="default">Reset to defaults</option>
+          <option value="default">{tl('Reset to defaults')}</option>
         </select>
         <span className="grow" />
         <label
           className="ht-check"
-          title="Save these rules to every paper account and use them for new accounts"
+          title={tl('Save these rules to every paper account and use them for new accounts')}
         >
           <input
             type="checkbox"
@@ -359,10 +360,10 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
               setDirty(true);
             }}
           />
-          Apply to all paper accounts
+          {tl('Apply to all paper accounts')}
         </label>
         <Button size="sm" variant="outline" onClick={() => setAsk('set')}>
-          Override password…
+          {tl('Override password…')}
         </Button>
         <Button
           size="sm"
@@ -371,7 +372,7 @@ function RiskWindow({ account, setAccount }: { account: string; setAccount(a: st
           data-testid="risk-save"
           onClick={() => (riskStore.hasOverride() ? setAsk('save') : commit())}
         >
-          Save rules
+          {tl('Save rules')}
         </Button>
       </div>
       <PasswordDialog

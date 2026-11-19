@@ -10,6 +10,7 @@
  * `onSettingChange(key, fn)` (anywhere).
  */
 import { create } from 'zustand';
+import { translateLiteral as tl } from '@htflow/i18n';
 import {
   THEMES,
   sanitizeLayout,
@@ -57,7 +58,7 @@ export type SectionId =
   | 'modules'
   | 'about';
 
-export const SECTIONS: { id: SectionId; label: string; description: string }[] = [
+const SECTION_DEFS: { id: SectionId; label: string; description: string }[] = [
   {
     id: 'general',
     label: 'General',
@@ -179,6 +180,19 @@ export const SECTIONS: { id: SectionId; label: string; description: string }[] =
   },
 ];
 
+/** Section list; `label` / `description` resolve in the active language when read. */
+export const SECTIONS: { id: SectionId; label: string; description: string }[] = SECTION_DEFS.map(
+  (s) => ({
+    id: s.id,
+    get label() {
+      return tl(s.label);
+    },
+    get description() {
+      return tl(s.description);
+    },
+  }),
+);
+
 interface BaseDef<T> {
   section: SectionId;
   /** Group heading inside the page. */
@@ -196,6 +210,8 @@ interface BaseDef<T> {
    * shows a "not used yet" hint for these.
    */
   wired?: boolean;
+  /** True when a change only takes effect after HT Flow restarts (a visible note is shown). */
+  restartRequired?: boolean;
 }
 
 export interface NumberDef extends BaseDef<number> {
@@ -244,6 +260,7 @@ export interface CustomDef<T> extends BaseDef<T> {
     | 'commissionRules'
     | 'clocks'
     | 'providers'
+    | 'dataSources'
     | 'moduleToggles'
     | 'moduleFolders'
     | 'tableLayouts';
@@ -451,6 +468,8 @@ const KNOWN_PROVIDERS = [
   'binance-spot',
   'binance-coinm',
   'bybit-linear',
+  'bybit-spot',
+  'bybit-inverse',
   'okx-swap',
   'bitget',
   'deribit',
@@ -491,8 +510,8 @@ function validateFolders(v: unknown): string[] | undefined {
 export const RTL_LANGUAGES: string[] = ['ur', 'ar'];
 
 const LANGUAGES: EnumOption<'en' | 'ur' | 'hi' | 'ar' | 'es' | 'ru' | 'tr' | 'zh'>[] = [
-  { value: 'en', label: 'English — 100%' },
-  { value: 'ur', label: 'اردو Urdu (RTL) — coming', disabled: true },
+  { value: 'en', label: 'English' },
+  { value: 'ur', label: 'اردو (Urdu, RTL)' },
   { value: 'hi', label: 'हिन्दी Hindi — coming', disabled: true },
   { value: 'ar', label: 'العربية Arabic (RTL) — coming', disabled: true },
   { value: 'es', label: 'Español — coming', disabled: true },
@@ -522,7 +541,7 @@ export const SCHEMA = {
     section: 'general',
     group: 'Language & region',
     label: 'Language',
-    help: 'User-interface language. English is complete; the other languages are being translated (RTL languages mirror the layout but never charts or numbers).',
+    help: 'User-interface language, applied live. English and اردو (Urdu, right-to-left) are available; the other languages are being translated. RTL languages mirror the layout but never charts, price ladders or numbers.',
     default: 'en',
     options: LANGUAGES,
     keywords: 'locale translation urdu hindi arabic spanish russian turkish chinese',
@@ -531,7 +550,7 @@ export const SCHEMA = {
     section: 'general',
     group: 'Language & region',
     label: 'Layout direction (RTL preview)',
-    help: 'Automatic follows the language (always left-to-right until Urdu / Arabic ship). "Right to left" previews the mirrored layout now: panels and menus mirror; charts, price ladders and numbers never do.',
+    help: 'Automatic follows the language (right-to-left for Urdu). "Right to left" previews the mirrored layout now: panels and menus mirror; charts, price ladders and numbers never do.',
     default: 'auto',
     options: [
       { value: 'auto', label: 'Automatic (by language)' },
@@ -705,6 +724,16 @@ export const SCHEMA = {
     help: 'Hide the labels under the ribbon icons to save vertical space.',
     default: false,
     keywords: 'compact toolbar',
+  }),
+
+  'appearance.loginAnimation': bool({
+    section: 'appearance',
+    group: 'Login screen',
+    label: 'Animated login background',
+    help: 'Show the slow footprint-candle animation behind the login card. It pauses when the window is hidden and is replaced by a still picture when the system asks for reduced motion.',
+    default: true,
+    keywords: 'animation motion background canvas footprint login',
+    wired: true,
   }),
 
   // ---------------------------------------------------------------- Hot keys
@@ -954,7 +983,7 @@ export const SCHEMA = {
     alsoIn: ['common'],
     group: 'Rendering',
     label: 'Video adapter',
-    help: 'GPU preference of WebGL contexts (3D heatmap) on PCs with integrated + discrete graphics; the Heatmap rendering adapter wins when set.',
+    help: 'GPU the whole app (WebView2: all charts and WebGL) runs on, on PCs with integrated + discrete graphics. Passed to WebView2 at start-up, so it applies after a restart. The 3D heatmap also honours it for new WebGL contexts; the Heatmap rendering adapter wins there when set.',
     default: 'auto',
     options: [
       { value: 'auto', label: 'Auto' },
@@ -962,6 +991,7 @@ export const SCHEMA = {
       { value: 'low-power', label: 'Integrated (low power)' },
     ],
     wired: true,
+    restartRequired: true,
   }),
   'performance.showDebugInfo': bool({
     section: 'performance',
@@ -1083,17 +1113,13 @@ export const SCHEMA = {
     step: 1000,
     wired: true,
   }),
-  'common.defaultLoadDays': num({
+  'common.autoBackfill': bool({
     section: 'common',
     alsoIn: ['chart', 'data'],
     group: 'Common',
-    label: 'Default load days',
-    help: 'History loaded when a chart opens.',
-    default: 4,
-    min: 1,
-    max: 365,
-    step: 1,
-    unit: 'days',
+    label: 'Load all available history automatically',
+    help: 'Charts show the latest data at once, then load older history in the background as far back as the venue provides (up to Max candles per chart). Scrolling left always loads more.',
+    default: true,
     wired: true,
   }),
   'common.mboStoreRaw': bool({
@@ -1205,13 +1231,13 @@ export const SCHEMA = {
     alsoIn: ['data'],
     group: 'Database & recorder',
     label: 'Backup period',
-    help: 'How often the local database is backed up.',
+    help: 'How often the sealed profile folder is copied into backups\\<timestamp>\\ (checked at start-up and daily).',
     default: 1,
     min: 1,
     max: 30,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'common.maxBackups': num({
     section: 'common',
@@ -1223,7 +1249,7 @@ export const SCHEMA = {
     min: 1,
     max: 100,
     step: 1,
-    wired: false,
+    wired: true,
   }),
   'common.recorderMaxGb': num({
     section: 'common',
@@ -1425,6 +1451,21 @@ export const SCHEMA = {
     label: 'Auto-scroll to the latest bar',
     help: 'Keep the newest bar in view while the chart is not panned away.',
     default: true,
+    wired: true,
+  }),
+  'chart.renderer': oneOf({
+    section: 'chart',
+    alsoIn: ['performance'],
+    group: 'Defaults',
+    label: 'Chart renderer',
+    help: 'Geometry backend of the charts. Auto uses WebGL2 on a hardware GPU (falls back to Canvas 2D when the context cannot be created or is lost); text and axes always use Canvas 2D.',
+    default: 'auto',
+    options: [
+      { value: 'auto', label: 'Auto' },
+      { value: 'webgl2', label: 'WebGL2 (GPU)' },
+      { value: 'canvas2d', label: 'Canvas 2D' },
+    ],
+    keywords: 'gpu webgl canvas renderer backend',
     wired: true,
   }),
   'chart.barSpacing': num({
@@ -2019,12 +2060,26 @@ export const SCHEMA = {
     unit: 'px',
     wired: true,
   }),
-  'dom.autoCenter': bool({
+  'dom.centerMode': oneOf({
     section: 'dom',
     group: 'Ladder',
-    label: 'Auto-centre on price',
-    help: 'Re-centre the ladder when the price leaves the middle band. Off keeps your scroll position.',
+    label: 'Re-centre on last price',
+    help: 'When the ladder follows the last traded price. "When out of view" re-centres only once the price leaves the visible rows; "Always" keeps it on the middle row; "Off" keeps your scroll position (Re-centre button / C re-centres by hand).',
+    default: 'out-of-view',
+    options: [
+      { value: 'off', label: 'Off' },
+      { value: 'out-of-view', label: 'When out of view' },
+      { value: 'always', label: 'Always' },
+    ],
+    wired: true,
+  }),
+  'dom.autoFit': bool({
+    section: 'dom',
+    group: 'Ladder',
+    label: 'Auto-fit to window',
+    help: 'Fit row height, font and column widths to the window so numbers are never clipped and there is no sideways scroll; columns that cannot fit are hidden (lowest priority first).',
     default: true,
+    wired: true,
   }),
   'dom.defaultGrouping': oneOf({
     section: 'dom',
@@ -2273,6 +2328,17 @@ export const SCHEMA = {
     keywords: 'connector feed source order priority',
     wired: true,
   }),
+  'data.newsSources': custom<boolean>({
+    section: 'data',
+    group: 'Data sources',
+    label: 'News, RSS and calendar sources',
+    help: 'Public, key-free sources fetched by the HT Flow core: the weekly economic calendar and the default RSS feeds. Toggle the calendar here; manage feeds in the RSS Reader.',
+    default: true,
+    editor: 'dataSources',
+    validate: (v) => (typeof v === 'boolean' ? v : undefined),
+    keywords: 'news rss calendar economic source feed public data',
+    wired: true,
+  }),
   'data.autoReconnect': bool({
     section: 'data',
     group: 'Connections',
@@ -2291,6 +2357,29 @@ export const SCHEMA = {
     max: 600,
     step: 1,
     unit: 's',
+    wired: true,
+  }),
+  'data.cotReport': oneOf({
+    section: 'data',
+    group: 'Commitments of Traders',
+    label: 'Default COT report',
+    help: 'Report the COT Chart opens with when the market has it (financials: TFF, commodities: Disaggregated; Legacy is available for all).',
+    default: 'tff',
+    options: [
+      { value: 'tff', label: 'TFF (financial futures)' },
+      { value: 'disagg', label: 'Disaggregated (commodities)' },
+      { value: 'legacy', label: 'Legacy' },
+    ],
+    keywords: 'cot cftc commitments traders report',
+    wired: true,
+  }),
+  'data.cotAutoRefresh': bool({
+    section: 'data',
+    group: 'Commitments of Traders',
+    label: 'Refresh COT data weekly',
+    help: 'Download new COT data after the Friday release when a COT Chart is open. Off: only the cache (or the Refresh COT data command) is used. Data comes from the free CFTC public reporting API.',
+    default: true,
+    keywords: 'cot cftc commitments traders refresh update weekly',
     wired: true,
   }),
   'data.timestampSource': oneOf({
@@ -2550,6 +2639,38 @@ export const SCHEMA = {
     help: 'Delete the session and market-data caches whenever you log out. Settings, journal and layouts are kept.',
     default: false,
   }),
+  'privacy.aiScreenshot': oneOf({
+    section: 'privacy',
+    group: 'AI assistant',
+    label: 'Send screenshots to AI',
+    help: 'When you ask the AI about the screen: ask before each screenshot, send automatically, or never send one. Screenshots show only the HT Flow window and go only to the provider you chose.',
+    default: 'ask',
+    options: [
+      { value: 'ask', label: 'Always ask' },
+      { value: 'auto', label: 'Send automatically' },
+      { value: 'never', label: 'Never' },
+    ],
+    keywords: 'ai llm screenshot vision privacy',
+    wired: true,
+  }),
+  'privacy.aiContext': bool({
+    section: 'privacy',
+    group: 'AI assistant',
+    label: 'Send screen context to AI',
+    help: 'Attach a text summary of the active symbol, timeframe, prices, positions, P&L and recent order flow to your AI questions.',
+    default: true,
+    keywords: 'ai llm context privacy',
+    wired: true,
+  }),
+  'privacy.aiTools': bool({
+    section: 'privacy',
+    group: 'AI assistant',
+    label: 'Let chat read market data',
+    help: 'In chat mode the AI may call read-only tools (market data, order flow, positions, account). Trading tools are only offered in agent mode.',
+    default: true,
+    keywords: 'ai llm tools function calling',
+    wired: true,
+  }),
 
   // ---------------------------------------------------------------- Logs
   'logs.level': oneOf({
@@ -2586,18 +2707,19 @@ export const SCHEMA = {
     max: 365,
     step: 1,
     unit: 'days',
-    wired: false,
+    wired: true,
   }),
   'logs.folder': str({
     section: 'logs',
     group: 'Files',
     label: 'Log folder',
-    help: 'Where log files are written. Applied on the next start; opening the folder needs the native shell.',
+    help: 'Where the daily log files are written (secrets are redacted). Applied on the next start.',
     default: '%APPDATA%\\HTFlow\\logs',
     maxLength: 260,
     pattern: /^[^<>"|?*\0]+$/,
     patternHint: 'A folder path without < > " | ? *',
-    wired: false,
+    wired: true,
+    restartRequired: true,
   }),
 
   // ---------------------------------------------------------------- Layout (P25 / P37)
@@ -2692,7 +2814,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openDom': oneOf({
@@ -2704,7 +2826,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openTape': oneOf({
@@ -2716,7 +2838,7 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
   }),
   'layout.openModule': oneOf({
@@ -2728,8 +2850,21 @@ export const SCHEMA = {
     options: [
       { value: 'docked', label: 'Docked' },
       { value: 'floating', label: 'Floating' },
-      { value: 'window', label: 'New OS window — coming', disabled: true },
+      { value: 'window', label: 'New OS window' },
     ],
+  }),
+  'layout.detachMode': oneOf({
+    section: 'layout',
+    group: 'New windows',
+    label: 'Detach window opens',
+    help: 'Where "Detach window" moves a window: its own OS window (drag it to another monitor; the desktop app remembers size, position and monitor per window), or a floating window inside the main window. The browser build always floats.',
+    default: 'os',
+    options: [
+      { value: 'os', label: 'Separate OS window' },
+      { value: 'float', label: 'Floating inside the main window' },
+    ],
+    keywords: 'multi monitor second screen undock pop out tear off',
+    wired: true,
   }),
   'layout.dockPlacement': oneOf({
     section: 'layout',
@@ -2883,8 +3018,38 @@ export type SettingsValues = { [K in SettingKey]: ValueOf<(typeof SCHEMA)[K]> };
 
 export const SETTING_KEYS = Object.keys(SCHEMA) as SettingKey[];
 
+const localizedDefs = new Map<string, SettingDef>();
+
+/**
+ * The definition of a setting. Its user-visible texts (`group`, `label`, `help`, `placeholder`,
+ * `patternHint`, `unit`, option labels) resolve in the active language when read; everything else
+ * is the raw schema entry.
+ */
 export function settingDef(key: SettingKey): SettingDef {
-  return SCHEMA[key] as SettingDef;
+  let v = localizedDefs.get(key);
+  if (!v) {
+    const raw = SCHEMA[key] as SettingDef;
+    const text = (name: string) => ({
+      get(this: unknown) {
+        const x = (raw as unknown as Record<string, unknown>)[name];
+        return typeof x === 'string' ? tl(x) : x;
+      },
+    });
+    const opts = (name: 'options' | 'special') => ({
+      get() {
+        const x = (raw as unknown as Record<string, EnumOption[] | undefined>)[name];
+        return x?.map((o) => ({ ...o, label: tl(o.label) }));
+      },
+    });
+    const d = Object.create(raw) as SettingDef;
+    for (const n of ['group', 'label', 'help', 'placeholder', 'patternHint', 'unit'])
+      if (n in raw) Object.defineProperty(d, n, text(n));
+    for (const n of ['options', 'special'] as const)
+      if (n in raw) Object.defineProperty(d, n, opts(n));
+    v = d;
+    localizedDefs.set(key, v);
+  }
+  return v;
 }
 
 /** Settings shown on a page (home section or `alsoIn`), in schema order. */

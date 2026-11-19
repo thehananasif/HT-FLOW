@@ -77,11 +77,13 @@
   align-items: center;
   gap: 8px;
   min-height: 30px;
-  padding: 0 10px;
+  padding: 3px 10px;
   border-bottom: 1px solid var(--ht-divider);
 }
 .risk-rule-val {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   font-weight: 600;

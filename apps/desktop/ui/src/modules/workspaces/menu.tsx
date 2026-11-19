@@ -9,6 +9,7 @@ import {
   ensureLibrary,
   exportWorkspace,
   loadWorkspace,
+  openWorkspaceInWindow,
   pickWorkspaceFile,
   saveCurrent,
   useWorkspaces,
@@ -112,6 +113,18 @@ export function useWorkspaceMenuItems(): MenuEntry[] {
       items: all.length
         ? all.map((w) => wsItem(w, 'all', lib.currentId))
         : [{ id: 'none', label: 'No saved workspaces yet', disabled: true }],
+    },
+    {
+      kind: 'submenu',
+      id: 'open-window',
+      label: 'Open workspace in new window',
+      items: all.length
+        ? all.map((w) => ({
+            id: `win-${w.meta.id}`,
+            label: w.meta.name,
+            onSelect: () => void openWorkspaceInWindow(w.meta.id),
+          }))
+        : [{ id: 'none-w', label: 'No saved workspaces yet', disabled: true }],
     },
     {
       kind: 'submenu',

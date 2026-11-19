@@ -2,6 +2,7 @@ import * as RxDialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export interface SheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,8 +33,8 @@ export function Sheet({
         <RxDialog.Overlay className="ht-scrim" />
         <RxDialog.Content className={`ht-sheet ht-sheet--${side}`} style={style}>
           <header className="ht-sheet-head">
-            <RxDialog.Title className="ht-sheet-title">{title}</RxDialog.Title>
-            <RxDialog.Close className="ht-icon-btn" aria-label="Close">
+            <RxDialog.Title className="ht-sheet-title">{tl(title)}</RxDialog.Title>
+            <RxDialog.Close className="ht-icon-btn" aria-label={tl('Close')}>
               <X size={14} />
             </RxDialog.Close>
           </header>

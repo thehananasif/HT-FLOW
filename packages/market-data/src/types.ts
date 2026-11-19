@@ -132,6 +132,12 @@ export interface HistoryProgress {
   throttled: boolean;
 }
 
+/** Per-request knobs of an older-history download. */
+export interface HistoryRequestOptions {
+  /** REST requests the venue may spend on real trades (the rest comes from klines). */
+  maxPages?: number;
+}
+
 export interface FeedSource {
   readonly instrument: Instrument;
   readonly kind: 'mock' | 'live' | 'replay';
@@ -147,7 +153,12 @@ export interface FeedSource {
    * Optional: older trades in [before - spanMs, before) for lazy left-scroll loading. `anchorPx`
    * is the first loaded trade price so simulated feeds can stitch seamlessly.
    */
-  historyBefore?(before: number, spanMs: number, anchorPx?: number): Promise<Trade[]>;
+  historyBefore?(
+    before: number,
+    spanMs: number,
+    anchorPx?: number,
+    opts?: HistoryRequestOptions,
+  ): Promise<Trade[]>;
   /** Optional: progress of a running historyBefore() download (null when it ends). */
   onHistoryProgress?(listener: (p: HistoryProgress | null) => void): () => void;
   subscribe(listener: (batch: EventBatch) => void): () => void;

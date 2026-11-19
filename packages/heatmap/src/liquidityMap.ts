@@ -1,4 +1,10 @@
-import type { ChartLayer, ChartView, SlotSource } from '@htflow/chart-engine';
+import {
+  painterOf,
+  type ChartLayer,
+  type ChartView,
+  type PixelImage,
+  type SlotSource,
+} from '@htflow/chart-engine';
 import {
   formatCompact,
   formatPrice,
@@ -223,8 +229,8 @@ export class LiquidityMapLayer implements ChartLayer {
   private lut: Uint8ClampedArray = new Uint8ClampedArray(1024);
   private lifeLut: Uint32Array | null = null;
   private lutKey = '';
-  private off: HTMLCanvasElement | null = null;
-  private img: ImageData | null = null;
+  /** The pixel buffer as a painter image (texture on WebGL2, off-screen canvas on Canvas2D). */
+  private img: PixelImage | null = null;
   private buf = new HeatBuffer();
   private session = new SessionCutoffs();
   private sync = new TrackerSync();
@@ -421,15 +427,19 @@ export class LiquidityMapLayer implements ChartLayer {
     const rowTicks = Math.max(1, Math.ceil(rowsRaw / 1200));
     this.lastRowTicks = rowTicks;
     const rows = Math.ceil(rowsRaw / rowTicks);
-    if (!this.off) this.off = document.createElement('canvas');
-    if (this.buf.resize(cols, rows) || !this.img) {
-      this.off.width = cols;
-      this.off.height = rows;
-      this.img = new ImageData(
-        new Uint8ClampedArray(this.buf.pixels.buffer, 0, cols * rows * 4),
-        cols,
-        rows,
-      );
+    if (
+      this.buf.resize(cols, rows) ||
+      !this.img ||
+      this.img.width !== cols ||
+      this.img.height !== rows
+    ) {
+      this.img = {
+        key: this,
+        version: 0,
+        width: cols,
+        height: rows,
+        pixels: new Uint8ClampedArray(this.buf.pixels.buffer, 0, cols * rows * 4),
+      };
     }
     const global =
       s.normalize === 'global' ? this.globalCut(v.i0, v.i1, [bottom, top]) : { lo: 0, hi: 1 };
@@ -463,27 +473,24 @@ export class LiquidityMapLayer implements ChartLayer {
     this.stats.cols = cols;
     this.stats.rows = rows;
     this.stats.cells = this.buf.cells;
-    const octx = this.off.getContext('2d')!;
-    octx.putImageData(this.img, 0, 0);
+    // The pixel buffer is the texture (WebGL2) or the off-screen canvas source (Canvas2D).
+    this.img.version++;
     const { ctx } = v;
     ctx.save();
     ctx.beginPath();
     ctx.rect(v.plot.x, 0, v.plot.w, v.plot.h);
     ctx.clip();
-    ctx.imageSmoothingEnabled = s.smoothing;
+    const paint = painterOf(v);
+    paint.setClip({ x: v.plot.x, y: 0, w: v.plot.w, h: v.plot.h });
     const dx = v.xOf(v.i0) - v.slotWidth / 2;
     const dy = v.yOf(top + 0.5);
-    ctx.drawImage(
-      this.off,
-      0,
-      0,
-      cols,
-      rows,
-      dx,
-      dy,
-      cols * v.slotWidth,
-      rows * rowTicks * v.tickPx,
+    paint.image(
+      this.img,
+      { x: 0, y: 0, w: cols, h: rows },
+      { x: dx, y: dy, w: cols * v.slotWidth, h: rows * rowTicks * v.tickPx },
+      s.smoothing,
     );
+    paint.setClip(null);
     ctx.restore();
   }
 

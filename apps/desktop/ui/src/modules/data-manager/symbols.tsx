@@ -1,8 +1,9 @@
 import { Button } from '@htflow/ui-kit';
 import { isTauri } from '../../backend';
 import { runCommand } from '../../shell/commands';
-import { discoverySummary, useDiscovery } from '../../state/discovery';
+import { discoverySummary, refreshSymbolLists, useDiscovery } from '../../state/discovery';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 function ago(ms: number): string {
   if (!ms) return 'never';
   const s = Math.max(0, (Date.now() - ms) / 1000);
@@ -20,7 +21,7 @@ export function SymbolLists() {
   return (
     <section className="col gap8" data-testid="symbol-lists">
       <div className="row gap12" style={{ alignItems: 'center' }}>
-        <strong>Symbol lists</strong>
+        <strong>{tl('Symbol lists')}</strong>
         <span className="muted" data-testid="symbol-lists-total">
           {rows.length
             ? `${total.toLocaleString()} symbols · refreshed ${ago(report?.refreshedAtMs ?? 0)}`
@@ -36,27 +37,43 @@ export function SymbolLists() {
           {loading ? 'Refreshing…' : 'Refresh symbol list'}
         </Button>
       </div>
-      {error && <div className="muted">Last refresh failed: {error}</div>}
+      {error && (
+        <div className="muted">
+          {tl('Last refresh failed:')} {error}
+        </div>
+      )}
       {rows.length > 0 && (
         <table className="tbl tnum dm-table">
           <thead>
             <tr>
-              <th>Venue</th>
-              <th>Symbols</th>
-              <th>Updated</th>
-              <th>Status</th>
+              <th>{tl('Venue')}</th>
+              <th>{tl('Symbols')}</th>
+              <th>{tl('Updated')}</th>
+              <th>{tl('Status')}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} data-testid={`symbols-${r.id}`}>
-                <td>{r.label}</td>
+                <td>{tl(r.label)}</td>
                 <td>
                   {r.count.toLocaleString()}
                   {r.optionsCount ? ` (+${r.optionsCount.toLocaleString()} options)` : ''}
                 </td>
                 <td>{ago(r.fetchedAtMs)}</td>
-                <td title={r.error}>{r.ok ? 'OK' : `Kept last list: ${r.error ?? 'failed'}`}</td>
+                <td title={r.error}>
+                  {r.ok ? 'OK' : `Kept last list: ${r.error ?? 'failed'}`}
+                  {!r.ok && (
+                    <Button
+                      size="xs"
+                      disabled={loading}
+                      onClick={() => void refreshSymbolLists(r.id)}
+                      style={{ marginLeft: 8 }}
+                    >
+                      {tl('Retry')}
+                    </Button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -17,6 +17,7 @@ import { useSession } from '../../state/session';
 import { activityLog } from '../activity/log';
 import { clearDeliveryCache, deliver, type Channel } from './delivery';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const KEY = 'alerts.list';
 
 /** App-wide alert engine: runs on hub stores, independent of any open window (P23 / P41). */
@@ -92,7 +93,7 @@ export function runActions(alert: Alert, message: string, px?: number, ts = Date
   const inst = id ? instrumentById(id) : undefined;
   const body = `${message}${px !== undefined && inst ? ` @ ${formatPrice(px, inst)}` : ''}`;
   const a = alert.actions;
-  if (a.popup && getSetting('alerts.toast')) toast('warning', `Alert: ${title}`, body, 8000);
+  if (a.popup && getSetting('alerts.toast')) toast('warning', tt`Alert: ${title}`, body, 8000);
   if (a.sound) playAlertSound(a.soundRef);
   if (a.desktop && typeof Notification !== 'undefined' && Notification.permission === 'granted')
     new Notification(`HT Flow alert: ${title}`, { body });
@@ -110,7 +111,7 @@ export function runActions(alert: Alert, message: string, px?: number, ts = Date
     void deliver(channels, formatAlertMessage(title, body, ts)).then((errors) => {
       for (const e of errors) {
         activityLog.add({ type: 'alert', account: 'Alerts', message: `Delivery failed: ${e}` });
-        toast('error', 'Alert delivery failed', e, 6000);
+        toast('error', tl('Alert delivery failed'), e, 6000);
       }
     });
 }
@@ -130,7 +131,7 @@ export function notify(o: {
   log?: boolean;
 }): void {
   const inst = o.instrumentId ? instrumentById(o.instrumentId) : undefined;
-  if (o.popup ?? true) toast('warning', `Alert: ${o.title}`, o.body, 8000);
+  if (o.popup ?? true) toast('warning', tt`Alert: ${o.title}`, o.body, 8000);
   if (o.sound ?? true) playAlertSound();
   if (o.log ?? true)
     activityLog.add({

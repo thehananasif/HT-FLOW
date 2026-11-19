@@ -5,6 +5,7 @@ import { barDataRows, type ChartCore, type DataRow } from '@htflow/chart-engine'
 import { formatPrice, type BarSeries, type MarketStore } from '@htflow/market-data';
 import { Button, Checkbox, Dialog, Field, Input, toast } from '@htflow/ui-kit';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Data window: OHLCV, delta and every layer's value at the cursor (or the last bar). */
 export function DataWindow({
   core,
@@ -63,18 +64,18 @@ export function DataWindow({
     }
   }
   return (
-    <aside className="chart-datawin" aria-label="Data window" data-testid="data-window">
+    <aside className="chart-datawin" aria-label={tl('Data window')} data-testid="data-window">
       <header>
-        <span>Data window</span>
-        <button className="ht-icon-btn" aria-label="Close data window" onClick={onClose}>
+        <span>{tl('Data window')}</span>
+        <button className="ht-icon-btn" aria-label={tl('Close data window')} onClick={onClose}>
           <X size={12} />
         </button>
       </header>
-      {!b && <p className="muted">No bars loaded.</p>}
+      {!b && <p className="muted">{tl('No bars loaded.')}</p>}
       <dl>
         {rows.map((r) => (
           <div key={r.label}>
-            <dt>{r.label}</dt>
+            <dt>{tl(r.label)}</dt>
             <dd className="tnum" style={r.color ? { color: r.color } : undefined}>
               {r.value}
             </dd>
@@ -122,7 +123,7 @@ export function GoToDateDialog({
   const go = async () => {
     const t = new Date(`${date}T${time || '00:00'}`).getTime();
     if (!Number.isFinite(t)) {
-      toast('error', 'Invalid date');
+      toast('error', tl('Invalid date'));
       return;
     }
     setBusy(true);
@@ -137,7 +138,7 @@ export function GoToDateDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Go to date"
+      title={tl('Go to date')}
       description={
         firstTime
           ? `Loaded ${new Date(firstTime).toLocaleString()} – ${new Date(lastTime).toLocaleString()}. Earlier dates load more history.`
@@ -152,18 +153,18 @@ export function GoToDateDialog({
           void go();
         }}
       >
-        <Field label="Date">
+        <Field label={tl('Date')}>
           <Input
             type="date"
-            aria-label="Date"
+            aria-label={tl('Date')}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
         </Field>
-        <Field label="Time (local)">
+        <Field label={tl('Time (local)')}>
           <Input
             type="time"
-            aria-label="Time"
+            aria-label={tl('Time')}
             value={time}
             onChange={(e) => setTime(e.target.value)}
           />
@@ -177,7 +178,7 @@ export function GoToDateDialog({
               setTime('00:00');
             }}
           >
-            Today 00:00
+            {tl('Today 00:00')}
           </Button>
           <Button
             type="button"
@@ -187,7 +188,7 @@ export function GoToDateDialog({
               setTime(localTime(firstTime || Date.now()));
             }}
           >
-            First bar
+            {tl('First bar')}
           </Button>
           <div className="grow" />
           <Button type="submit" variant="primary" disabled={busy}>
@@ -220,7 +221,7 @@ export function SaveTemplateDialog({
     }
   }, [open]);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Save chart template" width={380}>
+    <Dialog open={open} onOpenChange={onOpenChange} title={tl('Save chart template')} width={380}>
       <form
         className="col gap12"
         onSubmit={(e) => {
@@ -230,23 +231,23 @@ export function SaveTemplateDialog({
           onOpenChange(false);
         }}
       >
-        <Field label="Template name">
+        <Field label={tl('Template name')}>
           <Input
             autoFocus
-            aria-label="Template name"
+            aria-label={tl('Template name')}
             value={name}
             maxLength={80}
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <Checkbox checked={def} onChange={setDef} label={`Default for ${className}`} />
+        <Checkbox checked={def} onChange={setDef} label={tt`Default for ${className}`} />
         <div className="row gap8">
           <div className="grow" />
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button type="submit" variant="primary" disabled={!name.trim()}>
-            Save
+            {tl('Save')}
           </Button>
         </div>
       </form>

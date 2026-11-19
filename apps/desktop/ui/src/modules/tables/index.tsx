@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from '@htflow/ui-kit';
 import { formatPrice } from '@htflow/market-data';
 import type { Account, Fill, OptionPosition, Order, Position } from '@htflow/trading';
-import { hub, paper } from '../../state/market';
+import { paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { DataTable, Pill, tableParams, type DataColumn } from '../../components/DataTable';
 import { registerModule, type ModuleViewProps } from '../registry';
@@ -19,6 +19,7 @@ import {
 import { confirmAction } from '../../state/confirm';
 import { editsStop, parseModify, type ModifyField } from './inlineModify';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Re-renders on every paper-engine event (fills land in all tables in the same frame). */
 function useTicker(ms = 500) {
   useTimeFormat(); // times follow Settings → General / Time zones
@@ -60,16 +61,14 @@ const pnl = (v: number) => (
 const sidePill = (s: 'buy' | 'sell') => (
   <Pill tone={s === 'buy' ? 'up' : 'down'}>{s.toUpperCase()}</Pill>
 );
-const mark = (id: string) => hub.peek(id)?.lastTrade?.px;
+const mark = (id: string) => {
+  const m = paper.mark(id);
+  return Number.isFinite(m) ? m : undefined;
+};
 
 function openPnl(accountId: string): number {
   // Options count at their mark-to-model P&L (P18).
-  let open = paper.optionUnrealized(accountId);
-  for (const p of paper.allPositions(accountId)) {
-    const m = mark(p.instrumentId);
-    if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
-  }
-  return open;
+  return paper.openPnl(accountId);
 }
 
 /* ------------------------------------------------------------------ Accounts */
@@ -132,14 +131,15 @@ const accountCols: DataColumn<Account>[] = [
     },
     render: (a) => {
       const s = risk.status(a.id);
-      if (s.locked) return <Pill tone="down">Locked</Pill>;
+      if (s.locked) return <Pill tone="down">{tl('Locked')}</Pill>;
       if (s.usage >= 0.25)
         return (
           <Pill tone={s.usage >= 0.8 ? 'down' : 'warning'}>
-            {Math.round(s.usage * 100)}% of limit
+            {Math.round(s.usage * 100)}
+            {tl('% of limit')}
           </Pill>
         );
-      return <Pill tone="up">OK</Pill>;
+      return <Pill tone="up">{tl('OK')}</Pill>;
     },
   },
   {
@@ -159,13 +159,17 @@ function Accounts({ state, setParams }: ModuleViewProps) {
   return (
     <DataTable
       testId="accounts-table"
-      title="Accounts"
-      subtitle={`${rows.length} account${rows.length === 1 ? '' : 's'}`}
+      title={tl('Accounts')}
+      subtitle={tt`${rows.length} account${rows.length === 1 ? '' : 's'}`}
       rows={rows}
       columns={accountCols}
       rowKey={(a) => a.id}
-      empty="No accounts"
-      footer={<span>Total equity {money(total)}</span>}
+      empty={tl('No accounts')}
+      footer={
+        <span>
+          {tl('Total equity')} {money(total)}
+        </span>
+      }
       {...tableParams(state.params, setParams, accountCols)}
     />
   );
@@ -203,8 +207,8 @@ const positionCols: DataColumn<PosRow>[] = [
     value: (p) => (p.option ? p.instrumentId : sym(p.instrumentId)),
     render: (p) =>
       p.option ? (
-        <span title="Paper option · premium per unit, marked to model">
-          {p.instrumentId} <Pill tone="info">OPT</Pill>
+        <span title={tl('Paper option · premium per unit, marked to model')}>
+          {p.instrumentId} <Pill tone="info">{tl('OPT')}</Pill>
         </span>
       ) : (
         sym(p.instrumentId)
@@ -273,11 +277,11 @@ const positionCols: DataColumn<PosRow>[] = [
               ).then((ok) => {
                 if (!ok) return;
                 const r = paper.closeOption(opt.id);
-                if (typeof r === 'string') toast('error', 'Could not close', r);
+                if (typeof r === 'string') toast('error', tl('Could not close'), r);
               })
             }
           >
-            Close
+            {tl('Close')}
           </button>
         );
       return (
@@ -297,7 +301,7 @@ const positionCols: DataColumn<PosRow>[] = [
               ).then((ok) => ok && paper.flatten(p.accountId, p.instrumentId))
             }
           >
-            Close
+            {tl('Close')}
           </button>
           <button
             className="dt-cell-btn"
@@ -313,7 +317,7 @@ const positionCols: DataColumn<PosRow>[] = [
               ).then((ok) => ok && paper.reverse(p.accountId, p.instrumentId))
             }
           >
-            Reverse
+            {tl('Reverse')}
           </button>
         </>
       );
@@ -329,12 +333,12 @@ function Positions({ state, setParams }: ModuleViewProps) {
   return (
     <DataTable
       testId="positions-table"
-      title="Positions"
-      subtitle={`${rows.length} open`}
+      title={tl('Positions')}
+      subtitle={tt`${rows.length} open`}
       rows={rows}
       columns={positionCols}
       rowKey={(p) => (p.option ? p.option.id : `${p.accountId}|${p.instrumentId}`)}
-      empty="No open positions"
+      empty={tl('No open positions')}
       actions={
         <button
           className="dt-btn dt-btn--primary"
@@ -356,12 +360,12 @@ function Positions({ state, setParams }: ModuleViewProps) {
             })
           }
         >
-          Flatten all
+          {tl('Flatten all')}
         </button>
       }
       footer={
         <span>
-          Net open P&amp;L {pnl(net)} · Breakeven = H · Flatten all from the command palette
+          Net open P&amp;L {pnl(net)} {tl('· Breakeven = H · Flatten all from the command palette')}
         </span>
       }
       {...tableParams(state.params, setParams, positionCols)}
@@ -440,7 +444,7 @@ function InlineEdit({ o, field, display }: { o: Order; field: ModifyField; displ
     const ch = inst ? parseModify(o, inst.tickSize, field, text) : null;
     if (!ch) return setBad(true);
     if (!paper.modify(o.id, ch))
-      toast('warning', 'Order not modified', 'The engine rejected the new value.');
+      toast('warning', tl('Order not modified'), tl('The engine rejected the new value.'));
     setText(null);
   };
   return (
@@ -499,7 +503,7 @@ const orderCols: DataColumn<Order>[] = [
     value: typeLabel,
     render: (o) => (
       <>
-        {o.oco && <span title={`OCO group ${o.oco}`}>⧉ </span>}
+        {o.oco && <span title={tt`OCO group ${o.oco}`}>⧉ </span>}
         {typeLabel(o)}
       </>
     ),
@@ -582,11 +586,11 @@ const orderCols: DataColumn<Order>[] = [
       isWorking(o) ? (
         <>
           <button className="dt-cell-btn" onClick={() => requestEdit(o.id, 'price')}>
-            Modify
+            {tl('Modify')}
           </button>
           <button
             className="dt-cell-btn"
-            aria-label="Cancel order"
+            aria-label={tl('Cancel order')}
             onClick={() =>
               void confirmAction(
                 'tableAction',
@@ -616,12 +620,12 @@ function Orders({ state, setParams }: ModuleViewProps) {
   return (
     <DataTable
       testId="orders-table"
-      title="Orders"
-      subtitle={`working ${working} · history`}
+      title={tl('Orders')}
+      subtitle={tt`working ${working} · history`}
       rows={rows}
       columns={orderCols}
       rowKey={(o) => o.id}
-      empty="No orders yet"
+      empty={tl('No orders yet')}
       actions={
         <button
           className="dt-btn dt-btn--primary"
@@ -638,11 +642,13 @@ function Orders({ state, setParams }: ModuleViewProps) {
             ).then((ok) => ok && [...paper.accounts.keys()].forEach((a) => paper.cancelAll(a)))
           }
         >
-          Cancel all
+          {tl('Cancel all')}
         </button>
       }
       footer={
-        <span>OCO groups shown with ⧉ (☰ → Group by → OCO group) · drag on chart to modify</span>
+        <span>
+          {tl('OCO groups shown with ⧉ (☰ → Group by → OCO group) · drag on chart to modify')}
+        </span>
       }
       {...tableParams(state.params, setParams, orderCols)}
     />
@@ -724,14 +730,16 @@ function Trades({ state, setParams }: ModuleViewProps) {
   return (
     <DataTable
       testId="trades-table"
-      title="Trades"
-      subtitle={`${rows.length} fill${rows.length === 1 ? '' : 's'}`}
+      title={tl('Trades')}
+      subtitle={tt`${rows.length} fill${rows.length === 1 ? '' : 's'}`}
       rows={rows}
       columns={tradeCols}
       rowKey={(f) => f.id}
-      empty="No fills yet"
+      empty={tl('No fills yet')}
       exportName="htflow-trades"
-      footer={<span>Commission per account (paper: per-unit + taker fee) · ☰ → Export CSV</span>}
+      footer={
+        <span>{tl('Commission per account (paper: per-unit + taker fee) · ☰ → Export CSV')}</span>
+      }
       {...tableParams(state.params, setParams, tradeCols)}
     />
   );

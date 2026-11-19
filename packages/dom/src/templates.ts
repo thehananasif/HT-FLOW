@@ -139,7 +139,8 @@ export interface DomPaletteSpec {
   spread: string;
 }
 
-export type CentringMode = 'auto' | 'always' | 'manual';
+/** view = when the price leaves the visible rows (default), auto = leaves the middle band. */
+export type CentringMode = 'view' | 'auto' | 'always' | 'manual';
 
 export interface DomStyle {
   fontFamily: string;
@@ -249,7 +250,7 @@ const BASE_STYLE: DomStyle = {
   fontSize: 12,
   rowHeight: 22,
   headerHeight: 24,
-  centring: 'auto',
+  centring: 'view',
   centreBand: 0.3,
   gridLines: false,
   palette: DARK,
@@ -459,9 +460,9 @@ export function sanitizeTemplate(raw: unknown, fallbackId = 'custom'): DomTempla
   const palette = Object.fromEntries(
     (Object.keys(bp) as (keyof DomPaletteSpec)[]).map((k) => [k, color(p[k], bp[k])]),
   ) as unknown as DomPaletteSpec;
-  const centring: CentringMode = ['auto', 'always', 'manual'].includes(s.centring as string)
+  const centring: CentringMode = ['view', 'auto', 'always', 'manual'].includes(s.centring as string)
     ? (s.centring as CentringMode)
-    : 'auto';
+    : 'view';
   const style: DomStyle = {
     fontFamily: str(s.fontFamily, BASE_STYLE.fontFamily, 80),
     fontSize: Math.round(num(s.fontSize, BASE_STYLE.fontSize, 8, 20)),

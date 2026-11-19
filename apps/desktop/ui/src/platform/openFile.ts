@@ -1,6 +1,6 @@
 /**
  * P30 — file associations (UI side). The Rust core reads a file Windows opened with HT Flow
- * (`.htprofile`, `.htworkspace`, `.htind`, `.httemplate`) and emits `htflow:open-file`
+ * (`.htprofile`, `.htworkspace`, `.htind`, `.httemplate`, `.htstrat`) and emits `htflow:open-file`
  * with an `OpenedFile`. This module routes it to the importer registered for its kind:
  *
  *   registerOpenFileHandler('template', (file) => { …import file.text…; return true; });
@@ -16,7 +16,8 @@ import { importTemplates, parseTemplatesFile } from '../charts/templates';
 import { useSession } from '../state/session';
 import { isTauri, native, onNative } from './native';
 
-export type OpenFileKind = 'profile' | 'workspace' | 'indicator' | 'template';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
+export type OpenFileKind = 'profile' | 'workspace' | 'indicator' | 'template' | 'strategy';
 
 export interface OpenedFile {
   path: string;
@@ -60,7 +61,7 @@ export async function routeOpenedFile(
   hasSession = !!useSession.getState().session,
 ): Promise<RouteResult> {
   if (file.error) {
-    toast('error', `Could not open ${file.name}`, file.error);
+    toast('error', tt`Could not open ${file.name}`, file.error);
     return 'error';
   }
   if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
@@ -70,21 +71,21 @@ export async function routeOpenedFile(
   if (!reg) {
     toast(
       'info',
-      `${file.name} opened`,
-      `Importing .${file.ext} files by double-click is not available yet. Use the matching Import button.`,
+      tt`${file.name} opened`,
+      tt`Importing .${file.ext} files by double-click is not available yet. Use the matching Import button.`,
     );
     return 'unhandled';
   }
   if (reg.needsSession && !hasSession) {
     waiting.push(file);
-    toast('info', `${file.name} is ready`, 'Log in and it will be imported.');
+    toast('info', tt`${file.name} is ready`, tl('Log in and it will be imported.'));
     return 'waiting';
   }
   try {
     const r = await reg.fn(file);
     return r === false ? 'unhandled' : 'handled';
   } catch (e) {
-    toast('error', `Could not import ${file.name}`, e instanceof Error ? e.message : String(e));
+    toast('error', tt`Could not import ${file.name}`, e instanceof Error ? e.message : String(e));
     return 'error';
   }
 }
@@ -103,7 +104,7 @@ registerOpenFileHandler(
   'profile',
   async (f) => {
     const p = await backend.importProfile(f.text);
-    toast('success', 'Profile imported', p.username);
+    toast('success', tl('Profile imported'), p.username);
   },
   { needsSession: false },
 );
@@ -111,13 +112,20 @@ registerOpenFileHandler(
 registerOpenFileHandler('template', async (f) => {
   const { templates, errors } = parseTemplatesFile(f.text);
   if (!templates.length) {
-    toast('error', 'No chart templates found', errors[0]);
+    toast('error', tl('No chart templates found'), errors[0]);
     return;
   }
   await useChartTemplates.getState().load();
   useChartTemplates.getState().update((l) => importTemplates(l, templates));
-  toast('success', `Imported ${templates.length} chart template(s)`, f.name);
+  toast('success', tt`Imported ${templates.length} chart template(s)`, f.name);
 });
+
+// Web build / tests: lets a page hand a file to the router as if Windows had opened it.
+if (typeof window !== 'undefined' && !isTauri) {
+  window.addEventListener('htflow:inject-file', (e) => {
+    void routeOpenedFile((e as CustomEvent<OpenedFile>).detail);
+  });
+}
 
 /** Attaches the core listener and drains files queued during start-up. Desktop only. */
 export async function startOpenFileBridge(): Promise<() => void> {

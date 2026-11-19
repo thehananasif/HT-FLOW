@@ -100,6 +100,11 @@ export interface ReplayDataset {
   deltas: DeltaLog;
   /** Book at `start`, when known. */
   initialBook?: BookSnapshot;
+  /**
+   * Set when look-back trades ("History before start") precede `start`: the time of the first one.
+   * They are already visible when the clock sits at `start` and are never replayed.
+   */
+  historyStart?: number;
 }
 
 /** Which recorded layers to replay (P35 setup "data layers"). */
@@ -113,7 +118,7 @@ export const DEFAULT_LAYERS: ReplayLayers = { ticks: true, depth: true };
 
 /** Where data comes from and how large it is (setup "data on disk / in memory" line). */
 export interface ReplayDataInfo {
-  where: 'disk' | 'memory' | 'generated';
+  where: 'disk' | 'memory' | 'generated' | 'exchange';
   /** Approximate size of the selected range in bytes. */
   bytes: number;
   /** Days of data available for the instrument. */

@@ -40,9 +40,14 @@ export interface ChartTypeSettings {
   liquidity: { gradient: string; opacity: number; upperCut: number };
   orderFlowLight: { bigTrade: number; showCvd: boolean; showBubbles: boolean };
   cot: {
-    commercials: boolean;
-    nonCommercials: boolean;
-    nonReportable: boolean;
+    /** CFTC market: a root from the COT mapping table, or `auto` = the chart's symbol. */
+    market: string;
+    /** `auto` = the Settings default report (when the market has it). */
+    report: 'auto' | 'legacy' | 'disagg' | 'tff';
+    /** Years of weekly history to load. */
+    years: number;
+    /** Trader categories whose net-position pane / line is hidden (by group key). */
+    hidden: string[];
     openInterest: boolean;
   };
   pnf: { style: 'glyphs' | 'boxes' };
@@ -69,7 +74,7 @@ export const DEFAULT_CHART_TYPE_SETTINGS: ChartTypeSettings = {
   imbalance: { ratio: 300, minVolume: 0, stacked: 3, extendZones: true },
   liquidity: { gradient: 'classic', opacity: 70, upperCut: 98 },
   orderFlowLight: { bigTrade: 20, showCvd: true, showBubbles: true },
-  cot: { commercials: true, nonCommercials: true, nonReportable: true, openInterest: false },
+  cot: { market: 'auto', report: 'auto', years: 5, hidden: [], openInterest: false },
   pnf: { style: 'glyphs' },
   kagi: { yangWidth: 3, yinWidth: 1 },
 };
@@ -150,9 +155,15 @@ export function sanitizeChartTypeSettings(raw: unknown): ChartTypeSettings {
       showBubbles: bool(of.showBubbles, D.orderFlowLight.showBubbles),
     },
     cot: {
-      commercials: bool(cot.commercials, D.cot.commercials),
-      nonCommercials: bool(cot.nonCommercials, D.cot.nonCommercials),
-      nonReportable: bool(cot.nonReportable, D.cot.nonReportable),
+      market:
+        typeof cot.market === 'string' && /^[A-Za-z0-9]{1,8}$/.test(cot.market)
+          ? cot.market
+          : D.cot.market,
+      report: pick(cot.report, ['auto', 'legacy', 'disagg', 'tff'] as const, D.cot.report),
+      years: num(cot.years, D.cot.years, 1, 25),
+      hidden: Array.isArray(cot.hidden)
+        ? cot.hidden.filter((x): x is string => typeof x === 'string').slice(0, 12)
+        : D.cot.hidden,
       openInterest: bool(cot.openInterest, D.cot.openInterest),
     },
     pnf: { style: pick(pnf.style, ['glyphs', 'boxes'] as const, D.pnf.style) },

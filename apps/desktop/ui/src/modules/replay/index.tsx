@@ -11,11 +11,18 @@ import {
   Slider,
   toast,
 } from '@htflow/ui-kit';
-import type { ReplayDataInfo } from '@htflow/replay';
+import {
+  DEFAULT_LOOKBACK,
+  lookbackMs,
+  normalizeLookback,
+  type ReplayDataInfo,
+  type ReplayLookback,
+} from '@htflow/replay';
 import { journalStats, roundTrips } from '@htflow/trading';
+import { exchangeHistoryAvailable } from '../../feeds/exchangeHistory';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { allInstruments } from '../../state/instruments';
-import { paper, pnlTick } from '../../state/market';
+import { hub, paper, pnlTick } from '../../state/market';
 import { isTauri } from '../../backend';
 import { activeInstrument } from '../../state/windows';
 import {
@@ -26,10 +33,10 @@ import {
   replaySources,
   sourceIdOf,
   startReplay,
-  stopReplay,
   type ReplayConfig,
 } from '../../feeds/replay';
-import { showReplayOn } from './ControlBar';
+import { exitReplay, replayChartBarMs, showReplayOn } from './ControlBar';
+import { pickSourceId, validateRange } from './logic';
 import {
   addTemplate,
   applyTemplateState,
@@ -47,6 +54,7 @@ import {
 } from './shared';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 interface SetupParams {
   instruments: string[];
   from: number;
@@ -56,6 +64,8 @@ interface SetupParams {
   /** false = future bars are drawn as faded ghost candles. */
   hideFuture: boolean;
   source: string;
+  /** History before start (drawn as normal bars before the replay clock). */
+  lookback: ReplayLookback;
 }
 
 function defaults(): SetupParams {
@@ -70,6 +80,7 @@ function defaults(): SetupParams {
     depth: true,
     hideFuture: true,
     source: '',
+    lookback: DEFAULT_LOOKBACK,
   };
 }
 
@@ -88,6 +99,7 @@ function readParams(p: Record<string, unknown> | undefined): SetupParams {
     depth: typeof s.depth === 'boolean' ? s.depth : true,
     hideFuture: typeof s.hideFuture === 'boolean' ? s.hideFuture : true,
     source: typeof s.source === 'string' ? s.source : '',
+    lookback: s.lookback === undefined ? d.lookback : normalizeLookback(s.lookback),
   };
 }
 
@@ -98,6 +110,7 @@ function toConfig(p: SetupParams): ReplayConfig {
     to: p.to,
     layers: { ticks: p.ticks, depth: p.depth, hideFuture: p.hideFuture },
     source: p.source || undefined,
+    lookback: p.lookback,
   };
 }
 
@@ -108,17 +121,28 @@ async function launch(
 ) {
   setBusy('Loading data… 0%');
   try {
-    const s = await startReplay(template ? { ...cfg, templateId: template.id } : cfg, (p) =>
-      setBusy(`Loading data… ${Math.round(p * 100)}%`),
-    );
+    // "History before start" in bars uses the timeframe of the chart the replay is shown on.
+    const run: ReplayConfig = {
+      ...cfg,
+      lookbackBarMs: cfg.lookbackBarMs ?? replayChartBarMs(),
+      ...(template ? { templateId: template.id } : {}),
+    };
+    const s = await startReplay(run, (p) => setBusy(`Loading data… ${Math.round(p * 100)}%`));
     if (template) applyTemplateState(s, template);
     showReplayOn([...s.engines.keys()]);
-    toast('success', 'Replay ready', 'Press Play or Space on the chart');
+    toast('success', tl('Replay ready'), tl('Press Play or Space on the chart'));
   } catch (e) {
-    toast('error', 'Replay failed', e instanceof Error ? e.message : String(e));
+    toast('error', tl('Replay failed'), e instanceof Error ? e.message : String(e));
   } finally {
     setBusy(null);
   }
+}
+
+function fmtSpan(ms: number): string {
+  const h = ms / 3_600_000;
+  if (h >= 24) return `${+(h / 24).toFixed(1)} d`;
+  if (h >= 1) return `${+h.toFixed(1)} h`;
+  return `${Math.round(ms / 60_000)} min`;
 }
 
 function Setup({ state, setParams }: ModuleViewProps) {
@@ -128,10 +152,29 @@ function Setup({ state, setParams }: ModuleViewProps) {
   const [info, setInfo] = useState<(ReplayDataInfo & { label: string; range?: string }) | null>(
     null,
   );
-  const all = allInstruments(isTauri).filter((i) => !isReplayId(i.id));
+  const all = allInstruments(isTauri || exchangeHistoryAvailable()).filter(
+    (i) => !isReplayId(i.id),
+  );
   const first = p.instruments[0] ?? '';
   const sources = replaySources(first);
-  const source = sources.find((s) => s.id === p.source) ?? sources[0];
+  const sourceKey = sources.map((s) => s.id).join(',');
+  // Without an explicit choice the source whose data covers the range wins (same rule as start).
+  const [auto, setAuto] = useState('');
+  useEffect(() => {
+    let alive = true;
+    void Promise.all(
+      replaySources(first).map(async (s) => ({
+        id: s.id,
+        range: await s.range(first).catch(() => null),
+      })),
+    ).then((r) => {
+      if (alive) setAuto(pickSourceId(r, p.from, p.to) ?? '');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [first, p.from, p.to, sourceKey]);
+  const source = sources.find((s) => s.id === (p.source || auto)) ?? sources[0];
   useEffect(() => {
     let alive = true;
     if (!source) {
@@ -150,20 +193,21 @@ function Setup({ state, setParams }: ModuleViewProps) {
       alive = false;
     };
   }, [source, first, p.from, p.to]);
-  const valid = p.to > p.from && p.instruments.length > 0 && !!source;
+  const rangeError = validateRange(p.from, p.to, Date.now(), info?.bytes ?? 0);
+  const valid = !rangeError && p.instruments.length > 0 && !!source;
   const symbol = (id: string) => all.find((i) => i.id === id)?.symbol ?? id;
   return (
-    <section className="rp-card" aria-label="Replay setup">
-      <h4>Replay setup</h4>
+    <section className="rp-card" aria-label={tl('Replay setup')}>
+      <h4>{tl('Replay setup')}</h4>
       <div className="col gap8">
-        <span className="ht-label">Instruments (synced)</span>
+        <span className="ht-label">{tl('Instruments (synced)')}</span>
         <div className="row gap6 rp-chips">
           {p.instruments.map((id) => (
             <span key={id} className="rp-chip">
               {symbol(id)}
               {p.instruments.length > 1 && (
                 <button
-                  aria-label={`Remove ${symbol(id)}`}
+                  aria-label={tt`Remove ${symbol(id)}`}
                   onClick={() => set({ instruments: p.instruments.filter((x) => x !== id) })}
                 >
                   <X size={11} />
@@ -181,7 +225,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
               }))}
             trigger={
               <button className="rp-chip rp-chip--add" data-testid="replay-add-instrument">
-                + add
+                {tl('+ add')}
               </button>
             }
           />
@@ -194,16 +238,16 @@ function Setup({ state, setParams }: ModuleViewProps) {
             }))}
             trigger={
               <button className="rp-chip rp-chip--add" data-testid="replay-instrument">
-                Change ▾
+                {tl('Change ▾')}
               </button>
             }
           />
         </div>
         <div className="row gap8">
-          <Field label="From">
+          <Field label={tl('From')}>
             <Input
               type="datetime-local"
-              aria-label="From"
+              aria-label={tl('From')}
               value={toLocalInput(p.from)}
               onChange={(e) => {
                 const t = fromLocalInput(e.target.value);
@@ -211,10 +255,10 @@ function Setup({ state, setParams }: ModuleViewProps) {
               }}
             />
           </Field>
-          <Field label="To" error={p.to > p.from ? undefined : 'To must be after From'}>
+          <Field label={tl('To')} error={rangeError ?? undefined}>
             <Input
               type="datetime-local"
-              aria-label="To"
+              aria-label={tl('To')}
               value={toLocalInput(p.to)}
               onChange={(e) => {
                 const t = fromLocalInput(e.target.value);
@@ -224,7 +268,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
           </Field>
         </div>
         {sources.length > 1 && (
-          <Field label="Data source">
+          <Field label={tl('Data source')}>
             <Select
               value={source?.id ?? ''}
               onChange={(v) => set({ source: v })}
@@ -232,11 +276,46 @@ function Setup({ state, setParams }: ModuleViewProps) {
             />
           </Field>
         )}
-        <Checkbox checked onChange={() => {}} label="Ticks (trades)" />
+        <div className="row gap8" data-testid="replay-lookback">
+          <Field label="History before start">
+            <NumberInput
+              aria-label="History before start"
+              value={p.lookback.amount}
+              min={0}
+              max={p.lookback.unit === 'bars' ? 5000 : 5}
+              step={p.lookback.unit === 'bars' ? 50 : 1}
+              onChange={(v) => set({ lookback: normalizeLookback({ ...p.lookback, amount: v }) })}
+            />
+          </Field>
+          <Field label="Unit">
+            <Select
+              aria-label="History unit"
+              value={p.lookback.unit}
+              onChange={(v) =>
+                set({
+                  lookback: normalizeLookback({
+                    unit: v,
+                    amount: v === 'bars' ? 300 : 1,
+                  }),
+                })
+              }
+              options={[
+                { value: 'bars', label: 'Bars' },
+                { value: 'days', label: 'Days' },
+              ]}
+            />
+          </Field>
+        </div>
+        <span className="muted rp-sub">
+          {p.lookback.amount > 0
+            ? `Loaded before the clock starts and drawn as normal bars (≈ ${fmtSpan(lookbackMs(p.lookback, replayChartBarMs()))} of context); only bars after the clock are hidden.`
+            : 'No history: the chart starts empty at the replay start.'}
+        </span>
+        <Checkbox checked onChange={() => {}} label={tl('Ticks (trades)')} />
         <Checkbox
           checked={p.depth}
           onChange={(v) => set({ depth: v })}
-          label="Depth of market (heatmap + DOM)"
+          label={tl('Depth of market (heatmap + DOM)')}
         />
         <Checkbox
           checked={p.hideFuture}
@@ -244,11 +323,11 @@ function Setup({ state, setParams }: ModuleViewProps) {
             set({ hideFuture: v });
             setHideFuture(v);
           }}
-          label="Hide future bars (no peeking)"
+          label={tl('Hide future bars (no peeking)')}
         />
         {!p.hideFuture && (
           <span className="muted rp-sub">
-            Future bars show as faded ghost candles after the last real bar.
+            {tl('Future bars show as faded ghost candles after the last real bar.')}
           </span>
         )}
         <div className="rp-info">
@@ -259,18 +338,27 @@ function Setup({ state, setParams }: ModuleViewProps) {
                   ? 'Data on disk'
                   : info.where === 'memory'
                     ? 'Data in memory'
-                    : 'Generated on demand'}
+                    : info.where === 'exchange'
+                      ? 'Downloaded from the exchange when you start'
+                      : 'Generated on demand'}
               </span>
               <span className="tnum" data-testid="replay-data-info">
-                {symbol(first)} · {fmtBytes(info.bytes)} · {info.trades.toLocaleString()} ticks ·{' '}
-                {info.days >= 1 ? `${Math.round(info.days)} days` : 'this session'}
+                {symbol(first)} · {fmtBytes(info.bytes)} · {info.trades.toLocaleString()}{' '}
+                {tl('ticks ·')} {info.days >= 1 ? `${Math.round(info.days)} days` : 'this session'}
               </span>
-              {info.range && <span className="muted rp-sub">Available {info.range}</span>}
+              {info.range && (
+                <span className="muted rp-sub">
+                  {tl('Available')} {info.range}
+                </span>
+              )}
+              {info.note && <span className="muted rp-sub">{info.note}</span>}
             </>
           ) : (
             <span className="muted">
-              No recorded data for {symbol(first)} — open it in a chart to record it in memory (tick
-              store download arrives with P06).
+              {tl('No data source covers')} {symbol(first)}
+              {tl(
+                ': open it in a chart to record it in memory, or connect its exchange to download history.',
+              )}
             </span>
           )}
         </div>
@@ -296,7 +384,7 @@ function Setup({ state, setParams }: ModuleViewProps) {
               if (name) addTemplate(name, toConfig(p));
             }}
           >
-            Save as template
+            {tl('Save as template')}
           </Button>
         </div>
       </div>
@@ -314,31 +402,40 @@ function Account() {
   if (!acc) return null;
   const positions = paper.allPositions(REPLAY_ACCOUNT);
   const pos = positions[0];
-  const pnl = acc.balance - acc.startingBalance;
+  const realized = acc.balance - acc.startingBalance;
+  const open = positions.reduce((sum, q) => {
+    const mark = hub.peek(q.instrumentId)?.lastTrade?.px;
+    return mark === undefined ? sum : sum + paper.unrealized(REPLAY_ACCOUNT, q.instrumentId, mark);
+  }, 0);
+  const pnl = realized + open;
   const money = (v: number) =>
     `${v < 0 ? '−' : v > 0 ? '+' : ''}$${Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   return (
-    <section className="rp-card" aria-label="Replay account">
+    <section className="rp-card" aria-label={tl('Replay account')}>
       <h4>
-        Replay account <span className="muted rp-sub">paper · journal tag #replay</span>
+        {tl('Replay account')}{' '}
+        <span className="muted rp-sub">{tl('paper · journal tag #replay')}</span>
       </h4>
       <div className="rp-stats">
         <div className="card-stat">
-          <span className="muted">Balance</span>
+          <span className="muted">{tl('Balance')}</span>
           <b className="tnum">${acc.balance.toLocaleString('en-US')}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Session P&amp;L</span>
+          <span className="muted" title={tt`Realized ${money(realized)} · open ${money(open)}`}>
+            Session P&amp;L
+          </span>
           <b className={`tnum ${pnl > 0 ? 'up' : pnl < 0 ? 'down' : ''}`}>{money(pnl)}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Trades</span>
+          <span className="muted">{tl('Trades')}</span>
           <b className="tnum">
-            {stats.trades} · {Math.round(stats.winRate * 100)}% win
+            {stats.trades} · {Math.round(stats.winRate * 100)}
+            {tl('% win')}
           </b>
         </div>
         <div className="card-stat">
-          <span className="muted">Position</span>
+          <span className="muted">{tl('Position')}</span>
           <b className={`tnum ${pos ? (pos.qty > 0 ? 'up' : 'down') : ''}`}>
             {pos ? `${pos.qty > 0 ? 'LONG' : 'SHORT'} ${Math.abs(pos.qty)}` : 'FLAT'}
           </b>
@@ -346,10 +443,10 @@ function Account() {
       </div>
       <div className="row gap8">
         <Button size="sm" variant="ghost" onClick={() => paper.flattenAll(REPLAY_ACCOUNT)}>
-          Flatten replay
+          {tl('Flatten replay')}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => paper.resetAccount(REPLAY_ACCOUNT)}>
-          Reset account
+          {tl('Reset account')}
         </Button>
       </div>
     </section>
@@ -359,27 +456,27 @@ function Account() {
 function Templates({ setBusy }: { setBusy: (b: string | null) => void }) {
   const list = useTemplates();
   return (
-    <section className="rp-card" aria-label="Replay templates">
-      <h4>Replay templates</h4>
+    <section className="rp-card" aria-label={tl('Replay templates')}>
+      <h4>{tl('Replay templates')}</h4>
       {list.length === 0 && (
         <p className="muted rp-sub">
-          None yet — save one from the setup or right-click a chart → Add replay template.
+          {tl('None yet — save one from the setup or right-click a chart → Add replay template.')}
         </p>
       )}
       {list.map((t) => (
         <div key={t.id} className="rp-tpl">
           <span className="rp-tpl-name">{t.name}</span>
           <span className="muted tnum">{fmtRange(t.config.from, t.config.to)}</span>
-          <span className="muted tnum" title="Saved with this template">
+          <span className="muted tnum" title={tl('Saved with this template')}>
             {(t.bookmarks?.length ?? 0) > 0 ? `${t.bookmarks!.length} bookmarks` : ''}
             {t.loop ? ' · loop' : ''}
           </span>
           <Button size="xs" onClick={() => void launch(t.config, setBusy, t)}>
-            Load
+            {tl('Load')}
           </Button>
           <button
             className="ht-icon-btn"
-            aria-label={`Delete ${t.name}`}
+            aria-label={tt`Delete ${t.name}`}
             onClick={() => saveTemplates(list.filter((x) => x.id !== t.id))}
           >
             <X size={12} />
@@ -396,22 +493,22 @@ function Display() {
   const d = useReplayDisplay();
   const hf = hideFuture();
   return (
-    <section className="rp-card" aria-label="Replay display">
-      <h4>Replay display</h4>
+    <section className="rp-card" aria-label={tl('Replay display')}>
+      <h4>{tl('Replay display')}</h4>
       <div className="col gap8">
         <Checkbox
           checked={d.fillTags}
           onChange={(v) => setReplayDisplay({ fillTags: v })}
-          label="B / S fill tags on bars"
+          label={tl('B / S fill tags on bars')}
         />
         <Checkbox
           checked={d.tagQty}
           onChange={(v) => setReplayDisplay({ tagQty: v })}
-          label="Show quantity in the tag"
+          label={tl('Show quantity in the tag')}
         />
-        <Field label={`Tag size: ${d.tagSize}px`}>
+        <Field label={tt`Tag size: ${d.tagSize}px`}>
           <Slider
-            label="Tag size"
+            label={tl('Tag size')}
             min={8}
             max={16}
             value={d.tagSize}
@@ -421,9 +518,9 @@ function Display() {
         <Checkbox
           checked={d.timelineEvents}
           onChange={(v) => setReplayDisplay({ timelineEvents: v })}
-          label="Economic events on the timeline"
+          label={tl('Economic events on the timeline')}
         />
-        <Field label="Event impact">
+        <Field label={tl('Event impact')}>
           <Select
             value={d.eventImpact}
             onChange={(v) => setReplayDisplay({ eventImpact: v as typeof d.eventImpact })}
@@ -437,10 +534,10 @@ function Display() {
         <Checkbox
           checked={hf}
           onChange={(v) => setHideFuture(v)}
-          label="Hide future bars (off = ghost candles)"
+          label={tl('Hide future bars (off = ghost candles)')}
         />
         <div className="row gap8">
-          <Field label="Ghost bars">
+          <Field label={tl('Ghost bars')}>
             <NumberInput
               value={d.ghostBars}
               min={5}
@@ -448,9 +545,9 @@ function Display() {
               onChange={(v) => setReplayDisplay({ ghostBars: v })}
             />
           </Field>
-          <Field label={`Ghost opacity: ${Math.round(d.ghostOpacity * 100)}%`}>
+          <Field label={tt`Ghost opacity: ${Math.round(d.ghostOpacity * 100)}%`}>
             <Slider
-              label="Ghost opacity"
+              label={tl('Ghost opacity')}
               min={10}
               max={90}
               value={Math.round(d.ghostOpacity * 100)}
@@ -468,9 +565,9 @@ function Running() {
   if (!s) return null;
   const e = s.group.primary;
   return (
-    <section className="rp-card" aria-label="Running replay">
+    <section className="rp-card" aria-label={tl('Running replay')}>
       <h4>
-        Running <span className="ht-badge ht-badge--replay">Replay</span>
+        {tl('Running')} <span className="ht-badge ht-badge--replay">{tl('Replay')}</span>
       </h4>
       <div className="row gap8 rp-running">
         <span className="tnum">{fmtClock(e.time)}</span>
@@ -480,10 +577,10 @@ function Running() {
         </span>
         <div className="grow" />
         <Button size="xs" onClick={() => showReplayOn([...s.engines.keys()])}>
-          Show on chart
+          {tl('Show on chart')}
         </Button>
-        <Button size="xs" variant="ghost" onClick={stopReplay}>
-          Stop
+        <Button size="xs" variant="ghost" onClick={exitReplay}>
+          {tl('Stop')}
         </Button>
       </div>
     </section>

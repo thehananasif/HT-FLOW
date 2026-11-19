@@ -3,6 +3,7 @@
  * notifications (position, show, duration, max), layout direction (RTL flag), hotkey overrides,
  * paper-engine commissions, sound triggers, log capture and clear-on-logout.
  */
+import { isLocale, setLocale } from '@htflow/i18n';
 import { applyTheme, configureToasts, type ThemeName, type ThemeTokens } from '@htflow/ui-kit';
 import type { Trade } from '@htflow/market-data';
 import { setHotkeyOverrides } from '../../shell/commands';
@@ -19,6 +20,7 @@ import { hub, paper } from '../../state/market';
 import { instrumentById } from '../../state/instruments';
 import { playSound } from '../../sound';
 import { isTauri } from '../../backend';
+import { currentNativePrefs, nativeOpsAvailable, nativePrefsSet } from '../../platform/nativeOps';
 import { dataApi } from '../data-manager/api';
 import { engineFields, resolveCommission } from './model';
 
@@ -100,6 +102,19 @@ function applyCommission(accountId: string, instrumentId: string): void {
   acc.makerFee = f.makerFee;
 }
 
+let lastNativePrefs = '';
+/** Mirrors the start-up preferences to the core once logged in, and again whenever they change. */
+function syncNativePrefs(): void {
+  if (!nativeOpsAvailable() || !useSession.getState().session) return;
+  const prefs = currentNativePrefs();
+  const key = JSON.stringify(prefs);
+  if (key === lastNativePrefs) return;
+  lastNativePrefs = key;
+  void nativePrefsSet(prefs).catch(() => {
+    lastNativePrefs = '';
+  });
+}
+
 let installed = false;
 
 export function installSettingsEffects(): void {
@@ -135,6 +150,8 @@ export function installSettingsEffects(): void {
       const el = document.documentElement;
       el.dir = layoutDirection(v);
       el.lang = v['general.language'];
+      const lang = v['general.language'];
+      setLocale(isLocale(lang) ? lang : 'en');
     }
     // Settings → Data → recorder: turns the native tick-store recorder on / off and applies its
     // disk budget / retention (desktop only; only on a change so the Data Manager's own toggle
@@ -162,6 +179,7 @@ export function installSettingsEffects(): void {
     // Settings → Data → cache size: caps the native history cache (also at start-up).
     if (changed('data.cacheSizeMb') && isTauri)
       void dataApi.setCacheSize(v['data.cacheSizeMb']).catch(() => {});
+    syncNativePrefs();
     if (changed('logs.level') || changed('logs.bufferSize'))
       logBuffer.configure({
         minLevel: v['logs.level'] as LogLevel,
@@ -175,6 +193,7 @@ export function installSettingsEffects(): void {
     const isIn = !!st.session;
     if (wasIn && !isIn && getSetting('privacy.clearOnLogout')) clearLocalCaches();
     wasIn = isIn;
+    if (isIn) syncNativePrefs();
   });
   // Settings load after login (session.setSession applies the account theme first).
   useSettingsStore.subscribe((s, p) => {

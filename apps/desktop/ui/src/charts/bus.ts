@@ -57,7 +57,6 @@ export type ChartAction =
   | 'refresh'
   | 'reload-history'
   | 'load-older'
-  | 'load-day'
   | 'export-png'
   | 'export-csv'
   | 'export-clusters'
@@ -65,7 +64,9 @@ export type ChartAction =
   | 'export-template'
   | 'fullscreen'
   | 'clone'
-  | 'reset';
+  | 'reset'
+  /** Newest bar back at the right margin, following new bars (keeps the price scale). */
+  | 'go-latest';
 
 const actionSubs = new Map<string, (a: ChartAction, arg?: unknown) => void>();
 

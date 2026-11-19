@@ -16,6 +16,7 @@ import {
   type ScanColumn,
 } from '../market-pressure/scanner';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 interface Row {
   key: string;
   sym: string;
@@ -57,8 +58,8 @@ function DomPressure({ state, setParams }: ModuleViewProps) {
       if (r.pull && alerts && !seen.current.has(r.key)) {
         toast(
           'warning',
-          `${r.sym}: liquidity pulled`,
-          `${r.r.pullBid ? 'Bid' : 'Ask'} side lost > ${pullPct}% within ±${band} ticks`,
+          tt`${r.sym}: liquidity pulled`,
+          tt`${r.r.pullBid ? 'Bid' : 'Ask'} side lost > ${pullPct}% within ±${band} ticks`,
         );
         beep(r.r.pullBid ? -1 : 1);
       }
@@ -144,7 +145,7 @@ function DomPressure({ state, setParams }: ModuleViewProps) {
   return (
     <ScannerFrame
       testId="dom-pressure"
-      subtitle={`±${band} ticks`}
+      subtitle={tt`±${band} ticks`}
       chips={DOM_BANDS.map((b) => (
         <Chip key={b} selected={band === b} onClick={() => setParams({ band: b })}>
           {b === 25 ? '25 ticks' : b}
@@ -161,7 +162,7 @@ function DomPressure({ state, setParams }: ModuleViewProps) {
           }
         >
           <label>
-            Pull flash when a side drops by more than (%)
+            {tl('Pull flash when a side drops by more than (%)')}
             <Input
               type="number"
               min={5}
@@ -171,7 +172,7 @@ function DomPressure({ state, setParams }: ModuleViewProps) {
             />
           </label>
           <label>
-            Tint rows when |imbalance| above (%)
+            {tl('Tint rows when |imbalance| above (%)')}
             <Input
               type="number"
               min={5}

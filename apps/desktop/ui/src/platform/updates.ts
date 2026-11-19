@@ -11,6 +11,7 @@ import { toast } from '@htflow/ui-kit';
 import { getSetting, settingsReady } from '../state/settings';
 import { isTauri, native } from './native';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export const UNAVAILABLE = 'Updates unavailable in this build';
 export const PORTABLE_MSG =
   'Portable build: download the new zip from the GitHub Releases page to update.';
@@ -95,7 +96,11 @@ export async function checkForUpdates(opts: { silent?: boolean } = {}): Promise<
         notes: info.notes,
       });
       if (opts.silent) {
-        toast('info', `HT Flow ${info.version} is available`, 'Open Check for updates to install.');
+        toast(
+          'info',
+          tt`HT Flow ${info.version} is available`,
+          tl('Open Check for updates to install.'),
+        );
       }
     } else {
       useUpdates.getState().set({ phase: 'uptodate', message: 'You are on the latest version.' });

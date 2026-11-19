@@ -100,6 +100,20 @@ registerCommands([
     run: () => openSettings(s.id),
   })),
   {
+    id: 'language.en',
+    label: 'Language: English',
+    group: 'Platform',
+    keywords: 'language locale english ltr زبان',
+    run: () => void setSetting('general.language', 'en'),
+  },
+  {
+    id: 'language.ur',
+    label: 'Language: اردو',
+    group: 'Platform',
+    keywords: 'language locale urdu rtl right to left اردو زبان',
+    run: () => void setSetting('general.language', 'ur'),
+  },
+  {
     id: 'sound.mute',
     label: 'Mute / unmute all sounds',
     group: 'Platform',

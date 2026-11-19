@@ -12,6 +12,7 @@ import { ImportedFiles } from './import/ImportedList';
 import { SymbolLists } from './symbols';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const fmtDate = (ms: number) =>
   ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') : '—';
 
@@ -44,10 +45,10 @@ export function DataManager() {
       <div className="col fill pad12 gap12 dm-root">
         <SymbolLists />
         <ImportedFiles />
-        <EmptyState title="Data manager runs in the desktop app">
-          Recorded ticks and depth live in the local tick store on your PC (%APPDATA%\HTFlow\ticks).
-          The browser preview has no tick store — open HT Flow for Windows to record, browse, export
-          and delete history.
+        <EmptyState title={tl('Data manager runs in the desktop app')}>
+          {tl(
+            'Recorded ticks and depth live in the local tick store on your PC (%APPDATA%\\HTFlow\\ticks). The browser preview has no tick store — open HT Flow for Windows to record, browse, export and delete history.',
+          )}
         </EmptyState>
       </div>
     );
@@ -65,9 +66,9 @@ export function DataManager() {
           limits.maxDiskGb,
         ),
       );
-      toast('success', 'Recorder settings saved');
+      toast('success', tl('Recorder settings saved'));
     } catch (e) {
-      toast('error', 'Could not save', String((e as Error).message));
+      toast('error', tl('Could not save'), String((e as Error).message));
     }
   };
   const del = async (inst: string, day?: string) => {
@@ -75,18 +76,18 @@ export function DataManager() {
     if (!window.confirm(`Delete ${what}? This cannot be undone.`)) return;
     try {
       const r = await dataApi.remove(inst, day, day);
-      toast('success', `Deleted ${r.filesDeleted} files`, `${formatBytes(r.bytesFreed)} freed`);
+      toast('success', tt`Deleted ${r.filesDeleted} files`, tt`${formatBytes(r.bytesFreed)} freed`);
       void refresh();
     } catch (e) {
-      toast('error', 'Delete failed', String((e as Error).message));
+      toast('error', tl('Delete failed'), String((e as Error).message));
     }
   };
   const exp = async (inst: string, kind: 'trades' | 'depth', day?: string) => {
     try {
       const r = await dataApi.exportCsv(inst, kind, day, day);
-      toast('success', `Exported ${r.rows.toLocaleString()} rows`, r.path, 8000);
+      toast('success', tt`Exported ${r.rows.toLocaleString()} rows`, r.path, 8000);
     } catch (e) {
-      toast('error', 'Export failed', String((e as Error).message));
+      toast('error', tl('Export failed'), String((e as Error).message));
     }
   };
 
@@ -95,14 +96,14 @@ export function DataManager() {
       <SymbolLists />
       <div className="row gap12 dm-rec">
         <Checkbox
-          label="Record live ticks + depth of subscribed instruments"
+          label={tl('Record live ticks + depth of subscribed instruments')}
           checked={status?.settings.enabled ?? true}
           onChange={(v) => void setRecorder(v)}
         />
         <label className="row gap8">
-          <span className="muted">Keep days</span>
+          <span className="muted">{tl('Keep days')}</span>
           <NumberInput
-            aria-label="Retention days"
+            aria-label={tl('Retention days')}
             value={limits.retentionDays}
             min={0}
             max={3650}
@@ -110,9 +111,9 @@ export function DataManager() {
           />
         </label>
         <label className="row gap8">
-          <span className="muted">Max disk</span>
+          <span className="muted">{tl('Max disk')}</span>
           <NumberInput
-            aria-label="Max disk GB"
+            aria-label={tl('Max disk GB')}
             value={limits.maxDiskGb}
             min={0}
             max={10_000}
@@ -127,11 +128,11 @@ export function DataManager() {
           disabled={!!limitErr}
           onClick={() => void setRecorder(status?.settings.enabled ?? true)}
         >
-          Apply
+          {tl('Apply')}
         </Button>
         <div className="grow" />
         <Button size="sm" variant="ghost" onClick={() => void refresh()}>
-          Refresh
+          {tl('Refresh')}
         </Button>
       </div>
       <ImportedFiles />
@@ -139,19 +140,19 @@ export function DataManager() {
       {error && <div className="ht-error">{error}</div>}
       <div className="row gap8">
         <div className="card-stat">
-          <span className="muted">Instruments stored</span>
+          <span className="muted">{tl('Instruments stored')}</span>
           <b>{list?.length ?? '—'}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Size on disk</span>
+          <span className="muted">{tl('Size on disk')}</span>
           <b className="tnum">{status ? formatBytes(status.diskBytes) : '—'}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Recording now</span>
+          <span className="muted">{tl('Recording now')}</span>
           <b>{status?.recording.length ?? 0}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Dropped / errors</span>
+          <span className="muted">{tl('Dropped / errors')}</span>
           <b className="tnum">{status ? `${status.dropped} / ${status.errors}` : '—'}</b>
         </div>
       </div>
@@ -159,14 +160,14 @@ export function DataManager() {
         <table className="tbl tnum dm-table">
           <thead>
             <tr>
-              <th>Instrument</th>
-              <th>From</th>
-              <th>To (UTC)</th>
-              <th className="r">Days</th>
-              <th className="r">Trades</th>
-              <th className="r">Depth rows</th>
-              <th className="r">Size</th>
-              <th className="r">Actions</th>
+              <th>{tl('Instrument')}</th>
+              <th>{tl('From')}</th>
+              <th>{tl('To (UTC)')}</th>
+              <th className="r">{tl('Days')}</th>
+              <th className="r">{tl('Trades')}</th>
+              <th className="r">{tl('Depth rows')}</th>
+              <th className="r">{tl('Size')}</th>
+              <th className="r">{tl('Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -196,21 +197,21 @@ export function DataManager() {
                       className="cx-link"
                       onClick={() => void exp(i.instrument, 'trades')}
                     >
-                      Export trades CSV
+                      {tl('Export trades CSV')}
                     </button>
                     <button
                       type="button"
                       className="cx-link"
                       onClick={() => void exp(i.instrument, 'depth')}
                     >
-                      Depth CSV
+                      {tl('Depth CSV')}
                     </button>
                     <button
                       type="button"
                       className="cx-link down"
                       onClick={() => void del(i.instrument)}
                     >
-                      Delete
+                      {tl('Delete')}
                     </button>
                   </div>
                 </td>
@@ -232,14 +233,14 @@ export function DataManager() {
                             className="cx-link"
                             onClick={() => void exp(i.instrument, 'trades', d.date)}
                           >
-                            CSV
+                            {tl('CSV')}
                           </button>
                           <button
                             type="button"
                             className="cx-link down"
                             onClick={() => void del(i.instrument, d.date)}
                           >
-                            Delete
+                            {tl('Delete')}
                           </button>
                         </div>
                       </td>
@@ -251,8 +252,9 @@ export function DataManager() {
         </table>
         {list && !list.length && (
           <div className="tbl-empty">
-            Nothing recorded yet — open a live chart (Binance Futures, Bybit) and the recorder
-            stores its ticks and depth here.
+            {tl(
+              'Nothing recorded yet — open a live chart (Binance Futures, Bybit) and the recorder stores its ticks and depth here.',
+            )}
           </div>
         )}
       </div>

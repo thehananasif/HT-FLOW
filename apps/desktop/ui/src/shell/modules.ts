@@ -1,3 +1,5 @@
+import { translateLiteral } from '@htflow/i18n';
+
 /** Ribbon modules and the build phase that delivers each full screen (docs/FEATURES.md). */
 export interface ModuleDef {
   id: string;
@@ -7,7 +9,7 @@ export interface ModuleDef {
   hasMenu?: boolean;
 }
 
-export const MODULES: ModuleDef[] = [
+const MODULE_DEFS: ModuleDef[] = [
   {
     id: 'chart',
     label: 'Chart',
@@ -38,6 +40,8 @@ export const MODULES: ModuleDef[] = [
   { id: 'replay', label: 'Replay', group: 'Social / Tools', phase: 'P24 / P35', hasMenu: true },
   { id: 'web-pages', label: 'Web Pages', group: 'Social / Tools', phase: 'P28', hasMenu: true },
   { id: 'logs', label: 'Logs', group: 'Social / Tools', phase: 'P28', hasMenu: true },
+  { id: 'user-guide', label: 'User Guide', group: 'Social / Tools', phase: 'P28' },
+  { id: 'ai', label: 'AI', group: 'Social / Tools', phase: 'R7' },
   { id: 'drawing-objects', label: 'Objects List', group: 'Analysis', phase: 'P12' },
   { id: 'accounts', label: 'Accounts', group: 'Tables', phase: 'P40' },
   { id: 'positions', label: 'Positions', group: 'Tables', phase: 'P40' },
@@ -54,6 +58,14 @@ export const MODULES: ModuleDef[] = [
   { id: 'news', label: 'News', group: 'Info', phase: 'P39', hasMenu: true },
   { id: 'calendar', label: 'Calendar', group: 'Info', phase: 'P39', hasMenu: true },
 ];
+
+/** Ribbon modules; `label` resolves in the active language when read (`group` stays the raw key). */
+export const MODULES: ModuleDef[] = MODULE_DEFS.map((m) => ({
+  ...m,
+  get label() {
+    return translateLiteral(m.label);
+  },
+}));
 
 export function moduleDef(id: string): ModuleDef | undefined {
   return MODULES.find((m) => m.id === id);

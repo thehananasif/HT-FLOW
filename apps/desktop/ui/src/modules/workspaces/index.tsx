@@ -23,6 +23,7 @@ import {
 } from './store';
 import { openOrFocusModule, requestWorkspacesAction, WorkspaceMenu } from './menu';
 import { cloneWindow, createLinkedWindow } from './windowActions';
+import { openWorkspaceInWindow } from './store';
 import { WorkspacesWindow } from './view';
 import './styles.css';
 
@@ -91,6 +92,20 @@ const STATIC_COMMANDS: Command[] = [
     group: 'Layout',
     run: () => void cloneWindow(activeId()),
   },
+  {
+    id: 'window.clone-os',
+    label: 'Window: Clone active window in new OS window',
+    group: 'Layout',
+    keywords: 'monitor separate screen',
+    run: () => void cloneWindow(activeId(), true),
+  },
+  ...LINKED_KINDS.map((k): Command => ({
+    id: `window.linked-os.${k.id}`,
+    label: `Window: Create linked ${k.label} in new OS window`,
+    group: 'Layout',
+    keywords: 'link group new window monitor separate screen',
+    run: () => void createLinkedWindow(k.id, activeId(), true),
+  })),
   ...LINKED_KINDS.map((k): Command => ({
     id: `window.linked.${k.id}`,
     label: `Window: Create linked ${k.label}`,
@@ -123,15 +138,22 @@ useWorkspaces.subscribe((s) => {
   if (s.lib.items === lastItems) return;
   lastItems = s.lib.items;
   unLoadCmds?.();
-  unLoadCmds = registerCommands(
-    sortWorkspaces(s.lib.items, 'name').map((w) => ({
+  unLoadCmds = registerCommands([
+    ...sortWorkspaces(s.lib.items, 'name').map((w) => ({
       id: `workspace.load.${w.meta.id}`,
       label: `Workspace: Load ${w.meta.name}`,
       group: 'Layout' as const,
       keywords: w.meta.description,
       run: () => void loadWorkspace(w.meta.id),
     })),
-  );
+    ...sortWorkspaces(s.lib.items, 'name').map((w) => ({
+      id: `workspace.open-window.${w.meta.id}`,
+      label: `Workspace: Open ${w.meta.name} in new window`,
+      group: 'Layout' as const,
+      keywords: 'os window monitor separate screen',
+      run: () => void openWorkspaceInWindow(w.meta.id),
+    })),
+  ]);
 });
 
 // Background autosave of the loaded workspace (Settings → General → Autosave interval).

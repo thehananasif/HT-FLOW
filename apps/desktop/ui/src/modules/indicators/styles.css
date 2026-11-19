@@ -5,7 +5,7 @@
 .ht-dialog:has(.ind-dlg) .ht-dialog-desc {
   padding: 0 16px;
   display: inline-block;
-  margin-right: 8px;
+  margin-inline-end: 8px;
 }
 .ht-dialog:has(.ind-dlg) .ht-dialog-desc {
   font-size: 12px;
@@ -36,7 +36,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
   overflow: auto;
 }
 .ind-cats button {
@@ -51,7 +51,7 @@
   color: var(--ht-text-soft);
   font-size: 13px;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
 }
 .ind-cats button:hover {
   background: var(--ht-surface2);
@@ -67,7 +67,7 @@
 .ind-mid {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--ht-border);
+  border-inline-end: 1px solid var(--ht-border);
   min-height: 0;
 }
 .ind-catalog {
@@ -270,4 +270,85 @@
 .ind-alert-row .ht-input {
   height: 28px;
   width: 110px;
+}
+
+.ind-instrument,
+.fe-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ind-instrument > button:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  justify-content: flex-start;
+}
+.fe-input .ht-input {
+  flex: 1;
+  min-width: 0;
+}
+.fe-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fe-text {
+  width: 100%;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 8px;
+  background: var(--ht-bg-input, var(--ht-bg-panel));
+  color: var(--ht-text);
+  border: 1px solid var(--ht-border);
+  border-radius: 4px;
+  font-family: var(--ht-font-mono, monospace);
+  font-size: 12px;
+}
+.fe-status {
+  font-size: 12px;
+  color: var(--ht-up, #20c77a);
+}
+.fe-status--err {
+  color: var(--ht-down, #f04a5d);
+}
+.fe-preview {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.fe-preview th,
+.fe-preview td {
+  text-align: start;
+  padding: 2px 12px 2px 0;
+  color: var(--ht-text-soft);
+}
+.fe-ref {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ht-text-tertiary);
+  line-height: 1.5;
+}
+.fe-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fe-example {
+  background: transparent;
+  border: 1px dashed var(--ht-border);
+  border-radius: 4px;
+  color: var(--ht-text-soft);
+  font-family: var(--ht-font-mono, monospace);
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.fe-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }

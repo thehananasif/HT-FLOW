@@ -7,6 +7,7 @@ import {
   type FeedStatus,
   type HistoryData,
   type HistoryProgress,
+  type HistoryRequestOptions,
   type Instrument,
   type MarketStat,
   type Trade,
@@ -113,7 +114,7 @@ export function fromWireProgress(p: WireProgress): HistoryProgress {
 }
 
 const side = (s: number): Trade['side'] => (s > 0 ? 'buy' : s < 0 ? 'sell' : 'unknown');
-const toTrades = (rows: WireBatch['tr']): Trade[] =>
+export const toTrades = (rows: WireBatch['tr']): Trade[] =>
   rows.map(([ts, px, qty, s, id]) => ({ ts, px, qty, side: side(s), id }));
 
 /** Live venues served by the Rust connectors. */
@@ -122,6 +123,8 @@ export const LIVE_VENUES = [
   'binance-coinm',
   'binance-spot',
   'bybit-linear',
+  'bybit-inverse',
+  'bybit-spot',
   'okx-swap',
   'whitebit',
   'phemex',
@@ -287,11 +290,16 @@ export class TauriLiveFeed implements FeedSource {
   }
 
   /**
-   * Older history (P06 "Load days", "◂ Load 1 more day", left-scroll): the native newest-first
+   * Older history (automatic background backfill, left-scroll, Go to date): the native newest-first
    * backfill — tick store, size-capped history cache, REST trades for the last day, klines for
    * anything older (bar-level ticks). Progress arrives on a channel while it runs.
    */
-  async historyBefore(before: number, spanMs: number): Promise<Trade[]> {
+  async historyBefore(
+    before: number,
+    spanMs: number,
+    _anchorPx?: number,
+    opts?: HistoryRequestOptions,
+  ): Promise<Trade[]> {
     const ch = new Channel<WireProgress>();
     ch.onmessage = (p) => this.setProgress(fromWireProgress(p));
     this.setProgress({ doneMs: 0, totalMs: spanMs, trades: 0, phase: 'trades', throttled: false });
@@ -301,6 +309,7 @@ export class TauriLiveFeed implements FeedSource {
         symbol: this.instrument.symbol,
         fromMs: Math.floor(before - spanMs),
         toMs: Math.floor(before),
+        maxPages: opts?.maxPages ?? null,
         progress: ch,
       });
       this.historyInfo = {

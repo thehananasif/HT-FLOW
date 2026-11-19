@@ -73,6 +73,10 @@ export interface Fill {
   liquidity: 'maker' | 'taker';
   /** Realized PnL booked by this fill (after the position update, before commission). */
   realized: number;
+  /** Quantity of this fill that closed an existing position (0 / undefined = opening only). */
+  closedQty?: number;
+  /** Average entry price (ticks) of the position this fill closed against. */
+  entryAvg?: number;
   tag?: string;
 }
 

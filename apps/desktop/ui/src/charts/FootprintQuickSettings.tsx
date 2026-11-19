@@ -24,6 +24,7 @@ import {
   type FootprintPreset,
 } from './footprintQuick';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Which chart the quick dialog is open for. */
 export const useFootprintQuick = create<{
   openFor: string | null;
@@ -96,14 +97,19 @@ export function FootprintQuickSettings() {
   const all = [...BUILTIN_PRESETS, ...user];
   const selected = all.find((p) => p.id === presetId);
   return (
-    <Dialog open onOpenChange={(o) => !o && close()} title="Footprint quick settings" width={460}>
+    <Dialog
+      open
+      onOpenChange={(o) => !o && close()}
+      title={tl('Footprint quick settings')}
+      width={460}
+    >
       <div className="fpq" data-testid="fp-quick">
-        <div className="fpq-sec">Presets</div>
-        <Row label="Preset">
+        <div className="fpq-sec">{tl('Presets')}</div>
+        <Row label={tl('Preset')}>
           <Select
             small
             className="grow"
-            aria-label="Footprint preset"
+            aria-label={tl('Footprint preset')}
             value={presetId}
             onChange={setPresetId}
             options={[
@@ -120,10 +126,10 @@ export function FootprintQuickSettings() {
             onClick={() => {
               if (!selected) return;
               loadPreset(windowId, selected);
-              toast('success', 'Preset loaded', selected.name);
+              toast('success', tl('Preset loaded'), selected.name);
             }}
           >
-            Load
+            {tl('Load')}
           </Button>
           <Button
             size="sm"
@@ -134,14 +140,14 @@ export function FootprintQuickSettings() {
               setPresetId('');
             }}
           >
-            Delete
+            {tl('Delete')}
           </Button>
         </Row>
-        <Row label="Save as">
+        <Row label={tl('Save as')}>
           <input
             className="ht-input grow"
-            aria-label="Preset name"
-            placeholder="Preset name"
+            aria-label={tl('Preset name')}
+            placeholder={tl('Preset name')}
             value={name}
             maxLength={60}
             onChange={(e) => setName(e.target.value)}
@@ -155,19 +161,19 @@ export function FootprintQuickSettings() {
               footprintPresets.set(next);
               setPresetId(next.find((x) => x.name === p.name)?.id ?? '');
               setName('');
-              toast('success', 'Preset saved', p.name);
+              toast('success', tl('Preset saved'), p.name);
             }}
           >
-            Save
+            {tl('Save')}
           </Button>
         </Row>
 
-        <div className="fpq-sec">Content</div>
-        <Row label="Mode">
+        <div className="fpq-sec">{tl('Content')}</div>
+        <Row label={tl('Mode')}>
           <Select
             small
             className="grow"
-            aria-label="Footprint mode"
+            aria-label={tl('Footprint mode')}
             value={chart.footprintMode}
             onChange={(m) =>
               useWindows.getState().patch(windowId, {
@@ -181,45 +187,45 @@ export function FootprintQuickSettings() {
             }))}
           />
         </Row>
-        <Row label="Ticks per row">
+        <Row label={tl('Ticks per row')}>
           <Select
             small
-            aria-label="Ticks per row"
+            aria-label={tl('Ticks per row')}
             value={sStr(s, 'fp.ticksPerRow')}
             onChange={(v) => set('fp.ticksPerRow', v)}
             options={TPR}
           />
-          <span className="muted">Auto-collapse below</span>
+          <span className="muted">{tl('Auto-collapse below')}</span>
           {num('other.autoTransformWidth', 'Auto-collapse width', 0, 200, 1, 'px')}
         </Row>
-        <Row label="POC">
+        <Row label={tl('POC')}>
           <Checkbox
             checked={sBool(s, 'fp.poc')}
             onChange={(v) => set('fp.poc', v)}
-            label="Box per bar"
+            label={tl('Box per bar')}
           />
           {colour('fp.pocBorder', 'POC colour')}
         </Row>
-        <Row label="Value area">
+        <Row label={tl('Value area')}>
           <Checkbox
             checked={sBool(s, 'fp.vaShow')}
             onChange={(v) => set('fp.vaShow', v)}
-            label="Per bar"
+            label={tl('Per bar')}
           />
           {num('fp.vaPct', 'Value area percent', 1, 100, 1, '%')}
           {colour('fp.vaColor', 'Value area colour')}
         </Row>
 
-        <div className="fpq-sec">Imbalance</div>
-        <Row label="Imbalance">
+        <div className="fpq-sec">{tl('Imbalance')}</div>
+        <Row label={tl('Imbalance')}>
           <Checkbox
             checked={sBool(s, 'fp.imbalance')}
             onChange={(v) => set('fp.imbalance', v)}
-            label="On"
+            label={tl('On')}
           />
           <Select
             small
-            aria-label="Imbalance direction"
+            aria-label={tl('Imbalance direction')}
             value={sStr(s, 'fp.imbDirection')}
             onChange={(v) => set('fp.imbDirection', v)}
             options={[
@@ -228,22 +234,22 @@ export function FootprintQuickSettings() {
             ]}
           />
         </Row>
-        <Row label="Ratio / min vol">
+        <Row label={tl('Ratio / min vol')}>
           {num('fp.imbRate', 'Imbalance ratio', 100, 2000, 10, '%')}
           {num('fp.imbVolume', 'Imbalance minimum volume', 0, 1e9)}
         </Row>
-        <Row label="Stacked levels">
+        <Row label={tl('Stacked levels')}>
           {num('fp.imbStacked', 'Stacked imbalance levels', 2, 10)}
           {colour('fp.imbAsk', 'Buy imbalance colour')}
           {colour('fp.imbBid', 'Sell imbalance colour')}
         </Row>
 
-        <div className="fpq-sec">Filters</div>
-        <Row label="Min volume">{num('fp.minVolume', 'Minimum cell volume', 0, 1e9)}</Row>
-        <Row label="Min |delta|">{num('fp.minDelta', 'Minimum cell delta', 0, 1e9)}</Row>
+        <div className="fpq-sec">{tl('Filters')}</div>
+        <Row label={tl('Min volume')}>{num('fp.minVolume', 'Minimum cell volume', 0, 1e9)}</Row>
+        <Row label={tl('Min |delta|')}>{num('fp.minDelta', 'Minimum cell delta', 0, 1e9)}</Row>
 
-        <div className="fpq-sec">Colours</div>
-        <Row label="Cells">
+        <div className="fpq-sec">{tl('Colours')}</div>
+        <Row label={tl('Cells')}>
           {colour('fp.bidColor', 'Bid colour')}
           {colour('fp.askColor', 'Ask colour')}
           {colour('fp.textColor', 'Text colour')}
@@ -256,11 +262,11 @@ export function FootprintQuickSettings() {
               useChartSettingsUi.getState().open(windowId, 'footprint');
             }}
           >
-            Open full settings…
+            {tl('Open full settings…')}
           </Button>
           <span className="grow" />
           <Button variant="primary" onClick={close} data-testid="fp-quick-close">
-            Close
+            {tl('Close')}
           </Button>
         </div>
       </div>

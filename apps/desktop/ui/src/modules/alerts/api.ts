@@ -25,6 +25,7 @@ import { toast } from '@htflow/ui-kit';
 import { getSetting } from '../../state/settings';
 import { alerts, describe, removeAlert, runActions } from './runtime';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export type { Alert, AlertActions, AlertCondition };
 export { describe as describeAlert, removeAlert };
 
@@ -89,7 +90,7 @@ export function addAlert(condition: AlertCondition, opts: AddAlertOptions = {}):
   );
   if (replacing) alerts.update(alert.id, { ...alert, fired: 0, lastFiredAt: null });
   else alerts.add(alert);
-  if (opts.announce) toast('success', 'Alert created', describe(condition));
+  if (opts.announce) toast('success', tl('Alert created'), describe(condition));
   return { ok: true, alert };
 }
 

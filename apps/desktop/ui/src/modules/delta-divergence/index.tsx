@@ -23,6 +23,7 @@ import {
   type ScanColumn,
 } from '../market-pressure/scanner';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 interface Row {
   key: string;
   id: string;
@@ -104,9 +105,9 @@ function DeltaDivergence({ state, setParams }: ModuleViewProps) {
       sort: (r) => r.s.kind,
       cell: (r) =>
         r.s.kind === 'bearish' ? (
-          <span className="down scan-strong">▼ Bearish</span>
+          <span className="down scan-strong">{tl('▼ Bearish')}</span>
         ) : (
-          <span className="up scan-strong">▲ Bullish</span>
+          <span className="up scan-strong">{tl('▲ Bullish')}</span>
         ),
       align: 'left',
       width: '0.9fr',
@@ -131,7 +132,7 @@ function DeltaDivergence({ state, setParams }: ModuleViewProps) {
   return (
     <ScannerFrame
       testId="delta-divergence"
-      subtitle="price vs CVD"
+      subtitle={tl('price vs CVD')}
       chips={[{ id: 'M', ms: 0 }, ...DIVERGENCE_TIMEFRAMES].map((t) => (
         <Chip key={t.ms} selected={tf === t.ms} onClick={() => setParams({ tf: t.ms })}>
           {t.ms ? t.id : 'All TF'}
@@ -148,7 +149,7 @@ function DeltaDivergence({ state, setParams }: ModuleViewProps) {
           }
         >
           <label>
-            Swing lookback (bars, 2–100)
+            {tl('Swing lookback (bars, 2–100)')}
             <Input
               type="number"
               min={2}
@@ -160,7 +161,7 @@ function DeltaDivergence({ state, setParams }: ModuleViewProps) {
           <Checkbox
             checked={opts.absorption}
             onChange={(v) => setParams({ absorption: v })}
-            label="Also CVD-led divergences (absorption)"
+            label={tl('Also CVD-led divergences (absorption)')}
           />
         </CommonSettings>
       }

@@ -19,6 +19,7 @@ import {
 } from './colorMath';
 import { addStop, gradientCss, removeStop, updateStop, type GradientStop } from './gradient';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
@@ -132,7 +133,7 @@ export function ColorPanel({
         style={{ background: `hsl(${hsv.h} 100% 50%)` }}
         role="slider"
         tabIndex={0}
-        aria-label="Saturation and brightness"
+        aria-label={tl('Saturation and brightness')}
         aria-valuetext={`saturation ${Math.round(hsv.s * 100)}%, brightness ${Math.round(hsv.v * 100)}%`}
         aria-valuenow={Math.round(hsv.s * 100)}
         onKeyDown={svKey}
@@ -153,7 +154,7 @@ export function ColorPanel({
       <input
         type="range"
         className="ht-cp-hue"
-        aria-label="Hue"
+        aria-label={tl('Hue')}
         min={0}
         max={360}
         value={Math.round(hsv.h)}
@@ -165,7 +166,7 @@ export function ColorPanel({
           <input
             type="range"
             className="ht-cp-alpha"
-            aria-label="Opacity"
+            aria-label={tl('Opacity')}
             min={0}
             max={100}
             value={Math.round(hsv.a * 100)}
@@ -200,7 +201,7 @@ export function ColorPanel({
         <button
           type="button"
           className="ht-btn ht-btn--xs"
-          aria-label="Toggle hex or RGB entry"
+          aria-label={tl('Toggle hex or RGB entry')}
           onClick={() => {
             const f = fmt === 'hex' ? 'rgb' : 'hex';
             setFmt(f);
@@ -212,7 +213,7 @@ export function ColorPanel({
       </div>
       {onSwatchesChange && (
         <SwatchRow
-          title="Saved"
+          title={tl('Saved')}
           colors={saved}
           onPick={(c) => {
             const p = parseColor(c);
@@ -226,7 +227,7 @@ export function ColorPanel({
       )}
       {recents.length > 0 && (
         <SwatchRow
-          title="Recent"
+          title={tl('Recent')}
           colors={recents}
           onPick={(c) => {
             const p = parseColor(c);
@@ -252,7 +253,7 @@ function SwatchRow({
   onAdd?: () => void;
 }) {
   return (
-    <div className="ht-cp-swatches" role="group" aria-label={`${title} colours`}>
+    <div className="ht-cp-swatches" role="group" aria-label={tt`${title} colours`}>
       <span className="ht-cp-swatches-title">{title}</span>
       <div className="ht-cp-swatch-grid">
         {colors.map((c) => (
@@ -281,8 +282,8 @@ function SwatchRow({
           <button
             type="button"
             className="ht-cp-swatch ht-cp-swatch--add"
-            aria-label="Save current colour"
-            title="Save current colour"
+            aria-label={tl('Save current colour')}
+            title={tl('Save current colour')}
             onClick={onAdd}
           >
             <Plus size={12} />
@@ -345,7 +346,7 @@ export function ColorPicker({ label, className, ...panel }: ColorPickerProps) {
         </span>
       </button>
       {open && (
-        <div className="ht-cp-pop" role="dialog" aria-label={`${label} picker`}>
+        <div className="ht-cp-pop" role="dialog" aria-label={tt`${label} picker`}>
           <ColorPanel {...panel} />
         </div>
       )}
@@ -397,7 +398,7 @@ export function GradientEditor({
             className="ht-grad-stop"
             data-selected={i === idx || undefined}
             style={{ left: `${s.pos * 100}%`, ['--sw' as string]: s.color }}
-            aria-label={`Stop ${i + 1} at ${Math.round(s.pos * 100)}%`}
+            aria-label={tt`Stop ${i + 1} at ${Math.round(s.pos * 100)}%`}
             onClick={() => setSel(i)}
             onPointerDown={(e) => {
               setSel(i);
@@ -426,7 +427,7 @@ export function GradientEditor({
         {stops.map((s, i) => (
           <div key={i} className="ht-grad-row" data-selected={i === idx || undefined}>
             <ColorPicker
-              label={`Stop ${i + 1} colour`}
+              label={tt`Stop ${i + 1} colour`}
               value={s.color}
               onChange={(c) => onChange(updateStop(stops, i, { color: c }))}
               swatches={swatches}
@@ -438,7 +439,7 @@ export function GradientEditor({
               min={0}
               max={100}
               step={1}
-              aria-label={`Stop ${i + 1} position %`}
+              aria-label={tt`Stop ${i + 1} position %`}
               value={Math.round(s.pos * 100)}
               onFocus={() => setSel(i)}
               onChange={(e) => {
@@ -449,7 +450,7 @@ export function GradientEditor({
             <button
               type="button"
               className="ht-icon-btn"
-              aria-label={`Remove stop ${i + 1}`}
+              aria-label={tt`Remove stop ${i + 1}`}
               disabled={stops.length <= 2}
               onClick={() => onChange(removeStop(stops, i))}
             >
@@ -478,7 +479,7 @@ export function GradientEditor({
           setSel(next.findIndex((s) => s.pos === at));
         }}
       >
-        <Plus size={12} /> Add stop
+        <Plus size={12} /> {tl('Add stop')}
       </button>
     </div>
   );

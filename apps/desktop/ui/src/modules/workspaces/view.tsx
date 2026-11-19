@@ -3,6 +3,7 @@
  * favourites, recent list and starters; Save current / Save as / Import / Export; the "Manage
  * workspace" tree with its summary; and the link-group manager.
  */
+import { useCatalogVersion } from '../../state/discovery';
 import { useEffect, useMemo, useState } from 'react';
 import { Download, MoreHorizontal, Save, Star, Upload } from 'lucide-react';
 import {
@@ -71,6 +72,7 @@ import { takePendingAction, type WorkspacesAction } from './menu';
 import { formatBytes, manageTree, removeWindowFromDoc, summarize } from './model';
 import { setLink } from './windowActions';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Pane = 'library' | 'manage' | 'links';
 
 export function windowLabel(s: WindowState): string {
@@ -82,7 +84,7 @@ export function windowLabel(s: WindowState): string {
 
 export function Thumbnail({ tiles, label }: { tiles: ThumbTile[]; label: string }) {
   return (
-    <div className="wsm-thumb" role="img" aria-label={`Layout of ${label}`}>
+    <div className="wsm-thumb" role="img" aria-label={tt`Layout of ${label}`}>
       {tiles.map((t) => (
         <span
           key={t.id}
@@ -141,9 +143,9 @@ function NameDialog({
           onClose();
         }}
       >
-        <Field label="Name" error={err}>
+        <Field label={tl('Name')} error={err}>
           <Input
-            aria-label="Workspace name"
+            aria-label={tl('Workspace name')}
             autoFocus
             value={name}
             invalid={!!err}
@@ -151,9 +153,9 @@ function NameDialog({
             onChange={(e) => setName(e.target.value)}
           />
         </Field>
-        <Field label="Description" hint="Optional">
+        <Field label={tl('Description')} hint={tl('Optional')}>
           <Input
-            aria-label="Workspace description"
+            aria-label={tl('Workspace description')}
             value={desc}
             maxLength={500}
             onChange={(e) => setDesc(e.target.value)}
@@ -161,7 +163,7 @@ function NameDialog({
         </Field>
         <div className="row gap8" style={{ justifyContent: 'flex-end' }}>
           <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button type="submit" variant="primary" disabled={!name.trim() || !!err}>
             {confirmLabel}
@@ -214,7 +216,7 @@ function WorkspaceCard({
           type="button"
           className="wsm-star"
           aria-pressed={w.meta.favourite}
-          aria-label={`Favourite ${name}`}
+          aria-label={tt`Favourite ${name}`}
           onClick={(e) => {
             e.stopPropagation();
             toggleFavourite(w.meta.id);
@@ -247,7 +249,7 @@ function WorkspaceCard({
             },
           ]}
           trigger={
-            <IconButton label={`Actions for ${name}`} onClick={(e) => e.stopPropagation()}>
+            <IconButton label={tt`Actions for ${name}`} onClick={(e) => e.stopPropagation()}>
               <MoreHorizontal size={13} />
             </IconButton>
           }
@@ -255,13 +257,14 @@ function WorkspaceCard({
       </div>
       <div className="wsm-card-desc">{w.meta.description || '—'}</div>
       <div className="wsm-card-foot tnum">
-        {loaded && <Badge kind="live">Loaded</Badge>}
+        {loaded && <Badge kind="live">{tl('Loaded')}</Badge>}
         <span>
-          {w.doc.tabs.length} layout{w.doc.tabs.length > 1 ? 's' : ''} ·{' '}
-          {w.doc.tabs.reduce((a, t) => a + Object.keys(t.windows).length, 0)} windows
+          {w.doc.tabs.length} {tl('layout')}
+          {w.doc.tabs.length > 1 ? 's' : ''} ·{' '}
+          {w.doc.tabs.reduce((a, t) => a + Object.keys(t.windows).length, 0)} {tl('windows')}
         </span>
         <span className="grow" />
-        <span title="Last saved">{fmtDateTime(w.meta.updatedAt, { seconds: false })}</span>
+        <span title={tl('Last saved')}>{fmtDateTime(w.meta.updatedAt, { seconds: false })}</span>
       </div>
     </div>
   );
@@ -301,32 +304,32 @@ function LibraryPane({
           onClick={() => saveCurrent()}
           data-testid="ws-save-current"
         >
-          <Save size={12} /> Save current
+          <Save size={12} /> {tl('Save current')}
         </Button>
         <Button size="sm" onClick={onSaveAs} data-testid="ws-save-as">
-          Save as…
+          {tl('Save as…')}
         </Button>
         <Button
           size="sm"
           onClick={() => pickWorkspaceFile((id) => setParams({ selected: id }))}
           data-testid="ws-import"
         >
-          <Upload size={12} /> Import .htworkspace
+          <Upload size={12} /> {tl('Import .htworkspace')}
         </Button>
         <span className="muted wsm-autosave tnum" data-testid="ws-autosave">
-          Autosave every {autosaveSec} s
+          {tl('Autosave every')} {autosaveSec} s
           {lib.autosavedAt ? ` · last ${fmtClock(lib.autosavedAt)}` : ''}
         </span>
         <span className="grow" />
         <Input
-          aria-label="Search workspaces"
-          placeholder="Search…"
+          aria-label={tl('Search workspaces')}
+          placeholder={tl('Search…')}
           value={params.query}
           onChange={(e) => setParams({ query: e.target.value })}
           style={{ width: 160 }}
         />
         <Select<WorkspaceSort>
-          aria-label="Sort workspaces"
+          aria-label={tl('Sort workspaces')}
           small
           value={params.sort}
           onChange={(v) => setParams({ sort: v })}
@@ -338,12 +341,12 @@ function LibraryPane({
           ]}
         />
         <Chip selected={params.favOnly} onClick={() => setParams({ favOnly: !params.favOnly })}>
-          <Star size={11} /> Favourites
+          <Star size={11} /> {tl('Favourites')}
         </Chip>
       </div>
       {recent.length > 0 && (
-        <div className="wsm-recent" aria-label="Recent workspaces">
-          <span className="muted">Recent</span>
+        <div className="wsm-recent" aria-label={tl('Recent workspaces')}>
+          <span className="muted">{tl('Recent')}</span>
           {recent.map((w) => (
             <Chip
               key={w.meta.id}
@@ -364,7 +367,7 @@ function LibraryPane({
               : 'Save the current layout, import a .htworkspace file or start from a starter below.'}
           </EmptyState>
         ) : (
-          <div className="wsm-grid" role="listbox" aria-label="Saved workspaces">
+          <div className="wsm-grid" role="listbox" aria-label={tl('Saved workspaces')}>
             {items.map((w) => (
               <WorkspaceCard
                 key={w.meta.id}
@@ -377,7 +380,7 @@ function LibraryPane({
             ))}
           </div>
         )}
-        <h3 className="wsm-h">Starter workspaces</h3>
+        <h3 className="wsm-h">{tl('Starter workspaces')}</h3>
         <div className="wsm-grid wsm-grid--starters">
           {STARTER_WORKSPACES.map((s, i) => (
             <div key={s.id} className="wsm-card wsm-card--starter" data-testid="ws-starter">
@@ -387,12 +390,12 @@ function LibraryPane({
                 <Button
                   size="xs"
                   onClick={() => addStarter(s.id)}
-                  aria-label={`Use starter ${s.name}`}
+                  aria-label={tt`Use starter ${s.name}`}
                 >
-                  Use
+                  {tl('Use')}
                 </Button>
               </div>
-              <div className="wsm-card-desc">{s.description}</div>
+              <div className="wsm-card-desc">{tl(s.description)}</div>
             </div>
           ))}
         </div>
@@ -401,8 +404,8 @@ function LibraryPane({
         <div className="wsm-selbar" data-testid="ws-selbar">
           <span className="wsm-sel-name">{selected.meta.name}</span>
           <Input
-            aria-label="Selected workspace description"
-            placeholder="Description"
+            aria-label={tl('Selected workspace description')}
+            placeholder={tl('Description')}
             defaultValue={selected.meta.description}
             key={selected.meta.id}
             onBlur={(e) =>
@@ -412,16 +415,16 @@ function LibraryPane({
             style={{ flex: 1, minWidth: 120 }}
           />
           <Button size="sm" variant="primary" onClick={() => loadWorkspace(selected.meta.id)}>
-            Load
+            {tl('Load')}
           </Button>
           <Button size="sm" onClick={() => onRename(selected.meta.id)}>
-            Rename
+            {tl('Rename')}
           </Button>
           <Button size="sm" onClick={() => duplicateWorkspace(selected.meta.id)}>
-            Duplicate
+            {tl('Duplicate')}
           </Button>
           <Button size="sm" onClick={() => exportWorkspace(selected.meta.id)}>
-            <Download size={12} /> Export
+            <Download size={12} /> {tl('Export')}
           </Button>
           <Button
             size="sm"
@@ -439,7 +442,7 @@ function LibraryPane({
               })
             }
           >
-            Delete
+            {tl('Delete')}
           </Button>
         </div>
       )}
@@ -482,7 +485,9 @@ function ManagePane({
     })),
   ];
   if (!doc || !tree || !summary)
-    return <EmptyState title="No workspace">Save the current layout first.</EmptyState>;
+    return (
+      <EmptyState title={tl('No workspace')}>{tl('Save the current layout first.')}</EmptyState>
+    );
   const info = node ? tree.info.get(node) : undefined;
   const nodeWindow = info?.windowId
     ? doc.tabs.find((t) => t.id === info.tabId)?.windows[info.windowId]
@@ -499,9 +504,9 @@ function ManagePane({
   return (
     <div className="wsm-pane">
       <div className="wsm-toolbar">
-        <span className="muted">Manage workspace</span>
+        <span className="muted">{tl('Manage workspace')}</span>
         <Combobox
-          aria-label="Workspace to manage"
+          aria-label={tl('Workspace to manage')}
           value={target}
           options={options}
           onChange={(v) => setParams({ selected: v === '__live' ? null : v })}
@@ -509,14 +514,19 @@ function ManagePane({
         <span className="grow" />
         {saved && !isLive && (
           <Button size="sm" variant="primary" onClick={() => loadWorkspace(saved.meta.id)}>
-            Load
+            {tl('Load')}
           </Button>
         )}
       </div>
-      <SplitPane defaultRatio={0.58} minA={220} minB={200} aria-label="Resize tree and summary">
+      <SplitPane
+        defaultRatio={0.58}
+        minA={220}
+        minB={200}
+        aria-label={tl('Resize tree and summary')}
+      >
         <div className="wsm-tree" data-testid="ws-tree">
           <TreeView
-            aria-label="Workspace contents"
+            aria-label={tl('Workspace contents')}
             nodes={tree.nodes}
             defaultExpanded={tree.nodes.map((n) => n.id)}
             selectedId={node}
@@ -525,7 +535,7 @@ function ManagePane({
               const i = tree.info.get(n.id);
               return (
                 <span className="wsm-node">
-                  <span className="wsm-node-label">{n.label}</span>
+                  <span className="wsm-node-label">{tl(n.label)}</span>
                   {i?.detail && (
                     <span className={`wsm-node-detail${i.open ? ' wsm-open' : ''}`}>
                       {i.detail}
@@ -542,7 +552,7 @@ function ManagePane({
               <div className="wsm-sel-name">{nodeWindow ? windowLabel(nodeWindow) : info.kind}</div>
               {info.kind === 'window' && isLive && info.open && (
                 <Button size="sm" onClick={() => workspaceHost()?.focusWindow?.(info.windowId!)}>
-                  Show window
+                  {tl('Show window')}
                 </Button>
               )}
               {info.kind === 'window' && (
@@ -577,9 +587,11 @@ function ManagePane({
             </tbody>
           </table>
           {summary.templates.length > 0 && (
-            <div className="muted wsm-templates">Templates: {summary.templates.join(', ')}</div>
+            <div className="muted wsm-templates">
+              {tl('Templates:')} {summary.templates.join(', ')}
+            </div>
           )}
-          <div className="muted wsm-templates">Disk used by history: see Data manager.</div>
+          <div className="muted wsm-templates">{tl('Disk used by history: see Data manager.')}</div>
         </div>
       </SplitPane>
     </div>
@@ -595,10 +607,13 @@ function LinksPane() {
   const [sel, setSel] = useState<LinkColor>('red');
   const groups = useMemo(() => linkGroups(windows), [windows]);
   const group = groups.find((g) => g.color === sel)!;
+  // Rebuilt when live symbol discovery merges new symbols.
+  const catVersion = useCatalogVersion();
   const instOptions = useMemo(
     () =>
       allInstruments(isTauri).map((i) => ({ value: i.id, label: `${i.symbol} — ${i.exchange}` })),
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catVersion],
   );
   const columns: TableColumn<LinkGroupInfo>[] = [
     {
@@ -643,7 +658,7 @@ function LinksPane() {
     <div className="wsm-pane" data-testid="ws-links">
       <div className="wsm-links-table">
         <Table
-          aria-label="Link groups"
+          aria-label={tl('Link groups')}
           columns={columns}
           rows={groups}
           rowId={(g) => g.color}
@@ -660,14 +675,15 @@ function LinksPane() {
         <span className="wsm-dot" style={{ background: LINK_COLORS[sel] }} />
         <b>{sel === 'none' ? 'Not linked' : `${cap(sel)} group`}</b>
         <span className="muted">
-          {group.windowIds.length} window{group.windowIds.length === 1 ? '' : 's'}
+          {group.windowIds.length} {tl('window')}
+          {group.windowIds.length === 1 ? '' : 's'}
         </span>
         <span className="grow" />
         {sel !== 'none' && group.windowIds.length > 0 && (
           <>
-            <span className="muted">Instrument</span>
+            <span className="muted">{tl('Instrument')}</span>
             <Combobox
-              aria-label="Group instrument"
+              aria-label={tl('Group instrument')}
               value={groupInst}
               options={instOptions}
               valueLabel={groupInst ? (instrumentById(groupInst)?.symbol ?? groupInst) : undefined}
@@ -690,7 +706,7 @@ function LinksPane() {
       </div>
       <div className="wsm-scroll">
         {group.windowIds.length === 0 ? (
-          <EmptyState title="No windows in this group">
+          <EmptyState title={tl('No windows in this group')}>
             Use the link dot in a window header, or a window&apos;s ⋯ menu → Link group.
           </EmptyState>
         ) : (
@@ -703,7 +719,7 @@ function LinksPane() {
                   <span className="grow">{windowLabel(w)}</span>
                   <Select<LinkColor>
                     small
-                    aria-label={`Link group of ${windowLabel(w)}`}
+                    aria-label={tt`Link group of ${windowLabel(w)}`}
                     value={windowLink(w)}
                     onChange={(c) => setLink(id, c)}
                     options={LINK_COLOR_IDS.map((c) => ({
@@ -716,11 +732,11 @@ function LinksPane() {
                     variant="ghost"
                     onClick={() => workspaceHost()?.focusWindow?.(id)}
                   >
-                    Show
+                    {tl('Show')}
                   </Button>
                   {windowLink(w) !== 'none' && (
                     <Button size="xs" variant="ghost" onClick={() => setLink(id, 'none')}>
-                      Unlink
+                      {tl('Unlink')}
                     </Button>
                   )}
                 </li>
@@ -800,10 +816,10 @@ export function WorkspacesWindow({ state, setParams }: ModuleViewProps) {
       {pane === 'links' && <LinksPane />}
       <NameDialog
         open={dialog?.kind === 'save-as'}
-        title="Save workspace as"
+        title={tl('Save workspace as')}
         initialName={liveName}
         initialDescription=""
-        confirmLabel="Save"
+        confirmLabel={tl('Save')}
         onClose={() => setDialog(null)}
         onSubmit={(name, desc) => {
           const id = saveAs(name, desc);
@@ -812,11 +828,11 @@ export function WorkspacesWindow({ state, setParams }: ModuleViewProps) {
       />
       <NameDialog
         open={dialog?.kind === 'rename' && !!renaming}
-        title="Rename workspace"
+        title={tl('Rename workspace')}
         initialName={renaming?.meta.name ?? ''}
         initialDescription={renaming?.meta.description ?? ''}
         exceptId={renaming?.meta.id}
-        confirmLabel="Rename"
+        confirmLabel={tl('Rename')}
         onClose={() => setDialog(null)}
         onSubmit={(name, desc) => {
           if (!renaming) return;

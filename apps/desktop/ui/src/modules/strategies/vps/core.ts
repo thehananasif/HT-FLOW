@@ -1,6 +1,16 @@
 import type { RawInputs } from '@htflow/indicator-sdk';
 import { OrderBook, type BarSpec, type Trade } from '@htflow/market-data';
-import { StrategyRunner, strategyById, type StrategyInstrument } from '@htflow/strategy';
+import {
+  DEFAULT_LIMITS,
+  InProcessTransport,
+  ScriptBridge,
+  StrategyRunner,
+  accountOf,
+  strategyById,
+  type AnyStrategy,
+  type CompiledProject,
+  type StrategyInstrument,
+} from '@htflow/strategy';
 import { PaperEngine, netOf, pnlPerTick, roundTrips, type RoundTrip } from '@htflow/trading';
 
 /**
@@ -34,6 +44,8 @@ export interface RunnerConfig {
   /** Max contracts the runner may hold (risk cap enforced on the VPS). */
   maxPosition: number;
   deployedAt: number;
+  /** HT Editor strategy (compiled sources + parameter values) instead of a built-in id. */
+  script?: { project: CompiledProject; params: Record<string, unknown> };
 }
 
 export type RunnerStatus = 'starting' | 'running' | 'stopped' | 'error';
@@ -77,6 +89,8 @@ const BIG = 1e12;
 export class HeadlessRunner {
   readonly engine: PaperEngine;
   readonly runner: StrategyRunner;
+  /** HT Editor scripts run in-process behind the same bridge / validation as in the app. */
+  readonly bridge: ScriptBridge | null = null;
   private clock = 0;
   private bid = Number.NaN;
   private ask = Number.NaN;
@@ -88,9 +102,25 @@ export class HeadlessRunner {
     private io: RunnerIO,
     opts: { pid?: number; now?: number; tripsDone?: number } = {},
   ) {
-    const def = strategyById(cfg.strategyId);
-    if (!def) throw new Error(`Unknown strategy '${cfg.strategyId}'`);
     const inst = cfg.instrument;
+    let def: AnyStrategy | undefined;
+    if (cfg.script) {
+      const transport = new InProcessTransport();
+      const desc = transport.load(cfg.script.project, cfg.script.params, inst, DEFAULT_LIMITS);
+      this.bridge = new ScriptBridge(desc, transport, {
+        instrument: inst,
+        limits: {
+          maxOrderQty: cfg.maxPosition,
+          maxPosition: cfg.maxPosition,
+          maxPriceDeviation: 0.2,
+          maxBracketTicks: 10_000,
+        },
+        account: () => accountOf(this.engine, ACCOUNT, inst.id, this.runner.last),
+        onLog: (l) => this.log(l.level, l.text, l.ts || Date.now()),
+      });
+      def = this.bridge.strategy();
+    } else def = strategyById(cfg.strategyId);
+    if (!def) throw new Error(`Unknown strategy '${cfg.strategyId}'`);
     this.engine = new PaperEngine({
       book: () => this.book(),
       economics: () => ({ tickSize: inst.tickSize, tickValue: inst.tickValue }),
@@ -111,6 +141,10 @@ export class HeadlessRunner {
       tag: `vps:${cfg.runnerId}`,
       onLog: (l) => this.log('info', l.text, l.ts),
     });
+    if (this.bridge) {
+      this.bridge.attach(this.runner);
+      void this.bridge.start();
+    }
     // Trips already in trips.jsonl from an earlier process are not re-emitted (ids restart).
     this.emitted = 0;
     const now = opts.now ?? Date.now();
@@ -162,6 +196,11 @@ export class HeadlessRunner {
     }
     this.engine.onTrade(this.cfg.instrument.id, t);
     this.runner.onTrade(t);
+    if (this.bridge?.failed) {
+      this.runner.flatten('script error', true);
+      this.fail(`Strategy error: ${this.bridge.failed.message}`);
+      return;
+    }
     this.enforceRisk();
     this.state.status = 'running';
     this.state.lastPx = t.px;
@@ -211,6 +250,7 @@ export class HeadlessRunner {
 
   /** Graceful stop: flatten the paper position, record the last trips, write the state. */
   stop(reason: string): void {
+    void this.bridge?.stop();
     if (this.state.status !== 'error') {
       this.runner.flatten(reason, true);
       this.collectTrips();

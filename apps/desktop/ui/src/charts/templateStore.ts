@@ -14,6 +14,7 @@ import {
   type UserChartTemplate,
 } from './templates';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const KEY = 'chart-templates';
 
 interface TemplateStoreState {
@@ -42,7 +43,7 @@ export const useChartTemplates = create<TemplateStoreState>((set, get) => ({
     set({ lib });
     void backend
       .saveSettings(KEY, lib)
-      .catch(() => toast('error', 'Could not save chart templates'));
+      .catch(() => toast('error', tl('Could not save chart templates')));
   },
 }));
 
@@ -74,7 +75,7 @@ export function saveTemplateFrom(windowId: string, name: string): UserChartTempl
     saved = next.templates[next.templates.length - 1]!;
     return next;
   });
-  toast('success', `Template “${saved.name}” saved`);
+  toast('success', tt`Template “${saved.name}” saved`);
   return saved;
 }
 
@@ -97,7 +98,7 @@ export function pickTextFile(accept: string): Promise<string | null> {
       const f = input.files?.[0];
       if (!f) return resolve(null);
       if (f.size > 2_000_000) {
-        toast('error', 'File too large');
+        toast('error', tl('File too large'));
         return resolve(null);
       }
       void f.text().then(resolve);

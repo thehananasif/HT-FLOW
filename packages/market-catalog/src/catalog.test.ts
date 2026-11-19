@@ -58,7 +58,8 @@ describe('Appendix A seed', () => {
       'dxFeed',
     ]);
     const crypto = tree.find((g) => g.name === 'Crypto')!.subGroups.map((s) => s.name);
-    expect(crypto).toHaveLength(16);
+    expect(crypto).toHaveLength(17);
+    expect(crypto).toContain('Bybit Inverse');
     expect(crypto).toContain('Deribit (options & futures)');
     const dx = tree.find((g) => g.name === 'dxFeed')!.subGroups;
     expect(dx.map((s) => s.name)).toEqual([

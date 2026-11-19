@@ -20,6 +20,7 @@ import { isModuleBuilt, registerModule, type ModuleViewProps } from '../registry
 import { formatOiFunding, moveItem, RowStats, sparkPoints, statsFrom } from './stats';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 // ------------------------------------------------------------------ params
 
 type ColId =
@@ -307,7 +308,7 @@ function Row({
         // Fed by the crypto connectors' funding / open-interest streams; "—" when absent.
         const f = formatOiFunding(store, formatCompact);
         return (
-          <span key={c} className={`r tnum${f.text === '—' ? ' muted' : ''}`} title={f.title}>
+          <span key={c} className={`r tnum${f.text === '—' ? ' muted' : ''}`} title={tl(f.title)}>
             {f.text}
           </span>
         );
@@ -464,7 +465,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
       style={{ ['--wl-cols' as string]: gridCols }}
     >
       <div className="wl-top">
-        <div className="wl-tabs" role="tablist" aria-label="Watchlists">
+        <div className="wl-tabs" role="tablist" aria-label={tl('Watchlists')}>
           {p.lists.map((l) => (
             <ContextMenu
               key={l.id}
@@ -501,7 +502,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             </ContextMenu>
           ))}
           <button type="button" className="wl-tab wl-tab-add" onClick={addList}>
-            + list
+            {tl('+ list')}
           </button>
         </div>
         <div className="grow" />
@@ -517,8 +518,8 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             <button
               type="button"
               className="link-dot"
-              aria-label={`Link group: ${p.link}`}
-              title="Link group"
+              aria-label={tt`Link group: ${p.link}`}
+              title={tl('Link group')}
             >
               <span style={{ background: LINK_COLORS[p.link] }} />
             </button>
@@ -553,7 +554,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             },
           ]}
           trigger={
-            <MenuTrigger aria-label="Columns">
+            <MenuTrigger aria-label={tl('Columns')}>
               <Columns3 size={13} />
             </MenuTrigger>
           }
@@ -564,18 +565,19 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
           mode="add"
           onPick={(e) => {
             if (list.symbols.includes(e.key)) {
-              toast('info', `${e.symbol} is already in ${list.name}`);
+              toast('info', tt`${e.symbol} is already in ${list.name}`);
               return;
             }
             setList([...list.symbols, e.key]);
           }}
         >
-          <Plus size={12} /> Symbol
+          <Plus size={12} /> {tl('Symbol')}
         </InstrumentPickerButton>
       </div>
       <div className="wl-head" role="row">
         <button type="button" onClick={() => sortBy('symbol')}>
-          Symbol{arrow('symbol')}
+          {tl('Symbol')}
+          {arrow('symbol')}
         </button>
         {p.columns.map((c) => (
           <button
@@ -584,12 +586,12 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
             className={c === 'spark' ? '' : 'r'}
             onClick={() => sortBy(c)}
           >
-            {COLUMNS.find((x) => x.id === c)!.label}
+            {tl(COLUMNS.find((x) => x.id === c)!.label)}
             {arrow(c)}
           </button>
         ))}
       </div>
-      <div className="wl-body" role="table" aria-label={`${list.name} watchlist`}>
+      <div className="wl-body" role="table" aria-label={tt`${list.name} watchlist`}>
         {ids.map((id) => (
           <Row
             key={id}
@@ -612,7 +614,7 @@ function Watchlist({ state, setParams }: ModuleViewProps) {
           />
         ))}
         {!ids.length && (
-          <div className="tbl-empty">Empty list — add instruments with + Symbol.</div>
+          <div className="tbl-empty">{tl('Empty list — add instruments with + Symbol.')}</div>
         )}
       </div>
     </div>

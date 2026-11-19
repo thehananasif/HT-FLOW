@@ -4,6 +4,7 @@ import { isoProject, type Surface } from '@htflow/heatmap';
 import type { Camera } from './model';
 import { DEFAULT_CAMERA } from './model';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export interface View3DProps {
   /** Latest surface (time × price × size) and colour table; polled every frame. */
   surface: () => { s: Surface; lut: Uint8ClampedArray; version: number } | null;
@@ -164,13 +165,13 @@ export function View3D(props: View3DProps) {
       className="hm-3d"
       tabIndex={0}
       role="img"
-      aria-label="3D liquidity surface — drag to orbit, wheel to zoom, double-click to reset"
+      aria-label={tl('3D liquidity surface — drag to orbit, wheel to zoom, double-click to reset')}
       data-testid="heatmap-3d"
       data-renderer={used ?? ''}
     >
       <div className="hm-3d-hint">
-        3D · {used === 'webgl' ? 'three.js' : used === 'canvas' ? 'Canvas 2D (isometric)' : '…'} ·
-        drag orbit · wheel zoom · double-click reset
+        3D · {used === 'webgl' ? 'three.js' : used === 'canvas' ? 'Canvas 2D (isometric)' : '…'}{' '}
+        {tl('· drag orbit · wheel zoom · double-click reset')}
         {error ? ` · WebGL failed: ${error}` : ''}
       </div>
     </div>

@@ -7,6 +7,7 @@ import { registerCommands } from '../../shell/commands';
 import { placeTooltip, spotlightBox, TOUR_STEPS, type Box, type Placement } from './steps';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /**
  * First-run guided tour (P28): a spotlight + tooltip over the ribbon, chart, DOM, Trading Panel
  * and status bar. Shown once per user (flag saved with the profile), restartable from the
@@ -158,7 +159,7 @@ function TourOverlay() {
         ref={card}
         className="tour-card"
         role="dialog"
-        aria-label="Guided tour"
+        aria-label={tl('Guided tour')}
         aria-live="polite"
         style={{
           left: place?.left ?? 0,
@@ -167,16 +168,18 @@ function TourOverlay() {
         }}
       >
         <div className="tour-count tnum">
-          Step {t.step + 1} of {TOUR_STEPS.length}
+          {tl('Step')} {t.step + 1} {tl('of')} {TOUR_STEPS.length}
         </div>
         <h3 className="tour-title" data-testid="tour-title">
-          {step.title}
+          {tl(step.title)}
         </h3>
         <p className="tour-body">{step.body}</p>
-        {!target && <p className="tour-note">This window is not open in the current layout.</p>}
+        {!target && (
+          <p className="tour-note">{tl('This window is not open in the current layout.')}</p>
+        )}
         <div className="tour-actions">
           <Button size="sm" variant="ghost" onClick={() => endTour(false)}>
-            Skip tour
+            {tl('Skip tour')}
           </Button>
           <span className="grow" />
           {t.step > 0 && (
@@ -185,7 +188,7 @@ function TourOverlay() {
               variant="secondary"
               onClick={() => set({ active: true, step: t.step - 1 })}
             >
-              Back
+              {tl('Back')}
             </Button>
           )}
           <Button

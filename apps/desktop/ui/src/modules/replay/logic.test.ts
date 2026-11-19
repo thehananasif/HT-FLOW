@@ -9,6 +9,11 @@ import {
   savedStateOf,
   timelineEvents,
   DEFAULT_DISPLAY,
+  validateRange,
+  pickSourceId,
+  exitReplayTargets,
+  loopBand,
+  edgeLabel,
 } from './logic';
 
 const ev = (
@@ -125,5 +130,56 @@ describe('persisted bookmarks and loops', () => {
       ),
     ).toBe(true);
     expect(sameSavedState(a, savedStateOf([], null))).toBe(false);
+  });
+});
+
+describe('range validation', () => {
+  const now = 1_000_000_000_000;
+  it('accepts a past range and rejects empty, future and huge ones', () => {
+    expect(validateRange(now - 3600_000, now, now)).toBeNull();
+    expect(validateRange(now, now - 1, now)).toMatch(/after From/);
+    expect(validateRange(Number.NaN, now, now)).toMatch(/Pick/);
+    expect(validateRange(now - 1000, now + 3600_000, now)).toMatch(/future/);
+    expect(validateRange(now - 3600_000, now, now, 2e9)).toMatch(/shorten/);
+  });
+});
+
+describe('data source choice', () => {
+  const R = (from: number, to: number) => ({ from, to });
+  it('prefers the first source that covers the range, else the biggest overlap, else the first', () => {
+    const c = [
+      { id: 'tick', range: null },
+      { id: 'mem', range: R(1000, 2000) },
+      { id: 'ex', range: R(0, 10_000_000) },
+    ];
+    expect(pickSourceId(c, 1000, 2000)).toBe('mem');
+    expect(pickSourceId(c, 500_000, 900_000)).toBe('ex');
+    expect(pickSourceId([{ id: 'a', range: R(0, 1) }], 5e6, 6e6)).toBe('a');
+    expect(pickSourceId([], 0, 1)).toBeNull();
+  });
+});
+
+describe('leaving replay', () => {
+  it('maps replay charts back to their source instrument', () => {
+    expect(
+      exitReplayTargets({ a: 'replay:mock:CLZ6', b: 'mock:ESZ6', c: undefined, d: 'replay:x:y' }),
+    ).toEqual([
+      { id: 'a', instrumentId: 'mock:CLZ6' },
+      { id: 'd', instrumentId: 'x:y' },
+    ]);
+  });
+});
+
+describe('timeline helpers', () => {
+  it('loop band is relative to the replay range, never past the end', () => {
+    expect(loopBand({ from: 250, to: 750 }, 0, 1000)).toEqual({
+      left: '25.000%',
+      width: '50.000%',
+    });
+    expect(loopBand({ from: 900, to: 5000 }, 0, 1000).width).toBe('10.000%');
+  });
+  it('edge labels show the day only for multi-day ranges', () => {
+    expect(edgeLabel(0, 3600_000)).toMatch(/^\d\d:\d\d$/);
+    expect(edgeLabel(0, 3 * 86_400_000)).toMatch(/^\d\d [A-Z][a-z]{2} \d\d:\d\d$/);
   });
 });

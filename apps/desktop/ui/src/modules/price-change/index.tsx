@@ -16,6 +16,7 @@ import {
   type ScanColumn,
 } from '../market-pressure/scanner';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Unit = 'pct' | 'ticks' | 'usd';
 
 interface Row {
@@ -76,7 +77,7 @@ function PriceChange({ state, setParams }: ModuleViewProps) {
       if (over && !fired.current.has(r.key)) {
         fired.current.add(r.key);
         if (alerts) {
-          toast('info', `${r.sym} ${r.c.pctDay > 0 ? '+' : ''}${r.c.pctDay.toFixed(2)}% today`);
+          toast('info', tt`${r.sym} ${r.c.pctDay > 0 ? '+' : ''}${r.c.pctDay.toFixed(2)}% today`);
           beep(r.c.pctDay > 0 ? 1 : -1);
         }
       } else if (!over) fired.current.delete(r.key);
@@ -154,7 +155,7 @@ function PriceChange({ state, setParams }: ModuleViewProps) {
         ) : (
           <span
             className="scan-range"
-            title={`Position in session range: ${(r.c.rangePos * 100).toFixed(0)}%`}
+            title={tt`Position in session range: ${(r.c.rangePos * 100).toFixed(0)}%`}
           >
             <i style={{ left: `${r.c.rangePos * 100}%` }} />
           </span>
@@ -179,7 +180,7 @@ function PriceChange({ state, setParams }: ModuleViewProps) {
   return (
     <ScannerFrame
       testId="price-change"
-      subtitle="multi-window"
+      subtitle={tl('multi-window')}
       chips={(
         [
           ['pct', '%'],
@@ -200,7 +201,7 @@ function PriceChange({ state, setParams }: ModuleViewProps) {
           onReset={() => setParams({ ids: undefined, alerts: false, alertPct: 2, unit: 'pct' })}
         >
           <label>
-            Alert when |day change| ≥ (%)
+            {tl('Alert when |day change| ≥ (%)')}
             <Input
               type="number"
               min={0.1}

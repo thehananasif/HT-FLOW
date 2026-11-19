@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "apps/desktop/src-tauri",
     "crates/core-types",
+    "crates/cot",
     "crates/auth",
     "crates/vault",
     "crates/connectors/binance",
@@ -17,6 +18,7 @@ members = [
     "crates/connectors/deribit",
     "crates/tick-store",
     "crates/vps",
+    "crates/ai",
 ]
 
 [workspace.package]
@@ -41,6 +43,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 time = { version = "0.3", features = ["formatting", "serde"] }
 
 htflow-core-types = { path = "crates/core-types" }
+htflow-cot = { path = "crates/cot" }
 htflow-auth = { path = "crates/auth" }
 htflow-vault = { path = "crates/vault" }
 htflow-connector-binance = { path = "crates/connectors/binance" }
@@ -56,6 +59,7 @@ htflow-connector-deribit = { path = "crates/connectors/deribit" }
 
 htflow-tick-store = { path = "crates/tick-store" }
 htflow-vps = { path = "crates/vps" }
+htflow-ai = { path = "crates/ai" }
 
 [profile.release]
 codegen-units = 1

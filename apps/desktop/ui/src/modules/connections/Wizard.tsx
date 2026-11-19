@@ -16,6 +16,7 @@ import {
   type Provider,
 } from './providers';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 function blank(p: Provider): ConnectionConfig {
   return {
     id: `${p.id}-${Date.now().toString(36)}`,
@@ -169,14 +170,14 @@ export function ConnectionWizard({
     <Dialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title={`${edit ? 'Edit connection' : 'Add connection'} · Step ${provider ? 2 : 1} of 2`}
+      title={tt`${edit ? 'Edit connection' : 'Add connection'} · Step ${provider ? 2 : 1} of 2`}
       width={880}
     >
       <div className="cx-wizard">
         <div className="cx-tree">
           <Input
-            placeholder="Search providers…"
-            aria-label="Search providers"
+            placeholder={tl('Search providers…')}
+            aria-label={tl('Search providers')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -198,15 +199,21 @@ export function ConnectionWizard({
                 ))}
               </div>
             ))}
-            {!groups.length && <div className="muted pad12">No provider matches “{query}”</div>}
+            {!groups.length && (
+              <div className="muted pad12">
+                {tl('No provider matches “')}
+                {query}”
+              </div>
+            )}
           </div>
         </div>
         <div className="cx-form">
           <div className="cx-scroll">
             {!provider || !form ? (
               <div className="muted pad12">
-                Pick a provider on the left. FREE = public data or built-in; YOUR ACCOUNT = needs
-                your own login / licence.
+                {tl(
+                  'Pick a provider on the left. FREE = public data or built-in; YOUR ACCOUNT = needs your own login / licence.',
+                )}
               </div>
             ) : (
               <>
@@ -227,16 +234,18 @@ export function ConnectionWizard({
                 </div>
                 {provider.blocked && (
                   <div className="cx-note cx-note--warn">
-                    Coming soon / requires SDK — {provider.blocked}. You can save the connection
-                    now; it will show as unavailable until the connector ships.
+                    {tl('Coming soon / requires SDK —')} {provider.blocked}
+                    {tl(
+                      '. You can save the connection now; it will show as unavailable until the connector ships.',
+                    )}
                   </div>
                 )}
-                <Field label="Connection name" error={err('name')}>
+                <Field label={tl('Connection name')} error={err('name')}>
                   <Input value={form.name} onChange={(e) => patch({ name: e.target.value })} />
                 </Field>
                 {provider.form === 'crypto' && (
                   <>
-                    <Field label="API key (optional — only for trading)">
+                    <Field label={tl('API key (optional — only for trading)')}>
                       <Input
                         value={secret.apiKey}
                         autoComplete="off"
@@ -244,7 +253,7 @@ export function ConnectionWizard({
                         onChange={(e) => setSecret({ ...secret, apiKey: e.target.value })}
                       />
                     </Field>
-                    <Field label="API secret (optional)">
+                    <Field label={tl('API secret (optional)')}>
                       <Input
                         type="password"
                         value={secret.apiSecret}
@@ -252,9 +261,9 @@ export function ConnectionWizard({
                         onChange={(e) => setSecret({ ...secret, apiSecret: e.target.value })}
                       />
                     </Field>
-                    <Field label="Environment">
+                    <Field label={tl('Environment')}>
                       <Select
-                        aria-label="Environment"
+                        aria-label={tl('Environment')}
                         value={form.environment}
                         options={[
                           { value: 'live', label: 'Live (mainnet)' },
@@ -267,21 +276,21 @@ export function ConnectionWizard({
                 )}
                 {provider.form === 'broker' && (
                   <>
-                    <Field label="Server / system" error={err('server')}>
+                    <Field label={tl('Server / system')} error={err('server')}>
                       <Input
                         value={form.server ?? ''}
-                        placeholder="e.g. Paper Trading · Chicago"
+                        placeholder={tl('e.g. Paper Trading · Chicago')}
                         onChange={(e) => patch({ server: e.target.value })}
                       />
                     </Field>
-                    <Field label="Username" error={err('username')}>
+                    <Field label={tl('Username')} error={err('username')}>
                       <Input
                         value={form.username ?? ''}
                         autoComplete="off"
                         onChange={(e) => patch({ username: e.target.value })}
                       />
                     </Field>
-                    <Field label="Password">
+                    <Field label={tl('Password')}>
                       <Input
                         type="password"
                         value={secret.password}
@@ -292,15 +301,15 @@ export function ConnectionWizard({
                     </Field>
                     {provider.gateway && (
                       <div className="row gap8">
-                        <Field label="Gateway host" error={err('gatewayHost')}>
+                        <Field label={tl('Gateway host')} error={err('gatewayHost')}>
                           <Input
                             value={form.gatewayHost ?? ''}
                             onChange={(e) => patch({ gatewayHost: e.target.value })}
                           />
                         </Field>
-                        <Field label="Port" error={err('gatewayPort')}>
+                        <Field label={tl('Port')} error={err('gatewayPort')}>
                           <NumberInput
-                            aria-label="Gateway port"
+                            aria-label={tl('Gateway port')}
                             value={form.gatewayPort ?? 0}
                             min={1}
                             max={65_535}
@@ -313,34 +322,34 @@ export function ConnectionWizard({
                 )}
                 {provider.form === 'ws' && form.ws && (
                   <>
-                    <Field label="WebSocket URL (ws:// or wss://)" error={err('url')}>
+                    <Field label={tl('WebSocket URL (ws:// or wss://)')} error={err('url')}>
                       <Input
-                        aria-label="WebSocket URL"
+                        aria-label={tl('WebSocket URL')}
                         value={form.ws.url}
-                        placeholder="wss://example.com/stream"
+                        placeholder={tl('wss://example.com/stream')}
                         onChange={(e) => patchWs({ url: e.target.value })}
                       />
                     </Field>
                     <div className="row gap8">
-                      <Field label="Symbol" error={err('symbol')}>
+                      <Field label={tl('Symbol')} error={err('symbol')}>
                         <Input
-                          aria-label="Symbol"
+                          aria-label={tl('Symbol')}
                           value={form.ws.symbol}
                           onChange={(e) => patchWs({ symbol: e.target.value })}
                         />
                       </Field>
-                      <Field label="Tick size" error={err('tickSize')}>
+                      <Field label={tl('Tick size')} error={err('tickSize')}>
                         <NumberInput
-                          aria-label="Tick size"
+                          aria-label={tl('Tick size')}
                           value={form.ws.tickSize}
                           min={0.00000001}
                           step={0.01}
                           onChange={(v) => patchWs({ tickSize: v })}
                         />
                       </Field>
-                      <Field label="Price decimals">
+                      <Field label={tl('Price decimals')}>
                         <NumberInput
-                          aria-label="Price decimals"
+                          aria-label={tl('Price decimals')}
                           value={form.ws.pricePrecision}
                           min={0}
                           max={8}
@@ -350,12 +359,12 @@ export function ConnectionWizard({
                       </Field>
                     </div>
                     <Field
-                      label="Subscribe message (JSON, optional; {symbol} is replaced)"
+                      label={tl('Subscribe message (JSON, optional; {symbol} is replaced)')}
                       error={err('subscribe')}
                     >
                       <textarea
                         className="ht-input cx-json"
-                        aria-label="Subscribe message"
+                        aria-label={tl('Subscribe message')}
                         rows={2}
                         spellCheck={false}
                         value={form.ws.subscribe ?? ''}
@@ -363,13 +372,15 @@ export function ConnectionWizard({
                       />
                     </Field>
                     <Field
-                      label="Field mapping (JSON paths: price, qty, side, timestamp; optional bids / asks)"
+                      label={tl(
+                        'Field mapping (JSON paths: price, qty, side, timestamp; optional bids / asks)',
+                      )}
                       error={mappingErr ?? err('mapping')}
-                      hint={`Subscribe sent: ${renderSubscribe(form.ws.subscribe ?? '', form.ws.symbol).text ?? 'nothing'}`}
+                      hint={tt`Subscribe sent: ${renderSubscribe(form.ws.subscribe ?? '', form.ws.symbol).text ?? 'nothing'}`}
                     >
                       <textarea
                         className="ht-input cx-json"
-                        aria-label="Field mapping"
+                        aria-label={tl('Field mapping')}
                         rows={9}
                         spellCheck={false}
                         value={mappingText}
@@ -387,16 +398,17 @@ export function ConnectionWizard({
                         onImport?.();
                       }}
                     >
-                      Open CSV importer
+                      {tl('Open CSV importer')}
                     </Button>{' '}
-                    Pick a file, map its columns, preview and import. Imported data appears in the
-                    instrument picker as “Imported files”.
+                    {tl(
+                      'Pick a file, map its columns, preview and import. Imported data appears in the instrument picker as “Imported files”.',
+                    )}
                   </div>
                 )}
                 {provider.form === 'simulator' && (
-                  <Field label="Starting balance (USD)" error={err('startingBalance')}>
+                  <Field label={tl('Starting balance (USD)')} error={err('startingBalance')}>
                     <NumberInput
-                      aria-label="Starting balance"
+                      aria-label={tl('Starting balance')}
                       value={form.startingBalance ?? 50_000}
                       step={1000}
                       min={100}
@@ -408,22 +420,22 @@ export function ConnectionWizard({
                 {provider.form !== 'import' && (
                   <div className="cx-options">
                     <Checkbox
-                      label="Use for market data"
+                      label={tl('Use for market data')}
                       checked={form.marketData}
                       onChange={(v) => patch({ marketData: v })}
                     />
                     <Checkbox
-                      label="Use for trading (orders go to this connection)"
+                      label={tl('Use for trading (orders go to this connection)')}
                       checked={form.trading}
                       onChange={(v) => patch({ trading: v })}
                     />
                     <Checkbox
-                      label="Record ticks + depth to local history"
+                      label={tl('Record ticks + depth to local history')}
                       checked={form.record}
                       onChange={(v) => patch({ record: v })}
                     />
                     <Checkbox
-                      label="Connect automatically on start"
+                      label={tl('Connect automatically on start')}
                       checked={form.connectOnStart}
                       onChange={(v) => patch({ connectOnStart: v })}
                     />
@@ -432,15 +444,17 @@ export function ConnectionWizard({
                 )}
                 {provider.form !== 'ws' && provider.form !== 'import' && (
                   <div className="cx-note">
-                    Credentials are stored in your encrypted vault on this PC. They are never sent
-                    anywhere except to {provider.name}.
+                    {tl(
+                      'Credentials are stored in your encrypted vault on this PC. They are never sent anywhere except to',
+                    )}{' '}
+                    {provider.name}.
                   </div>
                 )}
                 {provider.form === 'ws' && (
                   <div className="cx-note">
-                    The URL is contacted directly from this PC. Nothing is sent anywhere else. In
-                    the desktop app the connection is opened by the HT Flow core (ws:// and wss://
-                    only, messages up to 1 MB).
+                    {tl(
+                      'The URL is contacted directly from this PC. Nothing is sent anywhere else. In the desktop app the connection is opened by the HT Flow core (ws:// and wss:// only, messages up to 1 MB).',
+                    )}
                   </div>
                 )}
                 {test && (
@@ -453,11 +467,11 @@ export function ConnectionWizard({
           </div>
           <div className="cx-actions">
             <Button variant="outline" disabled={!provider || busy} onClick={() => void runTest()}>
-              Test connection
+              {tl('Test connection')}
             </Button>
             <div className="grow" />
             <Button variant="ghost" onClick={onClose}>
-              Cancel
+              {tl('Cancel')}
             </Button>
             <Button
               variant="primary"

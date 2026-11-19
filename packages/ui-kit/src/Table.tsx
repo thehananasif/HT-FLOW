@@ -26,6 +26,7 @@ import {
   type SortState,
 } from './tableLogic';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export interface TableColumn<T> {
   key: string;
   header: ReactNode;
@@ -327,19 +328,19 @@ export function Table<T>({
             >
               {c.sortable ? (
                 <button type="button" className="ht-table-sort" onClick={() => changeSort(c.key)}>
-                  <span>{c.header}</span>
+                  <span>{typeof c.header === 'string' ? tl(c.header) : c.header}</span>
                   {dir === 'asc' && <ArrowUp size={10} aria-hidden />}
                   {dir === 'desc' && <ArrowDown size={10} aria-hidden />}
                 </button>
               ) : (
-                <span>{c.header}</span>
+                <span>{typeof c.header === 'string' ? tl(c.header) : c.header}</span>
               )}
               {adjustable && (
                 <span
                   className="ht-table-resize"
                   role="separator"
                   aria-orientation="vertical"
-                  aria-label={`Resize column ${c.key}`}
+                  aria-label={tt`Resize column ${c.key}`}
                   data-testid={`ht-resize-${c.key}`}
                   onPointerDown={(e) => startResize(e, c)}
                   onDoubleClick={() => resetWidth(c.key)}

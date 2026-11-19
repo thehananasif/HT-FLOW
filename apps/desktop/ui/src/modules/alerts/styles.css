@@ -54,7 +54,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border-left: 1px solid var(--ht-divider);
+  border-inline-start: 1px solid var(--ht-divider);
   overflow: auto;
 }
 .al-in {
@@ -76,7 +76,7 @@
   color: var(--ht-text-primary);
   font: inherit;
   font-weight: 600;
-  text-align: left;
+  text-align: start;
   padding: 0;
   cursor: pointer;
 }

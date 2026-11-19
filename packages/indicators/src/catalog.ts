@@ -32,11 +32,6 @@ function rows(category: IndicatorCategory, group: string | undefined, list: Row[
   }));
 }
 
-const OPTIONS_NOTE =
-  'Needs an options chain in the indicator context: @htflow/options analytics exist but the SDK has no chain provider yet (host-supplied, not derivable from bars)';
-const COT_NOTE =
-  'No CFTC COT data source is wired (weekly CFTC reports need a connector); cannot be derived from market data';
-
 export const CATALOG: CatalogEntry[] = [
   ...rows('volume-orderflow', undefined, [
     ['Active Volume', 'active-volume'],
@@ -53,7 +48,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Dynamic Levels', 'dynamic-levels'],
     ['Dynamic Levels Channel', 'dynamic-levels-channel'],
     ['Maximum Levels', 'maximum-levels'],
-    ['Market Profile & TPO', undefined, undefined, 'TPO chart template (P09)'],
+    ['Market Profile & TPO', 'market-profile'],
     ['OI Analyzer', 'oi-analyzer'],
     ['Balance OI', 'balance-oi'],
     ['Order Flow', 'order-flow-tape'],
@@ -85,16 +80,16 @@ export const CATALOG: CatalogEntry[] = [
     ['Sweeps Tracker', 'sweeps-tracker'],
   ]),
   ...rows('options', undefined, [
-    ['Options Board (on-chart strikes/OI)', undefined, undefined, OPTIONS_NOTE],
-    ['Options Position', undefined, undefined, OPTIONS_NOTE],
-    ['Volatility Smile', undefined, undefined, OPTIONS_NOTE],
-    ['Options Risk Profile', undefined, undefined, OPTIONS_NOTE],
+    ['Options Board (on-chart strikes/OI)', 'options-board'],
+    ['Options Position', 'options-position'],
+    ['Volatility Smile', 'volatility-smile'],
+    ['Options Risk Profile', 'options-risk-profile'],
   ]),
   ...rows('cot', undefined, [
-    ['COT', undefined, undefined, COT_NOTE],
-    ['COT Commercials / Non-Commercials', undefined, undefined, COT_NOTE],
-    ['COT Institutional Net Positions', undefined, undefined, COT_NOTE],
-    ['COT High/Low', undefined, undefined, COT_NOTE],
+    ['COT', 'cot'],
+    ['COT Commercials / Non-Commercials', 'cot-comm-noncomm'],
+    ['COT Institutional Net Positions', 'cot-institutional'],
+    ['COT High/Low', 'cot-high-low'],
   ]),
   ...rows('crypto', undefined, [
     ['Funding Rate Tracker', 'funding-rate'],
@@ -102,18 +97,8 @@ export const CATALOG: CatalogEntry[] = [
     ['Open Interest (crypto aggregate)', 'open-interest'],
   ]),
   ...rows('trading', undefined, [
-    [
-      'Account Info Display',
-      undefined,
-      undefined,
-      'Needs the trading account (balance, margin) in the indicator context',
-    ],
-    [
-      'Position Sizing Tracker',
-      undefined,
-      undefined,
-      'Needs account equity and the instrument tick value in the indicator context',
-    ],
+    ['Account Info Display', 'account-info'],
+    ['Position Sizing Tracker', 'position-sizing'],
     ['Trading Session Visualizer', 'session-visualizer'],
   ]),
   ...rows('samples', undefined, [
@@ -199,12 +184,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Accelerator Oscillator', 'accelerator'],
     ['CMO', 'cmo'],
     ['CFO', 'cfo'],
-    [
-      'CMS',
-      undefined,
-      undefined,
-      'Not defined in Appendix B (abbreviation is ambiguous); needs a spec decision',
-    ],
+    ['CMS', 'cms'],
     ['Coppock Curve', 'coppock'],
     ['DeMarker', 'demarker'],
     ['Detrended Price Oscillator', 'dpo'],
@@ -258,12 +238,7 @@ export const CATALOG: CatalogEntry[] = [
     ['Fair Value Gaps (FVG)', 'fvg'],
     ['Order Blocks', 'order-blocks'],
     ['Liquidity Sweeps', 'liquidity-sweeps'],
-    [
-      'Margin Zones',
-      undefined,
-      undefined,
-      'Not defined in Appendix B (no formula given); needs a spec decision',
-    ],
+    ['Margin Zones', 'margin-zones'],
     ['Daily Lines', 'daily-lines'],
     ['Daily/Weekly/Monthly High-Low', 'period-high-low'],
     ['Previous Session OHLC', 'prev-session-ohlc'],
@@ -275,10 +250,10 @@ export const CATALOG: CatalogEntry[] = [
   ]),
   ...rows('technical', 'Misc', [
     ['Price Channel', 'donchian'],
-    ['Spread (two instruments)', undefined, undefined, 'Second-instrument input'],
-    ['Ratio', undefined, undefined, 'Second-instrument input'],
-    ['Correlation', undefined, undefined, 'Second-instrument input'],
-    ['Beta', undefined, undefined, 'Second-instrument input'],
+    ['Spread (two instruments)', 'spread'],
+    ['Ratio', 'ratio'],
+    ['Correlation', 'correlation'],
+    ['Beta', 'beta'],
     ['Z-Score', 'zscore'],
     ['Seasonality', 'seasonality'],
     ['Custom Formula (expression editor)', 'custom-formula'],

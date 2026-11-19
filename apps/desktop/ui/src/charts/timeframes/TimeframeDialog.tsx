@@ -1,17 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Lock, Pin, Plus, X } from 'lucide-react';
-import {
-  Button,
-  Checkbox,
-  Chip,
-  Dialog,
-  DropdownMenu,
-  Input,
-  MenuTrigger,
-  NumberInput,
-  Select,
-  type MenuEntry,
-} from '@htflow/ui-kit';
+import { Button, Checkbox, Chip, Dialog, Input, NumberInput, Select } from '@htflow/ui-kit';
 import {
   FULL_CAPABILITIES,
   specLabel,
@@ -23,7 +12,6 @@ import type { ChartWindowState, WindowState } from '@htflow/workspace';
 import { useWindows } from '../../state/windows';
 import { hub } from '../../state/market';
 import {
-  openTimeframeDialog,
   paramsFor,
   sameBase,
   specFromParams,
@@ -32,8 +20,10 @@ import {
   withSession,
   type TfRow,
 } from './presets';
+import { IntervalMenu } from './IntervalMenu';
 import './timeframes.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Session = BarSpec['session'];
 
 function capsFor(instrumentId: string): FeedCapabilities {
@@ -48,35 +38,13 @@ function setTimeframe(windowId: string, spec: BarSpec): void {
 
 /** Header quick chips (user-pinned favourites) + the TF menu with the timeframe dialog. */
 export function TimeframeHeader({ windowId, s }: { windowId: string; s: ChartWindowState }) {
-  const { rows, pinned, loaded, load } = useTimeframes();
+  const { pinned, loaded, load } = useTimeframes();
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
   const cur = s.timeframe as BarSpec;
   const caps = capsFor(s.instrumentId);
   const apply = (sp: BarSpec) => setTimeframe(windowId, withSession(sp, cur.session));
-  const items: MenuEntry[] = [
-    ...rows
-      .filter((r) => r.specs.length)
-      .map((r) => ({
-        kind: 'submenu' as const,
-        id: r.row,
-        label: r.row,
-        items: r.specs.map((sp) => {
-          const why = specUnavailableReason(sp, caps);
-          return {
-            id: JSON.stringify(sp),
-            label: specLabel(sp) + (why ? ' (no data)' : ''),
-            checked: sameBase(sp, cur),
-            disabled: !!why,
-            onSelect: () => apply(sp),
-          };
-        }),
-      })),
-    { kind: 'separator', id: 'sep' },
-    { id: 'dialog', label: 'Timeframe dialog…', onSelect: () => openTimeframeDialog(windowId) },
-    { id: 'configure', label: 'Configure…', onSelect: () => openTimeframeDialog(windowId, true) },
-  ];
   return (
     <>
       {pinned.map((sp) => (
@@ -92,10 +60,7 @@ export function TimeframeHeader({ windowId, s }: { windowId: string; s: ChartWin
         </Chip>
       ))}
       {!pinned.some((q) => sameBase(q, cur)) && <Chip selected>{specLabel(cur)}</Chip>}
-      <DropdownMenu
-        items={items}
-        trigger={<MenuTrigger aria-label="TF: Timeframe">TF</MenuTrigger>}
-      />
+      <IntervalMenu windowId={windowId} s={s} />
     </>
   );
 }
@@ -117,7 +82,7 @@ export function SessionSelect({ windowId, s }: { windowId: string; s: ChartWindo
     <>
       <Select
         small
-        aria-label="Trading session"
+        aria-label={tl('Trading session')}
         value={sessionValue(cur.session)}
         onChange={(v) => {
           if (v === 'custom') setCustom(true);
@@ -168,28 +133,38 @@ function CustomSessionDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Custom session"
-      description="Exchange-local hours; leave the time zone empty to use the instrument's exchange zone."
+      title={tl('Custom session')}
+      description={tl(
+        "Exchange-local hours; leave the time zone empty to use the instrument's exchange zone.",
+      )}
       width={380}
     >
       <div className="col gap12">
         <div className="row gap8">
           <label className="tf-field">
-            Open
-            <Input value={o} onChange={(e) => setO(e.target.value)} aria-label="Session open" />
+            {tl('Open')}
+            <Input
+              value={o}
+              onChange={(e) => setO(e.target.value)}
+              aria-label={tl('Session open')}
+            />
           </label>
           <label className="tf-field">
-            Close
-            <Input value={c} onChange={(e) => setC(e.target.value)} aria-label="Session close" />
+            {tl('Close')}
+            <Input
+              value={c}
+              onChange={(e) => setC(e.target.value)}
+              aria-label={tl('Session close')}
+            />
           </label>
         </div>
         <label className="tf-field">
-          Time zone (IANA)
+          {tl('Time zone (IANA)')}
           <Input
             value={tz}
-            placeholder="e.g. America/New_York"
+            placeholder={tl('e.g. America/New_York')}
             onChange={(e) => setTz(e.target.value)}
-            aria-label="Session time zone"
+            aria-label={tl('Session time zone')}
           />
         </label>
         <div className="row gap8 wrap">
@@ -203,12 +178,14 @@ function CustomSessionDialog({
           ))}
         </div>
         {!ok && (
-          <span className="ht-error">Use HH:MM times, a valid time zone and at least one day.</span>
+          <span className="ht-error">
+            {tl('Use HH:MM times, a valid time zone and at least one day.')}
+          </span>
         )}
         <div className="row gap8">
           <div className="grow" />
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tl('Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -218,7 +195,7 @@ function CustomSessionDialog({
               onOpenChange(false);
             }}
           >
-            Apply
+            {tl('Apply')}
           </Button>
         </div>
       </div>
@@ -280,14 +257,14 @@ export function TimeframeDialogHost({ windowId, s }: { windowId: string; s: Char
       <div className="row gap8 tf-foot">
         <span
           className="muted tf-dates"
-          title="History range selection arrives with the tick store (P06)"
+          title={tl('History range selection arrives with the tick store (P06)')}
         >
-          Set dates: Auto <Lock size={11} />
+          {tl('Set dates: Auto')} <Lock size={11} />
         </span>
         <div className="grow" />
         {configure && (
           <Button variant="ghost" onClick={reset}>
-            Reset to defaults
+            {tl('Reset to defaults')}
           </Button>
         )}
         <Button
@@ -298,7 +275,7 @@ export function TimeframeDialogHost({ windowId, s }: { windowId: string; s: Char
           {configure ? 'Done' : 'Configure'}
         </Button>
         <Button variant="primary" onClick={() => apply(pending)} data-testid="tf-apply">
-          Apply
+          {tl('Apply')}
         </Button>
       </div>
     </Dialog>
@@ -351,12 +328,12 @@ function TfRowView({
                 onDoubleClick={() => !configure && !why && onApply(sp)}
               >
                 {specLabel(sp)}
-                {isPinned && <Pin size={9} className="tf-pin" aria-label="Pinned" />}
+                {isPinned && <Pin size={9} className="tf-pin" aria-label={tl('Pinned')} />}
               </Chip>
               {configure && (
                 <button
                   className="tf-chip-x"
-                  aria-label={`Remove ${specLabel(sp)}`}
+                  aria-label={tt`Remove ${specLabel(sp)}`}
                   onClick={() => onRemove(sp)}
                 >
                   <X size={10} />
@@ -370,7 +347,7 @@ function TfRowView({
             <span className="tf-add">
               {params.map((p) => (
                 <label key={p.key} className="tf-param">
-                  {p.label}
+                  {tl(p.label)}
                   <NumberInput
                     value={vals[p.key] ?? p.def}
                     min={p.min}
@@ -388,16 +365,16 @@ function TfRowView({
                   setAdding(false);
                 }}
               >
-                Add
+                {tl('Add')}
               </Button>
               <Button size="xs" variant="ghost" onClick={() => setAdding(false)}>
-                Cancel
+                {tl('Cancel')}
               </Button>
             </span>
           ) : (
             <button
               className="tf-chip-add"
-              aria-label={`Add ${row.row} preset`}
+              aria-label={tt`Add ${row.row} preset`}
               onClick={() => setAdding(true)}
             >
               <Plus size={11} />

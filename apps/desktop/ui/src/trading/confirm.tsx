@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Button, Checkbox, Dialog } from '@htflow/ui-kit';
 import { setPrefs, tradingPrefs, type ConfirmKind } from './prefs';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 interface Pending {
   kind: ConfirmKind;
   title: string;
@@ -46,16 +47,16 @@ function Host() {
               <li key={l}>{l}</li>
             ))}
           </ul>
-          <Checkbox checked={skip} onChange={setSkip} label="Don't ask again for this type" />
+          <Checkbox checked={skip} onChange={setSkip} label={tl("Don't ask again for this type")} />
           <div className="row gap8 ot-confirm-actions">
-            <Button onClick={() => close(false)}>Cancel</Button>
+            <Button onClick={() => close(false)}>{tl('Cancel')}</Button>
             <Button
               variant="primary"
               autoFocus
               onClick={() => close(true)}
               data-testid="confirm-ok"
             >
-              Confirm
+              {tl('Confirm')}
             </Button>
           </div>
         </div>

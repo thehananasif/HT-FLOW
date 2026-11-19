@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { BacktestResult, Heatmap } from '@htflow/strategy';
 import { cssVar, money } from './shared';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export interface ResultStyle {
   equity: string;
   drawdown: string;
@@ -16,7 +17,7 @@ export const DEFAULT_STYLE: ResultStyle = {
   heatHigh: '#20C77A',
 };
 
-function useCanvas(
+export function useCanvas(
   draw: (g: CanvasRenderingContext2D, w: number, h: number) => void,
   deps: unknown[],
 ) {
@@ -227,11 +228,11 @@ export function HeatmapCanvas({
         {hover ? (
           <>
             {map.xKey} = {map.xs[hover.x]} · {map.yKey} = {map.ys[hover.y]} ·{' '}
-            {hv === undefined || Number.isNaN(hv) ? 'no trades' : format(hv)} — click to use
+            {hv === undefined || Number.isNaN(hv) ? 'no trades' : format(hv)} {tl('— click to use')}
           </>
         ) : (
           <>
-            x: {map.xKey} · y: {map.yKey} · range {format(map.min)} … {format(map.max)}
+            x: {map.xKey} · y: {map.yKey} {tl('· range')} {format(map.min)} … {format(map.max)}
           </>
         )}
       </div>

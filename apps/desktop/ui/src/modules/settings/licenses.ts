@@ -35,6 +35,12 @@ export const BUNDLED_LIBRARIES: BundledLibrary[] = [
     url: 'https://github.com/vercel/geist-font',
   },
   {
+    name: 'Noto Nastaliq Urdu font',
+    license: 'SIL OFL 1.1',
+    part: 'Fonts',
+    url: 'https://github.com/notofonts/nastaliq',
+  },
+  {
     name: 'Tauri',
     license: 'MIT / Apache-2.0',
     part: 'Native core',

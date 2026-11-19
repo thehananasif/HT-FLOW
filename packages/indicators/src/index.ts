@@ -1,14 +1,20 @@
 import { asAny, type AnyIndicator } from '@htflow/indicator-sdk';
+import * as account from './account';
 import * as bands from './bands';
 import * as bands2 from './bands2';
+import * as cot from './cot';
+import * as extras from './extras';
+import * as optionsChain from './optionsChain';
 import * as crypto from './crypto';
 import * as custom from './custom';
 import * as ma2 from './ma2';
 import * as mtf from './mtf';
+import * as optionsPos from './optionsPos';
 import * as orderbook from './orderbook';
 import * as orderflow2 from './orderflow2';
 import * as osc2 from './osc2';
 import * as samples from './samples';
+import * as second from './second';
 import * as trend2 from './trend2';
 import * as levels2 from './levels2';
 import * as volume2 from './volume2';
@@ -37,10 +43,16 @@ export {
   levels2,
   orderflow2,
   crypto,
+  cot,
+  optionsChain,
+  extras,
   orderbook,
   samples,
   mtf,
   custom,
+  second,
+  account,
+  optionsPos,
 };
 
 function collect(...mods: Record<string, unknown>[]): AnyIndicator[] {
@@ -68,11 +80,31 @@ export const INDICATORS: AnyIndicator[] = collect(
   levels2,
   orderflow2,
   crypto,
+  cot,
+  optionsChain,
+  extras,
   orderbook,
   samples,
   mtf,
   custom,
+  second,
+  account,
+  optionsPos,
 );
+
+/**
+ * Built-ins whose calc() rewrites earlier bars (checked for every other built-in by
+ * incremental.test.ts). Indicators with a timeframe input are left out too: a higher-timeframe
+ * value can be spread over the chart bars of its period.
+ */
+const REVISES_HISTORY = new Set(['zigzag', 'ichimoku']);
+for (const d of INDICATORS)
+  if (
+    d.stableHistory === undefined &&
+    !REVISES_HISTORY.has(d.id) &&
+    !Object.values(d.inputs).some((x) => x.type === 'timeframe')
+  )
+    d.stableHistory = true;
 
 const byId = new Map(INDICATORS.map((d) => [d.id, d]));
 
@@ -100,9 +132,14 @@ export function indicatorById(id: string): AnyIndicator | undefined {
  * Indicators that read the tape or the derivatives / depth feeds run on the main thread; the
  * rest can be computed by the worker pool (Stage 8).
  */
-const FEED_IDS = new Set(collect(crypto, orderbook).map((d) => d.id));
+const FEED_IDS = new Set(collect(crypto, orderbook, cot, optionsChain).map((d) => d.id));
 export function poolable(def: AnyIndicator): boolean {
-  return !def.needsTrades && !FEED_IDS.has(def.id) && !FEED_IDS.has(def.id.replace(/^mtf-/, ''));
+  return (
+    !def.needsTrades &&
+    !def.needsHost &&
+    !FEED_IDS.has(def.id) &&
+    !FEED_IDS.has(def.id.replace(/^mtf-/, ''))
+  );
 }
 
 export function isImplemented(e: CatalogEntry): boolean {

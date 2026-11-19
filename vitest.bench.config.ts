@@ -11,6 +11,8 @@ export default defineConfig({
     pool: 'forks',
     maxWorkers: 1,
     fileParallelism: false,
+    // indicators.perf.ts collects garbage between the simulated worker and main-thread phases.
+    execArgv: ['--expose-gc'],
     globalSetup: ['apps/desktop/bench/report.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,

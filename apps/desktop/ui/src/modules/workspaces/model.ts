@@ -113,14 +113,12 @@ export function manageTree(
       children: Object.entries(tab.windows).map(([wid, w]): TreeNode => {
         const id = `w:${tab.id}:${wid}`;
         const open = tab.id === doc.activeTab && openIds.has(wid);
-        const days =
-          w.kind === 'chart' && typeof w.ext?.loadDays === 'number' ? w.ext.loadDays : null;
         info.set(id, {
           kind: 'window',
           tabId: tab.id,
           windowId: wid,
           open,
-          detail: days !== null ? `Load days: ${days}` : open ? 'Opened' : 'Closed',
+          detail: open ? 'Opened' : 'Closed',
         });
         const objs = [
           ...extItems(w, 'drawings').map((it) => ({ it, src: 'Drawing' })),

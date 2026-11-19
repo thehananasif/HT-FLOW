@@ -2,6 +2,7 @@ import * as RxContext from '@radix-ui/react-context-menu';
 import * as RxDialog from '@radix-ui/react-dialog';
 import * as RxDropdown from '@radix-ui/react-dropdown-menu';
 import * as RxTooltip from '@radix-ui/react-tooltip';
+import { translateLiteral, translateLiteral as tl } from '@htflow/i18n';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
   forwardRef,
@@ -16,6 +17,11 @@ import {
 } from 'react';
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
+
+/** Plain-text UI strings pass through the active language (exact en.ts values only). */
+const L = (n: ReactNode): ReactNode => (typeof n === 'string' ? translateLiteral(n) : n);
+const S = (s: string | undefined): string | undefined =>
+  s === undefined ? s : translateLiteral(s);
 
 export type ButtonVariant =
   | 'primary'
@@ -35,7 +41,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', size = 'md', block, className, type = 'button', ...rest },
+  { variant = 'secondary', size = 'md', block, className, type = 'button', children, ...rest },
   ref,
 ) {
   return (
@@ -50,7 +56,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         className,
       )}
       {...rest}
-    />
+    >
+      {L(children)}
+    </button>
   );
 });
 
@@ -67,8 +75,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     <button
       ref={ref}
       type="button"
-      aria-label={label}
-      title={label}
+      aria-label={S(label)}
+      title={S(label)}
       data-active={active || undefined}
       className={cx('ht-icon-btn', className)}
       {...rest}
@@ -97,13 +105,13 @@ export const RibbonButton = forwardRef<HTMLButtonElement, RibbonButtonProps>(fun
       type="button"
       className={cx('ht-ribbon-btn', compact && 'ht-ribbon-btn--compact', className)}
       data-active={active || undefined}
-      title={label}
+      title={S(label)}
       {...rest}
     >
       {icon}
       {!compact && (
         <span>
-          {label}
+          {S(label)}
           {hasMenu && ' ▾'}
         </span>
       )}
@@ -143,10 +151,10 @@ export function SegmentedControl<T extends string>({
           key={o.value}
           type="button"
           aria-pressed={o.value === value}
-          title={o.title}
+          title={S(o.title)}
           onClick={() => onChange(o.value)}
         >
-          {o.label}
+          {L(o.label)}
         </button>
       ))}
     </div>
@@ -157,6 +165,7 @@ export function Chip({
   selected,
   variant,
   className,
+  children,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   selected?: boolean;
@@ -168,7 +177,9 @@ export function Chip({
       aria-pressed={selected}
       className={cx('ht-chip', variant && `ht-chip--${variant}`, className)}
       {...rest}
-    />
+    >
+      {L(children)}
+    </button>
   );
 }
 
@@ -190,7 +201,7 @@ export function Tabs<T extends string>({
           aria-selected={t.value === value}
           onClick={() => onChange(t.value)}
         >
-          {t.label}
+          {L(t.label)}
         </button>
       ))}
     </div>
@@ -227,14 +238,14 @@ export function Field({
   return (
     <label className="ht-field">
       <span className="ht-label">
-        <span>{label}</span>
+        <span>{L(label)}</span>
         {aside}
       </span>
       {children}
       {error ? (
-        <span className="ht-error">{error}</span>
+        <span className="ht-error">{L(error)}</span>
       ) : hint ? (
-        <span className="ht-hint">{hint}</span>
+        <span className="ht-hint">{L(hint)}</span>
       ) : null}
     </label>
   );
@@ -278,7 +289,7 @@ export function NumberInput({
     [value, decimals, step, min, max, onChange],
   );
   return (
-    <div className={cx('ht-num-input', className)}>
+    <div className={cx('ht-num-input', className)} dir="ltr">
       <input
         className="tnum"
         aria-label={ariaLabel}
@@ -303,7 +314,7 @@ export function NumberInput({
         <button
           type="button"
           tabIndex={-1}
-          aria-label="Increase"
+          aria-label={tl('Increase')}
           onClick={() => commit(value + step)}
         >
           ▲
@@ -311,7 +322,7 @@ export function NumberInput({
         <button
           type="button"
           tabIndex={-1}
-          aria-label="Decrease"
+          aria-label={tl('Decrease')}
           onClick={() => commit(value - step)}
         >
           ▼
@@ -345,7 +356,7 @@ export function Select<T extends string>({
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
-          {o.label}
+          {S(o.label)}
         </option>
       ))}
     </select>
@@ -370,7 +381,7 @@ export function Checkbox({
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
-      {label}
+      {L(label)}
     </label>
   );
 }
@@ -388,7 +399,7 @@ export function Toggle({
     <button
       type="button"
       role="switch"
-      aria-label={label}
+      aria-label={S(label)}
       aria-checked={checked}
       className="ht-toggle"
       onClick={() => onChange(!checked)}
@@ -510,7 +521,7 @@ export type BadgeKind = 'default' | 'live' | 'delayed' | 'replay' | 'error' | 'f
 
 export function Badge({ kind = 'default', children }: { kind?: BadgeKind; children: ReactNode }) {
   return (
-    <span className={cx('ht-badge', kind !== 'default' && `ht-badge--${kind}`)}>{children}</span>
+    <span className={cx('ht-badge', kind !== 'default' && `ht-badge--${kind}`)}>{L(children)}</span>
   );
 }
 
@@ -526,9 +537,9 @@ export function StatusPill({
   title?: string;
 }) {
   return (
-    <button type="button" className="ht-pill" onClick={onClick} title={title}>
+    <button type="button" className="ht-pill" onClick={onClick} title={S(title)}>
       <span className="ht-dot" data-state={state} />
-      {label}
+      {L(label)}
     </button>
   );
 }
@@ -551,8 +562,8 @@ export function EmptyState({
   return (
     <div className="ht-empty">
       {icon}
-      <h3>{title}</h3>
-      {children && <p>{children}</p>}
+      <h3>{S(title)}</h3>
+      {children && <p>{L(children)}</p>}
       {action}
     </div>
   );
@@ -568,7 +579,7 @@ export function Tooltip({ content, children }: { content: ReactNode; children: R
       <RxTooltip.Trigger asChild>{children}</RxTooltip.Trigger>
       <RxTooltip.Portal>
         <RxTooltip.Content className="ht-tooltip" sideOffset={4}>
-          {content}
+          {L(content)}
         </RxTooltip.Content>
       </RxTooltip.Portal>
     </RxTooltip.Root>
@@ -613,14 +624,14 @@ function renderEntries(P: MenuParts, entries: MenuEntry[]): ReactNode {
     if (e.kind === 'label')
       return (
         <P.Label key={e.id} className="ht-menu-label">
-          {e.label}
+          {S(e.label)}
         </P.Label>
       );
     if (e.kind === 'slider')
       return (
         <MenuSlider
           key={e.id}
-          label={e.label}
+          label={S(e.label) ?? e.label}
           value={e.value}
           min={e.min}
           max={e.max}
@@ -634,7 +645,7 @@ function renderEntries(P: MenuParts, entries: MenuEntry[]): ReactNode {
         <P.Sub key={e.id}>
           <P.SubTrigger className="ht-menu-item">
             {e.icon}
-            {e.label}
+            {S(e.label)}
             <ChevronRight style={{ marginLeft: 'auto' }} />
           </P.SubTrigger>
           <P.Portal>
@@ -655,7 +666,7 @@ function renderEntries(P: MenuParts, entries: MenuEntry[]): ReactNode {
           (e.checked !== undefined ? (
             <span style={{ width: 14 }}>{e.checked ? '✓' : ''}</span>
           ) : null)}
-        {e.label}
+        {S(e.label)}
         {e.shortcut && <span className="ht-menu-sc">{e.shortcut}</span>}
       </P.Item>
     );
@@ -742,12 +753,12 @@ export function Dialog({
             }
           }}
         >
-          <RxDialog.Title className="ht-dialog-title">{title}</RxDialog.Title>
+          <RxDialog.Title className="ht-dialog-title">{S(title)}</RxDialog.Title>
           {description ? (
-            <RxDialog.Description className="ht-dialog-desc">{description}</RxDialog.Description>
+            <RxDialog.Description className="ht-dialog-desc">{L(description)}</RxDialog.Description>
           ) : (
             <RxDialog.Description className="ht-dialog-desc" style={{ display: 'none' }}>
-              {title}
+              {S(title)}
             </RxDialog.Description>
           )}
           {children}
@@ -811,8 +822,8 @@ export function Toaster() {
       {list.map((t) => (
         <div key={t.id} className="ht-toast" data-kind={t.kind}>
           <div>
-            <strong>{t.title}</strong>
-            {t.body}
+            <strong>{S(t.title)}</strong>
+            {S(t.body)}
           </div>
         </div>
       ))}

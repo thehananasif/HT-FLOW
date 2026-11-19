@@ -91,7 +91,7 @@ describe('template serialization', () => {
     expect(t.columns.filter((c) => c.visible).map((c) => c.id)).toEqual(['price']);
     expect(t.style.fontSize).toBe(20);
     expect(t.style.rowHeight).toBe(12);
-    expect(t.style.centring).toBe('auto');
+    expect(t.style.centring).toBe('view');
     expect(t.style.palette.bg).toBe(BUILTIN_TEMPLATES[0]!.style.palette.bg);
     expect(t.behaviour.volumeScope).toBe('range');
     expect(t.behaviour.pulledThreshold).toBe(0);

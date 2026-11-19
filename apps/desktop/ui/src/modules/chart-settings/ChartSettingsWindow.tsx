@@ -33,6 +33,7 @@ import { downloadText, pickTextFile } from '../../charts/templateStore';
 import { RowEditor } from './editors';
 import { TemplatesTab } from './TemplatesTab';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const ALL_TABS: { value: TabId; label: string }[] = [
   ...TABS.map((t) => ({ value: t.id, label: t.label })),
   { value: 'templates', label: 'Templates' },
@@ -126,9 +127,9 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
       const raw = JSON.parse(text) as { kind?: string; settings?: unknown };
       if (raw.kind !== 'htflow.chart-settings') throw new Error('kind');
       setChartSettings(windowId, normalizeSettings(raw.settings, baseSettings()));
-      toast('success', 'Chart settings imported');
+      toast('success', tl('Chart settings imported'));
     } catch {
-      toast('error', 'Not a chart settings file');
+      toast('error', tl('Not a chart settings file'));
     }
   };
 
@@ -172,17 +173,17 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
     <div
       className="cs-window"
       role="dialog"
-      aria-label="Chart settings"
+      aria-label={tl('Chart settings')}
       data-testid="chart-settings"
       style={{ left: pos.x, top: pos.y }}
     >
       <header className="cs-head" onMouseDown={startDrag}>
         <span className="cs-title">
-          Chart settings · {inst?.symbol ?? s.instrumentId} · template:{' '}
+          {tl('Chart settings ·')} {inst?.symbol ?? s.instrumentId} {tl('· template:')}{' '}
           {s.template.replace(/-/g, ' ')}
         </span>
         <div className="grow" />
-        <button className="ht-icon-btn" aria-label="Close chart settings" onClick={cancel}>
+        <button className="ht-icon-btn" aria-label={tl('Close chart settings')} onClick={cancel}>
           <X size={14} />
         </button>
       </header>
@@ -194,14 +195,14 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
             <span className="cs-search">
               <Search size={12} />
               <Input
-                aria-label="Search chart settings"
-                placeholder="Search settings"
+                aria-label={tl('Search chart settings')}
+                placeholder={tl('Search settings')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
             </span>
             <button className="ht-chip ht-chip--ghost" onClick={() => setClosed({})}>
-              Expand all
+              {tl('Expand all')}
             </button>
             <button
               className="ht-chip ht-chip--ghost"
@@ -211,7 +212,7 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
                 )
               }
             >
-              Collapse all
+              {tl('Collapse all')}
             </button>
           </>
         )}
@@ -221,7 +222,12 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
           <TemplatesTab windowId={windowId} state={s} />
         ) : (
           <>
-            {!sections.length && <p className="muted cs-empty">No settings match “{q}”.</p>}
+            {!sections.length && (
+              <p className="muted cs-empty">
+                {tl('No settings match “')}
+                {q}”.
+              </p>
+            )}
             {sections.map(({ tab: t, sec, rows }) => {
               const key = `${t.id}/${sec.id}`;
               const open = q ? true : !closed[key];
@@ -234,7 +240,9 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
                   >
                     {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     <span>{q ? `${t.label} › ${sec.label}` : sec.label}</span>
-                    <span className="cs-count">{rows.length} settings</span>
+                    <span className="cs-count">
+                      {rows.length} {tl('settings')}
+                    </span>
                   </button>
                   {open && (
                     <div className="cs-grid">
@@ -246,8 +254,8 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
                           onMouseDown={() => setSel(r)}
                           onFocus={() => setSel(r)}
                         >
-                          <span className="cs-name" title={r.help}>
-                            {r.label}
+                          <span className="cs-name" title={tl(r.help)}>
+                            {tl(r.label)}
                           </span>
                           <span className="cs-editor">
                             <RowEditor
@@ -270,7 +278,12 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
         <div className="cs-help" aria-live="polite">
           <strong>{sel?.label ?? 'Help'}</strong>
           <span>{help}</span>
-          {sel?.consumer && <span className="muted"> Used by {sel.consumer} on this chart.</span>}
+          {sel?.consumer && (
+            <span className="muted">
+              {' '}
+              {tl('Used by')} {sel.consumer} {tl('on this chart.')}
+            </span>
+          )}
         </div>
       )}
       <footer className="cs-foot">
@@ -280,21 +293,21 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
             size="sm"
             onClick={() => setChartSettings(windowId, resetTab(settings, tab))}
           >
-            Reset tab to default
+            {tl('Reset tab to default')}
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={exportJson}>
-          Export JSON
+          {tl('Export JSON')}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => void importJson()}>
-          Import JSON
+          {tl('Import JSON')}
         </Button>
         <div className="grow" />
         <Button variant="secondary" size="sm" onClick={cancel}>
-          Cancel
+          {tl('Cancel')}
         </Button>
         <Button variant="outline" size="sm" onClick={() => chartAction('save-template', windowId)}>
-          Save Template
+          {tl('Save Template')}
         </Button>
         <Button
           variant="primary"
@@ -304,7 +317,7 @@ export function ChartSettingsWindow({ windowId }: { windowId: string }) {
             close();
           }}
         >
-          OK
+          {tl('OK')}
         </Button>
       </footer>
     </div>,

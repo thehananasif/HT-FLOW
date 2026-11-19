@@ -115,3 +115,48 @@
   border: 1px solid color-mix(in srgb, var(--ht-warning) 40%, transparent);
   border-radius: var(--ht-r-input);
 }
+.web-settings {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ht-border);
+  font-size: 11px;
+}
+.web-set-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.web-set-row.inline {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.web-chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.web-allow {
+  width: 100%;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ht-text-primary);
+  background: var(--ht-surface2);
+  border: 1px solid var(--ht-border);
+  border-radius: var(--ht-r-cell);
+  padding: 4px 6px;
+  resize: vertical;
+}
+.web-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ht-accent, currentColor);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}

@@ -71,7 +71,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .wl-head .r,
@@ -102,6 +102,19 @@
   color: var(--ht-text-primary);
   white-space: nowrap;
   overflow: hidden;
+}
+.wl-sym > .mono {
+  flex: none;
+}
+/* The feed-status badge shrinks (with an ellipsis) instead of being cut off in narrow cells. */
+.wl-sym > .ht-badge {
+  display: block;
+  line-height: 18px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .wl-star {
   display: inline-flex;

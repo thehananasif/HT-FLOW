@@ -2,6 +2,7 @@ export * from './types';
 export * from './rng';
 export * from './orderBook';
 export * from './aggregator';
+export * from './timeframes';
 export * from './profile';
 export * from './simulator';
 export * from './instruments';

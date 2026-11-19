@@ -16,6 +16,7 @@ import {
 import { buildXlsx, XLSX_MIME } from './xlsx';
 import './DataTable.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 export type { SavedView, TableView } from './DataTable.utils';
 
 export interface DataColumn<T> {
@@ -209,16 +210,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
   return (
     <div className="dt" data-testid={props.testId}>
       <div className="dt-bar">
-        {props.title && <b>{props.title}</b>}
+        {props.title && <b>{tl(props.title)}</b>}
         {props.subtitle && <span className="muted">· {props.subtitle}</span>}
-        {hasFilters && <span className="dt-filtered">filtered</span>}
+        {hasFilters && <span className="dt-filtered">{tl('filtered')}</span>}
         <span className="grow" />
         {props.actions}
         <DropdownMenu
           align="end"
           items={menu}
           trigger={
-            <button className="dt-menu" aria-label="Columns" title="Columns, grouping, views">
+            <button
+              className="dt-menu"
+              aria-label={tl('Columns')}
+              title={tl('Columns, grouping, views')}
+            >
               ☰
             </button>
           }
@@ -247,7 +252,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 })
               }
             >
-              {c.header} {sorted ? (sorted === 'asc' ? '▴' : '▾') : ''}
+              {tl(c.header)} {sorted ? (sorted === 'asc' ? '▴' : '▾') : ''}
             </span>
           );
         })}
@@ -258,8 +263,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
             <span key={c.id} style={cellStyle(c)}>
               {!c.action && (
                 <input
-                  aria-label={`Filter ${c.header}`}
-                  placeholder="filter"
+                  aria-label={tt`Filter ${tl(c.header)}`}
+                  placeholder={tl('filter')}
                   value={view.filters[c.id] ?? ''}
                   onChange={(e) =>
                     setView({ ...view, filters: { ...view.filters, [c.id]: e.target.value } })
@@ -290,7 +295,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                     setCollapsed(n);
                   }}
                 >
-                  {f.collapsed ? '▸' : '▾'} {groupCol?.header}: {f.key}
+                  {f.collapsed ? '▸' : '▾'} {tl(groupCol?.header)}: {f.key}
                   <span className="muted"> · {f.count}</span>
                 </div>
               ) : (

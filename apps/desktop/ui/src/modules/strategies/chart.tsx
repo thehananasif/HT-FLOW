@@ -30,6 +30,7 @@ import { journalStore } from '../journal/store';
 import { liveRuns, liveTrips } from './live';
 import { InputsForm, money, openModule, toStrategyInstrument, validColor } from './shared';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export const EXT_ID = 'strategy';
 
 export type SnapshotMode = 'off' | 'strategy' | 'all';
@@ -340,7 +341,7 @@ registerChartExtension({
       const ours =
         ext.snapshots === 'all' || (ext.snapshots === 'strategy' && !!tag && f.tag === tag);
       if (!ours) return;
-      const url = capture(ctx.cores.map((c) => c.canvas));
+      const url = capture(ctx.cores.map((c) => c.snapshotCanvas()));
       if (!url) return;
       if (f.realized !== 0) pendingExit.set(f.orderId, url);
       else pendingEntry.set(f.orderId, url);
@@ -438,13 +439,13 @@ function StrategyDialog({ windowId }: { windowId: string }) {
   const run = liveRuns.get(windowId);
   const close = () => useStrategyDialog.getState().open(null);
   return (
-    <Dialog open onOpenChange={(o) => !o && close()} title="Chart strategy" width={520}>
+    <Dialog open onOpenChange={(o) => !o && close()} title={tl('Chart strategy')} width={520}>
       <div className="stg-dialog" data-testid="chart-strategy-dialog">
         <label className="stg-input-row">
-          <span>Strategy</span>
+          <span>{tl('Strategy')}</span>
           <Select
             small
-            aria-label="Strategy"
+            aria-label={tl('Strategy')}
             value={ext.strategyId ?? ''}
             options={[
               { value: '', label: '— none —' },
@@ -455,7 +456,7 @@ function StrategyDialog({ windowId }: { windowId: string }) {
         </label>
         {def && (
           <>
-            <p className="stg-muted">{def.description}</p>
+            <p className="stg-muted">{tl(def.description)}</p>
             <InputsForm
               defs={def.inputs}
               values={ext.inputs}
@@ -465,15 +466,19 @@ function StrategyDialog({ windowId }: { windowId: string }) {
               <Checkbox
                 checked={ext.history}
                 onChange={(history) => set({ history })}
-                label="Backtest loaded history"
+                label={tl('Backtest loaded history')}
               />
-              <Checkbox checked={ext.pnl} onChange={(pnl) => set({ pnl })} label="P&L per trade" />
+              <Checkbox
+                checked={ext.pnl}
+                onChange={(pnl) => set({ pnl })}
+                label={tl('P&L per trade')}
+              />
             </div>
             <label className="stg-input-row">
-              <span>Journal snapshots</span>
+              <span>{tl('Journal snapshots')}</span>
               <Select
                 small
-                aria-label="Journal snapshots"
+                aria-label={tl('Journal snapshots')}
                 value={ext.snapshots}
                 options={[
                   { value: 'strategy', label: 'Strategy trades' },
@@ -485,31 +490,31 @@ function StrategyDialog({ windowId }: { windowId: string }) {
             </label>
             <div className="stg-dialog-row stg-colors">
               <ColorSwatch
-                label="Long"
+                label={tl('Long')}
                 value={ext.style.long}
                 onChange={(long) => set({ style: { ...ext.style, long } })}
               />
               <ColorSwatch
-                label="Short"
+                label={tl('Short')}
                 value={ext.style.short}
                 onChange={(short) => set({ style: { ...ext.style, short } })}
               />
               <ColorSwatch
-                label="Win"
+                label={tl('Win')}
                 value={ext.style.win}
                 onChange={(win) => set({ style: { ...ext.style, win } })}
               />
               <ColorSwatch
-                label="Loss"
+                label={tl('Loss')}
                 value={ext.style.loss}
                 onChange={(loss) => set({ style: { ...ext.style, loss } })}
               />
             </div>
             <div className="stg-dialog-row">
               <label className="stg-input-row">
-                <span>Marker size</span>
+                <span>{tl('Marker size')}</span>
                 <NumberInput
-                  aria-label="Marker size"
+                  aria-label={tl('Marker size')}
                   value={ext.style.size}
                   min={2}
                   max={14}
@@ -517,9 +522,9 @@ function StrategyDialog({ windowId }: { windowId: string }) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>History opacity</span>
+                <span>{tl('History opacity')}</span>
                 <NumberInput
-                  aria-label="History opacity"
+                  aria-label={tl('History opacity')}
                   value={ext.style.opacity}
                   step={0.05}
                   min={0.1}
@@ -530,8 +535,8 @@ function StrategyDialog({ windowId }: { windowId: string }) {
             </div>
             {res && (
               <p className="stg-muted tnum" data-testid="chart-strategy-summary">
-                History: {res.stats.trades} trades · net {money(res.stats.netPnl)} · win rate{' '}
-                {(res.stats.winRate * 100).toFixed(0)}%
+                {tl('History:')} {res.stats.trades} {tl('trades · net')} {money(res.stats.netPnl)}{' '}
+                {tl('· win rate')} {(res.stats.winRate * 100).toFixed(0)}%
               </p>
             )}
             {run?.error && <p className="stg-error">{run.error}</p>}
@@ -556,10 +561,10 @@ function StrategyDialog({ windowId }: { windowId: string }) {
           )}
           <span className="grow" />
           <Button variant="ghost" onClick={() => openModule('strategies')}>
-            Open Strategies
+            {tl('Open Strategies')}
           </Button>
           <Button variant="secondary" onClick={close}>
-            Close
+            {tl('Close')}
           </Button>
         </div>
       </div>

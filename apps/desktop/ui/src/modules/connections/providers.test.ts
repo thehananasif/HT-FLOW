@@ -27,6 +27,8 @@ describe('provider catalog', () => {
       'Bitget',
       'BitMEX',
       'Bybit',
+      'Bybit Spot',
+      'Bybit Inverse',
       'Deribit',
       'Kraken',
       'OKX',
@@ -54,7 +56,11 @@ describe('provider catalog', () => {
   });
 
   it('searches by name, group and capability', () => {
-    expect(searchProviders('bybit').flatMap((g) => g.items.map((i) => i.id))).toEqual(['bybit']);
+    expect(searchProviders('bybit').flatMap((g) => g.items.map((i) => i.id))).toEqual([
+      'bybit',
+      'bybit-spot',
+      'bybit-inverse',
+    ]);
     expect(searchProviders('prop').map((g) => g.group)).toContain('Prop connections');
     expect(searchProviders('mbo').flatMap((g) => g.items).length).toBeGreaterThan(2);
     expect(searchProviders('zzz')).toEqual([]);

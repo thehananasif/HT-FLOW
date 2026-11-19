@@ -13,6 +13,7 @@ function withMenu(id: string, button: JSX.Element): JSX.Element {
 }
 import { groupIds, ribbonStore, RIBBON_GROUPS, useRibbonState } from './ribbonStore';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /**
  * Top ribbon: grouped icon-over-label buttons (P02 / P44). Groups scroll horizontally.
  * Right-click (or Shift+F10) a button to hide it or open "Customize ribbon…".
@@ -29,7 +30,7 @@ export function Ribbon({ compact }: { compact?: boolean }) {
   return (
     <nav
       className="ribbon"
-      aria-label="Ribbon"
+      aria-label={tl('Ribbon')}
       aria-keyshortcuts="ArrowLeft ArrowRight Home End"
       onKeyDown={(e) => {
         // P29 keyboard navigation: arrows move between ribbon buttons (Tab still visits each one).
@@ -54,7 +55,7 @@ export function Ribbon({ compact }: { compact?: boolean }) {
       {groups.map(({ group, items }, gi) => (
         <Fragment key={group}>
           {gi > 0 && <div className="ribbon-sep" />}
-          <div className="ribbon-group" role="group" aria-label={group}>
+          <div className="ribbon-group" role="group" aria-label={tl(group)}>
             {items.map((m) => {
               const Icon = MODULE_ICONS[m.id] ?? MODULE_ICONS.chart!;
               return (
@@ -77,7 +78,7 @@ export function Ribbon({ compact }: { compact?: boolean }) {
                     m.id,
                     <RibbonButton
                       icon={<Icon />}
-                      label={m.label}
+                      label={tl(m.label)}
                       hasMenu={m.hasMenu}
                       compact={compact}
                       data-testid={`ribbon-${m.id}`}
@@ -97,7 +98,7 @@ export function Ribbon({ compact }: { compact?: boolean }) {
           data-testid="ribbon-restore"
           onClick={() => ribbonStore.openCustomize(true)}
         >
-          Customize ribbon…
+          {tl('Customize ribbon…')}
         </button>
       )}
       <RibbonCustomize />

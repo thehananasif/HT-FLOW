@@ -122,9 +122,31 @@ Deviation: the spec asks for SQLCipher; see `BLOCKERS.md`.
 
 ## IPC and security
 
-- Tauri commands are the only bridge (`apps/desktop/src-tauri/src/*_cmds.rs`); the main window's capability file allows only window controls on top of `core:default`.
+- Tauri commands are the only bridge (`apps/desktop/src-tauri/src/*_cmds.rs`); the capability file (main window and `ht-w-*` OS windows) allows only window controls on top of `core:default`.
 - Errors cross IPC as `{ code, message }` and never contain secrets; `Debug` for sessions and vaults redacts keys and values.
 - CSP: `default-src 'self'`, IPC only; the UI does not load remote content.
+
+## Separate OS windows (P02 / P25 / P44)
+
+A dock group (Detach window), a cloned / linked window ("in new OS window") or a saved workspace (Open workspace in new window) can live in its own Tauri `WebviewWindow`, labelled `ht-w-…`. Each OS window loads the same UI with `index.html?window=<label>` and renders only its windows with a compact title bar (Re-attach, minimise, maximise, close = re-attach).
+
+```
+ main window (owner)                                  OS window ht-w-…
+ useWindows (every window state) ─ windows ─────────►  useWindows (its windows only)
+ settings store (saves)          ◄─ windows/layout ──  dockview layout
+ paper engine (fills, saves)     ─ settings ◄──────►  settings (no save)
+ OS-window registry → tab.osWindows ─ paper.state ──► mirrored accounts (no fills)
+                                 ◄─ paper.call ─────  trading actions
+            one global Tauri event `htflow:bus` (ui/src/platform/windowBus.ts)
+```
+
+- **Ownership: the main window owns the state, each window subscribes to market data itself.** Every OS window has its own JS context and its own `MarketHub`; the Rust connectors serve several subscribers, so forwarding every trade over IPC would only add latency. What is shared is small and changes rarely: window states (instrument, template, link group …), settings (theme included), paper accounts and per-profile stores. This was the simpler, robust option: one writer per file, no merge logic.
+- **Messages** are typed (`BusMsg`) and validated on receipt (`parseBusMsg`). A new OS window sends `hello`; the main window answers `init` (session, its window states, settings, paper snapshot). Changes travel as diffs (`diffWindows`, `diffValues`), so an echo of an equal state is never resent. The main window applies window changes through `useWindows.patch`, so link groups work across windows.
+- **Trading** runs only in the main window's paper engine. In an OS window the engine is a mirror: fills are off and order actions (`place`, `cancel`, `flatten` …) are sent as `paper.call`; snapshots (`paper.state`) come back after every change.
+- **Persistence**: `settings`, `workspace`, `workspaces.library` and `trading.accounts` are written by the main window only. Other `Persisted` stores save where they change and announce `store.saved`; the other windows reload them.
+- **Layout**: open OS windows are saved with the layout tab (`WorkspaceTab.osWindows`: label, title, window ids, inner layout) and reopen at start-up, on tab switch and on workspace load; they close with the main window and on lock. Closing an OS window (or Re-attach) puts its windows back into the main dock.
+- **Native side** (`src-tauri/src/os_windows.rs`): `os_window_open / close / focus / list`, label validation, bounds and monitor per label in `<data>/windows.json` (64 most recent labels), clamped to the connected monitors when the window opens again (`clamp_bounds`). The capability file covers `main` and `ht-w-*`.
+- **Browser build**: no second native window; every entry point falls back to an in-app floating window, and the `?window=` route shows a "waiting for the main window" page.
 
 ## Browser development mode
 

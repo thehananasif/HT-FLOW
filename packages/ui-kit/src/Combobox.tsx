@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
 export interface ComboOption {
@@ -135,7 +136,7 @@ export function Combobox({
         aria-autocomplete="list"
         aria-activedescendant={open && list[active] ? optId(active) : undefined}
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={tl(placeholder)}
         value={typing ? query : open ? '' : shownLabel}
         onFocus={() => setOpen(true)}
         onClick={() => setOpen(true)}
@@ -191,8 +192,12 @@ export function Combobox({
               onClick={() => pick(o)}
               onPointerMove={() => setActive(i)}
             >
-              <span>{o.label}</span>
-              {o.hint != null && <span className="ht-combo-hint">{o.hint}</span>}
+              <span>{tl(o.label)}</span>
+              {o.hint != null && (
+                <span className="ht-combo-hint">
+                  {typeof o.hint === 'string' ? tl(o.hint) : o.hint}
+                </span>
+              )}
             </li>
           ))}
           {list.length === 0 && (
@@ -202,7 +207,7 @@ export function Combobox({
           )}
           {list.length > 0 && loading && (
             <li className="ht-combo-empty" role="presentation">
-              Loading…
+              {tl('Loading…')}
             </li>
           )}
         </ul>

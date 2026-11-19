@@ -28,6 +28,7 @@ import { useWindows } from '../../../state/windows';
 import { showReplayOn } from '../../replay/ControlBar';
 import { useCsvImportUi } from './ui';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const PREVIEW_ROWS = 8;
 const DELIM_OPTIONS = [
   { value: ',', label: 'Comma ( , )' },
@@ -43,7 +44,7 @@ export function showOnChart(instrumentId: string): void {
   const first =
     (activeId && windows[activeId]?.kind === 'chart' ? activeId : null) ?? charts[0]?.[0];
   if (!first) {
-    toast('info', 'Open a chart window first', 'Then use Open chart again');
+    toast('info', tl('Open a chart window first'), tl('Then use Open chart again'));
     return;
   }
   patch(first, { instrumentId } as Partial<WindowState>);
@@ -61,9 +62,9 @@ export async function replayImported(ds: ImportedDataset): Promise<void> {
       source: 'csv-import',
     });
     showReplayOn([...s.engines.keys()]);
-    toast('success', 'Replay ready', `${ds.name} · press Space on the chart to play`);
+    toast('success', tl('Replay ready'), tt`${ds.name} · press Space on the chart to play`);
   } catch (e) {
-    toast('error', 'Replay failed', e instanceof Error ? e.message : String(e));
+    toast('error', tl('Replay failed'), e instanceof Error ? e.message : String(e));
   }
 }
 
@@ -186,7 +187,11 @@ export function ImportDialog() {
         source: result.kind,
       });
       setDone({ ds, result });
-      toast('success', `Imported ${result.rows.toLocaleString()} rows`, ds.instrument.displayName);
+      toast(
+        'success',
+        tt`Imported ${result.rows.toLocaleString()} rows`,
+        ds.instrument.displayName,
+      );
     } catch (e) {
       if ((e as Error).name !== 'AbortError')
         setFatal(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -198,7 +203,7 @@ export function ImportDialog() {
   const sel = (k: keyof Omit<CsvMapping, 'kind'>, label: string, optional = false) => (
     <Field label={label} key={k}>
       <Select
-        aria-label={`${label} column`}
+        aria-label={tt`${label} column`}
         value={String(map[k])}
         options={colOptions(headers, optional)}
         onChange={(v) => setCol(k, v)}
@@ -210,18 +215,20 @@ export function ImportDialog() {
     <Dialog
       open={open}
       onOpenChange={(o) => !o && close()}
-      title="Import CSV"
-      description="Trades (time, price, quantity, optional side) or OHLCV bars. The file is read in chunks and stays on this PC."
+      title={tl('Import CSV')}
+      description={tl(
+        'Trades (time, price, quantity, optional side) or OHLCV bars. The file is read in chunks and stays on this PC.',
+      )}
       width={900}
     >
       <div className="dm-import">
         {!done && (
           <>
             <label className="dm-file">
-              <span className="muted">CSV file</span>
+              <span className="muted">{tl('CSV file')}</span>
               <input
                 type="file"
-                aria-label="CSV file"
+                aria-label={tl('CSV file')}
                 accept=".csv,.tsv,.txt,text/csv,text/plain"
                 onChange={(e) => void pick(e.target.files?.[0])}
               />
@@ -230,16 +237,16 @@ export function ImportDialog() {
             {file && sample && (
               <>
                 <div className="dm-grid">
-                  <Field label="Dataset name">
+                  <Field label={tl('Dataset name')}>
                     <Input
-                      aria-label="Dataset name"
+                      aria-label={tl('Dataset name')}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                     />
                   </Field>
-                  <Field label="Contents">
+                  <Field label={tl('Contents')}>
                     <Select
-                      aria-label="Contents"
+                      aria-label={tl('Contents')}
                       value={map.kind}
                       options={[
                         { value: 'trades', label: 'Trades (ticks)' },
@@ -248,16 +255,16 @@ export function ImportDialog() {
                       onChange={(v) => setMap((m) => ({ ...m, kind: v }))}
                     />
                   </Field>
-                  <Field label="Delimiter">
+                  <Field label={tl('Delimiter')}>
                     <Select
-                      aria-label="Delimiter"
+                      aria-label={tl('Delimiter')}
                       value={opts.delimiter}
                       options={DELIM_OPTIONS}
                       onChange={(v) => setOpt({ delimiter: v })}
                     />
                   </Field>
                   <Checkbox
-                    label="First row is a header"
+                    label={tl('First row is a header')}
                     checked={opts.hasHeader}
                     onChange={(v) => setOpt({ hasHeader: v })}
                   />
@@ -281,21 +288,21 @@ export function ImportDialog() {
                   )}
                 </div>
                 <div className="dm-grid">
-                  <Field label="Time format">
+                  <Field label={tl('Time format')}>
                     <Select
-                      aria-label="Time format"
+                      aria-label={tl('Time format')}
                       value={opts.timeFormat}
                       options={TIME_FORMATS}
                       onChange={(v: TimeFormat) => setOpt({ timeFormat: v })}
                     />
                   </Field>
                   <Field
-                    label="Time zone of the text"
+                    label={tl('Time zone of the text')}
                     hint={tz ? formatTimeZone(tz) : undefined}
                     error={tz ? undefined : 'UTC, local or +02:00'}
                   >
                     <Input
-                      aria-label="Time zone"
+                      aria-label={tl('Time zone')}
                       value={tzText}
                       onChange={(e) => {
                         setTzText(e.target.value);
@@ -304,9 +311,9 @@ export function ImportDialog() {
                       }}
                     />
                   </Field>
-                  <Field label="Date order (a/b/yyyy)">
+                  <Field label={tl('Date order (a/b/yyyy)')}>
                     <Select
-                      aria-label="Date order"
+                      aria-label={tl('Date order')}
                       value={opts.dateOrder}
                       options={[
                         { value: 'ymd', label: 'Year first / day first' },
@@ -317,9 +324,9 @@ export function ImportDialog() {
                     />
                   </Field>
                   {map.kind === 'trades' ? (
-                    <Field label="Side values">
+                    <Field label={tl('Side values')}>
                       <Select
-                        aria-label="Side values"
+                        aria-label={tl('Side values')}
                         value={opts.sideMode}
                         options={[
                           { value: 'text', label: 'buy / sell, b / s, 1 / -1' },
@@ -329,9 +336,9 @@ export function ImportDialog() {
                       />
                     </Field>
                   ) : (
-                    <Field label="Bar length (ms, 0 = detect)">
+                    <Field label={tl('Bar length (ms, 0 = detect)')}>
                       <NumberInput
-                        aria-label="Bar length"
+                        aria-label={tl('Bar length')}
                         value={opts.barMs}
                         min={0}
                         step={1000}
@@ -343,15 +350,16 @@ export function ImportDialog() {
                 <div className="tbl-wrap dm-preview">
                   <table className="tbl tnum">
                     <caption className="muted">
-                      Preview: first {preview.length} rows, parsed with the settings above
+                      {tl('Preview: first')} {preview.length}{' '}
+                      {tl('rows, parsed with the settings above')}
                     </caption>
                     <thead>
                       <tr>
-                        <th>Line</th>
+                        <th>{tl('Line')}</th>
                         {headers.map((h, i) => (
                           <th key={i}>{h || `Column ${i + 1}`}</th>
                         ))}
-                        <th>Result</th>
+                        <th>{tl('Result')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -376,14 +384,15 @@ export function ImportDialog() {
             {mapError && file && sample && <div className="ht-error">{mapError}</div>}
             {busy && progress && (
               <div className="muted" role="status">
-                Reading… {(progress.bytes / 1_048_576).toFixed(1)} MB ·{' '}
-                {progress.rows.toLocaleString()} rows · {progress.errors.toLocaleString()} rejected
+                {tl('Reading…')} {(progress.bytes / 1_048_576).toFixed(1)} {tl('MB ·')}{' '}
+                {progress.rows.toLocaleString()} {tl('rows ·')} {progress.errors.toLocaleString()}{' '}
+                {tl('rejected')}
               </div>
             )}
             <div className="row gap8 dm-import-actions">
               <div className="grow" />
               <Button variant="ghost" onClick={close}>
-                Cancel
+                {tl('Cancel')}
               </Button>
               <Button
                 variant="primary"
@@ -399,14 +408,14 @@ export function ImportDialog() {
           <>
             <div className="dm-summary" role="status">
               <b>
-                Imported {done.result.rows.toLocaleString()} rows as{' '}
+                {tl('Imported')} {done.result.rows.toLocaleString()} {tl('rows as')}{' '}
                 {done.ds.instrument.displayName}
               </b>
               <div className="muted">
-                {done.result.trades.length.toLocaleString()} trades from{' '}
-                {new Date(done.result.from).toISOString().slice(0, 19).replace('T', ' ')} to{' '}
-                {new Date(done.result.to).toISOString().slice(0, 19).replace('T', ' ')} UTC · tick
-                size {done.result.tickSize}
+                {done.result.trades.length.toLocaleString()} {tl('trades from')}{' '}
+                {new Date(done.result.from).toISOString().slice(0, 19).replace('T', ' ')} {tl('to')}{' '}
+                {new Date(done.result.to).toISOString().slice(0, 19).replace('T', ' ')}{' '}
+                {tl('UTC · tick size')} {done.result.tickSize}
                 {done.result.sorted ? ' · rows were out of order and have been sorted' : ''}
                 {done.result.sideDerived ? ' · side derived with the tick rule' : ''}
                 {done.result.kind === 'bars'
@@ -417,7 +426,7 @@ export function ImportDialog() {
             {done.result.errorCount > 0 && (
               <div className="dm-errors">
                 <div className="ht-error">
-                  {done.result.errorCount.toLocaleString()} rows rejected
+                  {done.result.errorCount.toLocaleString()} {tl('rows rejected')}
                   {done.result.errorCount > done.result.errors.length
                     ? ` (first ${done.result.errors.length} listed)`
                     : ''}
@@ -425,7 +434,7 @@ export function ImportDialog() {
                 <ul>
                   {done.result.errors.map((e) => (
                     <li key={e.line}>
-                      Line {e.line}: {e.message}
+                      {tl('Line')} {e.line}: {e.message}
                     </li>
                   ))}
                 </ul>
@@ -434,13 +443,13 @@ export function ImportDialog() {
             <div className="row gap8 dm-import-actions">
               <div className="grow" />
               <Button variant="ghost" onClick={close}>
-                Close
+                {tl('Close')}
               </Button>
               <Button variant="outline" onClick={() => showOnChart(done.ds.id)}>
-                Open chart
+                {tl('Open chart')}
               </Button>
               <Button variant="primary" onClick={() => void replayImported(done.ds)}>
-                Open in Replay
+                {tl('Open in Replay')}
               </Button>
             </div>
           </>

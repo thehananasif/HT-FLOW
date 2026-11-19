@@ -4,6 +4,7 @@ import { formatError, saveCrash, useReportDialog } from './crash';
 import { ReportProblemDialog } from './ReportProblem';
 import './styles.css';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 interface State {
   error: Error | null;
   saved: string | null;
@@ -32,8 +33,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     return (
       <TooltipProvider>
         <div role="alert" className="crash-fallback" data-testid="crash-fallback">
-          <h1>Something went wrong</h1>
-          <p>HT Flow hit an unexpected error. Your data is safe on this PC.</p>
+          <h1>{tl('Something went wrong')}</h1>
+          <p>{tl('HT Flow hit an unexpected error. Your data is safe on this PC.')}</p>
           <pre className="crash-msg">{error.message}</pre>
           <p className="crash-note">
             {saved
@@ -42,10 +43,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           </p>
           <div className="crash-actions">
             <button type="button" onClick={() => location.reload()}>
-              Reload
+              {tl('Reload')}
             </button>
             <button type="button" onClick={() => useReportDialog.getState().show()}>
-              Report a problem…
+              {tl('Report a problem…')}
             </button>
           </div>
         </div>

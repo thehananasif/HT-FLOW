@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IDockviewPanelProps } from 'dockview';
-import { ChevronDown, Columns3, Lock, Pencil, StickyNote } from 'lucide-react';
+import { ChevronDown, Columns3, Crosshair, Lock, Pencil, StickyNote } from 'lucide-react';
 import {
   COLUMN_DEFS,
   DomLadder,
@@ -19,7 +19,7 @@ import { useWindows } from '../state/windows';
 import { paper, pnlTick } from '../state/market';
 import { effectiveMaxFps, frameInterval } from '../charts/settings/performance';
 import { clickSide } from './dom/globalSettings';
-import { getSettings, useSettingsStore, type SettingsValues } from '../state/settings';
+import { getSettings, setSetting, useSettingsStore, type SettingsValues } from '../state/settings';
 import { useAtmTemplates } from './atmStore';
 import { setPrefs, tradingPrefs, useTradingPrefs } from './prefs';
 import { usePaperTick } from './TradingPanel';
@@ -33,6 +33,7 @@ import { domControllers, smartDomExt, setWindowTemplate } from './dom/controller
 import './dom/commands';
 import './dom/dom.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Drag =
   | { kind: 'resize'; id: DomColumnId; startX: number; startW: number; scale: number }
   | { kind: 'reorder'; id: DomColumnId; startX: number; x: number; moved: boolean }
@@ -44,14 +45,17 @@ const SETTINGS_DEFAULT_FONT = 12;
 const SETTINGS_DEFAULT_RECENT = 30;
 
 /**
- * Global Settings → DOM applied on top of the template: auto-centre off forces manual centring,
+ * Global Settings → DOM applied on top of the template: a non-default re-centre mode forces it,
  * a big-lot threshold fills in when the template has none, and a row height / font size changed
  * from its default overrides every template. Levels per side go to `ladder.maxLevels`.
  */
 export function effectiveTemplate(t: DomTemplate, v: SettingsValues): DomTemplate {
   const style = { ...t.style };
   const behaviour = { ...t.behaviour };
-  if (!v['dom.autoCenter']) style.centring = 'manual';
+  // The global mode only overrides the template once the user changed it from its default.
+  const mode = v['dom.centerMode'];
+  if (mode === 'off') style.centring = 'manual';
+  else if (mode === 'always') style.centring = 'always';
   if (v['dom.rowHeight'] !== SETTINGS_DEFAULT_ROW) style.rowHeight = v['dom.rowHeight'];
   if (v['dom.fontSize'] !== SETTINGS_DEFAULT_FONT) style.fontSize = v['dom.fontSize'];
   if (v['dom.recentWindowSec'] !== SETTINGS_DEFAULT_RECENT)
@@ -109,12 +113,19 @@ function Ladder({
   useEffect(() => {
     const c = ref.current!;
     const l = new DomLadder(c);
+    l.autoFit = getSettings()['dom.autoFit'];
     l.setTemplate(effectiveTemplate(tplRef.current, getSettings()));
     l.labels = columnLabels(tplRef.current);
     l.maxLevels = getSettings()['common.domLevels'];
     const unSettings = useSettingsStore.subscribe((st, prev) => {
       if (st.values !== prev.values) {
         l.maxLevels = st.values['common.domLevels'];
+        if (l.autoFit !== st.values['dom.autoFit']) {
+          l.autoFit = st.values['dom.autoFit'];
+          l.setTemplate(l.template);
+          const r = c.parentElement!.getBoundingClientRect();
+          l.resize(r.width, r.height);
+        }
         dirty.current = true;
       }
     });
@@ -353,7 +364,7 @@ function Ladder({
   };
 
   return (
-    <div className="dom-canvas-wrap" data-notes={domStore.notes(instrumentId).size}>
+    <div className="dom-canvas-wrap" dir="ltr" data-notes={domStore.notes(instrumentId).size}>
       <canvas
         ref={ref}
         data-testid="dom-ladder"
@@ -411,8 +422,8 @@ function NoteEditor({
       autoFocus
       className="sdom-note-input"
       data-testid="dom-note-input"
-      aria-label={`Note at ${label}`}
-      placeholder={`Note at ${label}`}
+      aria-label={tt`Note at ${label}`}
+      placeholder={tt`Note at ${label}`}
       style={style}
       value={v}
       maxLength={200}
@@ -469,14 +480,15 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
     };
   });
   const b = template.behaviour;
+  const centerMode = useSettingsStore((st) => st.values['dom.centerMode']);
   const patch = (p: Partial<DomWindowState>) => useWindows.getState().patch(id, p);
   return (
     <div className="sdom-head" data-testid="dom-header">
       <DropdownMenu
         items={tplItems}
         trigger={
-          <button className="sdom-hbtn" data-testid="dom-template-menu" title="DOM template">
-            <span className="sdom-hbtn-k">Template:</span> {template.name}
+          <button className="sdom-hbtn" data-testid="dom-template-menu" title={tl('DOM template')}>
+            <span className="sdom-hbtn-k">{tl('Template:')}</span> {template.name}
             <ChevronDown size={12} />
           </button>
         }
@@ -484,8 +496,8 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
       <DropdownMenu
         items={colItems}
         trigger={
-          <button className="sdom-hbtn" data-testid="dom-columns-menu" title="Columns">
-            <Columns3 size={13} /> Columns
+          <button className="sdom-hbtn" data-testid="dom-columns-menu" title={tl('Columns')}>
+            <Columns3 size={13} /> {tl('Columns')}
           </button>
         }
       />
@@ -503,7 +515,7 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
       />
       <Select
         small
-        aria-label="Price grouping"
+        aria-label={tl('Price grouping')}
         value={String(s.grouping)}
         onChange={(v) => patch({ grouping: Number(v) })}
         options={[1, 2, 5, 10].map((g) => ({
@@ -511,31 +523,58 @@ function DomHeader({ id, s, template }: { id: string; s: DomWindowState; templat
           label: `${g} tick${g > 1 ? 's' : ''}`,
         }))}
       />
-      <div className="sdom-lots" role="group" aria-label="Lot presets">
+      <div className="sdom-lots" role="group" aria-label={tl('Lot presets')}>
         {b.lotPresets.map((q) => (
           <button
             key={q}
             className={`sdom-lot${s.lots === q ? ' on' : ''}`}
             onClick={() => patch({ lots: q })}
-            title={`Trade ${q} lot${q > 1 ? 's' : ''}`}
+            title={tt`Trade ${q} lot${q > 1 ? 's' : ''}`}
           >
             {q}
           </button>
         ))}
       </div>
       <span className="grow" />
+      <DropdownMenu
+        items={(['off', 'out-of-view', 'always'] as const).map((m) => ({
+          id: m,
+          label: m === 'off' ? 'Off' : m === 'always' ? 'Always' : 'When out of view',
+          checked: centerMode === m,
+          onSelect: () => setSetting('dom.centerMode', m),
+        }))}
+        trigger={
+          <button
+            className="ht-icon-btn"
+            aria-label="Re-centre mode"
+            data-testid="dom-centre-mode"
+            title="Re-centre on last price: off / when out of view / always"
+          >
+            <ChevronDown size={12} />
+          </button>
+        }
+      />
+      <button
+        className="sdom-hbtn"
+        data-testid="dom-recenter"
+        aria-label="Re-centre"
+        title="Re-centre on the last price (C)"
+        onClick={() => domControllers.get(id)?.recenter()}
+      >
+        <Crosshair size={13} /> Re-centre
+      </button>
       <button
         className="ht-icon-btn"
-        aria-label="Clear notes"
-        title="Clear all price notes for this instrument"
+        aria-label={tl('Clear notes')}
+        title={tl('Clear all price notes for this instrument')}
         onClick={() => domStore.clearNotes(s.instrumentId)}
       >
         <StickyNote size={13} />
       </button>
       <button
         className="ht-icon-btn"
-        aria-label="Template designer"
-        title="Template designer"
+        aria-label={tl('Template designer')}
+        title={tl('Template designer')}
         onClick={() => openDesigner({ windowId: id, templateId: template.id })}
       >
         <Pencil size={13} />
@@ -560,6 +599,7 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
   const template = domStore.get(smartDomExt(s).template);
   const pos = domActions.position(inst);
   const account = domActions.account(inst);
+  const upnl = pos.qty ? paper.unrealized(account, inst) : 0;
   const act = (fn: () => void) => () => fn();
   const market = (side: 'buy' | 'sell') =>
     domActions.place({ instrumentId: inst, side, type: 'market', qty: s.lots });
@@ -579,38 +619,49 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
         windowId={id}
       />
       <div className="dom-foot-row">
-        <button title="Reverse position" onClick={act(() => domActions.reverse(inst))}>
+        <button title={tl('Reverse position')} onClick={act(() => domActions.reverse(inst))}>
           × R
         </button>
-        <button title="Position PnL" disabled>
-          PnL
+        <button
+          title={tl('Open P&L of the position at the last price')}
+          disabled
+          data-testid="dom-pnl"
+          className={upnl > 0 ? 'up' : upnl < 0 ? 'down' : undefined}
+        >
+          {pos.qty ? `${upnl >= 0 ? '+' : '−'}${Math.abs(upnl).toFixed(2)}` : 'PnL'}
         </button>
-        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
+        <button title={tl('Cancel all orders')} onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
-        <button title="Buy market" onClick={act(() => market('buy'))}>
-          MKT
+        <button title={tl('Buy market')} onClick={act(() => market('buy'))}>
+          {tl('MKT')}
         </button>
-        <button title="Cancel buy orders" onClick={act(() => domActions.cancelAll(inst, 'buy'))}>
+        <button
+          title={tl('Cancel buy orders')}
+          onClick={act(() => domActions.cancelAll(inst, 'buy'))}
+        >
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
+        <button title={tl('Cancel all orders')} onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
-        <button title="Sell market" onClick={act(() => market('sell'))}>
-          MKT
+        <button title={tl('Sell market')} onClick={act(() => market('sell'))}>
+          {tl('MKT')}
         </button>
-        <button title="Cancel sell orders" onClick={act(() => domActions.cancelAll(inst, 'sell'))}>
+        <button
+          title={tl('Cancel sell orders')}
+          onClick={act(() => domActions.cancelAll(inst, 'sell'))}
+        >
           ×
         </button>
-        <button title="Cancel all orders" onClick={act(() => domActions.cancelAll(inst))}>
+        <button title={tl('Cancel all orders')} onClick={act(() => domActions.cancelAll(inst))}>
           ×
         </button>
       </div>
       <div className="dom-foot">
         <button
           className="ht-btn ht-btn--sm"
-          title="Centre (C)"
+          title={tl('Centre (C)')}
           onClick={() => domControllers.get(id)?.recenter()}
         >
           C
@@ -620,18 +671,18 @@ function DomWindowBody({ id, s }: { id: string; s: DomWindowState }) {
           onClick={() => domActions.flatten(inst)}
           disabled={!pos.qty && !paper.workingOrders(account).length}
         >
-          Flatten all
+          {tl('Flatten all')}
         </button>
         <button
           className="ht-btn ht-btn--sm"
           onClick={() => useWindows.getState().setTradingPanel(!useWindows.getState().tradingPanel)}
         >
-          Trading Panel
+          {tl('Trading Panel')}
         </button>
         <button
           className="ht-icon-btn"
-          aria-label="Lock trading"
-          title="Lock trading"
+          aria-label={tl('Lock trading')}
+          title={tl('Lock trading')}
           onClick={() => domActions.toggleLock(inst)}
         >
           <Lock size={13} />
@@ -658,12 +709,12 @@ function AtmStrip({ compact }: { compact?: boolean }) {
   const templates = useAtmTemplates();
   return (
     <div className="ot-dom-atm" data-testid="dom-atm">
-      <label className="row gap6 center-y" title="Attach SL / TP to new orders">
+      <label className="row gap6 center-y" title={tl('Attach SL / TP to new orders')}>
         <input
           type="checkbox"
           checked={prefs.bracketOn}
           onChange={(e) => setPrefs({ bracketOn: e.target.checked })}
-          aria-label="SL/TP on DOM orders"
+          aria-label={tl('SL/TP on DOM orders')}
         />
         {compact ? 'ATM' : 'SL/TP'}
       </label>
@@ -675,7 +726,7 @@ function AtmStrip({ compact }: { compact?: boolean }) {
           { value: '', label: 'Custom' },
           ...templates.map((t) => ({ value: t.id, label: t.name })),
         ]}
-        aria-label="DOM ATM template"
+        aria-label={tl('DOM ATM template')}
       />
     </div>
   );

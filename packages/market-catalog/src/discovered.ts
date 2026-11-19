@@ -58,6 +58,8 @@ export const STREAMING_VENUES = new Set([
   'binance-coinm',
   'binance-spot',
   'bybit-linear',
+  'bybit-inverse',
+  'bybit-spot',
   'okx-swap',
   'whitebit',
   'phemex',

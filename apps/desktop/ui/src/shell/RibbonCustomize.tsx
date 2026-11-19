@@ -4,6 +4,7 @@ import { Button, Checkbox, Dialog, moveItem } from '@htflow/ui-kit';
 import { MODULES } from './modules';
 import { groupIds, ribbonStore, RIBBON_GROUPS, useRibbonState } from './ribbonStore';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 type Drop = { id: string; where: 'before' | 'after' } | null;
 
 /**
@@ -48,16 +49,16 @@ export function RibbonCustomize() {
     <Dialog
       open={customizeOpen}
       onOpenChange={(o) => ribbonStore.openCustomize(o)}
-      title="Customize ribbon"
-      description="Show or hide buttons and drag to reorder them within a group."
+      title={tl('Customize ribbon')}
+      description={tl('Show or hide buttons and drag to reorder them within a group.')}
       width={420}
     >
       <div data-testid="ribbon-customize" style={{ maxHeight: '52vh', overflow: 'auto' }}>
         {RIBBON_GROUPS.map((g) => {
           const ids = groupIds(g, order);
           return (
-            <section key={g} className="ht-rc-group" aria-label={g}>
-              <h4>{g}</h4>
+            <section key={g} className="ht-rc-group" aria-label={tl(g)}>
+              <h4>{tl(g)}</h4>
               {ids.map((id, i) => (
                 <div
                   key={id}
@@ -97,7 +98,7 @@ export function RibbonCustomize() {
                   <button
                     type="button"
                     className="ht-icon-btn"
-                    aria-label={`Move ${label.get(id)} up`}
+                    aria-label={tt`Move ${tl(label.get(id))} up`}
                     disabled={i === 0}
                     onClick={() => move(g, id, -1)}
                   >
@@ -106,7 +107,7 @@ export function RibbonCustomize() {
                   <button
                     type="button"
                     className="ht-icon-btn"
-                    aria-label={`Move ${label.get(id)} down`}
+                    aria-label={tt`Move ${tl(label.get(id))} down`}
                     disabled={i === ids.length - 1}
                     onClick={() => move(g, id, 1)}
                   >
@@ -120,10 +121,10 @@ export function RibbonCustomize() {
       </div>
       <div className="row gap8" style={{ justifyContent: 'space-between', marginTop: 12 }}>
         <Button data-testid="ribbon-reset" onClick={() => ribbonStore.reset()}>
-          Reset
+          {tl('Reset')}
         </Button>
         <Button variant="primary" onClick={() => ribbonStore.openCustomize(false)}>
-          Done
+          {tl('Done')}
         </Button>
       </div>
     </Dialog>

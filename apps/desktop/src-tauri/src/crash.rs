@@ -89,7 +89,8 @@ fn redact_user_paths(text: &str) -> String {
     out
 }
 
-const SECRET_KEYS: [&str; 8] = [
+const SECRET_KEYS: [&str; 9] = [
+    "api-key",
     "password",
     "passwd",
     "secret",
@@ -110,6 +111,13 @@ fn redact_line(line: &str) -> String {
         if redact_next && !word.is_empty() {
             redact_next = false;
             out.push_str("<redacted>");
+        } else if lw == "bearer" {
+            // `Authorization: Bearer <token>`: the token is the next word.
+            out.push_str(word);
+            redact_next = true;
+        } else if let Some(i) = provider_key_at(word) {
+            out.push_str(&word[..i]);
+            out.push_str("<api-key>");
         } else if let Some(i) = word.find(['=', ':']).filter(|_| {
             SECRET_KEYS.iter().any(|k| {
                 lw.split(['=', ':'])
@@ -172,6 +180,34 @@ fn redact_embedded(word: &str) -> String {
         }
     }
     out
+}
+
+/// Prefixes of LLM provider API keys (round 7 AI assistant): OpenAI / DeepSeek / Qwen `sk-…`,
+/// Anthropic `sk-ant-…`, xAI `xai-…`, Google `AIza…`, Groq-style `gsk_…`, OpenRouter `sk-or-…`.
+const PROVIDER_KEY_PREFIXES: [&str; 4] = ["sk-", "xai-", "AIza", "gsk_"];
+
+/// Byte offset of a provider API key inside `word` (12+ key characters after the prefix start).
+fn provider_key_at(word: &str) -> Option<usize> {
+    for p in PROVIDER_KEY_PREFIXES {
+        let mut from = 0;
+        while let Some(rel) = word[from..].find(p) {
+            let i = from + rel;
+            let boundary = i == 0
+                || !word[..i]
+                    .chars()
+                    .next_back()
+                    .is_some_and(|c| c.is_ascii_alphanumeric());
+            let run = word[i..]
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+                .count();
+            if boundary && run >= 16 {
+                return Some(i);
+            }
+            from = i + p.len();
+        }
+    }
+    None
 }
 
 /// 32+ chars of base64 / hex / url-safe alphabet that mix letters and digits.
@@ -356,6 +392,11 @@ pub fn crash_summary(state: State<'_, CrashState>) -> String {
 pub fn crash_open_folder(state: State<'_, CrashState>) -> CmdResult<()> {
     fs::create_dir_all(&state.0)
         .map_err(|_| CmdError::new("crash.folder", "Could not create the crashes folder"))?;
+    open_folder(&state.0).map_err(|_| CmdError::new("crash.folder", "Could not open the folder"))
+}
+
+/// Opens a folder in the system file manager (Explorer on Windows).
+pub fn open_folder(path: &Path) -> std::io::Result<()> {
     let opener = if cfg!(windows) {
         "explorer"
     } else if cfg!(target_os = "macos") {
@@ -364,10 +405,9 @@ pub fn crash_open_folder(state: State<'_, CrashState>) -> CmdResult<()> {
         "xdg-open"
     };
     std::process::Command::new(opener)
-        .arg(&state.0)
+        .arg(path)
         .spawn()
         .map(|_| ())
-        .map_err(|_| CmdError::new("crash.folder", "Could not open the folder"))
 }
 
 #[cfg(test)]
@@ -387,6 +427,30 @@ mod tests {
         // Ordinary text and code locations survive.
         let keep = "at src/charts/ChartWindow.tsx:120:7 (Binance:BTCUSDT) https://example.com/a/b";
         assert_eq!(redact(keep), keep);
+    }
+
+    #[test]
+    fn redacts_llm_provider_keys() {
+        let r = redact(
+            "ai error key=sk-proj-Abc123Def456Ghi789 \"sk-ant-api03-ZZZZyyyy1111\" \
+             xai-AAAAbbbbCCCC1234 AIzaSyD-123456789abcdefghij \
+             Authorization: Bearer gsk_short1234567890ab x-goog-api-key: AIzaXYZ012345678901234\n",
+        );
+        for leak in [
+            "Abc123Def456",
+            "ZZZZyyyy1111",
+            "AAAAbbbbCCCC",
+            "D-123456789",
+            "short1234567890",
+            "XYZ0123456789",
+        ] {
+            assert!(!r.contains(leak), "{leak} in {r}");
+        }
+        // Ordinary words that merely start like a prefix survive.
+        assert_eq!(
+            redact("task-list desk-top sk-1 risk-engine"),
+            "task-list desk-top sk-1 risk-engine"
+        );
     }
 
     #[test]

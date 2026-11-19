@@ -56,6 +56,7 @@ pnpm e2e
 
 ## Docs
 
+- [`docs/user-guide/`](docs/user-guide/01-getting-started.md) — the User Guide (also built into the app: press `F1`): getting started, interface, charts, order flow, trading, replay, alerts, settings and more, with screenshots
 - [`docs/FEATURES.md`](docs/FEATURES.md) — every feature from the 46-phase spec with status
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — repo layout, live pipeline, bar rules, security model
 - [`docs/BLOCKERS.md`](docs/BLOCKERS.md) — blocked items and deviations
@@ -64,4 +65,4 @@ pnpm e2e
 
 ## Licence
 
-MIT for HT Flow code. Geist and Geist Mono fonts: SIL Open Font License 1.1 (`packages/ui-kit/src/fonts/OFL-Geist.txt`).
+MIT for HT Flow code. Geist and Geist Mono fonts: SIL Open Font License 1.1 (`packages/ui-kit/src/fonts/OFL-Geist.txt`). Noto Nastaliq Urdu (Urdu UI): SIL Open Font License 1.1 (`packages/ui-kit/src/fonts/OFL-NotoNastaliqUrdu.txt`).

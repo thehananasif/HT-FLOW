@@ -6,6 +6,7 @@ import { COLUMN_WIDTHS, columnLabel, type ColumnMs, type HeatmapModuleSettings }
 import { Help, NumberRow, SegRow, SliderRow, type Patch } from './controls';
 import { GradientField } from './QuickSettings';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 type Tab = 'heatmap' | 'bubbles' | 'lines' | 'volume' | 'orders' | 'axes' | 'render';
 
 const TABS: { value: Tab; label: string }[] = [
@@ -83,7 +84,7 @@ function ColorRow({
       <ColorPicker label={label} value={v} alpha={false} onChange={(c) => onPatch({ [k]: c })} />
       {fallback !== undefined && s[k] !== '' && (
         <button type="button" className="hm-link" onClick={() => onPatch({ [k]: '' })}>
-          Theme
+          {tl('Theme')}
         </button>
       )}
     </div>
@@ -101,8 +102,10 @@ export function FullSettings(p: FullSettingsProps) {
     <Dialog
       open={p.open}
       onOpenChange={p.onOpenChange}
-      title="Heatmap settings"
-      description="Applies to this window and is saved with the workspace. Defaults come from Settings → Heatmap."
+      title={tl('Heatmap settings')}
+      description={tl(
+        'Applies to this window and is saved with the workspace. Defaults come from Settings → Heatmap.',
+      )}
       width={620}
     >
       <div className="hm-full" data-testid="heatmap-full-settings">
@@ -111,7 +114,7 @@ export function FullSettings(p: FullSettingsProps) {
           {tab === 'heatmap' && (
             <>
               <Toggle
-                label="Show heat texture"
+                label={tl('Show heat texture')}
                 checked={s.heat}
                 onChange={(v) => onPatch({ heat: v })}
               />
@@ -121,27 +124,27 @@ export function FullSettings(p: FullSettingsProps) {
                 saved={p.savedGradients}
                 onSave={p.onSaveGradient}
               />
-              <SliderRow s={s} k="brightness" label="Brightness" onPatch={onPatch} />
+              <SliderRow s={s} k="brightness" label={tl('Brightness')} onPatch={onPatch} />
               <SliderRow
                 s={s}
                 k="contrast"
-                label="Contrast"
-                help="50 = neutral. Higher stretches the middle of the colour ramp."
+                label={tl('Contrast')}
+                help={tl('50 = neutral. Higher stretches the middle of the colour ramp.')}
                 onPatch={onPatch}
               />
               <SliderRow
                 s={s}
                 k="gamma"
-                label="Gamma"
-                help="1 = neutral. Below 1 lifts small resting orders, above 1 hides them."
+                label={tl('Gamma')}
+                help={tl('1 = neutral. Below 1 lifts small resting orders, above 1 hides them.')}
                 onPatch={onPatch}
                 format={(v) => v.toFixed(2)}
               />
-              <SliderRow s={s} k="opacity" label="Opacity %" onPatch={onPatch} />
-              <SliderRow s={s} k="cutoffUpper" label="Cut-off upper %" onPatch={onPatch} />
-              <SliderRow s={s} k="cutoffLower" label="Cut-off lower %" onPatch={onPatch} />
+              <SliderRow s={s} k="opacity" label={tl('Opacity %')} onPatch={onPatch} />
+              <SliderRow s={s} k="cutoffUpper" label={tl('Cut-off upper %')} onPatch={onPatch} />
+              <SliderRow s={s} k="cutoffLower" label={tl('Cut-off lower %')} onPatch={onPatch} />
               <SegRow
-                label="Scale"
+                label={tl('Scale')}
                 value={s.scale}
                 options={[
                   { value: 'linear', label: 'Linear' },
@@ -151,7 +154,7 @@ export function FullSettings(p: FullSettingsProps) {
                 onChange={(v) => onPatch({ scale: v })}
               />
               <SegRow
-                label="Normalise"
+                label={tl('Normalise')}
                 value={s.normalize}
                 options={[
                   { value: 'global', label: 'Global' },
@@ -160,8 +163,10 @@ export function FullSettings(p: FullSettingsProps) {
                 onChange={(v) => onPatch({ normalize: v })}
               />
               <SegRow
-                label="Global range from"
-                help="Where global cut-offs are measured: the visible window or the whole recorded session."
+                label={tl('Global range from')}
+                help={tl(
+                  'Where global cut-offs are measured: the visible window or the whole recorded session.',
+                )}
                 value={s.scope}
                 options={[
                   { value: 'visible', label: 'Visible window' },
@@ -172,18 +177,18 @@ export function FullSettings(p: FullSettingsProps) {
               <NumberRow
                 s={s}
                 k="minSize"
-                label="Minimum resting size"
-                help="Orders smaller than this are not drawn (0 = all)."
+                label={tl('Minimum resting size')}
+                help={tl('Orders smaller than this are not drawn (0 = all).')}
                 onPatch={onPatch}
               />
               <NumberRow
                 s={s}
                 k="levelsLimit"
-                label="Levels per side (0 = all)"
+                label={tl('Levels per side (0 = all)')}
                 onPatch={onPatch}
               />
               <Toggle
-                label="Smooth between snapshots"
+                label={tl('Smooth between snapshots')}
                 checked={s.smoothing}
                 onChange={(v) => onPatch({ smoothing: v })}
               />
@@ -192,12 +197,12 @@ export function FullSettings(p: FullSettingsProps) {
           {tab === 'bubbles' && (
             <>
               <Toggle
-                label="Trade bubbles"
+                label={tl('Trade bubbles')}
                 checked={s.bubbles}
                 onChange={(v) => onPatch({ bubbles: v })}
               />
               <SegRow
-                label="Style"
+                label={tl('Style')}
                 value={s.bubbleStyle}
                 options={[
                   { value: 'pie', label: 'Pie (buy/sell)' },
@@ -207,7 +212,7 @@ export function FullSettings(p: FullSettingsProps) {
                 onChange={(v) => onPatch({ bubbleStyle: v })}
               />
               <SegRow
-                label="Calc"
+                label={tl('Calc')}
                 value={s.bubbleCalc}
                 options={[
                   { value: 'volume', label: 'Volume' },
@@ -215,42 +220,42 @@ export function FullSettings(p: FullSettingsProps) {
                 ]}
                 onChange={(v) => onPatch({ bubbleCalc: v })}
               />
-              <SliderRow s={s} k="bubbleScale" label="Size" onPatch={onPatch} />
+              <SliderRow s={s} k="bubbleScale" label={tl('Size')} onPatch={onPatch} />
               <SliderRow
                 s={s}
                 k="clustering"
-                label="Clustering"
+                label={tl('Clustering')}
                 onPatch={onPatch}
                 format={(v) => v.toFixed(1)}
               />
-              <NumberRow s={s} k="minLots" label="Min size" onPatch={onPatch} />
-              <SliderRow s={s} k="bubbleOpacity" label="Fill opacity %" onPatch={onPatch} />
+              <NumberRow s={s} k="minLots" label={tl('Min size')} onPatch={onPatch} />
+              <SliderRow s={s} k="bubbleOpacity" label={tl('Fill opacity %')} onPatch={onPatch} />
               <ColorRow
                 s={s}
                 k="buyColor"
-                label="Buy colour"
+                label={tl('Buy colour')}
                 fallback={palette.up}
                 onPatch={onPatch}
               />
               <ColorRow
                 s={s}
                 k="sellColor"
-                label="Sell colour"
+                label={tl('Sell colour')}
                 fallback={palette.down}
                 onPatch={onPatch}
               />
-              <ColorRow s={s} k="plainColor" label="Plain colour" onPatch={onPatch} />
+              <ColorRow s={s} k="plainColor" label={tl('Plain colour')} onPatch={onPatch} />
             </>
           )}
           {tab === 'lines' && (
             <>
               <Toggle
-                label="Best bid / ask lines"
+                label={tl('Best bid / ask lines')}
                 checked={s.bestBidAsk}
                 onChange={(v) => onPatch({ bestBidAsk: v })}
               />
               <SegRow
-                label="Lines"
+                label={tl('Lines')}
                 value={s.bbaMode}
                 options={[
                   { value: 'bid-ask', label: 'Bid + Ask' },
@@ -261,37 +266,37 @@ export function FullSettings(p: FullSettingsProps) {
               <ColorRow
                 s={s}
                 k="bidColor"
-                label="Bid colour"
+                label={tl('Bid colour')}
                 fallback={palette.up}
                 onPatch={onPatch}
               />
               <ColorRow
                 s={s}
                 k="askColor"
-                label="Ask colour"
+                label={tl('Ask colour')}
                 fallback={palette.down}
                 onPatch={onPatch}
               />
-              <SliderRow s={s} k="bbaWidth" label="Line width" onPatch={onPatch} />
+              <SliderRow s={s} k="bbaWidth" label={tl('Line width')} onPatch={onPatch} />
               <Toggle
-                label="Dashed extension into the future"
+                label={tl('Dashed extension into the future')}
                 checked={s.bbaExtend}
                 onChange={(v) => onPatch({ bbaExtend: v })}
               />
               <hr className="hm-hr" />
               <Toggle
-                label="Depth of Market column"
+                label={tl('Depth of Market column')}
                 checked={s.domColumn}
                 onChange={(v) => onPatch({ domColumn: v })}
               />
-              <SliderRow s={s} k="domWidth" label="DOM width (px)" onPatch={onPatch} />
+              <SliderRow s={s} k="domWidth" label={tl('DOM width (px)')} onPatch={onPatch} />
               <Toggle
-                label="Size and price labels"
+                label={tl('Size and price labels')}
                 checked={s.domLabels}
                 onChange={(v) => onPatch({ domLabels: v })}
               />
               <Toggle
-                label="Traded volume profile behind the DOM"
+                label={tl('Traded volume profile behind the DOM')}
                 checked={s.volumeProfile}
                 onChange={(v) => onPatch({ volumeProfile: v })}
               />
@@ -300,12 +305,12 @@ export function FullSettings(p: FullSettingsProps) {
           {tab === 'volume' && (
             <>
               <Toggle
-                label="Volume bars"
+                label={tl('Volume bars')}
                 checked={s.volume}
                 onChange={(v) => onPatch({ volume: v })}
               />
               <SegRow
-                label="Calc"
+                label={tl('Calc')}
                 value={s.volumeCalc}
                 options={[
                   { value: 'volume', label: 'Volume' },
@@ -314,87 +319,95 @@ export function FullSettings(p: FullSettingsProps) {
                 onChange={(v) => onPatch({ volumeCalc: v })}
               />
               <Toggle
-                label="Labels"
+                label={tl('Labels')}
                 checked={s.volumeLabels}
                 onChange={(v) => onPatch({ volumeLabels: v })}
               />
-              <SliderRow s={s} k="volumeHeight" label="Pane height (px)" onPatch={onPatch} />
+              <SliderRow s={s} k="volumeHeight" label={tl('Pane height (px)')} onPatch={onPatch} />
             </>
           )}
           {tab === 'orders' && (
             <>
-              <h4 className="hm-h">Large orders</h4>
+              <h4 className="hm-h">{tl('Large orders')}</h4>
               <Toggle
-                label="Outline large orders"
-                help="Resting orders at or above the size below get an outline for as long as they rest."
+                label={tl('Outline large orders')}
+                help={tl(
+                  'Resting orders at or above the size below get an outline for as long as they rest.',
+                )}
                 checked={s.largeOrders}
                 onChange={(v) => onPatch({ largeOrders: v })}
               />
               <NumberRow
                 s={s}
                 k="largeOrderSize"
-                label="Outline at ≥ (contracts)"
+                label={tl('Outline at ≥ (contracts)')}
                 onPatch={onPatch}
               />
-              <ColorRow s={s} k="largeOrderColor" label="Outline colour" onPatch={onPatch} />
-              <h4 className="hm-h">Order lifetime</h4>
+              <ColorRow s={s} k="largeOrderColor" label={tl('Outline colour')} onPatch={onPatch} />
+              <h4 className="hm-h">{tl('Order lifetime')}</h4>
               <Toggle
-                label="Colour by order lifetime"
-                help="New liquidity is drawn in the young colour and turns into the old colour as it keeps resting; brightness still shows size."
+                label={tl('Colour by order lifetime')}
+                help={tl(
+                  'New liquidity is drawn in the young colour and turns into the old colour as it keeps resting; brightness still shows size.',
+                )}
                 checked={s.lifetime}
                 onChange={(v) => onPatch({ lifetime: v })}
               />
-              <ColorRow s={s} k="lifetimeYoung" label="Young" onPatch={onPatch} />
-              <ColorRow s={s} k="lifetimeOld" label="Old" onPatch={onPatch} />
+              <ColorRow s={s} k="lifetimeYoung" label={tl('Young')} onPatch={onPatch} />
+              <ColorRow s={s} k="lifetimeOld" label={tl('Old')} onPatch={onPatch} />
               <NumberRow
                 s={s}
                 k="lifetimeMaxSec"
-                label="Fully old after"
+                label={tl('Fully old after')}
                 unit="s"
                 onPatch={onPatch}
               />
-              <h4 className="hm-h">Icebergs</h4>
+              <h4 className="hm-h">{tl('Icebergs')}</h4>
               <Toggle
-                label="Iceberg markers"
-                help="A level that trades more than it ever shows while refilling (traded ≥ ratio × shown)."
+                label={tl('Iceberg markers')}
+                help={tl(
+                  'A level that trades more than it ever shows while refilling (traded ≥ ratio × shown).',
+                )}
                 checked={s.icebergs}
                 onChange={(v) => onPatch({ icebergs: v })}
               />
-              <NumberRow s={s} k="icebergRatio" label="Traded ÷ shown ≥" onPatch={onPatch} />
-              <ColorRow s={s} k="icebergColor" label="Marker colour" onPatch={onPatch} />
-              <h4 className="hm-h">Spoofing</h4>
+              <NumberRow s={s} k="icebergRatio" label={tl('Traded ÷ shown ≥')} onPatch={onPatch} />
+              <ColorRow s={s} k="icebergColor" label={tl('Marker colour')} onPatch={onPatch} />
+              <h4 className="hm-h">{tl('Spoofing')}</h4>
               <Toggle
-                label="Spoof flashes"
-                help="Large liquidity away from the touch that appears and is pulled before it trades flashes when pulled."
+                label={tl('Spoof flashes')}
+                help={tl(
+                  'Large liquidity away from the touch that appears and is pulled before it trades flashes when pulled.',
+                )}
                 checked={s.spoofs}
                 onChange={(v) => onPatch({ spoofs: v })}
               />
               <NumberRow
                 s={s}
                 k="spoofMinSize"
-                label="Min size (0 = auto, 4 × mean)"
+                label={tl('Min size (0 = auto, 4 × mean)')}
                 onPatch={onPatch}
               />
               <NumberRow
                 s={s}
                 k="spoofMaxLifeSec"
-                label="Pulled within"
+                label={tl('Pulled within')}
                 unit="s"
                 onPatch={onPatch}
               />
-              <ColorRow s={s} k="spoofColor" label="Flash colour" onPatch={onPatch} />
+              <ColorRow s={s} k="spoofColor" label={tl('Flash colour')} onPatch={onPatch} />
             </>
           )}
           {tab === 'axes' && (
             <>
               <div className="hm-row">
                 <span className="hm-row-label">
-                  Column width
+                  {tl('Column width')}
                   <Help text="Time per column. Depth is recorded every 250 ms; wider columns sample every n-th snapshot." />
                 </span>
                 <Select
                   small
-                  aria-label="Column width"
+                  aria-label={tl('Column width')}
                   value={String(p.columnMs)}
                   options={COLUMN_WIDTHS.map((ms) => ({
                     value: String(ms),
@@ -406,41 +419,48 @@ export function FullSettings(p: FullSettingsProps) {
               <NumberRow
                 s={s}
                 k="historyMinutes"
-                label="History length (0 = all recorded)"
+                label={tl('History length (0 = all recorded)')}
                 unit="min"
                 onPatch={onPatch}
               />
               <NumberRow
                 s={s}
                 k="rangeLevels"
-                label="Levels above / below the touch (0 = auto)"
+                label={tl('Levels above / below the touch (0 = auto)')}
                 onPatch={onPatch}
               />
               <Toggle
-                label="Crosshair readout of size at level"
+                label={tl('Crosshair readout of size at level')}
                 checked={s.crosshairReadout}
                 onChange={(v) => onPatch({ crosshairReadout: v })}
               />
               <hr className="hm-hr" />
               <Toggle
-                label="Price axis"
+                label={tl('Price axis')}
                 checked={s.priceAxis}
                 onChange={(v) => onPatch({ priceAxis: v })}
               />
-              <SliderRow s={s} k="priceAxisWidth" label="Price axis width" onPatch={onPatch} />
+              <SliderRow
+                s={s}
+                k="priceAxisWidth"
+                label={tl('Price axis width')}
+                onPatch={onPatch}
+              />
               <Toggle
-                label="Time axis"
+                label={tl('Time axis')}
                 checked={s.timeAxis}
                 onChange={(v) => onPatch({ timeAxis: v })}
               />
-              <Toggle label="Grid" checked={s.grid} onChange={(v) => onPatch({ grid: v })} />
+              <Toggle label={tl('Grid')} checked={s.grid} onChange={(v) => onPatch({ grid: v })} />
             </>
           )}
           {tab === 'render' && (
             <>
               <SegRow
-                label="3D renderer"
-                help="three.js (WebGL) surface, or the Canvas 2D isometric fallback for machines without WebGL."
+                label={tl('3D renderer')}
+                help={tl(
+                  'three.js (WebGL) surface, or the Canvas 2D isometric fallback for machines without WebGL.',
+                )}
                 value={s.renderer3d}
                 options={[
                   { value: 'webgl', label: 'three.js (WebGL)' },
@@ -451,15 +471,15 @@ export function FullSettings(p: FullSettingsProps) {
               <SliderRow
                 s={s}
                 k="surfaceHeight"
-                label="Surface height"
+                label={tl('Surface height')}
                 onPatch={onPatch}
                 format={(v) => v.toFixed(1)}
               />
-              <SliderRow s={s} k="surfaceCols" label="Surface resolution" onPatch={onPatch} />
+              <SliderRow s={s} k="surfaceCols" label={tl('Surface resolution')} onPatch={onPatch} />
               <hr className="hm-hr" />
-              <p className="muted hm-note">Shared by every heatmap (Settings → Common):</p>
+              <p className="muted hm-note">{tl('Shared by every heatmap (Settings → Common):')}</p>
               <SegRow
-                label="FPS cap"
+                label={tl('FPS cap')}
                 value={fpsMode}
                 options={[
                   { value: 'auto', label: 'Auto' },
@@ -468,10 +488,10 @@ export function FullSettings(p: FullSettingsProps) {
                 onChange={(v) => setSetting('common.heatmapFpsMode', v)}
               />
               <div className="hm-row">
-                <span className="hm-row-label">Manual cap (fps)</span>
+                <span className="hm-row-label">{tl('Manual cap (fps)')}</span>
                 <Select
                   small
-                  aria-label="Manual FPS cap"
+                  aria-label={tl('Manual FPS cap')}
                   value={String(fpsCap)}
                   options={[15, 30, 60, 120, 240].map((n) => ({
                     value: String(n),
@@ -481,10 +501,10 @@ export function FullSettings(p: FullSettingsProps) {
                 />
               </div>
               <div className="hm-row">
-                <span className="hm-row-label">Video adapter (3D)</span>
+                <span className="hm-row-label">{tl('Video adapter (3D)')}</span>
                 <Select
                   small
-                  aria-label="Video adapter"
+                  aria-label={tl('Video adapter')}
                   value={adapter}
                   options={[
                     { value: 'auto', label: 'Auto' },
@@ -504,11 +524,11 @@ export function FullSettings(p: FullSettingsProps) {
                 p.onReset();
             }}
           >
-            Reset to defaults
+            {tl('Reset to defaults')}
           </Button>
           <div className="grow" />
           <Button variant="primary" onClick={() => p.onOpenChange(false)}>
-            Done
+            {tl('Done')}
           </Button>
         </div>
       </div>

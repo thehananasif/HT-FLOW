@@ -85,7 +85,7 @@ impl BybitLinear {
         self.kline_rest.throttled_count()
     }
 
-    /// Candles of the linear market, see [`BybitLinear::klines_in`].
+    /// Candles of this client's category, see [`BybitLinear::klines_in`].
     pub async fn klines_range(
         &self,
         spec: &SymbolSpec,
@@ -93,7 +93,7 @@ impl BybitLinear {
         from_ms: i64,
         to_ms: i64,
     ) -> Result<Vec<Kline>, ConnectorError> {
-        self.klines_in("linear", spec, interval_ms, from_ms, to_ms)
+        self.klines_in(self.category.as_str(), spec, interval_ms, from_ms, to_ms)
             .await
     }
 

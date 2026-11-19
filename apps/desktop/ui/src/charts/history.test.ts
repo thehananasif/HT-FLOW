@@ -6,27 +6,11 @@ import {
   autoLoadsHistory,
   lazySpanMs,
   loadChunks,
-  missingHistoryMs,
-  normalizeLoadDays,
   spanLabel,
 } from './history';
 
-describe('load days', () => {
-  it('normalises the per-chart value', () => {
-    expect(normalizeLoadDays(4)).toBe(4);
-    expect(normalizeLoadDays('7')).toBe(7);
-    expect(normalizeLoadDays(0)).toBe(1);
-    expect(normalizeLoadDays(9999)).toBe(365);
-    expect(normalizeLoadDays(2.6)).toBe(3);
-    expect(normalizeLoadDays(undefined, 5)).toBe(5);
-    expect(normalizeLoadDays('x')).toBe(4);
-  });
-
-  it('computes the missing history and day chunks', () => {
-    const last = 10 * DAY_MS;
-    expect(missingHistoryMs(last - 6 * 3_600_000, last, 4)).toBe(4 * DAY_MS - 6 * 3_600_000);
-    expect(missingHistoryMs(last - 5 * DAY_MS, last, 4)).toBe(0);
-    expect(missingHistoryMs(undefined, last, 4)).toBe(0);
+describe('chart history', () => {
+  it('splits Go to date ranges into day chunks', () => {
     expect(loadChunks(2.5 * DAY_MS)).toEqual([DAY_MS, DAY_MS, DAY_MS / 2]);
     expect(loadChunks(0)).toEqual([]);
     expect(loadChunks(100 * DAY_MS, DAY_MS, 3)).toHaveLength(3);

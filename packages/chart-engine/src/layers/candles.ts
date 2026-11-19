@@ -8,7 +8,10 @@ import {
 } from '@htflow/market-data';
 import type { ChartLayer, ChartView, DataRow } from '../types';
 import { dashFor, type StrokeStyle } from '../style';
-import { clamp, rgba, rowTicksFor, sessionStart } from './util';
+import { rgba, rowTicksFor, sessionStart } from './util';
+import { RectBatch } from '../render/batch';
+import { buildCandles, buildProfileRows, buildVolumeBars } from '../render/geometry';
+import { painterOf } from '../render/painter';
 
 const sessionStartUtc = sessionStart;
 
@@ -80,19 +83,12 @@ export class CandlesLayer implements ChartLayer {
   /** Only draw a thin candle strip at the left of the slot (footprint). */
   strip = false;
   style: CandleStyle = { ...DEFAULT_CANDLE_STYLE };
+  private batch = new RectBatch(512);
 
   constructor(private series: () => BarSeries) {}
 
   priceRange(i0: number, i1: number) {
     return barsRange(this.series().bars, i0, i1);
-  }
-
-  /** Up / down for bar i under the direction mode. */
-  private isUp(i: number): boolean {
-    const bars = this.series().bars;
-    const b = bars[i]!;
-    if (this.style.direction === 'close-prev' && i > 0) return b.c >= bars[i - 1]!.c;
-    return b.c >= b.o;
   }
 
   draw(v: ChartView): void {
@@ -134,59 +130,21 @@ export class CandlesLayer implements ChartLayer {
       ctx.restore();
       return;
     }
-    const sw = v.slotWidth;
-    const bodyW = this.strip
-      ? clamp(Math.floor(sw * 0.08), 3, 8)
-      : Math.max(1, Math.floor(sw * this.bodyPct));
-    const borderCol = st.borderColor || p.textTertiary;
-    for (let i = v.i0; i <= v.i1; i++) {
-      const b = bars[i]!;
-      const cx = this.strip ? v.xOf(i) - sw / 2 + bodyW / 2 + 1 : v.xOf(i);
-      const doji = b.c === b.o && this.mode === 'bars' && st.dojiColor;
-      const col = doji ? st.dojiColor : this.isUp(i) ? upCol : downCol;
-      const x = Math.round(cx) + 0.5;
-      const up = !doji && this.isUp(i);
-      const wick = this.mode === 'bars' ? '' : (up ? st.wickUp : st.wickDown) || '';
-      const dirBorder = (up ? st.borderUp : st.borderDown) || '';
-      ctx.strokeStyle = wick || (st.sameBorderAsBody || this.mode === 'bars' ? col : borderCol);
-      ctx.lineWidth = this.mode === 'bars' ? st.barWidth : 1;
-      ctx.beginPath();
-      ctx.moveTo(x, Math.round(v.yOf(b.h)));
-      ctx.lineTo(x, Math.round(v.yOf(b.l)));
-      if (this.mode === 'bars') {
-        if (st.showOpen) {
-          ctx.moveTo(x - bodyW / 2, Math.round(v.yOf(b.o)) + 0.5);
-          ctx.lineTo(x, Math.round(v.yOf(b.o)) + 0.5);
-        }
-        if (st.showClose) {
-          ctx.moveTo(x, Math.round(v.yOf(b.c)) + 0.5);
-          ctx.lineTo(x + bodyW / 2, Math.round(v.yOf(b.c)) + 0.5);
-        }
-      }
-      ctx.stroke();
-      if (this.mode === 'bars') continue;
-      // min / max keep body rects positive on inverted scales.
-      const ya = v.yOf(b.o);
-      const yb = v.yOf(b.c);
-      const pad = this.strip ? v.tickPx / 2 : 0;
-      const yTop = Math.round(Math.min(ya, yb) - pad);
-      const yBot = Math.round(Math.max(ya, yb) + pad);
-      const h = Math.max(1, yBot - yTop);
-      const left = Math.round(cx - bodyW / 2);
-      if (this.mode === 'transparent') {
-        ctx.strokeStyle = dirBorder || col;
-        ctx.strokeRect(left + 0.5, yTop + 0.5, bodyW - 1, h);
-      } else {
-        ctx.fillStyle = col;
-        ctx.fillRect(left, yTop, bodyW, h);
-        if ((st.border || dirBorder) && bodyW > 2) {
-          ctx.strokeStyle = dirBorder || (st.sameBorderAsBody ? col : borderCol);
-          ctx.lineWidth = st.borderWidth;
-          ctx.strokeRect(left + 0.5, yTop + 0.5, bodyW - 1, h);
-          ctx.lineWidth = 1;
-        }
-      }
-    }
+    // Same rects on both backends (wicks, OHLC ticks, bodies, borders).
+    const paint = painterOf(v);
+    paint.setClip(v.plot);
+    paint.rects(
+      buildCandles(this.batch.clear(), bars, v, {
+        ...st,
+        mode: this.mode,
+        bodyPct: this.bodyPct,
+        strip: this.strip,
+        up: upCol,
+        down: downCol,
+        borderColor: st.borderColor || p.textTertiary,
+      }),
+    );
+    paint.setClip(null);
     ctx.restore();
   }
 }
@@ -197,6 +155,7 @@ export class VolumePaneLayer implements ChartLayer {
   readonly paneLabel = 'Volume';
   height = 80;
   visible = true;
+  private batch = new RectBatch(512);
   /** Formats a volume number (minimise / decimals / quote currency from Chart settings). */
   format: (vol: number) => string = (v) => formatCompact(v);
   constructor(private series: () => BarSeries) {}
@@ -226,13 +185,10 @@ export class VolumePaneLayer implements ChartLayer {
     ctx.lineTo(v.width, r.y + 0.5);
     ctx.stroke();
     if (max <= 0) return;
-    const w = Math.max(1, Math.floor(v.slotWidth * 0.6));
-    for (let i = v.i0; i <= v.i1; i++) {
-      const b = bars[i]!;
-      const h = Math.max(1, (b.vol / max) * (r.h - 6));
-      ctx.fillStyle = rgba(b.c >= b.o ? p.up : p.down, 0.55);
-      ctx.fillRect(Math.round(v.xOf(i) - w / 2), r.y + r.h - h, w, h);
-    }
+    const paint = painterOf(v);
+    paint.setClip(r);
+    paint.rects(buildVolumeBars(this.batch.clear(), bars, v, r, p.up, p.down, 0.55));
+    paint.setClip(null);
     ctx.fillStyle = p.textTertiary;
     ctx.font = v.font(10);
     ctx.textAlign = 'left';
@@ -249,6 +205,7 @@ export class PeriodProfilesLayer implements ChartLayer {
   periodMs = 3_600_000;
   widthPct = 0.72;
   valueAreaPct = 0.7;
+  private batch = new RectBatch(1024);
   private cache = new Map<
     number,
     { n: number; version: number; prof: VolumeProfile; from: number; to: number }
@@ -265,6 +222,7 @@ export class PeriodProfilesLayer implements ChartLayer {
     ctx.beginPath();
     ctx.rect(v.plot.x, 0, v.plot.w, v.plot.h);
     ctx.clip();
+    painterOf(v).setClip({ x: v.plot.x, y: 0, w: v.plot.w, h: v.plot.h });
     const rowTicks = rowTicksFor(v.tickPx, 2);
     let i = v.i0;
     while (i <= v.i1) {
@@ -318,15 +276,22 @@ export class PeriodProfilesLayer implements ChartLayer {
     }
     const h = Math.max(1, rowTicks * v.tickPx - (rowTicks * v.tickPx > 3 ? 1 : 0));
     const pocRow = Math.floor(prof.poc / rowTicks) * rowTicks;
-    for (const [k, vol] of rows) {
-      const y = v.yOf(k + rowTicks - 0.5);
-      if (y > v.plot.h || y + h < 0) continue;
-      const w = (vol / rowMax) * maxW;
-      const inVa = k >= prof.val - rowTicks + 1 && k <= prof.vah;
-      ctx.fillStyle =
-        k === pocRow ? rgba(p.textSoft, 0.85) : rgba(p.clusterStrong, inVa ? 0.75 : 0.4);
-      ctx.fillRect(x0, y, w, h);
-    }
+    painterOf(v).rects(
+      buildProfileRows(this.batch.clear(), rows, rowMax, v, {
+        x0,
+        maxW,
+        rowTicks,
+        rowH: h,
+        pocRow,
+        vah: prof.vah,
+        val: prof.val,
+        poc: rgba(p.textSoft, 0.85),
+        inside: rgba(p.clusterStrong, 0.75),
+        outside: rgba(p.clusterStrong, 0.4),
+        top: 0,
+        bottom: v.plot.h,
+      }),
+    );
     const lines: [number, string][] = [
       [prof.vah, 'VAH'],
       [prof.poc, 'vPOC'],
@@ -448,9 +413,13 @@ export class LegendLayer implements ChartLayer {
     ctx.textAlign = 'left';
     ctx.font = v.font(11);
     ctx.fillStyle = p.textSecondary;
+    // Every legend line stays inside the plot: long text is ellipsized, trailing OHLC parts that
+    // do not fit are dropped (never drawn over the price axis or each other).
+    const maxX = Math.max(x + 40, v.plot.x + v.plot.w - 8);
+    const maxW = maxX - x;
     let y = 12;
     if (o.title) {
-      ctx.fillText(this.title(), x, y);
+      ctx.fillText(fitText(ctx, this.title(), maxW), x, y);
       y += 17;
     }
     const s = this.series();
@@ -463,6 +432,13 @@ export class LegendLayer implements ChartLayer {
       const col = o.byCandle || !o.color ? (b.c >= b.o ? p.up : p.down) : o.color;
       let cx = x;
       const part = (label: string, value: string, c: string) => {
+        ctx.font = v.font(11);
+        const lw = ctx.measureText(label).width + 3;
+        ctx.font = v.font(11, 600);
+        if (cx + lw + ctx.measureText(value).width > maxX) {
+          cx = Infinity; // out of room: this and every later part is skipped
+          return;
+        }
         ctx.fillStyle = p.textSecondary;
         ctx.font = v.font(11);
         ctx.fillText(label, cx, y);
@@ -497,9 +473,27 @@ export class LegendLayer implements ChartLayer {
     if (e) {
       ctx.font = v.font(10);
       ctx.fillStyle = p.textTertiary;
-      ctx.fillText(e, x, y);
+      ctx.fillText(fitText(ctx, e, maxW), x, y);
     }
   }
+}
+
+/** `text` shortened with an ellipsis so it is at most `maxW` px wide in the current font. */
+export function fitText(
+  ctx: Pick<CanvasRenderingContext2D, 'measureText'>,
+  text: string,
+  maxW: number,
+): string {
+  if (maxW <= 0) return '';
+  if (ctx.measureText(text).width <= maxW) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (ctx.measureText(text.slice(0, mid) + '…').width <= maxW) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo > 0 ? text.slice(0, lo) + '…' : '';
 }
 
 /** Dashed vertical session separators with "New session · dd Mon 00:00" labels (P31). */

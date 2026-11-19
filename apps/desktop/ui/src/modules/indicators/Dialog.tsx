@@ -38,7 +38,7 @@ import {
   type TimeframeId,
 } from '@htflow/indicator-sdk';
 import { CATALOG, indicatorById, isImplemented, type CatalogEntry } from '@htflow/indicators';
-import { t } from '@htflow/i18n';
+import { t, translateLiteral as tl, tt } from '@htflow/i18n';
 import {
   Badge,
   Button,
@@ -60,6 +60,8 @@ import { useWindows } from '../../state/windows';
 import { buildIndicatorConfig } from './config';
 import { allInstruments, instrumentById } from '../../state/instruments';
 import { isTauri } from '../../platform/native';
+import { InstrumentPickerButton } from '../../components/InstrumentPicker';
+import { FormulaInput } from './FormulaEditor';
 import { openScriptEditor } from './editorState';
 import { useScripts } from './scripts';
 import { readExt, useIndicatorDialog, writeExt } from './state';
@@ -199,7 +201,7 @@ export function IndicatorsDialog({
     setPresets(next);
     setPresetName(null);
     void backend.saveSettings(PRESET_KEY, next);
-    toast('success', `Preset "${name}" saved`);
+    toast('success', tt`Preset "${name}" saved`);
   };
 
   const applyAll = () => {
@@ -218,7 +220,7 @@ export function IndicatorsDialog({
     }
     toast(
       'success',
-      `${titleOf(def!, selected.inputs)} applied to ${n} chart${n === 1 ? '' : 's'}`,
+      tt`${titleOf(def!, selected.inputs)} applied to ${n} chart${n === 1 ? '' : 's'}`,
     );
   };
 
@@ -246,11 +248,11 @@ export function IndicatorsDialog({
           onChange={(e) => setQuery(e.target.value)}
           aria-label={t('indicators.search')}
         />
-        <button className="ht-icon-btn ind-close" aria-label="Close" onClick={cancel}>
+        <button className="ht-icon-btn ind-close" aria-label={tl('Close')} onClick={cancel}>
           <X size={16} />
         </button>
         <div className="ind-cols">
-          <nav className="ind-cats" aria-label="Categories">
+          <nav className="ind-cats" aria-label={tl('Categories')}>
             <button
               aria-pressed={cat === 'favourites' && !query}
               onClick={() => (setCat('favourites'), setQuery(''))}
@@ -264,7 +266,7 @@ export function IndicatorsDialog({
                 aria-pressed={cat === c.id && !query}
                 onClick={() => (setCat(c.id), setQuery(''))}
               >
-                {c.label}
+                {tl(c.label)}
                 <span className="tnum">{counts[c.id] ?? 0}</span>
               </button>
             ))}
@@ -292,7 +294,7 @@ export function IndicatorsDialog({
                     >
                       <button
                         className="ind-star"
-                        aria-label={`Favourite ${e.name}`}
+                        aria-label={tt`Favourite ${e.name}`}
                         data-on={favs.includes(e.key) || undefined}
                         onClick={() => toggleFav(e.key)}
                       >
@@ -302,8 +304,8 @@ export function IndicatorsDialog({
                       {(userScript || e.impl === 'custom-script') && (
                         <button
                           className="ht-icon-btn"
-                          aria-label={`Edit ${e.name}`}
-                          title="Open in the Script Editor"
+                          aria-label={tt`Edit ${e.name}`}
+                          title={tl('Open in the Script Editor')}
                           onClick={() =>
                             openScriptEditor(
                               userScript ? e.impl!.slice(SCRIPT_PREFIX.length) : null,
@@ -316,7 +318,7 @@ export function IndicatorsDialog({
                       {ok ? (
                         <button
                           className="ht-icon-btn"
-                          aria-label={`Add ${e.name}`}
+                          aria-label={tt`Add ${e.name}`}
                           disabled={noBars}
                           onClick={() => add(e)}
                         >
@@ -374,21 +376,21 @@ export function IndicatorsDialog({
                     <span className="ind-acts">
                       <button
                         className="ht-icon-btn"
-                        aria-label="Move up"
+                        aria-label={tl('Move up')}
                         onClick={(e) => (e.stopPropagation(), move(c.uid, -1))}
                       >
                         <ArrowUp size={12} />
                       </button>
                       <button
                         className="ht-icon-btn"
-                        aria-label="Move down"
+                        aria-label={tl('Move down')}
                         onClick={(e) => (e.stopPropagation(), move(c.uid, 1))}
                       >
                         <ArrowDown size={12} />
                       </button>
                       <button
                         className="ht-icon-btn"
-                        aria-label="Duplicate"
+                        aria-label={tl('Duplicate')}
                         onClick={(e) => {
                           e.stopPropagation();
                           const copy = { ...c, uid: newUid() };
@@ -400,7 +402,7 @@ export function IndicatorsDialog({
                       </button>
                       <button
                         className="ht-icon-btn"
-                        aria-label="Remove"
+                        aria-label={tl('Remove')}
                         onClick={(e) => {
                           e.stopPropagation();
                           setDraft(
@@ -430,7 +432,7 @@ export function IndicatorsDialog({
                   <div className="grow" />
                   <Select
                     small
-                    aria-label="Preset"
+                    aria-label={tl('Preset')}
                     value=""
                     onChange={(name) => {
                       if (name === '__default')
@@ -474,7 +476,12 @@ export function IndicatorsDialog({
                 />
                 <div className="ind-body">
                   {tab === 'inputs' && (
-                    <InputsTab def={def} cfg={selected} onChange={(inputs) => update({ inputs })} />
+                    <InputsTab
+                      def={def}
+                      cfg={selected}
+                      windowId={windowId}
+                      onChange={(inputs) => update({ inputs })}
+                    />
                   )}
                   {tab === 'style' && (
                     <StyleTab def={def} cfg={selected} onChange={(styles) => update({ styles })} />
@@ -492,7 +499,7 @@ export function IndicatorsDialog({
                       {TF_CLASSES.map((c) => (
                         <Checkbox
                           key={c.value}
-                          label={c.label}
+                          label={tl(c.label)}
                           checked={selected.visibility.includes(c.value)}
                           onChange={(on) =>
                             update({
@@ -535,14 +542,14 @@ export function IndicatorsDialog({
                     <span className="ind-preset">
                       <Input
                         autoFocus
-                        aria-label="Preset name"
-                        placeholder="Preset name"
+                        aria-label={tl('Preset name')}
+                        placeholder={tl('Preset name')}
                         value={presetName}
                         onChange={(e) => setPresetName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && savePreset()}
                       />
                       <Button size="sm" variant="outline" onClick={savePreset}>
-                        Save
+                        {tl('Save')}
                       </Button>
                     </span>
                   )}
@@ -585,21 +592,60 @@ function Row({
   );
 }
 
-function InputControl({
+function InstrumentControl({
   d,
   value,
   onChange,
 }: {
   d: InputDef;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inst = value ? instrumentById(value) : undefined;
+  return (
+    <div className="ind-instrument">
+      <InstrumentPickerButton
+        className="ht-btn ht-btn--outline ht-btn--sm"
+        ariaLabel={d.label}
+        testId="ind-instrument"
+        value={value}
+        onPick={(_entry, feedId) => {
+          if (feedId) onChange(feedId);
+        }}
+      >
+        {inst ? `${inst.symbol} — ${inst.displayName}` : value ? value : 'Pick an instrument…'}
+      </InstrumentPickerButton>
+      {value && (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={tl('Clear instrument')}
+          onClick={() => onChange('')}
+        >
+          <X size={12} />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function InputControl({
+  d,
+  value,
+  onChange,
+  windowId,
+}: {
+  d: InputDef;
   value: InputValue;
   onChange: (v: InputValue) => void;
+  windowId: string;
 }) {
   switch (d.type) {
     case 'int':
     case 'float':
       return (
         <NumberInput
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as number}
           min={d.min}
           max={d.max}
@@ -612,22 +658,22 @@ function InputControl({
         />
       );
     case 'bool':
-      return <Toggle label={d.label} checked={value as boolean} onChange={onChange} />;
+      return <Toggle label={tl(d.label)} checked={value as boolean} onChange={onChange} />;
     case 'enum':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={d.options.map((o) => ({ ...o }))}
         />
       );
     case 'color':
-      return <ColorSwatch label={d.label} value={value as string} onChange={onChange} />;
+      return <ColorSwatch label={tl(d.label)} value={value as string} onChange={onChange} />;
     case 'linestyle':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={['solid', 'dashed', 'dotted'].map((v) => ({ value: v, label: v }))}
@@ -636,7 +682,7 @@ function InputControl({
     case 'source':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={SOURCES.filter((s) => !d.sources || d.sources.includes(s.value)).map((s) => ({
@@ -648,7 +694,7 @@ function InputControl({
     case 'timeframe':
       return (
         <Select
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           onChange={onChange}
           options={TIMEFRAMES.filter((s) => !d.options || d.options.includes(s.value)).map((s) => ({
@@ -656,10 +702,21 @@ function InputControl({
           }))}
         />
       );
+    case 'instrument':
+      return <InstrumentControl d={d} value={value as string} onChange={onChange} />;
     case 'string':
+      if (d.editor === 'formula')
+        return (
+          <FormulaInput
+            windowId={windowId}
+            label={tl(d.label)}
+            value={value as string}
+            onChange={onChange}
+          />
+        );
       return (
         <Input
-          aria-label={d.label}
+          aria-label={tl(d.label)}
           value={value as string}
           maxLength={d.maxLength}
           onChange={(e) => onChange(e.target.value)}
@@ -672,19 +729,26 @@ function InputsTab({
   def,
   cfg,
   onChange,
+  windowId,
 }: {
   def: AnyIndicator;
   cfg: IndicatorConfig;
   onChange: (v: IndicatorConfig['inputs']) => void;
+  windowId: string;
 }) {
   const vals = resolveInputs(def.inputs, cfg.inputs) as Record<string, InputValue>;
   const entries = Object.entries(def.inputs);
-  if (!entries.length) return <p className="muted">This indicator has no inputs.</p>;
+  if (!entries.length) return <p className="muted">{tl('This indicator has no inputs.')}</p>;
   return (
     <div className="ind-form">
       {entries.map(([k, d]) => (
-        <Row key={k} label={d.label} help={d.help}>
-          <InputControl d={d} value={vals[k]!} onChange={(v) => onChange({ ...vals, [k]: v })} />
+        <Row key={k} label={tl(d.label)} help={tl(d.help)}>
+          <InputControl
+            d={d}
+            value={vals[k]!}
+            windowId={windowId}
+            onChange={(v) => onChange({ ...vals, [k]: v })}
+          />
         </Row>
       ))}
     </div>
@@ -711,25 +775,25 @@ function StyleTab({
           <div key={id} className="ind-style-row">
             <Checkbox label="" checked={s.visible} onChange={(v) => set(id, { visible: v })} />
             <Input
-              aria-label={`${o.label} label`}
+              aria-label={tt`${o.label} label`}
               className="ind-style-label"
               value={s.label}
               onChange={(e) => set(id, { label: e.target.value })}
             />
             <ColorSwatch
-              label={`${o.label} colour`}
+              label={tt`${o.label} colour`}
               value={s.color}
               onChange={(c) => set(id, { color: c })}
             />
             {o.color2 && (
               <ColorSwatch
-                label={`${o.label} colour 2`}
+                label={tt`${o.label} colour 2`}
                 value={s.color2}
                 onChange={(c) => set(id, { color2: c })}
               />
             )}
             <NumberInput
-              aria-label={`${o.label} width`}
+              aria-label={tt`${o.label} width`}
               value={s.width}
               min={0.5}
               max={8}
@@ -739,7 +803,7 @@ function StyleTab({
             />
             <Select
               small
-              aria-label={`${o.label} line style`}
+              aria-label={tt`${o.label} line style`}
               value={s.style}
               onChange={(v) => set(id, { style: v as OutputStyle['style'] })}
               options={[
@@ -748,16 +812,20 @@ function StyleTab({
                 { value: 'dotted', label: 'Dotted' },
               ]}
             />
-            <span className="ind-opacity" title="Opacity">
+            <span className="ind-opacity" title={tl('Opacity')}>
               <Slider
-                label={`${o.label} opacity`}
+                label={tt`${o.label} opacity`}
                 value={Math.round(s.opacity * 100)}
                 min={0}
                 max={100}
                 onChange={(v) => set(id, { opacity: v / 100 })}
               />
             </span>
-            <Checkbox label="Tag" checked={s.priceTag} onChange={(v) => set(id, { priceTag: v })} />
+            <Checkbox
+              label={tl('Tag')}
+              checked={s.priceTag}
+              onChange={(v) => set(id, { priceTag: v })}
+            />
           </div>
         );
       })}
@@ -787,9 +855,12 @@ function AdvancedTab({
   const panes = before.filter((c) => c.pane === 'new');
   return (
     <div className="ind-form">
-      <Row label="Pane" help="Price pane overlay, a new sub-pane, or share an existing pane.">
+      <Row
+        label={tl('Pane')}
+        help={tl('Price pane overlay, a new sub-pane, or share an existing pane.')}
+      >
         <Select
-          aria-label="Pane"
+          aria-label={tl('Pane')}
           value={cfg.pane}
           onChange={(v) => update({ pane: v })}
           options={[
@@ -803,11 +874,13 @@ function AdvancedTab({
         />
       </Row>
       <Row
-        label="Scale"
-        help="Merged: price scale (overlay) or the pane's shared scale. Own: independent scale."
+        label={tl('Scale')}
+        help={tl(
+          "Merged: price scale (overlay) or the pane's shared scale. Own: independent scale.",
+        )}
       >
         <Select
-          aria-label="Scale"
+          aria-label={tl('Scale')}
           value={cfg.scale}
           onChange={(v) => update({ scale: v as IndicatorConfig['scale'] })}
           options={[
@@ -816,9 +889,9 @@ function AdvancedTab({
           ]}
         />
       </Row>
-      <Row label="Z-order" help="Draw above or below the price bars.">
+      <Row label={tl('Z-order')} help={tl('Draw above or below the price bars.')}>
         <Select
-          aria-label="Z-order"
+          aria-label={tl('Z-order')}
           value={cfg.z}
           onChange={(v) => update({ z: v as IndicatorConfig['z'] })}
           options={[
@@ -827,9 +900,9 @@ function AdvancedTab({
           ]}
         />
       </Row>
-      <Row label="Pane height" help={`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
+      <Row label={tl('Pane height')} help={tt`${PANE_HEIGHT.min}–${PANE_HEIGHT.max} px`}>
         <NumberInput
-          aria-label="Pane height"
+          aria-label={tl('Pane height')}
           value={cfg.height}
           min={PANE_HEIGHT.min}
           max={PANE_HEIGHT.max}
@@ -839,11 +912,13 @@ function AdvancedTab({
         />
       </Row>
       <Row
-        label="Timeframe"
-        help="Compute the indicator on higher-timeframe bars (the chart's bars merged per period) and map it onto this chart."
+        label={tl('Timeframe')}
+        help={tl(
+          "Compute the indicator on higher-timeframe bars (the chart's bars merged per period) and map it onto this chart.",
+        )}
       >
         <Select
-          aria-label="Indicator timeframe"
+          aria-label={tl('Indicator timeframe')}
           value={cfg.tf}
           onChange={(v) => update({ tf: v as TimeframeId })}
           options={[
@@ -856,11 +931,11 @@ function AdvancedTab({
       </Row>
       {cfg.tf !== 'chart' && (
         <Row
-          label="Higher-timeframe bar"
-          help="Closed: never repaints. Forming: follows the live bar."
+          label={tl('Higher-timeframe bar')}
+          help={tl('Closed: never repaints. Forming: follows the live bar.')}
         >
           <Select
-            aria-label="Higher-timeframe bar"
+            aria-label={tl('Higher-timeframe bar')}
             value={cfg.tfMode}
             onChange={(v) => update({ tfMode: v as IndicatorConfig['tfMode'] })}
             options={[
@@ -871,11 +946,13 @@ function AdvancedTab({
         </Row>
       )}
       <Row
-        label="Data source"
-        help="Compute the indicator on another instrument; values are mapped onto this chart by time (own scale by default)."
+        label={tl('Data source')}
+        help={tl(
+          'Compute the indicator on another instrument; values are mapped onto this chart by time (own scale by default).',
+        )}
       >
         <Select
-          aria-label="Data source"
+          aria-label={tl('Data source')}
           value={cfg.symbol || 'chart'}
           onChange={(v) =>
             update(
@@ -910,34 +987,36 @@ function AlertsTab({
   const opts = outs.map((o) => ({ value: o, label: styles[o]?.label ?? def.outputs[o]!.label }));
   const set = (id: string, p: Partial<IndicatorAlert>) =>
     onChange(cfg.alerts.map((a) => (a.id === id ? { ...a, ...p } : a)));
-  if (!outs.length) return <p className="muted">This indicator has no line outputs to alert on.</p>;
+  if (!outs.length)
+    return <p className="muted">{tl('This indicator has no line outputs to alert on.')}</p>;
   const precision = Math.max(0, Math.min(8, Math.ceil(-Math.log10(Math.min(tickSize, 1)) - 1e-9)));
   return (
     <div className="ind-alerts" data-testid="ind-alerts">
       <p className="muted ind-note">
-        Alerts fire a toast, a sound and an Activity entry through the Alerts module. Price levels
-        are real prices.
+        {tl(
+          'Alerts fire a toast, a sound and an Activity entry through the Alerts module. Price levels are real prices.',
+        )}
       </p>
       {cfg.alerts.map((a) => (
         <div key={a.id} className="ind-alert-row" data-testid="ind-alert-row">
           <Checkbox label="" checked={a.enabled} onChange={(v) => set(a.id, { enabled: v })} />
           <Select
             small
-            aria-label="Alert output"
+            aria-label={tl('Alert output')}
             value={a.output}
             onChange={(v) => set(a.id, { output: v })}
             options={opts}
           />
           <Select
             small
-            aria-label="Alert condition"
+            aria-label={tl('Alert condition')}
             value={a.cond}
             onChange={(v) => set(a.id, { cond: v as IndicatorAlert['cond'] })}
             options={ALERT_CONDS.map((c) => ({ ...c }))}
           />
           <Select
             small
-            aria-label="Alert target"
+            aria-label={tl('Alert target')}
             value={a.target === 'output' ? `o:${a.other}` : 'value'}
             onChange={(v) =>
               set(
@@ -952,7 +1031,7 @@ function AlertsTab({
           />
           {a.target === 'value' && (
             <NumberInput
-              aria-label="Alert level"
+              aria-label={tl('Alert level')}
               value={a.value}
               min={-1e12}
               max={1e12}
@@ -963,7 +1042,7 @@ function AlertsTab({
           )}
           <Select
             small
-            aria-label="Alert timing"
+            aria-label={tl('Alert timing')}
             value={a.when}
             onChange={(v) => set(a.id, { when: v as IndicatorAlert['when'] })}
             options={[
@@ -971,13 +1050,21 @@ function AlertsTab({
               { value: 'close', label: 'On bar close' },
             ]}
           />
-          <Checkbox label="Once" checked={a.once} onChange={(v) => set(a.id, { once: v })} />
-          <Checkbox label="Toast" checked={a.toast} onChange={(v) => set(a.id, { toast: v })} />
-          <Checkbox label="Sound" checked={a.sound} onChange={(v) => set(a.id, { sound: v })} />
-          <Checkbox label="Log" checked={a.log} onChange={(v) => set(a.id, { log: v })} />
+          <Checkbox label={tl('Once')} checked={a.once} onChange={(v) => set(a.id, { once: v })} />
+          <Checkbox
+            label={tl('Toast')}
+            checked={a.toast}
+            onChange={(v) => set(a.id, { toast: v })}
+          />
+          <Checkbox
+            label={tl('Sound')}
+            checked={a.sound}
+            onChange={(v) => set(a.id, { sound: v })}
+          />
+          <Checkbox label={tl('Log')} checked={a.log} onChange={(v) => set(a.id, { log: v })} />
           <button
             className="ht-icon-btn"
-            aria-label="Remove alert"
+            aria-label={tl('Remove alert')}
             onClick={() => onChange(cfg.alerts.filter((x) => x.id !== a.id))}
           >
             <Trash2 size={12} />
@@ -991,7 +1078,7 @@ function AlertsTab({
         disabled={cfg.alerts.length >= 20}
         onClick={() => onChange([...cfg.alerts, newIndicatorAlert(outs[0]!, `a${newUid()}`)])}
       >
-        <Bell size={12} /> Add alert
+        <Bell size={12} /> {tl('Add alert')}
       </Button>
     </div>
   );

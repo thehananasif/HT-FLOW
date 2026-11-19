@@ -1,6 +1,6 @@
 import type { Bar, Trade } from '@htflow/market-data';
 import type { ListOut, SeriesOut } from './buffers';
-import type { DepthData, DerivativesData } from './feeds';
+import type { CotData, DepthData, DerivativesData, OptionsData } from './feeds';
 
 /** Appendix B categories (plus user scripts). */
 export type IndicatorCategory =
@@ -139,11 +139,19 @@ export interface StringInput extends InputCommon {
   type: 'string';
   default: string;
   maxLength: number;
+  /** 'formula': the dialog offers the Custom Formula editor (syntax errors + live preview). */
+  editor?: 'formula';
 }
 export interface TimeframeInput extends InputCommon {
   type: 'timeframe';
   default: TimeframeId;
   options?: readonly TimeframeId[];
+}
+
+/** A second instrument (instrument id, '' = none): picked with the symbol picker in the dialog. */
+export interface InstrumentInput extends InputCommon {
+  type: 'instrument';
+  default: string;
 }
 
 export type InputDef =
@@ -155,7 +163,8 @@ export type InputDef =
   | LineStyleInput
   | SourceInput
   | StringInput
-  | TimeframeInput;
+  | TimeframeInput
+  | InstrumentInput;
 
 export type InputDefs = Record<string, InputDef>;
 export type InputValue = number | boolean | string;
@@ -282,6 +291,71 @@ export type Outputs<O extends OutputDefs> = { readonly [K in keyof O]: OutFor<O[
 
 // ------------------------------------------------------------------ definition
 
+/** Bars of a second instrument (same timeframe as the host chart), supplied by the host. */
+export interface AuxBars {
+  bars: readonly Bar[];
+  /** Changes whenever bars change (BarSeries.version). */
+  version: number;
+  tickSize: number;
+}
+
+/** Looks up the bars of another instrument by id (null when unknown / not loaded yet). */
+export type AuxProvider = (instrumentId: string) => AuxBars | null;
+
+/** Another instrument's closes aligned to the host chart's bars (see `alignAuxClose`). */
+export interface AuxSeries {
+  /** Real prices (ticks x tickSize), forward-filled over gaps, NaN before the first aux bar. */
+  close: Float64Array;
+  tickSize: number;
+}
+
+/**
+ * Read-only snapshot of the trading account (paper / live store). `otherUnrealized` is the
+ * unrealized P&L of every position except the chart's instrument, whose position is `positionQty`
+ * at `avgPx` (ticks) so indicators can mark it at the bar they are drawing.
+ */
+export interface AccountSnapshot {
+  /** Changes whenever the account changes (orders, fills, balance). */
+  version: number;
+  name: string;
+  currency: string;
+  startingBalance: number;
+  balance: number;
+  /** Signed quantity of the chart's instrument (> 0 long, < 0 short, 0 flat). */
+  positionQty: number;
+  /** Average entry price of that position, in ticks. */
+  avgPx: number;
+  /** Account currency per tick for one unit of the chart's instrument. */
+  pnlPerTick: number;
+  otherUnrealized: number;
+  openPositions: number;
+  /** Open option positions on the chart's instrument (paper options), for the options indicators. */
+  options?: readonly AccountOption[];
+}
+
+/** One open option position on the chart's instrument (structural copy of the paper position). */
+export interface AccountOption {
+  id: string;
+  right: 'call' | 'put';
+  /** Strike in price units. */
+  strike: number;
+  /** Expiry date YYYY-MM-DD. */
+  expiry: string;
+  expiryTs?: number;
+  iv?: number;
+  model?: 'bs' | 'b76';
+  r?: number;
+  q?: number;
+  basis?: number;
+  name?: string;
+  /** Signed contracts: > 0 long, < 0 short. */
+  qty: number;
+  /** Average premium per unit of underlying (price units). */
+  avgPremium: number;
+  /** Units of underlying per contract. */
+  multiplier: number;
+}
+
 /** Read-only market data an indicator is computed on. */
 export interface BarData {
   bars: readonly Bar[];
@@ -294,6 +368,14 @@ export interface BarData {
   derivatives?: DerivativesData;
   /** Resting-depth columns (store.depth) for order-book indicators. */
   depth?: DepthData;
+  /** Other instruments' bars for indicators with an `instrument` input. */
+  aux?: AuxProvider;
+  /** Trading account snapshot (null / undefined when there is none). */
+  account?: () => AccountSnapshot | null;
+  /** Weekly CFTC Commitments of Traders history (COT indicators). */
+  cot?: CotData;
+  /** Options chain of the underlying (Options Board, Volatility Smile). */
+  options?: OptionsData;
 }
 
 export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = undefined> {
@@ -320,6 +402,17 @@ export interface CalcContext<I extends InputDefs, O extends OutputDefs, S = unde
   derivatives: DerivativesData | undefined;
   /** Resting-depth columns (undefined when the host has none). */
   depth: DepthData | undefined;
+  /**
+   * Closes of another instrument aligned to this chart's bars (forward-filled) up to bar i; null
+   * while the host has no bars for it (not picked, not loaded yet).
+   */
+  aux(instrumentId: string): AuxSeries | null;
+  /** Trading account snapshot (null when the host has no account). */
+  account: AccountSnapshot | null;
+  /** Weekly COT history (undefined when the host has none). */
+  cot: CotData | undefined;
+  /** Options chain (undefined while loading or when the host has none). */
+  options: OptionsData | undefined;
   /** Shows a short note next to the legend title (e.g. "no data from this feed"); null clears it. */
   notice(text: string | null): void;
 }
@@ -346,6 +439,22 @@ export interface IndicatorMeta {
   zeroLine?: boolean;
   /** Needs the tape (trades) — hosts without it show empty output. */
   needsTrades?: boolean;
+  /** Reads another instrument or the account: computed on the main thread, not in a worker. */
+  needsHost?: boolean;
+  /** Reads `ctx.options`: the host loads the options chain lazily once such an indicator is on the chart. */
+  needsOptions?: boolean;
+  /**
+   * Performance hint: list items (markers / levels / zones) are never edited after the calc that
+   * added them, so the worker sends only items added from the recomputed bar on (default false:
+   * every item is compared with what was sent, which also catches zones extended in place).
+   */
+  listsAppendOnly?: boolean;
+  /**
+   * Performance hint: calc() of bar i writes series values of bar i only (never earlier bars), so
+   * the worker skips diffing the whole history after each tick. Leave unset when the indicator
+   * revises the past (zigzag, displaced lines): the safe default diffs everything.
+   */
+  stableHistory?: boolean;
 }
 
 export interface IndicatorDefinition<

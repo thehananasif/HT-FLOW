@@ -138,6 +138,26 @@ export class ListOut<T extends { bar: number }> {
     }
   }
 
+  /** Index of the first item added by the calc of bar >= `bar` (items.length when none). */
+  indexFrom(bar: number): number {
+    let lo = 0;
+    let hi = this.origins.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.origins[mid]! < bar) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  /** Keeps items [0, k) and appends `items` (applying a worker's list diff). */
+  replaceFrom(k: number, items: readonly T[]): void {
+    const n = Math.min(k, this.items.length);
+    this.items.length = n;
+    this.origins.length = n;
+    for (const it of items) this.add(it);
+  }
+
   clear(): void {
     this.items.length = 0;
     this.origins.length = 0;

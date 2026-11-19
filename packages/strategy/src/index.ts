@@ -7,3 +7,4 @@ export * from './optimize';
 export * from './examples';
 export * from './serialize';
 export { input } from '@htflow/indicator-sdk';
+export * from './script';

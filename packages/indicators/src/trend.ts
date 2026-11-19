@@ -260,6 +260,9 @@ export const ZigZag = defineIndicator({
   inputs: { deviation: input.float('Deviation', 1, { min: 0.01, max: 50, step: 0.05, unit: '%' }) },
   outputs: { zz: output.line('ZigZag', HT.warning, { unit: 'price', width: 1.5 }) },
   title: (p) => `ZigZag ${p.deviation}%`,
+  // Bar whose calc last wrote the line and the first index it wrote (the live bar is computed
+  // repeatedly; a later calc of the same bar first undoes what the earlier one wrote).
+  init: () => ({ bar: -1, lo: 0 }),
   calc(ctx) {
     const { i } = ctx;
     const b = ctx.bar;
@@ -309,11 +312,34 @@ export const ZigZag = defineIndicator({
       eP[i] = ep;
     }
     const v = ctx.out.zz.v;
-    const pi = pI[i]!;
-    const ei = eI[i]!;
-    for (let k = pi; k <= i; k++)
-      v[k] =
-        k <= ei ? (ei === pi ? pP[i]! : pP[i]! + ((eP[i]! - pP[i]!) * (k - pi)) / (ei - pi)) : NaN_;
+    // The line from the last pivot to the running extreme: v[k] for k in [from, to].
+    const leg = (j: number, from: number, to: number) => {
+      const p0 = pI[j]!;
+      const e0 = eI[j]!;
+      for (let k = from; k <= to; k++)
+        v[k] =
+          k <= e0
+            ? e0 === p0
+              ? pP[j]!
+              : pP[j]! + ((eP[j]! - pP[j]!) * (k - p0)) / (e0 - p0)
+            : NaN_;
+    };
+    const st = ctx.state;
+    // Recompute of the live bar: restore what bar i − 1 left before this bar's earlier calc.
+    if (st.bar === i && i > 0) leg(i - 1, st.lo, i - 1);
+    // Same pivot / extreme as bar i − 1: bars before i already hold this leg (O(1) per bar instead
+    // of redrawing the whole leg — the full-history recompute was O(n²) on long legs).
+    const same =
+      i > 0 &&
+      dir[i] === dir[i - 1] &&
+      pI[i] === pI[i - 1] &&
+      eI[i] === eI[i - 1] &&
+      pP[i] === pP[i - 1] &&
+      eP[i] === eP[i - 1];
+    const from = same ? i : pI[i]!;
+    leg(i, from, i);
+    st.bar = i;
+    st.lo = from;
   },
 });
 

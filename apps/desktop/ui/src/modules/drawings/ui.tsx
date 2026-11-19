@@ -20,7 +20,7 @@ import {
   Slider,
   toast,
 } from '@htflow/ui-kit';
-import { t } from '@htflow/i18n';
+import { plural, t, translateLiteral as tl } from '@htflow/i18n';
 import { formatPrice, specKey, specLabel, TIMEFRAME_PRESETS } from '@htflow/market-data';
 import {
   ALERT_TRIGGERS,
@@ -121,7 +121,7 @@ export function DrawingsOverlay({
       {def && (
         <div className="dr-hint">
           {toolLabel(def.id)}
-          {toolNote(def.id) ? ` — ${toolNote(def.id)}` : ''} · Esc to cancel
+          {toolNote(def.id) ? ` — ${toolNote(def.id)}` : ''} {tl('· Esc to cancel')}
         </div>
       )}
       {d && showBar && !def && (
@@ -685,7 +685,7 @@ function PropertiesDialog({
                       };
                     })
                   }
-                  label={t.label}
+                  label={tl(t.label)}
                 />
               ))}
           </div>
@@ -721,7 +721,7 @@ export function ObjectsList(_props: ModuleViewProps) {
       <div className="row gap8 dr-objects-head">
         <span className="muted">
           {instrumentOf(win.instrumentId)?.symbol ?? win.instrumentId} ·{' '}
-          {t('drawings.objectsCount', { n: items.length, s: items.length === 1 ? '' : 's' })}
+          {t('drawings.objectsCount', { n: items.length, s: plural(items.length) })}
         </span>
         <div className="grow" />
         <Button size="xs" disabled={!items.length} onClick={() => mutate(windowId, () => [])}>

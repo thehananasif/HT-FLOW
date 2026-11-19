@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { IDockviewPanelHeaderProps } from 'dockview';
-import { Camera, Maximize2, Settings2, X } from 'lucide-react';
+import { Camera, CircleHelp, Maximize2, Settings2, X } from 'lucide-react';
+import { helpTopicFor, openGuide } from '../modules/user-guide/topics';
 import { Badge, Chip, DropdownMenu, IconButton, MenuTrigger } from '@htflow/ui-kit';
 import {
   CHART_TEMPLATES,
@@ -23,6 +24,7 @@ import { TimeframeHeader } from '../charts/timeframes/TimeframeDialog';
 import { confirmAction } from '../state/confirm';
 import { WindowMenuButton } from '../modules/workspaces/WindowMenu';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 /** Closes a window, asking first when Settings → General → Confirmations requires it. */
 function closeWindow(api: IDockviewPanelHeaderProps['api']): void {
   const w = useWindows.getState().windows[api.id];
@@ -40,8 +42,8 @@ function LinkDot({ id, link }: { id: string; link: LinkColor }) {
       trigger={
         <button
           className="link-dot"
-          aria-label={`Link group: ${link}`}
-          title={`Link group: ${link}`}
+          aria-label={tt`Link group: ${tl(link)}`}
+          title={tt`Link group: ${tl(link)}`}
         >
           <span style={{ background: LINK_COLORS[link] }} />
         </button>
@@ -75,9 +77,9 @@ function InstrumentMenu({ id, instrumentId }: { id: string; instrumentId: string
 
 function FeedBadge({ instrumentId }: { instrumentId: string }) {
   const st = hub.peek(instrumentId)?.status.state ?? 'connecting';
-  if (instrumentId.startsWith('replay:')) return <Badge kind="replay">Replay</Badge>;
-  if (instrumentId.startsWith('mock:')) return <Badge kind="replay">Sim</Badge>;
-  if (st === 'live') return <Badge kind="live">Live</Badge>;
+  if (instrumentId.startsWith('replay:')) return <Badge kind="replay">{tl('Replay')}</Badge>;
+  if (instrumentId.startsWith('mock:')) return <Badge kind="replay">{tl('Sim')}</Badge>;
+  if (st === 'live') return <Badge kind="live">{tl('Live')}</Badge>;
   if (st === 'error' || st === 'disconnected') return <Badge kind="error">{st}</Badge>;
   return <Badge kind="delayed">{st}</Badge>;
 }
@@ -99,15 +101,15 @@ function ChartControls({ id, s }: { id: string; s: ChartWindowState }) {
       ) : (
         <TimeframeHeader windowId={id} s={s} />
       )}
-      <span className="hdr-lots tnum" title="Order quantity">
+      <span className="hdr-lots tnum" title={tl('Order quantity')}>
         <input
-          aria-label="Lots"
+          aria-label={tl('Lots')}
           value={s.lots}
           onChange={(e) =>
             set({ lots: Math.max(0, Number(e.target.value.replace(/[^\d.]/g, '')) || 0) })
           }
         />
-        Lots
+        {tl('Lots')}
       </span>
       <DropdownMenu
         items={[
@@ -160,7 +162,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
     return () => subs.forEach((d) => d.dispose());
   }, [props.containerApi]);
   const multi = (props.api.group?.panels.length ?? 1) > 1;
-  if (!s) return <div className="win-hdr">{props.api.title}</div>;
+  if (!s) return <div className="win-hdr">{tl(props.api.title)}</div>;
   const inst = s.kind !== 'module' ? instrumentById(s.instrumentId) : undefined;
   if (multi) {
     return (
@@ -171,7 +173,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
         {windowTitle(s, inst?.symbol ?? '')}
         <button
           className="ht-icon-btn"
-          aria-label="Close window"
+          aria-label={tl('Close window')}
           onClick={() => closeWindow(props.api)}
         >
           <X size={13} />
@@ -193,7 +195,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
               <span className="hdr-account">••••3505 ▾</span>
               <span className="hdr-lots tnum">
                 <input
-                  aria-label="Lots"
+                  aria-label={tl('Lots')}
                   value={s.lots}
                   onChange={(e) =>
                     useWindows
@@ -201,7 +203,7 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
                       .patch(id, { lots: Math.max(0, Number(e.target.value) || 0) })
                   }
                 />
-                Lots
+                {tl('Lots')}
               </span>
               <FeedBadge instrumentId={s.instrumentId} />
               <DropdownMenu
@@ -222,34 +224,41 @@ export function WindowHeader(props: IDockviewPanelHeaderProps) {
       <div className="grow" />
       {s.kind === 'chart' && (
         <span className="hdr-center">
-          Chart <FeedBadge instrumentId={s.instrumentId} />
+          {tl('Chart')} <FeedBadge instrumentId={s.instrumentId} />
         </span>
       )}
       <div className="grow" />
       {s.kind === 'chart' && (
         <IconButton
-          label="Snapshot (copy PNG)"
+          label={tl('Snapshot (copy PNG)')}
           onClick={() => window.dispatchEvent(new CustomEvent('htflow:snapshot', { detail: id }))}
         >
           <Camera size={13} />
         </IconButton>
       )}
+      <IconButton
+        label={tl('Help for this panel')}
+        data-testid={`help-${id}`}
+        onClick={() => openGuide(helpTopicFor(s))}
+      >
+        <CircleHelp size={13} />
+      </IconButton>
       <WindowMenuButton id={id} />
       <IconButton
-        label="Maximize"
+        label={tl('Maximize')}
         onClick={() => (props.api.isMaximized() ? props.api.exitMaximized() : props.api.maximize())}
       >
         <Maximize2 size={12} />
       </IconButton>
       <IconButton
-        label="Settings"
+        label={tl('Settings')}
         disabled={s.kind !== 'chart'}
         title={s.kind === 'chart' ? 'Chart settings (Ctrl+S)' : 'Settings'}
         onClick={() => s.kind === 'chart' && openChartSettings(id)}
       >
         <Settings2 size={13} />
       </IconButton>
-      <IconButton label="Close window" onClick={() => closeWindow(props.api)}>
+      <IconButton label={tl('Close window')} onClick={() => closeWindow(props.api)}>
         <X size={14} />
       </IconButton>
     </div>

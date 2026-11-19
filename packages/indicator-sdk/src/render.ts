@@ -1,4 +1,4 @@
-import type { ChartLayer, ChartView, Rect } from '@htflow/chart-engine';
+import { painterOf, type ChartLayer, type ChartView, type Rect } from '@htflow/chart-engine';
 import { ListOut, SeriesOut } from './buffers';
 import {
   paneGroups,
@@ -71,6 +71,17 @@ function dash(ctx: CanvasRenderingContext2D, s: OutputStyle): void {
 const toneColor = (s: OutputStyle, t: number) =>
   t === 1 ? s.color2 : t === 2 ? s.color3 : s.color;
 
+const orderCache = new WeakMap<AnyIndicator, [string, OutputDef][]>();
+/** Outputs in paint order (computed once per definition, not on every frame). */
+function drawOrder(def: AnyIndicator): [string, OutputDef][] {
+  let e = orderCache.get(def);
+  if (!e) {
+    e = Object.entries(def.outputs).sort((p, q) => ORDER[p[1].kind]! - ORDER[q[1].kind]!);
+    orderCache.set(def, e);
+  }
+  return e;
+}
+
 /** Draws every visible output of one indicator into `m.rect`. */
 export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
   const { ctx } = v;
@@ -80,9 +91,9 @@ export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
   const sw = v.slotWidth;
   const bw = Math.max(1, Math.floor(sw * 0.6));
   const right = m.rect.x + m.rect.w;
-  const entries = Object.entries(it.def.outputs).sort(
-    (p, q) => ORDER[p[1].kind]! - ORDER[q[1].kind]!,
-  );
+  const entries = drawOrder(it.def);
+  const paint = painterOf(v);
+  paint.setClip(m.rect);
   for (const [id, od] of entries) {
     const st = it.styles[id]!;
     if (!st.visible) continue;
@@ -100,10 +111,21 @@ export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
           let px = 0;
           let py = 0;
           let x0 = 0;
+          // Solid lines go through the painter (triangle strips on WebGL2); the same points.
+          const viaPaint = od.kind === 'line' && st.style !== 'dashed' && st.style !== 'dotted';
+          const pts: number[] = [];
+          const strokeRun = () => {
+            if (viaPaint) {
+              paint.polyline(pts, pts.length / 2, toneColor(st, tone), st.width, st.opacity);
+              pts.length = 0;
+            } else {
+              ctx.strokeStyle = toneColor(st, tone);
+              ctx.stroke();
+            }
+          };
           const flush = () => {
             if (!started) return;
-            ctx.strokeStyle = toneColor(st, tone);
-            ctx.stroke();
+            strokeRun();
             if (od.kind === 'area') {
               ctx.lineTo(px, m.base);
               ctx.lineTo(x0, m.base);
@@ -125,17 +147,22 @@ export function drawOutputs(v: ChartView, it: RenderItem, m: Mapper): void {
             if (!started) {
               ctx.beginPath();
               ctx.moveTo(x, y);
+              pts.length = 0;
+              pts.push(x, y);
               x0 = x;
               tone = t;
               started = true;
             } else if (t !== tone && od.kind === 'line') {
-              ctx.strokeStyle = toneColor(st, tone);
-              ctx.stroke();
+              strokeRun();
               ctx.beginPath();
               ctx.moveTo(px, py);
               ctx.lineTo(x, y);
+              pts.push(px, py, x, y);
               tone = t;
-            } else ctx.lineTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+              pts.push(x, y);
+            }
             px = x;
             py = y;
           }

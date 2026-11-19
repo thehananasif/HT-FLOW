@@ -9,6 +9,7 @@ import {
   ArrowDownToLine,
   ArrowRightToLine,
   Columns2,
+  CircleHelp,
   ExternalLink,
   Grid2x2,
   Layout,
@@ -24,7 +25,6 @@ import {
   DropdownMenu,
   Field,
   Input,
-  LogoBars,
   SegmentedControl,
   toast,
   type MenuEntry,
@@ -41,6 +41,7 @@ import {
   type WorkspaceDoc,
   type WorkspaceTab,
   stripRemovedModules,
+  cloneWindowState,
 } from '@htflow/workspace';
 import { backend, BackendError } from '../backend';
 import { useSession } from '../state/session';
@@ -51,6 +52,7 @@ import { DEFAULT_INSTRUMENT, allInstruments, instrumentById } from '../state/ins
 import { paper } from '../state/market';
 import { activeAccount, routedAccount } from '../trading/accounts';
 import { isTauri } from '../backend';
+import { BrandIcon } from '../components/Brand';
 import { TitleBar } from '../shell/TitleBar';
 import { Ribbon } from '../shell/Ribbon';
 import { StatusBar } from '../shell/StatusBar';
@@ -58,6 +60,7 @@ import { CommandPalette } from '../shell/CommandPalette';
 import {
   installHotkeys,
   registerCommands,
+  runCommand,
   setActiveWindowElement,
   type Command,
 } from '../shell/commands';
@@ -77,9 +80,26 @@ import {
   attachDockBehaviour,
   defaultFloatingRect,
   isFloating,
+  opensOsWindow,
   placeNewWindow,
+  splitFloatingRect,
   toggleFloating,
 } from '../modules/layout-settings/apply';
+import {
+  applyOsWindows,
+  detachToOsWindow,
+  detachUsesOsWindow,
+  focusOsWindowOf,
+  installOsWindowsMain,
+  isDetached,
+  openStateInOsWindow,
+  osEntries,
+  osWindowsAvailable,
+  reattachAll,
+  reattachWindow,
+  suspendOsWindows,
+} from '../platform/osWindows';
+import { sanitizeEntries } from '../platform/windowBus';
 import {
   captureDisplay,
   installDisplayTracking,
@@ -87,6 +107,7 @@ import {
   restoreMainWindow,
 } from '../modules/layout-settings/display';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
 const components = { chart: ChartWindow, dom: DomWindow, module: ModuleWindow };
 
@@ -124,6 +145,7 @@ export function Dashboard({ version }: { version: string }) {
   const tradingPanel = useWindows((s) => s.tradingPanel);
   const windows = useWindows((s) => s.windows);
   const loading = useRef(false);
+  const detachRef = useRef<(mode?: 'auto' | 'float' | 'os') => void>(() => {});
 
   // ------------------------------------------------------------- layout helpers
 
@@ -158,6 +180,8 @@ export function Dashboard({ version }: { version: string }) {
       windows: useWindows.getState().windows,
       tradingPanel: useWindows.getState().tradingPanel,
       specs: undefined,
+      // Separate OS windows of this tab (their states are in `windows`).
+      osWindows: osEntries().length ? osEntries() : undefined,
     };
   };
 
@@ -231,6 +255,8 @@ export function Dashboard({ version }: { version: string }) {
           api.fromJSON(layout as Parameters<DockviewApi['fromJSON']>[0]);
         } else if (tab.specs?.length) buildSpecs(tab.specs);
         useWindows.getState().setTradingPanel(tab.tradingPanel);
+        // OS windows of this tab (desktop) — floating windows in the browser build.
+        applyOsWindows(sanitizeEntries(tab.osWindows, tab.windows));
       } catch (e) {
         console.warn('Workspace restore failed, applying default preset', e);
         loading.current = false;
@@ -278,13 +304,54 @@ export function Dashboard({ version }: { version: string }) {
           setDoc(next);
           void backend.saveSettings('workspace', next);
         },
-        focusWindow: (id) => e.api.getPanel(id)?.api.setActive(),
+        focusWindow: (id) => {
+          if (!focusOsWindowOf(id)) e.api.getPanel(id)?.api.setActive();
+        },
         closeWindow: (id) => e.api.getPanel(id)?.api.close(),
         isFloating: (id) => isFloating(e.api, id),
         toggleFloating: (id) => toggleFloating(e.api, id),
+        detachWindow: (id, mode) => {
+          useWindows.getState().setActive(id);
+          e.api.getPanel(id)?.api.setActive();
+          detachRef.current(mode);
+        },
       });
+      // A panel that moved into an OS window keeps its window state.
       e.api.onDidRemovePanel((p) => {
-        if (!loading.current) useWindows.getState().remove(p.id);
+        if (!loading.current && !isDetached(p.id)) useWindows.getState().remove(p.id);
+      });
+      installOsWindowsMain({
+        groupOf: (id) => e.api.getPanel(id)?.group.panels.map((x) => x.id) ?? [id],
+        takePanels: (ids) => {
+          for (const id of ids) {
+            const panel = e.api.getPanel(id);
+            if (panel) e.api.removePanel(panel);
+          }
+        },
+        putPanels: (ids, o) => {
+          let first: string | null = null;
+          for (const id of ids) {
+            const st = useWindows.getState().windows[id];
+            if (!st || e.api.getPanel(id)) continue;
+            const ref = first ? e.api.getPanel(first) : undefined;
+            if (ref)
+              e.api.addPanel({
+                id,
+                component: st.kind,
+                title: title(st),
+                position: { referencePanel: ref, direction: 'within' },
+              });
+            else placeNewWindow(e.api, { id, state: st, title: title(st), floating: o.floating });
+            first ??= id;
+          }
+          if (first) e.api.getPanel(first)?.api.setActive();
+        },
+        titleOf: (id) => {
+          const st = useWindows.getState().windows[id];
+          return st ? title(st) : 'HT Flow';
+        },
+        newId,
+        requestSave: () => setTimeout(save, 0),
       });
       e.api.onDidActivePanelChange((p) => p && useWindows.getState().setActive(p.id));
       let timer: ReturnType<typeof setTimeout> | null = null;
@@ -410,9 +477,17 @@ export function Dashboard({ version }: { version: string }) {
 
   /** New windows open docked or floating as Layout settings say (callers may override). */
   const openWindow = useCallback(
-    (state: WindowState, opts: { ref?: string; dir?: OpenDir; floating?: boolean } = {}) => {
+    (
+      state: WindowState,
+      opts: { ref?: string; dir?: OpenDir; floating?: boolean; osWindow?: boolean } = {},
+    ) => {
       const api = apiRef.current;
       if (!api) return;
+      // "In new OS window" (or Layout settings: open in New OS window); browser: floating.
+      const os =
+        opts.osWindow ?? (opts.floating === undefined && !opts.dir && opensOsWindow(state));
+      if (os && openStateInOsWindow(state)) return;
+      if (opts.osWindow) opts = { ...opts, floating: true };
       const id = newId(state.kind);
       useWindows.getState().add(id, state);
       placeNewWindow(api, { id, state, title: title(state), ...opts });
@@ -420,16 +495,57 @@ export function Dashboard({ version }: { version: string }) {
     [],
   );
 
+  /** The window commands act on: dockview's active panel, else the last focused, else any. */
+  const targetPanel = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return null;
+    const known = (id: string | null | undefined) =>
+      id && useWindows.getState().windows[id] ? api.getPanel(id) : undefined;
+    return (
+      known(api.activePanel?.id) ??
+      known(useWindows.getState().activeId) ??
+      api.panels.find((p) => known(p.id) && p.group.api.location.type === 'grid') ??
+      api.panels.find((p) => known(p.id)) ??
+      null
+    );
+  }, []);
+
+  /** Split right / down: a copy of the target window next to it (floating ones float beside). */
   const split = useCallback(
     (dir: 'right' | 'below') => {
       const api = apiRef.current;
-      const active = api?.activePanel;
-      if (!api || !active) return;
-      const s = useWindows.getState().windows[active.id];
-      if (!s) return;
-      addPanel(newId(s.kind), { ...s }, { ref: active.id, dir });
+      const target = targetPanel();
+      if (!api || !target) {
+        toast('info', tl('Nothing to split'), tl('Open or select a window first.'));
+        return;
+      }
+      const state = cloneWindowState(useWindows.getState().windows[target.id]!);
+      const id = newId(state.kind);
+      if (target.group.api.location.type === 'floating') {
+        // Floating groups cannot be split: the copy floats next to the source window.
+        const host = dockHostRef.current?.getBoundingClientRect();
+        const box = target.group.element.getBoundingClientRect();
+        const r = splitFloatingRect(
+          {
+            x: box.left - (host?.left ?? 0),
+            y: box.top - (host?.top ?? 0),
+            width: box.width,
+            height: box.height,
+          },
+          dir,
+          { width: api.width, height: api.height },
+        );
+        useWindows.getState().add(id, state);
+        api.addPanel({
+          id,
+          component: state.kind,
+          title: title(state),
+          floating: { position: { left: r.x, top: r.y }, width: r.width, height: r.height },
+        });
+      } else addPanel(id, state, { ref: target.id, dir });
+      api.getPanel(id)?.api.setActive();
     },
-    [addPanel],
+    [addPanel, targetPanel],
   );
 
   /** Window (dock group) under a screen point, or null over empty dock area. */
@@ -461,17 +577,37 @@ export function Dashboard({ version }: { version: string }) {
     [openWindow, windowAt],
   );
 
-  const detach = useCallback(() => {
-    const api = apiRef.current;
-    const active = api?.activePanel;
-    if (!api || !active) return;
-    const r = defaultFloatingRect(api); // Layout settings → default size / placement
-    api.addFloatingGroup(active, {
-      position: { left: r.x, top: r.y },
-      width: r.width,
-      height: r.height,
-    });
-  }, []);
+  /**
+   * Detach window: into its own OS window (desktop app, Layout settings: Detach window opens) or
+   * a floating window inside the main window (browser build, or when chosen).
+   */
+  const detach = useCallback(
+    (mode: 'auto' | 'float' | 'os' = 'auto') => {
+      const api = apiRef.current;
+      const target = targetPanel();
+      if (!api || !target) {
+        toast('info', tl('Nothing to detach'), tl('Open or select a window first.'));
+        return;
+      }
+      const os = mode === 'os' ? osWindowsAvailable() : mode === 'auto' && detachUsesOsWindow();
+      if (os && detachToOsWindow(target.id)) return;
+      if (mode === 'os' && !osWindowsAvailable())
+        toast('info', tl('Floating instead'), tl('Separate OS windows need the desktop app.'));
+      if (target.group.api.location.type === 'floating') {
+        target.api.setActive();
+        return; // already floating
+      }
+      const r = defaultFloatingRect(api); // Layout settings: default size / placement
+      api.addFloatingGroup(target, {
+        position: { left: r.x, top: r.y },
+        width: r.width,
+        height: r.height,
+      });
+      target.api.setActive();
+    },
+    [targetPanel],
+  );
+  detachRef.current = detach;
 
   const setMainChart = (tpl: ChartTemplateId) => {
     const api = apiRef.current;
@@ -508,7 +644,48 @@ export function Dashboard({ version }: { version: string }) {
       },
       { id: 'split-right', label: 'Split right', group: 'Layout', run: () => split('right') },
       { id: 'split-down', label: 'Split down', group: 'Layout', run: () => split('below') },
-      { id: 'detach', label: 'Detach window (floating)', group: 'Layout', run: detach },
+      {
+        id: 'detach',
+        label: 'Detach window',
+        group: 'Layout',
+        keywords: 'undock pop out monitor',
+        run: () => detach(),
+      },
+      {
+        id: 'detach-float',
+        label: 'Detach window: floating inside the main window',
+        group: 'Layout',
+        keywords: 'undock float',
+        run: () => detach('float'),
+      },
+      {
+        id: 'detach-os',
+        label: 'Detach window to a new OS window',
+        group: 'Layout',
+        keywords: 'undock pop out second monitor screen separate',
+        run: () => detach('os'),
+      },
+      {
+        id: 'window.reattach',
+        label: 'Re-attach active window from its OS window',
+        group: 'Layout',
+        keywords: 'dock back monitor',
+        run: () => {
+          const id = useWindows.getState().activeId;
+          if (!id || !reattachWindow(id))
+            toast('info', tl('The active window is not in an OS window'));
+        },
+      },
+      {
+        id: 'window.reattach-all',
+        label: 'Re-attach all OS windows',
+        group: 'Layout',
+        keywords: 'dock back monitor',
+        run: () => {
+          const n = reattachAll();
+          toast('info', n ? `Re-attached ${n} window${n > 1 ? 's' : ''}` : 'No OS windows open');
+        },
+      },
       {
         id: 'ribbon-compact',
         label: 'Ribbon: icons only',
@@ -599,7 +776,8 @@ export function Dashboard({ version }: { version: string }) {
     // Any window (chart, DOM, tape, module) — Clone / Create linked window use this (P25).
     const onOpenWindow = (e: Event) => {
       const d = readOpenWindowDetail((e as CustomEvent).detail);
-      if (d) openWindow(d.state, { ref: d.ref, dir: d.dir, floating: d.floating });
+      if (d)
+        openWindow(d.state, { ref: d.ref, dir: d.dir, floating: d.floating, osWindow: d.osWindow });
     };
     window.addEventListener('htflow:open-window', onOpenWindow);
     return () => {
@@ -609,6 +787,9 @@ export function Dashboard({ version }: { version: string }) {
       window.removeEventListener('htflow:open-window', onOpenWindow);
     };
   }, [applyPreset, openWindow, split, detach, addPanel]);
+
+  // Lock / sign-out unmounts the dashboard: its OS windows close (they come back on unlock).
+  useEffect(() => () => suspendOsWindows(), []);
 
   // Auto-lock after idle (P03 setting; default 30 min).
   useEffect(() => {
@@ -633,25 +814,30 @@ export function Dashboard({ version }: { version: string }) {
   return (
     <div className="app-root">
       <TitleBar>
-        <div className="titlebar-brand">
-          <LogoBars size={16} />
+        <div className="titlebar-brand" title="HT Flow">
+          <BrandIcon size={16} />
           <span className="tb-logo">
-            HT
+            {tl('HT')}
             <br />
-            FLOW
+            {tl('FLOW')}
           </span>
         </div>
         <WorkspaceMenu
           trigger={
-            <button className="tb-workspace" data-testid="workspace-menu">
-              <span className="muted">Workspace:</span> {doc.name} ▾
+            <button
+              className="tb-workspace"
+              data-testid="workspace-menu"
+              title={`${tl('Workspace:')} ${doc.name}`}
+            >
+              <span className="muted tb-ws-label">{tl('Workspace:')}</span>{' '}
+              <span className="tb-ws-name">{doc.name}</span> ▾
             </button>
           }
         />
-        <div className="tb-group">
-          <span className="muted">Layout</span>
+        <div className="tb-group tb-layout">
+          <span className="muted tb-label">{tl('Layout')}</span>
           <SegmentedControl
-            aria-label="Layout presets"
+            aria-label={tl('Layout presets')}
             value={preset}
             onChange={(v) => applyPreset(v)}
             options={LAYOUT_PRESETS.map((p) => ({
@@ -666,8 +852,8 @@ export function Dashboard({ version }: { version: string }) {
           />
         </div>
         {singleChart && firstChart?.kind === 'chart' && (
-          <div className="tb-group">
-            <span className="muted">Main chart</span>
+          <div className="tb-group tb-mainchart">
+            <span className="muted tb-label">{tl('Main chart')}</span>
             {CHART_TEMPLATES.filter((t) => !t.more).map((t) => (
               <Chip
                 key={t.id}
@@ -679,25 +865,32 @@ export function Dashboard({ version }: { version: string }) {
             ))}
           </div>
         )}
-        <div className="tb-group">
-          <Button size="xs" variant="ghost" onClick={() => split('right')}>
-            <ArrowRightToLine size={13} /> Split right
+        <div className="tb-group tb-actions">
+          <Button
+            size="xs"
+            variant="ghost"
+            title={tl('Split right')}
+            onClick={() => split('right')}
+          >
+            <ArrowRightToLine size={13} /> <span className="tb-txt">{tl('Split right')}</span>
           </Button>
-          <Button size="xs" variant="ghost" onClick={() => split('below')}>
-            <ArrowDownToLine size={13} /> Split down
+          <Button size="xs" variant="ghost" title={tl('Split down')} onClick={() => split('below')}>
+            <ArrowDownToLine size={13} /> <span className="tb-txt">{tl('Split down')}</span>
           </Button>
-          <Button size="xs" variant="ghost" onClick={detach}>
-            <ExternalLink size={13} /> Detach window
+          <Button size="xs" variant="ghost" title={tl('Detach window')} onClick={() => detach()}>
+            <ExternalLink size={13} /> <span className="tb-txt">{tl('Detach window')}</span>
           </Button>
           <Button
             size="xs"
             variant="ghost"
+            title={tl('Trading Panel')}
             aria-pressed={tradingPanel}
             onClick={() => useWindows.getState().setTradingPanel(!tradingPanel)}
           >
-            <PanelRight size={13} /> Panel
+            <PanelRight size={13} /> <span className="tb-txt">{tl('Panel')}</span>
           </Button>
         </div>
+        <HelpMenu />
         <RiskMeter />
         <AccountMenu name={session.displayName} />
       </TitleBar>
@@ -722,7 +915,7 @@ export function Dashboard({ version }: { version: string }) {
       </div>
       <div className="ws-tabs">
         {/* Tabs: roving focus (← / →, Home / End), Enter / Space opens, F2 renames, Delete closes. */}
-        <div className="ws-tablist" role="tablist" aria-label="Workspace layouts">
+        <div className="ws-tablist" role="tablist" aria-label={tl('Workspace layouts')}>
           {doc.tabs.map((t, i) => (
             <div
               key={t.id}
@@ -757,7 +950,7 @@ export function Dashboard({ version }: { version: string }) {
                 <span
                   className="ws-tab-x"
                   aria-hidden="true"
-                  title={`Close ${t.name}`}
+                  title={tt`Close ${t.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(t.id);
@@ -769,7 +962,7 @@ export function Dashboard({ version }: { version: string }) {
             </div>
           ))}
         </div>
-        <button className="ws-tab ws-tab-add" aria-label="Add layout" onClick={addTab}>
+        <button className="ws-tab ws-tab-add" aria-label={tl('Add layout')} onClick={addTab}>
           <Plus size={13} />
         </button>
       </div>
@@ -822,6 +1015,39 @@ function RiskMeter() {
   );
 }
 
+function HelpMenu() {
+  const items: MenuEntry[] = [
+    {
+      id: 'guide',
+      label: 'User Guide',
+      shortcut: 'F1',
+      onSelect: () => runCommand('user-guide.open'),
+    },
+    {
+      id: 'panel',
+      label: 'Help for this window',
+      shortcut: 'Shift+F1',
+      onSelect: () => runCommand('user-guide.help-panel'),
+    },
+    { id: 'keys', label: 'Keyboard shortcuts', onSelect: () => runCommand('user-guide.shortcuts') },
+    { id: 'tour', label: 'Start guided tour', onSelect: () => runCommand('tour.start') },
+    { kind: 'separator', id: 'hs' },
+    { id: 'upd', label: 'Check for updates', onSelect: () => runCommand('platform.checkUpdates') },
+    { id: 'rep', label: 'Report a problem…', onSelect: () => runCommand('platform.reportProblem') },
+  ];
+  return (
+    <DropdownMenu
+      align="end"
+      items={items}
+      trigger={
+        <button className="ht-icon-btn" aria-label={tl('Help menu')} data-testid="help-menu">
+          <CircleHelp size={15} />
+        </button>
+      }
+    />
+  );
+}
+
 function AccountMenu({ name }: { name: string }) {
   const [pwOpen, setPwOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
@@ -834,11 +1060,11 @@ function AccountMenu({ name }: { name: string }) {
       a.click();
       toast(
         'success',
-        'Profile exported',
-        'The .htprofile file stays encrypted with your password.',
+        tl('Profile exported'),
+        tl('The .htprofile file stays encrypted with your password.'),
       );
     } catch (e) {
-      toast('error', 'Export failed', e instanceof Error ? e.message : String(e));
+      toast('error', tl('Export failed'), e instanceof Error ? e.message : String(e));
     }
   };
   const items: MenuEntry[] = [
@@ -862,7 +1088,7 @@ function AccountMenu({ name }: { name: string }) {
         align="end"
         items={items}
         trigger={
-          <button className="avatar" aria-label="Account menu" data-testid="account-menu">
+          <button className="avatar" aria-label={tl('Account menu')} data-testid="account-menu">
             {name.slice(0, 1).toUpperCase()}
           </button>
         }
@@ -884,28 +1110,28 @@ function ChangePasswordDialog({
   const [b, setB] = useState('');
   const [err, setErr] = useState<string | null>(null);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Change password" width={400}>
+    <Dialog open={open} onOpenChange={onOpenChange} title={tl('Change password')} width={400}>
       <form
         className="col gap12"
         onSubmit={async (e) => {
           e.preventDefault();
           try {
             await backend.changePassword(a, b);
-            toast('success', 'Password changed');
+            toast('success', tl('Password changed'));
             onOpenChange(false);
           } catch (x) {
             setErr(x instanceof BackendError ? x.message : String(x));
           }
         }}
       >
-        <Field label="Current password">
+        <Field label={tl('Current password')}>
           <Input type="password" value={a} onChange={(e) => setA(e.target.value)} />
         </Field>
-        <Field label="New password (min 10)" error={err}>
+        <Field label={tl('New password (min 10)')} error={err}>
           <Input type="password" value={b} onChange={(e) => setB(e.target.value)} />
         </Field>
         <Button type="submit" variant="primary" disabled={b.length < 10}>
-          Change password
+          {tl('Change password')}
         </Button>
       </form>
     </Dialog>
@@ -918,8 +1144,8 @@ function PinDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Quick-unlock PIN"
-      description="6 digits. Leave empty to remove the PIN."
+      title={tl('Quick-unlock PIN')}
+      description={tl('6 digits. Leave empty to remove the PIN.')}
       width={380}
     >
       <form
@@ -939,7 +1165,7 @@ function PinDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: bo
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
         />
         <Button type="submit" variant="primary" disabled={pin.length !== 0 && pin.length !== 6}>
-          Save
+          {tl('Save')}
         </Button>
       </form>
     </Dialog>

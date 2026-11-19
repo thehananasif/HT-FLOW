@@ -20,6 +20,7 @@ import {
 } from '../../trading/atmStore';
 import { setPrefs, useTradingPrefs } from '../../trading/prefs';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 function download(name: string, text: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -65,37 +66,41 @@ export function AtmEditor() {
     <div className="atm-editor" data-testid="atm-editor">
       <div className="atm-list">
         <div className="row gap6 atm-list-tools">
-          <Button size="sm" onClick={() => setSelId(addTemplate().id)} aria-label="New template">
-            <Plus size={12} /> New
+          <Button
+            size="sm"
+            onClick={() => setSelId(addTemplate().id)}
+            aria-label={tl('New template')}
+          >
+            <Plus size={12} /> {tl('New')}
           </Button>
           <Button
             size="sm"
             disabled={!sel}
             onClick={() => sel && setSelId(addTemplate(sel).id)}
-            aria-label="Duplicate template"
-            title="Duplicate"
+            aria-label={tl('Duplicate template')}
+            title={tl('Duplicate')}
           >
             <Copy size={12} />
           </Button>
           <Button
             size="sm"
-            title="Export my templates (JSON)"
-            aria-label="Export templates"
+            title={tl('Export my templates (JSON)')}
+            aria-label={tl('Export templates')}
             onClick={() => download('htflow-atm-templates.json', exportTemplates())}
           >
             <Download size={12} />
           </Button>
           <Button
             size="sm"
-            title="Import templates (JSON)"
-            aria-label="Import templates"
+            title={tl('Import templates (JSON)')}
+            aria-label={tl('Import templates')}
             onClick={() =>
               void pickFile().then((txt) => {
                 if (!txt) return;
                 try {
-                  toast('success', `Imported ${importTemplates(txt)} template(s)`);
+                  toast('success', tt`Imported ${importTemplates(txt)} template(s)`);
                 } catch {
-                  toast('error', 'Import failed', 'Not a template file');
+                  toast('error', tl('Import failed'), tl('Not a template file'));
                 }
               })
             }
@@ -112,8 +117,8 @@ export function AtmEditor() {
           >
             <span className="row gap6 center-y">
               <b>{t.name}</b>
-              {t.builtin && <span className="ot-badge">Preset</span>}
-              {prefs.atmId === t.id && <span className="ot-badge">In use</span>}
+              {t.builtin && <span className="ot-badge">{tl('Preset')}</span>}
+              {prefs.atmId === t.id && <span className="ot-badge">{tl('In use')}</span>}
             </span>
             <span className="muted tnum">{describeAtm(t)}</span>
           </button>
@@ -123,34 +128,34 @@ export function AtmEditor() {
         <div className="atm-form">
           <fieldset disabled={ro} className="atm-fieldset">
             <label className="atm-row">
-              <span>Name</span>
+              <span>{tl('Name')}</span>
               <Input
                 value={draft.name}
                 onChange={(e) => set({ name: e.target.value })}
-                aria-label="Template name"
+                aria-label={tl('Template name')}
               />
             </label>
 
-            <h4>Stop loss</h4>
+            <h4>{tl('Stop loss')}</h4>
             <div className="atm-row">
               <Checkbox
                 checked={draft.sl.enabled}
                 onChange={(v) => set({ sl: { ...draft.sl, enabled: v } })}
-                label="Protective stop"
+                label={tl('Protective stop')}
               />
             </div>
             <div className="atm-row">
-              <span>Type</span>
+              <span>{tl('Type')}</span>
               <Select
                 small
                 value={draft.sl.type}
                 onChange={(v: AtmSlType) => set({ sl: { ...draft.sl, type: v } })}
                 options={ATM_SL_TYPES}
-                aria-label="Stop type"
+                aria-label={tl('Stop type')}
               />
             </div>
             <div className="atm-row">
-              <span>Distance</span>
+              <span>{tl('Distance')}</span>
               <div className="row gap6">
                 <NumberInput
                   value={draft.sl.value}
@@ -160,7 +165,7 @@ export function AtmEditor() {
                   unit={unitLabel(
                     draft.sl.type === 'trailing' ? draft.sl.trailUnit : draft.sl.type,
                   )}
-                  aria-label="Stop distance"
+                  aria-label={tl('Stop distance')}
                 />
                 {draft.sl.type === 'trailing' && (
                   <Select
@@ -172,37 +177,39 @@ export function AtmEditor() {
                       { value: 'percent', label: '%' },
                       { value: 'atr', label: 'ATR ×' },
                     ]}
-                    aria-label="Trailing unit"
+                    aria-label={tl('Trailing unit')}
                   />
                 )}
               </div>
             </div>
             <div className="atm-row">
-              <span>ATR period</span>
+              <span>{tl('ATR period')}</span>
               <NumberInput
                 value={draft.atrPeriod}
                 onChange={(v) => set({ atrPeriod: v })}
                 min={2}
                 max={500}
                 unit="bars"
-                aria-label="ATR period"
+                aria-label={tl('ATR period')}
               />
             </div>
 
-            <h4>Targets</h4>
+            <h4>{tl('Targets')}</h4>
             <div className="atm-row">
-              <span>Unit</span>
+              <span>{tl('Unit')}</span>
               <Select
                 small
                 value={draft.tpUnit}
                 onChange={(v: AtmTpUnit) => set({ tpUnit: v })}
                 options={ATM_TP_UNITS.map((u) => ({ value: u.value, label: u.label }))}
-                aria-label="Target unit"
+                aria-label={tl('Target unit')}
               />
             </div>
             {draft.targets.map((tg, i) => (
               <div className="atm-row" key={i}>
-                <span>TP {i + 1}</span>
+                <span>
+                  {tl('TP')} {i + 1}
+                </span>
                 <div className="row gap6 center-y">
                   <NumberInput
                     value={tg.value}
@@ -214,7 +221,7 @@ export function AtmEditor() {
                     step={draft.tpUnit === 'ticks' ? 1 : 0.05}
                     min={0}
                     unit={unitLabel(draft.tpUnit)}
-                    aria-label={`Target ${i + 1} distance`}
+                    aria-label={tt`Target ${i + 1} distance`}
                   />
                   <NumberInput
                     value={tg.qty}
@@ -225,11 +232,11 @@ export function AtmEditor() {
                     }
                     min={0}
                     unit="share"
-                    aria-label={`Target ${i + 1} quantity share`}
+                    aria-label={tt`Target ${i + 1} quantity share`}
                   />
                   <button
                     className="ot-x"
-                    aria-label={`Remove target ${i + 1}`}
+                    aria-label={tt`Remove target ${i + 1}`}
                     onClick={() => set({ targets: draft.targets.filter((_, j) => j !== i) })}
                   >
                     ✕
@@ -251,43 +258,45 @@ export function AtmEditor() {
                   })
                 }
               >
-                <Plus size={12} /> Add target
+                <Plus size={12} /> {tl('Add target')}
               </Button>
             </div>
 
-            <h4>Auto-breakeven</h4>
+            <h4>{tl('Auto-breakeven')}</h4>
             <div className="atm-row">
               <Checkbox
                 checked={draft.breakeven.enabled}
                 onChange={(v) => set({ breakeven: { ...draft.breakeven, enabled: v } })}
-                label="Move stop to breakeven"
+                label={tl('Move stop to breakeven')}
               />
             </div>
             <div className="atm-row">
-              <span>At profit</span>
+              <span>{tl('At profit')}</span>
               <NumberInput
                 value={draft.breakeven.trigger}
                 onChange={(v) => set({ breakeven: { ...draft.breakeven, trigger: v } })}
                 min={1}
                 unit="T"
-                aria-label="Breakeven trigger"
+                aria-label={tl('Breakeven trigger')}
               />
             </div>
             <div className="atm-row">
-              <span>Plus</span>
+              <span>{tl('Plus')}</span>
               <NumberInput
                 value={draft.breakeven.offset}
                 onChange={(v) => set({ breakeven: { ...draft.breakeven, offset: v } })}
                 min={-100}
                 unit="T"
-                aria-label="Breakeven offset"
+                aria-label={tl('Breakeven offset')}
               />
             </div>
 
-            <h4>Trailing steps</h4>
+            <h4>{tl('Trailing steps')}</h4>
             {draft.trailSteps.map((s, i) => (
               <div className="atm-row" key={i}>
-                <span>Step {i + 1}</span>
+                <span>
+                  {tl('Step')} {i + 1}
+                </span>
                 <div className="row gap6 center-y">
                   <NumberInput
                     value={s.trigger}
@@ -300,7 +309,7 @@ export function AtmEditor() {
                     }
                     min={1}
                     unit="T profit"
-                    aria-label={`Step ${i + 1} trigger`}
+                    aria-label={tt`Step ${i + 1} trigger`}
                   />
                   <NumberInput
                     value={s.stopOffset}
@@ -313,11 +322,11 @@ export function AtmEditor() {
                     }
                     min={-1000}
                     unit="T stop"
-                    aria-label={`Step ${i + 1} stop`}
+                    aria-label={tt`Step ${i + 1} stop`}
                   />
                   <button
                     className="ot-x"
-                    aria-label={`Remove step ${i + 1}`}
+                    aria-label={tt`Remove step ${i + 1}`}
                     onClick={() => set({ trailSteps: draft.trailSteps.filter((_, j) => j !== i) })}
                   >
                     ✕
@@ -341,7 +350,7 @@ export function AtmEditor() {
                   });
                 }}
               >
-                <Plus size={12} /> Add step
+                <Plus size={12} /> {tl('Add step')}
               </Button>
             </div>
           </fieldset>
@@ -356,7 +365,7 @@ export function AtmEditor() {
           <div className="muted tnum atm-summary">{describeAtm(draft)}</div>
           <div className="row gap8 atm-actions">
             {ro ? (
-              <span className="muted">Presets are read-only — duplicate to edit.</span>
+              <span className="muted">{tl('Presets are read-only — duplicate to edit.')}</span>
             ) : (
               <>
                 <Button
@@ -364,24 +373,24 @@ export function AtmEditor() {
                   disabled={!dirty || errors.length > 0}
                   onClick={() => {
                     saveTemplate(draft);
-                    toast('success', 'Template saved', draft.name);
+                    toast('success', tl('Template saved'), draft.name);
                   }}
                 >
-                  Save
+                  {tl('Save')}
                 </Button>
                 <Button disabled={!dirty} onClick={() => sel && setDraft(structuredClone(sel))}>
-                  Revert
+                  {tl('Revert')}
                 </Button>
                 <span className="grow" />
                 <Button
-                  aria-label="Delete template"
+                  aria-label={tl('Delete template')}
                   onClick={() => {
                     deleteTemplate(draft.id);
                     if (prefs.atmId === draft.id) setPrefs({ atmId: '' });
                     setSelId(templates[0]?.id ?? '');
                   }}
                 >
-                  <Trash2 size={12} /> Delete
+                  <Trash2 size={12} /> {tl('Delete')}
                 </Button>
               </>
             )}
@@ -390,7 +399,7 @@ export function AtmEditor() {
               onClick={() => setPrefs({ atmId: draft.id, bracketOn: true })}
               data-testid="atm-use"
             >
-              Use in Trading Panel
+              {tl('Use in Trading Panel')}
             </Button>
           </div>
         </div>

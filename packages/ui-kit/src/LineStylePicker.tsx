@@ -1,5 +1,6 @@
 import { NumberInput, SegmentedControl } from './components';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 export type LineDash = 'solid' | 'dashed' | 'dotted';
 export interface LineStyle {
   dash: LineDash;
@@ -51,7 +52,7 @@ export function LineStylePicker({
   return (
     <div className={`ht-linestyle ${className ?? ''}`} role="group" aria-label={ariaLabel}>
       <SegmentedControl<LineDash>
-        aria-label="Dash style"
+        aria-label={tl('Dash style')}
         value={value.dash}
         onChange={(dash) => onChange({ ...value, dash })}
         options={(['solid', 'dashed', 'dotted'] as const).map((d) => ({
@@ -61,7 +62,7 @@ export function LineStylePicker({
         }))}
       />
       <NumberInput
-        aria-label="Line width"
+        aria-label={tl('Line width')}
         value={value.width}
         min={1}
         max={maxWidth}

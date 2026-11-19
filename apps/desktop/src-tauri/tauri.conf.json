@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "HT Flow",
         "width": 1600,
         "height": 900,
@@ -46,10 +47,15 @@
         "installMode": "currentUser",
         "displayLanguageSelector": false,
         "startMenuFolder": "HT Flow",
-        "installerHooks": "./windows/installer-hooks.nsh"
+        "installerHooks": "./windows/installer-hooks.nsh",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/installer/nsis-header.bmp",
+        "sidebarImage": "icons/installer/nsis-sidebar.bmp"
       },
       "wix": {
-        "language": "en-US"
+        "language": "en-US",
+        "bannerPath": "icons/installer/wix-banner.bmp",
+        "dialogImagePath": "icons/installer/wix-dialog.bmp"
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
@@ -86,6 +92,13 @@
         "description": "HT Flow chart template",
         "role": "Editor",
         "mimeType": "application/vnd.htflow.template+json"
+      },
+      {
+        "ext": ["htstrat"],
+        "name": "HT Flow Strategy",
+        "description": "HT Flow HT Editor strategy",
+        "role": "Editor",
+        "mimeType": "application/vnd.htflow.strategy+json"
       }
     ]
   },

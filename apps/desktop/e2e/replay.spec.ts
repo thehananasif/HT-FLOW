@@ -175,3 +175,156 @@ test('bookmarks persist per replay template', async ({ page }) => {
   await expect(bar.locator('.rp-mark')).toHaveCount(2, { timeout: 20_000 });
   expect(errors).toEqual([]);
 });
+
+test('start, change speed, step, stop: the chart goes back to live without replay bars', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'replay6');
+  await startReplayOnChart(page);
+  const bar = page.getByTestId('replay-bar');
+  await bar.getByRole('button', { name: '1000×' }).click();
+  await expect(bar.getByRole('button', { name: '1000×' })).toHaveAttribute('aria-pressed', 'true');
+  await bar.getByRole('button', { name: '5×', exact: true }).click();
+  await expect(bar.getByRole('button', { name: '5×', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await bar.getByTestId('replay-step-bar').click();
+  await bar.getByTestId('replay-step-tick').click();
+  await bar.getByTestId('replay-stop').click();
+  await expect(page.getByTestId('replay-bar')).toHaveCount(0);
+  await expect(page.getByLabel('Running replay')).toHaveCount(0);
+  await expect(page.getByTestId('chart-footprint')).toBeVisible();
+  await expect(page.locator('.ht-badge--replay', { hasText: 'Replay' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('replay runs on downloaded exchange history when nothing is recorded locally', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // Stand-in for the native backfill: one trade per second, prices in ticks (0.1).
+  await page.addInitScript(() => {
+    (globalThis as Record<string, unknown>).__HTFLOW_REPLAY_HISTORY__ = async (r: {
+      from: number;
+      to: number;
+      onProgress?: (p: number) => void;
+    }) => {
+      const out: { ts: number; px: number; qty: number; side: string; id: number }[] = [];
+      let id = 1;
+      for (let t = Math.ceil(r.from / 1000) * 1000; t <= r.to; t += 1000, id++)
+        out.push({
+          ts: t,
+          px: 600_000 + ((id * 7) % 40) - 20,
+          qty: 0.01,
+          side: id % 2 ? 'buy' : 'sell',
+          id,
+        });
+      r.onProgress?.(1);
+      return out;
+    };
+  });
+  await createAccount(page, 'replay7');
+  await expect(page.getByTestId('chart-footprint')).toBeVisible();
+  await page.getByTestId('chart-footprint').click({ position: { x: 200, y: 200 } });
+  await page.getByTestId('ribbon-replay').click();
+  await page.getByTestId('replay-instrument').click();
+  await page.getByText('BTCUSDT · Binance Futures', { exact: true }).first().click();
+  await expect(page.getByTestId('replay-data-info')).toContainText('BTCUSDT');
+  await page.getByTestId('replay-start').click();
+  await expect(page.getByLabel('Running replay')).toBeVisible({ timeout: 20_000 });
+  const bar = page.getByTestId('replay-bar');
+  await expect(bar).toBeVisible({ timeout: 20_000 });
+  const clock = page.getByTestId('replay-clock');
+  const t0 = await clock.textContent();
+  await bar.getByRole('button', { name: '100×' }).click();
+  await page.getByTestId('replay-play').click();
+  await expect(clock).not.toHaveText(t0 ?? '', { timeout: 5000 });
+  await bar.getByTestId('replay-stop').click();
+  await expect(page.getByTestId('replay-bar')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('an invalid replay range is reported and blocks Start', async ({ page }) => {
+  await createAccount(page, 'replay8');
+  await page.getByTestId('chart-footprint').click({ position: { x: 200, y: 200 } });
+  await page.getByTestId('ribbon-replay').click();
+  await page.getByLabel('To', { exact: true }).fill('2999-01-01T00:00');
+  await expect(page.getByText('To is in the future')).toBeVisible();
+  await expect(page.getByTestId('replay-start')).toBeDisabled();
+});
+
+test('replay chart shows the history before start and keeps the newest bar at the right edge', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await createAccount(page, 'replay-lookback');
+  await expect(page.getByTestId('chart-footprint')).toBeVisible();
+  await page.getByTestId('chart-footprint').click({ position: { x: 200, y: 200 } });
+  await page.getByTestId('ribbon-replay').click();
+  await expect(page.getByTestId('replay-window')).toBeVisible();
+  // "History before start" is part of the setup (default: one day, drawn as normal bars).
+  await expect(page.getByLabel('History before start')).toHaveValue('1');
+  await page.getByTestId('replay-start').click();
+  await expect(page.getByLabel('Running replay')).toBeVisible({ timeout: 30_000 });
+  const bar = page.getByTestId('replay-bar');
+  await expect(bar).toBeVisible({ timeout: 20_000 });
+  // The tick counter counts only the replayed range, not the history.
+  await expect(bar.locator('.rp-clock .muted')).toHaveText(/^0 \/ [\d,]+ ticks$/);
+
+  const chart = page.getByTestId('chart-footprint');
+  const canvas = chart.locator('canvas[data-bars-left]').first();
+  const view = async () => {
+    const [px, pw] = ((await canvas.getAttribute('data-plot')) ?? '0,0').split(',').map(Number);
+    return {
+      left: Number(await canvas.getAttribute('data-bars-left')),
+      lastX: Number(await canvas.getAttribute('data-last-x')),
+      plotX: px!,
+      plotW: pw!,
+    };
+  };
+  // History is drawn before the replay start: bars to the left of the newest one.
+  await expect.poll(async () => (await view()).left, { timeout: 10_000 }).toBeGreaterThan(0);
+  const box = (await canvas.boundingBox())!;
+  let v = await view();
+  const at = (f: number) => box.x + v.plotX + v.plotW * f;
+  // Wide footprint bars: zoom out (wheel); the view stays anchored on the newest bar.
+  await page.mouse.move(at(0.5), box.y + box.height * 0.3);
+  for (let i = 0; i < 8; i++) {
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(30);
+  }
+  await expect.poll(async () => (await view()).left, { timeout: 10_000 }).toBeGreaterThan(20);
+  v = await view();
+  expect(v.lastX).toBeGreaterThan(0.85);
+  expect(v.lastX).toBeLessThanOrEqual(1);
+
+  // Playing keeps the newest bar at the right edge (auto-scroll).
+  await bar.getByRole('button', { name: '1000×' }).click();
+  await page.getByTestId('replay-play').click();
+  await page.waitForTimeout(1500);
+  await page.getByTestId('replay-play').click();
+  v = await view();
+  expect(v.left).toBeGreaterThan(20);
+  expect(v.lastX).toBeGreaterThan(0.85);
+
+  // Panning into the history stops following; "Go to latest" anchors again.
+  await page.mouse.move(at(0.2), box.y + box.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(at(0.8), box.y + box.height * 0.3, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await view()).lastX).toBeLessThan(0.8);
+  // Stays put while the replay plays (the user is reading the history).
+  const panned = (await view()).lastX;
+  await page.getByTestId('replay-step-bar').click();
+  await page.waitForTimeout(300);
+  expect((await view()).lastX).toBeGreaterThanOrEqual(panned);
+  expect((await view()).lastX).toBeLessThan(0.85);
+  await page.getByTitle('Go to latest').first().click();
+  await expect.poll(async () => (await view()).lastX).toBeGreaterThan(0.85);
+  expect(errors).toEqual([]);
+});

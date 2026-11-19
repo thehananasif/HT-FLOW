@@ -12,6 +12,7 @@ import { useConnections, venueOf } from './store';
 import { latencyLevel, providerById, type ConnectionConfig, type LatencyLevel } from './providers';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 function useTicker(ms = 1000) {
   const [, set] = useState(0);
   useEffect(() => {
@@ -187,31 +188,35 @@ function Connections({ onData }: { onData: () => void }) {
     <div className="col fill pad12 gap12 cx-root">
       <div className="row gap8 cx-toolbar">
         <Button variant="primary" onClick={() => setWizard({})}>
-          + Add connection
+          {tl('+ Add connection')}
         </Button>
         <Button variant="outline" onClick={() => toggleAll(true)}>
-          Connect all
+          {tl('Connect all')}
         </Button>
         <Button variant="outline" onClick={() => toggleAll(false)}>
-          Disconnect all
+          {tl('Disconnect all')}
         </Button>
         <Button variant="ghost" onClick={onData}>
-          Data manager
+          {tl('Data manager')}
         </Button>
         <div className="grow" />
-        <Checkbox label="Auto-connect on start" checked={autoConnect} onChange={setAutoConnect} />
+        <Checkbox
+          label={tl('Auto-connect on start')}
+          checked={autoConnect}
+          onChange={setAutoConnect}
+        />
       </div>
       <div className="tbl-wrap">
         <table className="tbl tnum cx-table">
           <thead>
             <tr>
-              <th>Connection</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th className="r">Latency</th>
-              <th className="r">Msgs/s</th>
-              <th className="r">Accounts</th>
-              <th className="r">Actions</th>
+              <th>{tl('Connection')}</th>
+              <th>{tl('Type')}</th>
+              <th>{tl('Status')}</th>
+              <th className="r">{tl('Latency')}</th>
+              <th className="r">{tl('Msgs/s')}</th>
+              <th className="r">{tl('Accounts')}</th>
+              <th className="r">{tl('Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -228,9 +233,9 @@ function Connections({ onData }: { onData: () => void }) {
                 </td>
                 <td>{r.type}</td>
                 <td>
-                  <span className={`cx-status cx-status--${r.status}`} title={r.label}>
+                  <span className={`cx-status cx-status--${r.status}`} title={tl(r.label)}>
                     <i />
-                    {r.label}
+                    {tl(r.label)}
                   </span>
                 </td>
                 <td className={`r ${LAT_CLASS[latencyLevel(r.latency)]}`}>{r.latencyText}</td>
@@ -252,7 +257,7 @@ function Connections({ onData }: { onData: () => void }) {
                       </Button>
                     ) : r.status === 'error' ? (
                       <Button size="sm" variant="outline" onClick={() => setWizard({ edit: r.c })}>
-                        Retry
+                        {tl('Retry')}
                       </Button>
                     ) : null}
                     <button
@@ -260,12 +265,12 @@ function Connections({ onData }: { onData: () => void }) {
                       className="cx-link"
                       onClick={() => setWizard({ edit: r.c })}
                     >
-                      Edit
+                      {tl('Edit')}
                     </button>
                     <button
                       type="button"
                       className="cx-link"
-                      aria-label={`Remove ${r.c.name}`}
+                      aria-label={tt`Remove ${r.c.name}`}
                       onClick={() => remove(r.c.id)}
                     >
                       ×
@@ -276,27 +281,27 @@ function Connections({ onData }: { onData: () => void }) {
             ))}
           </tbody>
         </table>
-        {!rows.length && <div className="tbl-empty">No connections — add one</div>}
+        {!rows.length && <div className="tbl-empty">{tl('No connections — add one')}</div>}
       </div>
       <div className="cx-cards">
         <div className="card-stat">
-          <span className="muted">Live connections</span>
+          <span className="muted">{tl('Live connections')}</span>
           <b>
             {live} / {rows.length}
           </b>
         </div>
         <div className="card-stat">
-          <span className="muted">Avg latency</span>
+          <span className="muted">{tl('Avg latency')}</span>
           <b className={`tnum ${LAT_CLASS[latencyLevel(avg)]}`}>
             {avg === null ? '—' : `${avg.toFixed(0)} ms`}
           </b>
         </div>
         <div className="card-stat">
-          <span className="muted">Messages / sec</span>
+          <span className="muted">{tl('Messages / sec')}</span>
           <b className="tnum">{msgs.toLocaleString(undefined, { maximumFractionDigits: 0 })}</b>
         </div>
         <div className="card-stat">
-          <span className="muted">Gaps resynced today</span>
+          <span className="muted">{tl('Gaps resynced today')}</span>
           <b className="tnum">{gaps}</b>
         </div>
       </div>

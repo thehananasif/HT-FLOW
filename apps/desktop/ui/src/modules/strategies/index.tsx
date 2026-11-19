@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import type { RawInputs } from '@htflow/indicator-sdk';
 import { resolveInputs } from '@htflow/indicator-sdk';
-import { formatPrice } from '@htflow/market-data';
 import {
   DEFAULT_BACKTEST,
   GRID_LIMITS,
@@ -19,7 +18,6 @@ import {
   type BacktestConfig,
   type BacktestData,
   type BacktestResult,
-  type BacktestTrade,
   type FillModel,
   type Objective,
   type OptimizeRow,
@@ -34,7 +32,6 @@ import {
   Table,
   Tabs,
   toast,
-  type TableColumn,
 } from '@htflow/ui-kit';
 import { registerCommands } from '../../shell/commands';
 import { instrumentById } from '../../state/instruments';
@@ -42,6 +39,7 @@ import { useWindows } from '../../state/windows';
 import { downloadText } from '../../components/DataTable.utils';
 import { activeChartId } from '../rss/shared';
 import { journalStore } from '../journal/store';
+import { registerOpenFileHandler } from '../../platform/openFile';
 import { registerModule, type ModuleViewProps } from '../registry';
 import { DEFAULT_STYLE, EquityCanvas, HeatmapCanvas, type ResultStyle } from './charts';
 import {
@@ -60,7 +58,6 @@ import {
   money,
   openModule,
   pct,
-  ratio,
   signedMoney,
   specOf,
   specValue,
@@ -72,9 +69,17 @@ import { VPS_EVENT, VpsPanel, type VpsAction } from './vps/panel';
 import { allTemplates } from '../../trading/atmStore';
 import { readStrategyExt, useStrategyDialog, writeStrategyExt } from './chart';
 import './chart';
+import { HtEditor, editorMounted, type EditorActions } from './editor/HtEditor';
+import { projectFromHtstratFile, saveProject } from './editor/store';
+import { plotOverlay } from './editor/plotOverlay';
+import './editor/plotOverlayExt';
+import { scriptRuns } from './editor/runs';
+import { SCRIPT_TEMPLATES } from '@htflow/strategy';
+import { Summary, TradesTable, fmtTime } from './results';
 import './styles.css';
 
-type MainTab = 'backtest' | 'live' | 'vps';
+import { translateLiteral as tl, tt } from '@htflow/i18n';
+type MainTab = 'backtest' | 'editor' | 'live' | 'vps';
 type ResultTab = 'summary' | 'equity' | 'trades' | 'optimise' | 'log';
 
 interface CostSetup {
@@ -221,8 +226,6 @@ function sanitizeStyle(raw: unknown): ResultStyle {
   };
 }
 
-const fmtTime = (ts: number) => new Date(ts).toISOString().slice(5, 19).replace('T', ' ');
-
 function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const p = state.params ?? {};
   const strategyId =
@@ -239,7 +242,8 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   const cost = sanitizeCost(p.cost, def);
   const opt = sanitizeOpt(p.opt, def, inputs);
   const style = sanitizeStyle(p.style);
-  const tab: MainTab = p.tab === 'live' || p.tab === 'vps' ? p.tab : 'backtest';
+  const tab: MainTab =
+    p.tab === 'live' || p.tab === 'vps' || p.tab === 'editor' ? p.tab : 'backtest';
   const rtab: ResultTab = (['summary', 'equity', 'trades', 'optimise', 'log'] as const).includes(
     p.resultTab as ResultTab,
   )
@@ -340,7 +344,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
 
   const exportCsv = () => {
     const r = useRuns.getState().runs[windowId]?.result;
-    if (!r) return toast('info', 'Run a backtest first');
+    if (!r) return toast('info', tl('Run a backtest first'));
     const name = `${r.strategyId}-${r.config.instrument.symbol}`;
     downloadText(`${name}-trades.csv`, tradesCsv(r));
     downloadText(`${name}-summary.csv`, summaryCsv(r));
@@ -348,7 +352,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
 
   const sendToJournal = () => {
     const r = useRuns.getState().runs[windowId]?.result;
-    if (!r || !r.trades.length) return toast('info', 'No backtest trades to send');
+    if (!r || !r.trades.length) return toast('info', tl('No backtest trades to send'));
     const stamp = Date.now().toString(36);
     const trips = r.trades.map((t) => ({
       id: `bt-${stamp}-${t.n}`,
@@ -369,7 +373,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       { text: def.name, kind: 'setup' },
     ]);
     setRun({ sentToJournal: true });
-    toast('success', `${n} trades sent to the Journal`, 'Tagged “backtest”.');
+    toast('success', tt`${n} trades sent to the Journal`, tl('Tagged “backtest”.'));
   };
 
   const actions: WindowActions = {
@@ -406,12 +410,13 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
   return (
     <div className="module-window stg-win" data-testid="strategies-window">
       <div className="stg-top">
-        <b>Strategies</b>
+        <b>{tl('Strategies')}</b>
         <Tabs
           value={tab}
           onChange={(t) => setParams({ tab: t })}
           tabs={[
             { value: 'backtest', label: 'Backtest' },
+            { value: 'editor', label: 'HT Editor' },
             { value: 'live', label: `Running (${liveRuns.list().length})` },
             { value: 'vps', label: 'VPS runner' },
           ]}
@@ -419,9 +424,23 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
       </div>
       {tab === 'live' && <LivePanel />}
       {tab === 'vps' && <VpsPanel />}
+      {tab === 'editor' && (
+        <HtEditor
+          windowId={windowId}
+          params={p}
+          setParams={setParams}
+          onDeployVps={() => {
+            setParams({ tab: 'vps' });
+            setTimeout(
+              () => window.dispatchEvent(new CustomEvent(VPS_EVENT, { detail: 'deploy' })),
+              60,
+            );
+          }}
+        />
+      )}
       {tab === 'backtest' && (
         <div className="stg-body">
-          <aside className="stg-list" aria-label="Strategy list">
+          <aside className="stg-list" aria-label={tl('Strategy list')}>
             {STRATEGIES.map((s) => (
               <button
                 key={s.id}
@@ -441,25 +460,26 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </button>
             ))}
             <p className="stg-muted stg-list-note">
-              Write your own with <code>defineStrategy</code> from <code>@htflow/strategy</code>.
+              {tl('Write your own with')} <code>{tl('defineStrategy')}</code> {tl('from')}{' '}
+              <code>{tl('@htflow/strategy')}</code>.
             </p>
           </aside>
-          <section className="stg-setup" aria-label="Backtest setup">
-            <p className="stg-desc">{def.description}</p>
-            <div className="stg-subhead">Inputs</div>
+          <section className="stg-setup" aria-label={tl('Backtest setup')}>
+            <p className="stg-desc">{tl(def.description)}</p>
+            <div className="stg-subhead">{tl('Inputs')}</div>
             <InputsForm
               defs={def.inputs}
               values={inputs}
               onChange={setInputs}
               testId="strategy-inputs"
             />
-            <div className="stg-subhead">Data</div>
+            <div className="stg-subhead">{tl('Data')}</div>
             <div className="stg-inputs">
               <label className="stg-input-row">
-                <span>Instrument</span>
+                <span>{tl('Instrument')}</span>
                 <Select
                   small
-                  aria-label="Instrument"
+                  aria-label={tl('Instrument')}
                   value={data.instrumentId}
                   options={instruments.map((i) => ({
                     value: i.id,
@@ -469,10 +489,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Source</span>
+                <span>{tl('Source')}</span>
                 <Select
                   small
-                  aria-label="Data source"
+                  aria-label={tl('Data source')}
                   value={data.source}
                   options={[
                     { value: '', label: sources[0] ? `Auto (${sources[0].label})` : 'No data' },
@@ -482,19 +502,19 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Day (UTC)</span>
+                <span>{tl('Day (UTC)')}</span>
                 <input
                   type="date"
                   className="ht-input"
-                  aria-label="Day"
+                  aria-label={tl('Day')}
                   value={data.day || new Date(range.from).toISOString().slice(0, 10)}
                   onChange={(e) => setData({ day: e.target.value })}
                 />
               </label>
               <label className="stg-input-row">
-                <span>From hour</span>
+                <span>{tl('From hour')}</span>
                 <NumberInput
-                  aria-label="From hour"
+                  aria-label={tl('From hour')}
                   value={data.fromHour}
                   min={0}
                   max={23}
@@ -503,9 +523,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Length</span>
+                <span>{tl('Length')}</span>
                 <NumberInput
-                  aria-label="Hours"
+                  aria-label={tl('Hours')}
                   value={data.hours}
                   min={1}
                   max={720}
@@ -514,10 +534,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Bars</span>
+                <span>{tl('Bars')}</span>
                 <Select
                   small
-                  aria-label="Bars"
+                  aria-label={tl('Bars')}
                   value={cost.bars}
                   options={BAR_SPECS.map((b) => ({ value: b.value, label: b.label }))}
                   onChange={(bars) => setCost({ bars })}
@@ -527,10 +547,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
             <div className="stg-subhead">Fills &amp; costs</div>
             <div className="stg-inputs">
               <label className="stg-input-row">
-                <span>Fill model</span>
+                <span>{tl('Fill model')}</span>
                 <Select
                   small
-                  aria-label="Fill model"
+                  aria-label={tl('Fill model')}
                   value={cost.fillModel}
                   options={[
                     { value: 'book', label: 'Recorded book + tape' },
@@ -541,12 +561,14 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </label>
               <label
                 className="stg-input-row"
-                title="ATM template from the trading panel replaces the strategy's stop / targets"
+                title={tl(
+                  "ATM template from the trading panel replaces the strategy's stop / targets",
+                )}
               >
-                <span>Exit management</span>
+                <span>{tl('Exit management')}</span>
                 <Select
                   small
-                  aria-label="Exit management"
+                  aria-label={tl('Exit management')}
                   value={allTemplates().some((t) => t.id === cost.atm) ? cost.atm : ''}
                   options={[
                     { value: '', label: 'Strategy bracket' },
@@ -556,9 +578,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Commission</span>
+                <span>{tl('Commission')}</span>
                 <NumberInput
-                  aria-label="Commission"
+                  aria-label={tl('Commission')}
                   value={cost.commissionPerUnit}
                   step={0.01}
                   min={0}
@@ -568,9 +590,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Taker fee</span>
+                <span>{tl('Taker fee')}</span>
                 <NumberInput
-                  aria-label="Taker fee"
+                  aria-label={tl('Taker fee')}
                   value={cost.takerFee}
                   step={0.0001}
                   min={0}
@@ -579,9 +601,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Slippage</span>
+                <span>{tl('Slippage')}</span>
                 <NumberInput
-                  aria-label="Slippage"
+                  aria-label={tl('Slippage')}
                   value={cost.slippageTicks}
                   min={0}
                   max={100}
@@ -590,9 +612,9 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               </label>
               <label className="stg-input-row">
-                <span>Start balance</span>
+                <span>{tl('Start balance')}</span>
                 <NumberInput
-                  aria-label="Start balance"
+                  aria-label={tl('Start balance')}
                   value={cost.startingBalance}
                   step={1000}
                   min={100}
@@ -607,11 +629,11 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 disabled={busy || !inst}
                 onClick={() => void runBacktest()}
               >
-                ▶ Run backtest
+                {tl('▶ Run backtest')}
               </Button>
               {busy && (
                 <Button variant="ghost" onClick={() => abort.current?.abort()}>
-                  Cancel
+                  {tl('Cancel')}
                 </Button>
               )}
             </div>
@@ -631,7 +653,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
               </p>
             )}
           </section>
-          <section className="stg-results" aria-label="Results">
+          <section className="stg-results" aria-label={tl('Results')}>
             <div className="stg-results-head">
               <Tabs
                 value={rtab}
@@ -652,7 +674,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 onClick={exportCsv}
                 data-testid="strategy-export"
               >
-                Export CSV
+                {tl('Export CSV')}
               </Button>
               <Button
                 size="xs"
@@ -680,7 +702,7 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                     setInputs(resolveInputs(def.inputs, { ...inputs, ...v }) as RawInputs);
                     toast(
                       'info',
-                      'Inputs applied',
+                      tl('Inputs applied'),
                       Object.entries(v)
                         .map(([k, x]) => `${k} = ${x}`)
                         .join(', '),
@@ -689,8 +711,10 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                 />
               ) : !res ? (
                 <div className="stg-empty">
-                  Pick a strategy, check the inputs and press <b>Run backtest</b>. Simulated history
-                  is generated offline; recorded tick-store data is used when available.
+                  {tl('Pick a strategy, check the inputs and press')} <b>{tl('Run backtest')}</b>
+                  {tl(
+                    '. Simulated history is generated offline; recorded tick-store data is used when available.',
+                  )}
                 </div>
               ) : rtab === 'summary' ? (
                 <Summary r={res} />
@@ -699,12 +723,12 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
                   <EquityCanvas result={res} style={style} />
                   <div className="stg-style-row">
                     <ColorSwatch
-                      label="Equity"
+                      label={tl('Equity')}
                       value={style.equity}
                       onChange={(equity) => setParams({ style: { ...style, equity } })}
                     />
                     <ColorSwatch
-                      label="Drawdown"
+                      label={tl('Drawdown')}
                       value={style.drawdown}
                       onChange={(drawdown) => setParams({ style: { ...style, drawdown } })}
                     />
@@ -723,155 +747,6 @@ function Strategies({ windowId, state, setParams }: ModuleViewProps) {
           </section>
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  cls,
-  testId,
-}: {
-  label: string;
-  value: string;
-  cls?: string;
-  testId?: string;
-}) {
-  return (
-    <div className="stg-stat">
-      <span>{label}</span>
-      <b className={`tnum ${cls ?? ''}`} data-testid={testId}>
-        {value}
-      </b>
-    </div>
-  );
-}
-
-function Summary({ r }: { r: BacktestResult }) {
-  const s = r.stats;
-  const days = Math.max(1, (r.to - r.from) / 86_400_000);
-  return (
-    <div className="stg-summary" data-testid="strategy-summary">
-      <div className="stg-stats">
-        <Stat
-          label="Net P&L"
-          value={signedMoney(s.netPnl, 2)}
-          cls={tone(s.netPnl)}
-          testId="strategy-net"
-        />
-        <Stat label="Trades" value={String(s.trades)} testId="strategy-trades-count" />
-        <Stat label="Win rate" value={pct(s.winRate)} />
-        <Stat label="Profit factor" value={ratio(s.profitFactor)} />
-        <Stat label="Expectancy" value={signedMoney(s.expectancy, 2)} cls={tone(s.expectancy)} />
-        <Stat
-          label="Expectancy (R)"
-          value={Number.isNaN(s.expectancyR) ? '—' : `${s.expectancyR.toFixed(2)} R`}
-        />
-        <Stat
-          label="Max drawdown"
-          value={money(s.maxDrawdown, 2)}
-          cls={s.maxDrawdown > 0 ? 'down' : ''}
-        />
-        <Stat label="Monte-Carlo DD 95%" value={money(s.monteCarloDd95, 2)} />
-        <Stat label="Sharpe / trade" value={ratio(s.sharpe)} />
-        <Stat label="Sortino / trade" value={ratio(s.sortino)} />
-        <Stat label="Avg win / loss" value={`${money(s.avgWin)} / ${money(s.avgLoss)}`} />
-        <Stat label="Commission" value={money(s.commission, 2)} />
-        <Stat label="Long / short" value={`${s.longTrades} / ${s.shortTrades}`} />
-        <Stat label="Return" value={pct(s.returnPct, 2)} cls={tone(s.returnPct)} />
-        <Stat label="Avg bars held" value={s.avgBarsHeld.toFixed(1)} />
-        <Stat label="Trades / day" value={(s.trades / days).toFixed(1)} />
-      </div>
-      <p className="stg-muted tnum">
-        {r.config.instrument.symbol} · {fmtTime(r.from)} → {fmtTime(r.to)} UTC ·{' '}
-        {r.ticks.toLocaleString()} ticks · {r.barCount} bars · fills:{' '}
-        {r.config.fillModel === 'book' ? 'recorded book' : 'tape'} + {r.config.slippageTicks} tick
-        slippage · {money(r.config.commissionPerUnit, 2)}/side. Sharpe and Sortino use per-trade net
-        P&L (not annualised).
-      </p>
-    </div>
-  );
-}
-
-function TradesTable({ r }: { r: BacktestResult }) {
-  const inst = r.config.instrument;
-  const px = (v: number) => formatPrice(v, inst);
-  const columns: TableColumn<BacktestTrade>[] = [
-    { key: 'n', header: '#', width: 40, numeric: true, sortable: true, render: (t) => t.n },
-    {
-      key: 'side',
-      header: 'Side',
-      width: 56,
-      sortable: true,
-      render: (t) => (
-        <span className={t.side === 'long' ? 'up' : 'down'}>
-          {t.side === 'long' ? 'Long' : 'Short'}
-        </span>
-      ),
-    },
-    { key: 'qty', header: 'Qty', width: 44, numeric: true, sortable: true },
-    {
-      key: 'entryTs',
-      header: 'Entry',
-      width: 118,
-      sortable: true,
-      render: (t) => fmtTime(t.entryTs),
-    },
-    {
-      key: 'entryPx',
-      header: 'Price',
-      width: 80,
-      numeric: true,
-      sortable: true,
-      render: (t) => px(t.entryPx),
-    },
-    { key: 'exitTs', header: 'Exit', width: 118, sortable: true, render: (t) => fmtTime(t.exitTs) },
-    {
-      key: 'exitPx',
-      header: 'Price',
-      width: 80,
-      numeric: true,
-      sortable: true,
-      render: (t) => px(t.exitPx),
-    },
-    {
-      key: 'net',
-      header: 'Net',
-      width: 84,
-      numeric: true,
-      sortable: true,
-      render: (t) => <span className={tone(t.net)}>{signedMoney(t.net, 2)}</span>,
-    },
-    {
-      key: 'r',
-      header: 'R',
-      width: 50,
-      numeric: true,
-      sortable: true,
-      sortValue: (t) => t.r ?? -Infinity,
-      render: (t) => (t.r === null ? '—' : t.r.toFixed(2)),
-    },
-    { key: 'maeTicks', header: 'MAE', width: 48, numeric: true, sortable: true },
-    { key: 'mfeTicks', header: 'MFE', width: 48, numeric: true, sortable: true },
-    { key: 'entryLabel', header: 'Signal', sortable: true },
-    {
-      key: 'exitReason',
-      header: 'Exit',
-      width: 70,
-      sortable: true,
-      render: (t) => t.exitLabel || t.exitReason,
-    },
-  ];
-  return (
-    <div className="stg-table" data-testid="strategy-trades">
-      <Table
-        aria-label="Backtest trades"
-        columns={columns}
-        rows={r.trades}
-        rowId={(t) => String(t.n)}
-        empty="No trades"
-      />
     </div>
   );
 }
@@ -919,27 +794,27 @@ function OptimisePanel({
       <div className="stg-axis">
         <Select
           small
-          aria-label={`${which.toUpperCase()} parameter`}
+          aria-label={tt`${which.toUpperCase()} parameter`}
           value={a.key}
           options={keys.map((k) => ({ value: k, label: def.inputs[k]!.label }))}
           onChange={(key) => setOpt({ [which]: defaultAxis(def, key, inputs) })}
         />
         <NumberInput
-          aria-label={`${which} from`}
+          aria-label={tt`${which} from`}
           value={a.from}
           step={step}
           onChange={(from) => setOpt({ [which]: { ...a, from } })}
         />
         <span className="stg-muted">→</span>
         <NumberInput
-          aria-label={`${which} to`}
+          aria-label={tt`${which} to`}
           value={a.to}
           step={step}
           onChange={(to) => setOpt({ [which]: { ...a, to } })}
         />
-        <span className="stg-muted">step</span>
+        <span className="stg-muted">{tl('step')}</span>
         <NumberInput
-          aria-label={`${which} step`}
+          aria-label={tt`${which} step`}
           value={a.step}
           step={step}
           min={step}
@@ -952,28 +827,28 @@ function OptimisePanel({
     <div className="stg-opt" data-testid="strategy-optimise">
       <div className="stg-opt-setup">
         <label className="stg-input-row">
-          <span>X axis</span>
+          <span>{tl('X axis')}</span>
           {axis('x')}
         </label>
         <label className="stg-input-row">
-          <span>Y axis</span>
+          <span>{tl('Y axis')}</span>
           {axis('y')}
         </label>
         <div className="stg-opt-row">
           <label className="stg-input-row">
-            <span>Objective</span>
+            <span>{tl('Objective')}</span>
             <Select
               small
-              aria-label="Objective"
+              aria-label={tl('Objective')}
               value={opt.objective}
               options={OBJECTIVES}
               onChange={(objective) => setOpt({ objective })}
             />
           </label>
           <label className="stg-input-row">
-            <span>Walk-forward folds</span>
+            <span>{tl('Walk-forward folds')}</span>
             <NumberInput
-              aria-label="Walk-forward folds"
+              aria-label={tl('Walk-forward folds')}
               value={opt.folds}
               min={0}
               max={10}
@@ -981,9 +856,9 @@ function OptimisePanel({
             />
           </label>
           <label className="stg-input-row">
-            <span>In-sample</span>
+            <span>{tl('In-sample')}</span>
             <NumberInput
-              aria-label="In-sample share"
+              aria-label={tl('In-sample share')}
               value={opt.inSample}
               step={0.05}
               min={0.5}
@@ -994,11 +869,11 @@ function OptimisePanel({
           <Checkbox
             checked={opt.folds > 0}
             onChange={(v) => setOpt({ folds: v ? Math.max(2, opt.folds) : 0 })}
-            label="Walk-forward"
+            label={tl('Walk-forward')}
           />
           <span className="grow" />
           <span className="stg-muted tnum">
-            {combos} combinations (max {GRID_LIMITS.combos})
+            {combos} {tl('combinations (max')} {GRID_LIMITS.combos})
           </span>
           <Button
             size="sm"
@@ -1006,7 +881,7 @@ function OptimisePanel({
             onClick={onRun}
             data-testid="strategy-optimise-run"
           >
-            Optimise
+            {tl('Optimise')}
           </Button>
         </div>
       </div>
@@ -1019,11 +894,11 @@ function OptimisePanel({
             onPick={(x, y) => onPick({ [map.xKey]: x, [map.yKey]: y })}
           />
           <div className="stg-opt-side">
-            <div className="stg-subhead">Best combinations</div>
+            <div className="stg-subhead">{tl('Best combinations')}</div>
             <table className="stg-mini tnum">
               <tbody>
                 {ranked.map((r, i) => (
-                  <tr key={i} onClick={() => onPick(r.inputs)} title="Use these inputs">
+                  <tr key={i} onClick={() => onPick(r.inputs)} title={tl('Use these inputs')}>
                     <td>
                       {o.xKey}={String(r.inputs[o.xKey])}
                     </td>
@@ -1031,7 +906,9 @@ function OptimisePanel({
                       {o.yKey}={String(r.inputs[o.yKey])}
                     </td>
                     <td className={tone(r.stats.netPnl)}>{signedMoney(r.stats.netPnl)}</td>
-                    <td>{r.stats.trades} tr</td>
+                    <td>
+                      {r.stats.trades} {tl('tr')}
+                    </td>
                     <td>{Number.isFinite(r.score) ? fmt(r.score) : '—'}</td>
                   </tr>
                 ))}
@@ -1039,7 +916,7 @@ function OptimisePanel({
             </table>
             {o.folds && (
               <>
-                <div className="stg-subhead">Walk-forward (out of sample)</div>
+                <div className="stg-subhead">{tl('Walk-forward (out of sample)')}</div>
                 <table className="stg-mini tnum" data-testid="strategy-walkforward">
                   <tbody>
                     {o.folds.map((f, i) => (
@@ -1054,7 +931,9 @@ function OptimisePanel({
                         <td className={tone(f.oos?.stats.netPnl ?? 0)}>
                           {f.oos ? signedMoney(f.oos.stats.netPnl) : '—'}
                         </td>
-                        <td>{f.oos?.stats.trades ?? 0} tr</td>
+                        <td>
+                          {f.oos?.stats.trades ?? 0} {tl('tr')}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1063,12 +942,12 @@ function OptimisePanel({
             )}
             <div className="stg-style-row">
               <ColorSwatch
-                label="Low"
+                label={tl('Low')}
                 value={style.heatLow}
                 onChange={(heatLow) => setStyle({ ...style, heatLow })}
               />
               <ColorSwatch
-                label="High"
+                label={tl('High')}
                 value={style.heatHigh}
                 onChange={(heatHigh) => setStyle({ ...style, heatHigh })}
               />
@@ -1077,9 +956,10 @@ function OptimisePanel({
         </div>
       ) : (
         <div className="stg-empty">
-          Choose two numeric inputs and their ranges, then press <b>Optimise</b>. Each combination
-          is a full backtest on the selected data (in a Web Worker); walk-forward re-optimises on
-          each in-sample window and trades the winner out of sample.
+          {tl('Choose two numeric inputs and their ranges, then press')} <b>{tl('Optimise')}</b>
+          {tl(
+            '. Each combination is a full backtest on the selected data (in a Web Worker); walk-forward re-optimises on each in-sample window and trades the winner out of sample.',
+          )}
         </div>
       )}
     </div>
@@ -1106,11 +986,11 @@ function LivePanel() {
     <div className="stg-live" data-testid="strategy-live">
       <div className="stg-card-head">
         <span className="stg-muted">
-          Strategies attached to charts. Live ones trade the paper account on This PC.
+          {tl('Strategies attached to charts. Live ones trade the paper account on This PC.')}
         </span>
         <span className="grow" />
         <Button size="sm" variant="secondary" onClick={() => attachToActiveChart()}>
-          + Attach to active chart
+          {tl('+ Attach to active chart')}
         </Button>
         <Button
           size="sm"
@@ -1118,15 +998,17 @@ function LivePanel() {
           disabled={!liveRuns.list().length}
           onClick={() => stopAll()}
         >
-          Stop all
+          {tl('Stop all')}
         </Button>
       </div>
       <Table
-        aria-label="Chart strategies"
+        aria-label={tl('Chart strategies')}
         rows={rows}
         rowId={(r) => r.id}
         height={260}
-        empty="No strategy attached to a chart. Use “Attach to active chart” or the chart's Strategy chip."
+        empty={tl(
+          "No strategy attached to a chart. Use “Attach to active chart” or the chart's Strategy chip.",
+        )}
         columns={[
           { key: 'name', header: 'Strategy', render: (r) => strategyById(r.ext.strategyId!)?.name },
           {
@@ -1151,7 +1033,7 @@ function LivePanel() {
                   {run.status === 'error' ? 'Error' : 'Running'}
                 </span>
               ) : (
-                <span className="stg-muted">Backtest</span>
+                <span className="stg-muted">{tl('Backtest')}</span>
               );
             },
           },
@@ -1196,7 +1078,7 @@ function LivePanel() {
                   variant="ghost"
                   onClick={() => useStrategyDialog.getState().open(r.id)}
                 >
-                  Edit
+                  {tl('Edit')}
                 </Button>
               </span>
             ),
@@ -1210,7 +1092,7 @@ function LivePanel() {
 function attachToActiveChart(strategyId?: string): void {
   const id = activeChartId();
   if (!id) {
-    toast('info', 'Open a chart first');
+    toast('info', tl('Open a chart first'));
     return;
   }
   if (strategyId) writeStrategyExt(id, { strategyId, inputs: {} });
@@ -1218,10 +1100,10 @@ function attachToActiveChart(strategyId?: string): void {
 }
 
 function stopAll(): void {
-  const n = liveRuns.list().length;
+  const n = liveRuns.list().length + scriptRuns.killAll();
   for (const r of liveRuns.list()) writeStrategyExt(r.key, { live: false });
   liveRuns.stopAll(true);
-  toast('info', `${n} strategies stopped and flattened`);
+  toast('info', tt`${n} strategies stopped and flattened`);
 }
 
 registerModule({ id: 'strategies', view: Strategies });
@@ -1234,7 +1116,37 @@ const withWindow = (fn: (a: WindowActions) => void) => () => {
   }, 50);
 };
 
+const withEditor = (fn: (a: EditorActions) => void) =>
+  withWindow((w) => {
+    w.setTab('editor');
+    setTimeout(() => {
+      const e = editorMounted[editorMounted.length - 1]?.actions;
+      if (e) fn(e);
+    }, 80);
+  });
+
+// Double-clicking a `.htstrat` file: save it to the library and open it in the HT Editor.
+registerOpenFileHandler('strategy', (f) => {
+  let proj;
+  try {
+    proj = projectFromHtstratFile(f.text);
+  } catch (e) {
+    toast('error', `Could not open ${f.name}`, e instanceof Error ? e.message : String(e));
+    return;
+  }
+  saveProject(proj);
+  withEditor((a) => a.open(proj.id))();
+  toast('success', `Opened ${proj.name} in HT Editor`, f.name);
+});
+
 registerCommands([
+  {
+    id: 'strategies.editor',
+    label: 'Open HT Editor (write your own strategy)',
+    group: 'Trading',
+    keywords: 'code editor script strategy javascript typescript automate',
+    run: withWindow((a) => a.setTab('editor')),
+  },
   {
     id: 'strategies.open',
     label: 'Open Strategies',
@@ -1322,6 +1234,61 @@ registerCommands([
       const ext = readStrategyExt(id);
       if (!ext.strategyId) return attachToActiveChart();
       writeStrategyExt(id, { live: !ext.live });
+    },
+  },
+  ...(
+    [
+      [
+        'editor-new',
+        'HT Editor: New strategy',
+        'code script new strategy write',
+        (a) => a.newStrategy(),
+      ],
+      [
+        'editor-open',
+        'HT Editor: Open / import .htstrat…',
+        'open import htstrat file strategy code',
+        (a) => a.importFile(),
+      ],
+      ['editor-save', 'HT Editor: Save strategy', 'save script code', (a) => a.save()],
+      [
+        'editor-export',
+        'HT Editor: Export .htstrat',
+        'export htstrat file script',
+        (a) => a.exportFile(),
+      ],
+      [
+        'editor-backtest',
+        'HT Editor: Backtest strategy',
+        'backtest script code run history',
+        (a) => a.backtest(),
+      ],
+      ['editor-run', 'HT Editor: Run on paper', 'run paper live script start', (a) => a.paper()],
+      ['editor-stop', 'HT Editor: Stop strategy runs', 'stop script run', (a) => a.stop()],
+    ] as [string, string, string, (a: EditorActions) => void][]
+  ).map(([id, label, keywords, fn]) => ({
+    id: `strategies.${id}`,
+    label,
+    group: 'Trading' as const,
+    keywords,
+    run: withEditor(fn),
+  })),
+  ...SCRIPT_TEMPLATES.map((t) => ({
+    id: `strategies.editor-template-${t.id}`,
+    label: `HT Editor: New from template ${t.name}`,
+    group: 'Trading' as const,
+    keywords: `template script ${t.description}`,
+    run: withEditor((a) => a.newStrategy(t.id)),
+  })),
+  {
+    id: 'strategies.plots-toggle',
+    label: 'HT Editor: Show / hide strategy plots on charts',
+    group: 'Chart',
+    keywords: 'script plot overlay chart indicator lines paper run',
+    run: () => {
+      const on = !plotOverlay.isEnabled();
+      plotOverlay.setEnabled(on);
+      toast('info', on ? 'Strategy plots shown on charts' : 'Strategy plots hidden');
     },
   },
   {

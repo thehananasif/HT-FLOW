@@ -4,7 +4,8 @@
  * header gear).
  */
 import { GitCompareArrows, Pin, PinOff } from 'lucide-react';
-import { IconButton } from '@htflow/ui-kit';
+import { IconButton, toast } from '@htflow/ui-kit';
+import { setSetting } from '../../state/settings';
 import type { ChartWindowState } from '@htflow/workspace';
 import { registerChartExtension, registerHeaderItem } from '../../charts/extensions';
 import { useChartSettingsUi } from '../../charts/settingsUi';
@@ -21,6 +22,7 @@ import { activeChartId } from '../../charts/bus';
 import { registerCommands } from '../../shell/commands';
 import './styles.css';
 
+import { tt } from '@htflow/i18n';
 function SettingsOverlay({ windowId }: { windowId: string; state: ChartWindowState }) {
   const openFor = useChartSettingsUi((s) => s.openFor);
   return openFor === windowId ? <ChartSettingsWindow windowId={windowId} /> : null;
@@ -36,6 +38,22 @@ function FootprintQuickOverlay({ windowId }: { windowId: string; state: ChartWin
 registerChartExtension({ id: 'footprint-quick', Overlay: FootprintQuickOverlay });
 
 registerCommands([
+  ...(
+    [
+      ['auto', 'Auto (WebGL2 on a hardware GPU)'],
+      ['webgl2', 'WebGL2 (GPU)'],
+      ['canvas2d', 'Canvas 2D'],
+    ] as const
+  ).map(([value, name]) => ({
+    id: `chart.renderer.${value}`,
+    label: `Chart: Renderer — ${name}`,
+    group: 'Chart' as const,
+    keywords: 'gpu webgl canvas backend performance',
+    run: () => {
+      setSetting('chart.renderer', value);
+      toast('info', tt`Chart renderer: ${name}`);
+    },
+  })),
   {
     id: 'footprint.quick-settings',
     label: 'Footprint: Quick settings…',

@@ -40,6 +40,7 @@ import {
 import { domStore, useDomStore } from './store';
 import { setWindowTemplate } from './controllers';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 interface DesignerTarget {
   windowId: string;
   templateId?: string;
@@ -140,7 +141,7 @@ export function TemplateDesigner() {
     setSelId(t.id);
     setIsNew(false);
     if (apply) setWindowTemplate(target.windowId, t.id);
-    toast('success', `Template “${t.name}” saved`);
+    toast('success', tt`Template “${t.name}” saved`);
   };
   const remove = () => {
     const cur = all.find((t) => t.id === selId);
@@ -148,10 +149,10 @@ export function TemplateDesigner() {
     domStore.remove(cur.id);
     if (cur.builtin) {
       setDraft(builtinTemplate(cur.id)!);
-      toast('info', `“${cur.name}” reset to default`);
+      toast('info', tt`“${cur.name}” reset to default`);
     } else {
       select(BUILTIN_TEMPLATES[0]!.id);
-      toast('info', `Template “${cur.name}” deleted`);
+      toast('info', tt`Template “${cur.name}” deleted`);
     }
   };
   const doImport = async (file: File) => {
@@ -164,9 +165,9 @@ export function TemplateDesigner() {
         domStore.save({ ...t, name: n });
       }
       select(list[0]!.id);
-      toast('success', `Imported ${list.length} template${list.length > 1 ? 's' : ''}`);
+      toast('success', tt`Imported ${list.length} template${list.length > 1 ? 's' : ''}`);
     } catch (e) {
-      toast('error', 'Import failed', (e as Error).message);
+      toast('error', tl('Import failed'), (e as Error).message);
     }
   };
 
@@ -186,14 +187,14 @@ export function TemplateDesigner() {
     <Dialog
       open
       onOpenChange={(o) => !o && closeDesigner()}
-      title="DOM template designer"
+      title={tl('DOM template designer')}
       width={1040}
     >
       <div className="sdom-designer" data-testid="dom-designer">
-        <SplitPane defaultRatio={0.3} minA={220} minB={480} aria-label="Resize template list">
+        <SplitPane defaultRatio={0.3} minA={220} minB={480} aria-label={tl('Resize template list')}>
           <div className="sdom-d-list">
             <Table
-              aria-label="DOM templates"
+              aria-label={tl('DOM templates')}
               columns={listCols}
               rows={rows}
               rowId={(t) => t.id}
@@ -207,10 +208,10 @@ export function TemplateDesigner() {
             />
             <div className="sdom-d-actions">
               <Button size="sm" onClick={() => startCopy(BUILTIN_TEMPLATES[1]!)}>
-                New
+                {tl('New')}
               </Button>
               <Button size="sm" onClick={() => startCopy(draft)}>
-                Duplicate
+                {tl('Duplicate')}
               </Button>
               <Button
                 size="sm"
@@ -230,16 +231,16 @@ export function TemplateDesigner() {
                   )
                 }
               >
-                Export
+                {tl('Export')}
               </Button>
               <Button
                 size="sm"
                 onClick={() => download('dom-templates.json', serializeTemplates(all))}
               >
-                Export all
+                {tl('Export all')}
               </Button>
               <Button size="sm" onClick={() => fileRef.current?.click()}>
-                Import…
+                {tl('Import…')}
               </Button>
               <input
                 ref={fileRef}
@@ -256,9 +257,9 @@ export function TemplateDesigner() {
             </div>
           </div>
           <div className="sdom-d-edit">
-            <Field label="Name">
+            <Field label={tl('Name')}>
               <Input
-                aria-label="Template name"
+                aria-label={tl('Template name')}
                 value={draft.name}
                 maxLength={60}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -283,9 +284,9 @@ export function TemplateDesigner() {
                 {draft.builtin ? 'Built-in: saving keeps your edits; Reset restores it.' : ''}
               </span>
               <Button variant="ghost" onClick={closeDesigner}>
-                Close
+                {tl('Close')}
               </Button>
-              <Button onClick={() => save(false)}>Save</Button>
+              <Button onClick={() => save(false)}>{tl('Save')}</Button>
               <Button variant="primary" onClick={() => save(true)}>
                 Save &amp; apply
               </Button>
@@ -319,7 +320,7 @@ function OptColor({
       {value && (
         <button
           className="ht-icon-btn"
-          aria-label={`Clear ${label}`}
+          aria-label={tt`Clear ${label}`}
           onClick={() => onChange(undefined)}
         >
           <X size={11} />
@@ -348,7 +349,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
       {
         key: 'label',
         header: 'Column',
-        render: (c) => <span title={columnDef(c.id).description}>{columnLabel(c.id)}</span>,
+        render: (c) => <span title={tl(columnDef(c.id).description)}>{columnLabel(c.id)}</span>,
       },
       {
         key: 'width',
@@ -356,7 +357,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
         width: 112,
         render: (c) => (
           <NumberInput
-            aria-label={`${columnLabel(c.id)} width`}
+            aria-label={tt`${columnLabel(c.id)} width`}
             value={c.width}
             min={24}
             max={400}
@@ -388,7 +389,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
             <span className="row gap4">
               <button
                 className="ht-icon-btn"
-                aria-label={`Move ${columnLabel(c.id)} up`}
+                aria-label={tt`Move ${columnLabel(c.id)} up`}
                 disabled={i === 0}
                 onClick={() => setDraft(moveColumn(draft, c.id, draft.columns[i - 1]!.id))}
               >
@@ -396,7 +397,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
               </button>
               <button
                 className="ht-icon-btn"
-                aria-label={`Move ${columnLabel(c.id)} down`}
+                aria-label={tt`Move ${columnLabel(c.id)} down`}
                 disabled={i === draft.columns.length - 1}
                 onClick={() => setDraft(moveColumn(draft, c.id, draft.columns[i + 2]?.id ?? null))}
               >
@@ -411,7 +412,7 @@ function ColumnsEditor({ draft, setDraft }: EditorProps) {
   );
   return (
     <Table
-      aria-label="Template columns"
+      aria-label={tl('Template columns')}
       columns={cols}
       rows={draft.columns}
       rowId={(c) => c.id}
@@ -429,12 +430,12 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
   const set = (p: Partial<DomTemplate['style']>) => setDraft({ ...draft, style: { ...s, ...p } });
   return (
     <div className="sdom-d-grid">
-      <Field label="Font">
+      <Field label={tl('Font')}>
         <FontPicker value={s.fontFamily} onChange={(f) => set({ fontFamily: f })} />
       </Field>
-      <Field label="Font size">
+      <Field label={tl('Font size')}>
         <NumberInput
-          aria-label="Font size"
+          aria-label={tl('Font size')}
           value={s.fontSize}
           min={8}
           max={20}
@@ -442,9 +443,9 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
           onChange={(v) => set({ fontSize: v })}
         />
       </Field>
-      <Field label="Row height">
+      <Field label={tl('Row height')}>
         <NumberInput
-          aria-label="Row height"
+          aria-label={tl('Row height')}
           value={s.rowHeight}
           min={12}
           max={40}
@@ -452,9 +453,9 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
           onChange={(v) => set({ rowHeight: v })}
         />
       </Field>
-      <Field label="Header height">
+      <Field label={tl('Header height')}>
         <NumberInput
-          aria-label="Header height"
+          aria-label={tl('Header height')}
           value={s.headerHeight}
           min={14}
           max={40}
@@ -463,23 +464,26 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
         />
       </Field>
       <Field
-        label="Centring"
-        hint="Auto re-centres when price leaves the middle band; Always keeps it centred; Manual only on C / double-click."
+        label={tl('Centring')}
+        hint={tl(
+          'When out of view re-centres once the price leaves the visible rows; Band re-centres when it leaves the middle band; Always keeps it centred; Manual only on C / double-click.',
+        )}
       >
         <Select<CentringMode>
-          aria-label="Centring"
+          aria-label={tl('Centring')}
           value={s.centring}
           onChange={(v) => set({ centring: v })}
           options={[
-            { value: 'auto', label: 'Auto (band)' },
+            { value: 'view', label: 'When out of view' },
+            { value: 'auto', label: 'Band (middle share)' },
             { value: 'always', label: 'Always centred' },
             { value: 'manual', label: 'Manual' },
           ]}
         />
       </Field>
-      <Field label={`Centre band ${Math.round(s.centreBand * 100)} %`}>
+      <Field label={tt`Centre band ${Math.round(s.centreBand * 100)} %`}>
         <Slider
-          label="Centre band"
+          label={tl('Centre band')}
           value={s.centreBand}
           min={0.05}
           max={0.45}
@@ -487,8 +491,12 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
           onChange={(v) => set({ centreBand: v })}
         />
       </Field>
-      <Field label="Grid lines">
-        <Toggle label="Grid lines" checked={s.gridLines} onChange={(v) => set({ gridLines: v })} />
+      <Field label={tl('Grid lines')}>
+        <Toggle
+          label={tl('Grid lines')}
+          checked={s.gridLines}
+          onChange={(v) => set({ gridLines: v })}
+        />
       </Field>
       <div className="sdom-d-palette">
         {(Object.keys(PALETTE_LABELS) as (keyof DomPaletteSpec)[]).map((k) => (
@@ -532,7 +540,7 @@ function BehaviourEditor({ draft, setDraft }: EditorProps) {
   );
   return (
     <div className="sdom-d-grid">
-      <Field label="Volume / delta / VA source">
+      <Field label={tl('Volume / delta / VA source')}>
         <SegmentedControl
           value={b.volumeScope}
           onChange={(v) => set({ volumeScope: v })}
@@ -578,9 +586,9 @@ function BehaviourEditor({ draft, setDraft }: EditorProps) {
         'lots',
         '0 = use Settings → DOM big-lot threshold.',
       )}
-      <Field label="Lot presets" hint="Comma-separated, up to 8.">
+      <Field label={tl('Lot presets')} hint={tl('Comma-separated, up to 8.')}>
         <Input
-          aria-label="Lot presets"
+          aria-label={tl('Lot presets')}
           value={lots}
           onChange={(e) => setLots(e.target.value)}
           onBlur={() => {
@@ -594,9 +602,9 @@ function BehaviourEditor({ draft, setDraft }: EditorProps) {
           }}
         />
       </Field>
-      <Field label="Show risk limits in header">
+      <Field label={tl('Show risk limits in header')}>
         <Toggle
-          label="Show risk limits"
+          label={tl('Show risk limits')}
           checked={b.showRiskLimits}
           onChange={(v) => set({ showRiskLimits: v })}
         />

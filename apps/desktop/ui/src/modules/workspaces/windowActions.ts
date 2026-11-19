@@ -17,6 +17,8 @@ import {
 import { activeInstrument, useWindows } from '../../state/windows';
 import { DEFAULT_INSTRUMENT } from '../../state/instruments';
 import { workspaceHost } from './host';
+import { isTauri } from '../../backend';
+import { osWindowOf, reattachWindow } from '../../platform/osWindows';
 
 export type OpenDir = 'right' | 'below' | 'left' | 'above' | 'within';
 
@@ -28,6 +30,8 @@ export interface OpenWindowDetail {
   dir?: OpenDir;
   /** Force floating / docked; default follows Layout settings → New windows. */
   floating?: boolean;
+  /** Open in a new OS window (desktop app; the browser build floats it instead). */
+  osWindow?: boolean;
 }
 
 export function openWindow(detail: OpenWindowDetail): void {
@@ -51,16 +55,24 @@ export function readOpenWindowDetail(detail: unknown): OpenWindowDetail | null {
 const target = (id?: string | null) => id ?? useWindows.getState().activeId;
 
 /** Duplicates a window with all its settings, next to it. */
-export function cloneWindow(id?: string | null): boolean {
+export function cloneWindow(id?: string | null, osWindow = false): boolean {
   const wid = target(id);
   const s = wid ? useWindows.getState().windows[wid] : undefined;
   if (!wid || !s) return false;
-  openWindow({ state: cloneWindowState(s), ref: wid, dir: 'right' });
+  openWindow(
+    osWindow
+      ? { state: cloneWindowState(s), osWindow: true }
+      : { state: cloneWindowState(s), ref: wid, dir: 'right' },
+  );
   return true;
 }
 
 /** Opens a new window of `kind` on the same instrument and link group as window `id`. */
-export function createLinkedWindow(kind: LinkedKind, id?: string | null): boolean {
+export function createLinkedWindow(
+  kind: LinkedKind,
+  id?: string | null,
+  osWindow = false,
+): boolean {
   const { windows, patch } = useWindows.getState();
   const wid = target(id);
   const src = wid ? windows[wid] : undefined;
@@ -72,7 +84,7 @@ export function createLinkedWindow(kind: LinkedKind, id?: string | null): boolea
     activeInstrument() ?? DEFAULT_INSTRUMENT,
   );
   if (sourceLink) patch(wid, setWindowLink(src, sourceLink) as Partial<WindowState>);
-  openWindow({ state, ref: wid, dir: 'right' });
+  openWindow(osWindow ? { state, osWindow: true } : { state, ref: wid, dir: 'right' });
   return true;
 }
 
@@ -89,6 +101,8 @@ export function windowMenuItems(id: string): MenuEntry[] {
   if (!s) return [];
   const host = workspaceHost();
   const link = windowLink(s);
+  const inOs = osWindowOf(id) !== null;
+  const osHint = isTauri ? '' : ' (floating in a browser)';
   return [
     {
       kind: 'submenu',
@@ -100,7 +114,22 @@ export function windowMenuItems(id: string): MenuEntry[] {
         onSelect: () => void createLinkedWindow(k.id, id),
       })),
     },
+    {
+      kind: 'submenu',
+      id: 'linked-os',
+      label: 'Create linked window in new OS window',
+      items: LINKED_KINDS.map((k) => ({
+        id: `os-${k.id}`,
+        label: `${k.label}${osHint}`,
+        onSelect: () => void createLinkedWindow(k.id, id, true),
+      })),
+    },
     { id: 'clone', label: 'Clone window', onSelect: () => void cloneWindow(id) },
+    {
+      id: 'clone-os',
+      label: `Clone window in new OS window${osHint}`,
+      onSelect: () => void cloneWindow(id, true),
+    },
     {
       kind: 'submenu',
       id: 'link',
@@ -119,5 +148,13 @@ export function windowMenuItems(id: string): MenuEntry[] {
       disabled: !host?.toggleFloating,
       onSelect: () => host?.toggleFloating?.(id),
     },
+    inOs
+      ? { id: 'reattach', label: 'Re-attach to main window', onSelect: () => reattachWindow(id) }
+      : {
+          id: 'detach-os',
+          label: `Detach to OS window${osHint}`,
+          disabled: !host?.detachWindow,
+          onSelect: () => host?.detachWindow?.(id, 'os'),
+        },
   ];
 }

@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::future::BoxFuture;
 use htflow_connector_binance::{now_ns, Binance, Market};
-use htflow_connector_bybit::BybitLinear;
+use htflow_connector_bybit::{Bybit, Category as BybitCategory};
 use htflow_connector_common::{
     BookLevels, ClockSkew, ConnectorError, Kline, MarketApi, SymbolSpec,
 };
@@ -49,9 +49,19 @@ impl From<htflow_connector_bybit::ConnectorError> for CmdError {
 }
 
 /// Bybit's crate predates the shared framework; this adapter gives it the common API.
+/// One instance per category (`bybit-linear`, `bybit-inverse`, `bybit-spot`).
 struct BybitApi {
-    client: BybitLinear,
+    client: Bybit,
     clock: ClockSkew,
+}
+
+impl BybitApi {
+    fn new(category: BybitCategory) -> Self {
+        Self {
+            client: Bybit::market(category),
+            clock: ClockSkew::default(),
+        }
+    }
 }
 
 fn bybit_spec(sp: &Spec) -> htflow_connector_bybit::SymbolSpec {
@@ -68,7 +78,7 @@ fn bybit_err(e: htflow_connector_bybit::ConnectorError) -> ConnectorError {
 
 impl MarketApi for BybitApi {
     fn venue(&self) -> &'static str {
-        "bybit-linear"
+        self.client.venue()
     }
     fn spec<'a>(&'a self, symbol: &'a str) -> BoxFuture<'a, Result<Spec, ConnectorError>> {
         Box::pin(async move {
@@ -92,7 +102,7 @@ impl MarketApi for BybitApi {
         _from_ms: i64,
         _to_ms: i64,
     ) -> BoxFuture<'a, Result<Vec<Trade>, ConnectorError>> {
-        // Bybit's public REST only serves the latest 1,000 trades.
+        // Bybit's public REST only serves the latest trades (1,000 derivatives / 60 spot).
         Box::pin(async move {
             self.client
                 .recent_trades(&bybit_spec(sp))
@@ -160,10 +170,9 @@ impl Default for Clients {
             Arc::new(Binance::market(Market::UsdM)),
             Arc::new(Binance::market(Market::CoinM)),
             Arc::new(Binance::market(Market::Spot)),
-            Arc::new(BybitApi {
-                client: BybitLinear::default(),
-                clock: ClockSkew::default(),
-            }),
+            Arc::new(BybitApi::new(BybitCategory::Linear)),
+            Arc::new(BybitApi::new(BybitCategory::Inverse)),
+            Arc::new(BybitApi::new(BybitCategory::Spot)),
             Arc::new(htflow_connector_okx::Okx::default()),
             Arc::new(htflow_connector_whitebit::Whitebit::default()),
             Arc::new(htflow_connector_phemex::Phemex::default()),
@@ -200,22 +209,8 @@ impl Clients {
     }
 
     /// Trades in `[from_ms, to_ms]` (best effort for venues that only serve the latest N).
-    async fn trades_range(
-        &self,
-        venue: Venue,
-        sp: &Spec,
-        from_ms: i64,
-        to_ms: i64,
-    ) -> CmdResult<Vec<Trade>> {
-        Ok(self.api(venue).trades(sp, from_ms, to_ms).await?)
-    }
-
     async fn book(&self, venue: Venue, sp: &Spec) -> CmdResult<BookLevels> {
         Ok(self.api(venue).book(sp).await?)
-    }
-
-    fn history_from_start(&self, venue: Venue) -> bool {
-        self.api(venue).history_from_start()
     }
 
     fn spawn_stream(
@@ -352,6 +347,7 @@ pub async fn market_history(
     venue: String,
     symbol: String,
     minutes: u32,
+    max_pages: Option<u32>,
 ) -> CmdResult<WireHistory> {
     let venue = state.clients.parse(&venue)?;
     let sp = spec(&state, venue, &symbol).await?;
@@ -375,25 +371,35 @@ pub async fn market_history(
         .map_err(|e| CmdError::new("market.internal", e.to_string()))??
     };
 
-    // (b)(c) backfill the gaps
+    // (b)(c) backfill the gaps: only the most recent part, within a few requests, so the first
+    // candle shows at once; the chart backfills the rest in the background (market_history_range).
     let mut backfilled = 0;
     let mut trades = local.clone();
     let book_fut = state.clients.book(venue, &sp);
+    let pages = max_pages
+        .unwrap_or(crate::history::FIRST_PAINT_PAGES)
+        .clamp(1, 60);
+    let api = state.clients.api(venue).clone();
+    let from_ms = from / 1_000_000;
     let remote_fut = async {
         match gaps.first() {
             Some(&(g0, _)) => Some(
-                state
-                    .clients
-                    .trades_range(venue, &sp, g0 / 1_000_000, now / 1_000_000)
-                    .await,
+                crate::history::recent_window(
+                    api.as_ref(),
+                    &sp,
+                    (g0 / 1_000_000).max(from_ms),
+                    now / 1_000_000,
+                    pages,
+                )
+                .await
+                .map_err(CmdError::from),
             ),
             None => None,
         }
     };
     let (book, remote) = tokio::join!(book_fut, remote_fut);
     match remote {
-        Some(Ok(remote)) => {
-            let first_ts = remote.first().map(|t| t.exchange_ts_ns);
+        Some(Ok((remote, covered_ms))) => {
             let last_ts = remote.last().map(|t| t.exchange_ts_ns);
             let in_gap: Vec<Trade> = remote
                 .into_iter()
@@ -406,8 +412,8 @@ pub async fn market_history(
             backfilled = fresh.len();
             trades = all;
             // (d) write the backfill to the store and mark what it now covers.
-            if let (Some(first), Some(last)) = (first_ts, last_ts) {
-                let start_ok = state.clients.history_from_start(venue);
+            if let Some(last) = last_ts {
+                let covered = covered_ms * 1_000_000;
                 let tick = sp.tick;
                 let inst = inst.clone();
                 let gaps = gaps.clone();
@@ -415,7 +421,7 @@ pub async fn market_history(
                 tauri::async_runtime::spawn_blocking(move || {
                     let mut r = svc.rec.lock().expect("recorder");
                     for (a, b) in gaps {
-                        let lo = if start_ok { a } else { a.max(first) };
+                        let lo = a.max(covered);
                         let hi = b.min(last + 1);
                         if lo < hi {
                             let part: Vec<Trade> = fresh
@@ -739,6 +745,8 @@ mod tests {
         let c = Clients::default();
         assert_eq!(c.parse("bybit-linear").unwrap().id(), "bybit-linear");
         for v in [
+            "bybit-inverse",
+            "bybit-spot",
             "binance-futures",
             "binance-coinm",
             "binance-spot",

@@ -1,14 +1,15 @@
 import { Button, Dialog } from '@htflow/ui-kit';
 import { useConfirmStore } from '../../state/confirm';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 /** Renders the oldest pending confirmation (state/confirm.ts). Mounted once by the Settings module. */
 export function ConfirmHost() {
   const req = useConfirmStore((s) => s.queue[0]);
   if (!req) return null;
   return (
-    <Dialog open onOpenChange={(o) => !o && req.resolve(false)} title={req.title} width={380}>
+    <Dialog open onOpenChange={(o) => !o && req.resolve(false)} title={tl(req.title)} width={380}>
       <p className="st-confirm-body" data-testid="confirm-body">
-        {req.body}
+        {tl(req.body)}
       </p>
       <div className="row gap8 st-confirm-actions">
         <div className="grow" />
@@ -18,7 +19,7 @@ export function ConfirmHost() {
           data-testid="confirm-cancel"
           onClick={() => req.resolve(false)}
         >
-          Cancel
+          {tl('Cancel')}
         </Button>
         <Button
           size="sm"
@@ -27,7 +28,7 @@ export function ConfirmHost() {
           autoFocus
           onClick={() => req.resolve(true)}
         >
-          {req.confirmLabel}
+          {tl(req.confirmLabel)}
         </Button>
       </div>
     </Dialog>

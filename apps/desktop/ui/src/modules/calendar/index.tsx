@@ -12,10 +12,11 @@ import {
 } from '@htflow/info';
 import { registerModule } from '../registry';
 import { useStore, useTick, useCalendarTimezone } from '../rss/shared';
-import { addSource, allEvents, calendar, refreshCalendars } from './store';
+import { addSource, allEvents, calendar, refreshCalendars, usingSample } from './store';
 import './chartLines';
 import '../rss/styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const DOTS = { high: '●●●', medium: '●●○', low: '●○○' } as const;
 
 function EconomicCalendar() {
@@ -30,18 +31,47 @@ function EconomicCalendar() {
   const next = nextHighImpact(allEvents(s, now), now);
   const set = (p: Partial<typeof s>) => calendar.set({ ...calendar.get(), ...p });
   const hasSample = events.some((e) => e.sample);
+  const [busy, setBusy] = useState(false);
+  const status = !s.publicOn
+    ? 'Public calendar off'
+    : busy
+      ? 'Loading…'
+      : s.pub.error
+        ? s.pub.events.length
+          ? `Offline — cached calendar shown (${s.pub.error})`
+          : `Calendar unavailable: ${s.pub.error}`
+        : s.pub.fetchedAt
+          ? `Updated ${timeLabel(s.pub.fetchedAt, tz)}`
+          : 'Loading…';
 
   return (
     <div className="module-window" data-testid="economic-calendar">
       <div className="info-toolbar">
-        <b>Economic calendar</b>
+        <b>{tl('Economic calendar')}</b>
         <span className="muted">
-          times in {tz} ({utcOffsetLabel(now, tz)})
+          {tl('times in')} {tz} ({utcOffsetLabel(now, tz)})
         </span>
         <span className="grow" />
+        <span
+          className={s.pub.error ? 'down' : 'muted'}
+          data-testid="calendar-status"
+          title={s.pub.error}
+        >
+          {status}
+        </span>
+        <Button
+          size="sm"
+          disabled={busy || !s.publicOn}
+          onClick={() => {
+            setBusy(true);
+            void refreshCalendars(true).finally(() => setBusy(false));
+          }}
+        >
+          {tl('Refresh')}
+        </Button>
         {next && (
           <span className="cal-countdown tnum" title={`${next.currency} ${next.title}`}>
-            Next high impact in {formatCountdown(next.t - now)}
+            {tl('Next high impact in')} {formatCountdown(next.t - now)}
           </span>
         )}
       </div>
@@ -55,11 +85,11 @@ function EconomicCalendar() {
         <Checkbox
           checked={s.showOnCharts}
           onChange={(v) => set({ showOnCharts: v })}
-          label="Show as lines on charts"
+          label={tl('Show as lines on charts')}
         />
-        <Checkbox checked={s.alertOn} onChange={(v) => set({ alertOn: v })} label="Alert" />
+        <Checkbox checked={s.alertOn} onChange={(v) => set({ alertOn: v })} label={tl('Alert')} />
         <NumberInput
-          aria-label="Alert minutes before"
+          aria-label={tl('Alert minutes before')}
           value={s.alertMinutes}
           min={0}
           max={240}
@@ -68,7 +98,8 @@ function EconomicCalendar() {
           onChange={(v) => set({ alertMinutes: v })}
         />
         <Button size="sm" onClick={() => setShowSources((x) => !x)}>
-          ICS sources ({s.sources.length})
+          {tl('ICS sources (')}
+          {s.sources.length})
         </Button>
       </div>
       {showSources && (
@@ -76,7 +107,7 @@ function EconomicCalendar() {
           <div className="row gap8 center-y" style={{ width: '100%' }}>
             <Input
               style={{ flex: 1 }}
-              placeholder="https://…/calendar.ics (public iCalendar feed)"
+              placeholder={tl('https://…/calendar.ics (public iCalendar feed)')}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
@@ -89,15 +120,20 @@ function EconomicCalendar() {
                 if (!e) setUrl('');
               }}
             >
-              Add ICS URL
+              {tl('Add ICS URL')}
             </Button>
-            <Button size="sm" onClick={() => void refreshCalendars()}>
-              Refresh
-            </Button>
+            <Checkbox
+              checked={s.publicOn}
+              onChange={(v) => {
+                set({ publicOn: v });
+                if (v) void refreshCalendars();
+              }}
+              label={tl('Public economic calendar')}
+            />
             <Checkbox
               checked={s.showSample}
               onChange={(v) => set({ showSample: v })}
-              label="Include bundled sample"
+              label={tl('Sample events when offline with no cache')}
             />
           </div>
           {err && <span className="down">{err}</span>}
@@ -125,7 +161,7 @@ function EconomicCalendar() {
                   set({ sources: s.sources.filter((x) => x.id !== src.id), cache });
                 }}
               >
-                Remove
+                {tl('Remove')}
               </button>
             </div>
           ))}
@@ -135,20 +171,20 @@ function EconomicCalendar() {
         <table className="tbl tnum cal-table">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Cur</th>
-              <th>Impact</th>
-              <th>Event</th>
-              <th className="cal-num">Actual</th>
-              <th className="cal-num">Forecast</th>
-              <th className="cal-num">Previous</th>
+              <th>{tl('Time')}</th>
+              <th>{tl('Cur')}</th>
+              <th>{tl('Impact')}</th>
+              <th>{tl('Event')}</th>
+              <th className="cal-num">{tl('Actual')}</th>
+              <th className="cal-num">{tl('Forecast')}</th>
+              <th className="cal-num">{tl('Previous')}</th>
             </tr>
           </thead>
           <tbody>
             {groupByDay(events, tz).map((g) => (
               <Fragment key={g.key}>
                 <tr className="cal-day">
-                  <td colSpan={7}>{g.label}</td>
+                  <td colSpan={7}>{tl(g.label)}</td>
                 </tr>
                 {g.events.map((e) => {
                   const sp = surprise(e);
@@ -172,17 +208,17 @@ function EconomicCalendar() {
                         <span
                           className="impact-dots"
                           data-impact={e.impact}
-                          aria-label={`${e.impact} impact`}
+                          aria-label={tt`${e.impact} impact`}
                         >
                           {DOTS[e.impact]}
                         </span>
                       </td>
                       <td style={{ whiteSpace: 'normal' }}>
-                        {e.title}
+                        {tl(e.title)}
                         {e.sample && (
                           <>
                             {' '}
-                            <Badge kind="delayed">sample</Badge>
+                            <Badge kind="delayed">{tl('sample')}</Badge>
                           </>
                         )}
                       </td>
@@ -196,12 +232,13 @@ function EconomicCalendar() {
             ))}
           </tbody>
         </table>
-        {!events.length && <div className="tbl-empty">No events for this filter</div>}
+        {!events.length && <div className="tbl-empty">{tl('No events for this filter')}</div>}
       </div>
       <div className="info-foot">
-        Source: public calendar feeds / ICS you add
-        {hasSample &&
-          ' · SAMPLE events bundled with HT Flow are shown (times and values are not real releases)'}
+        {tl('Source: Public economic calendar (weekly) · ICS feeds you add')}
+        {usingSample(s) &&
+          hasSample &&
+          ' · OFFLINE SAMPLE events shown: no real calendar data yet (times and values are not real releases)'}
       </div>
     </div>
   );

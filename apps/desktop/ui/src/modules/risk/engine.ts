@@ -10,7 +10,7 @@ import {
   type RiskRules,
 } from '@htflow/trading';
 import { backend } from '../../backend';
-import { hub, paper } from '../../state/market';
+import { paper } from '../../state/market';
 import { useSession } from '../../state/session';
 import { activityLog } from '../activity/log';
 import { allEvents, calendar } from '../calendar/store';
@@ -18,6 +18,7 @@ import { newsFromCalendar } from './news';
 import { getSetting } from '../../state/settings';
 import { checkGlobalLimits, increasesRisk, lockEnd, type GlobalRiskLimits } from './globalLimits';
 
+import { translateLiteral as tl } from '@htflow/i18n';
 const KEY = 'risk.settings';
 export const localTimeZone = (): string => {
   try {
@@ -39,7 +40,12 @@ interface Saved {
 /** The app-wide risk engine: pre-trade checks and loss monitoring on the paper engine. */
 export const risk = new RiskEngine(
   paper,
-  { mark: (id) => hub.peek(id)?.lastTrade?.px },
+  {
+    mark: (id) => {
+      const m = paper.mark(id);
+      return Number.isFinite(m) ? m : undefined;
+    },
+  },
   defaultRiskRules(localTimeZone()),
 );
 
@@ -144,9 +150,9 @@ risk.onEvent((e) => {
     account,
     message: e.message,
   });
-  if (e.kind === 'lock') toast('error', 'Risk lock', e.message, 8000);
+  if (e.kind === 'lock') toast('error', tl('Risk lock'), e.message, 8000);
   else if (e.kind === 'warning' || e.kind === 'flatten')
-    toast('warning', 'Risk warning', e.message, 6000);
+    toast('warning', tl('Risk warning'), e.message, 6000);
   if (e.kind === 'lock' || e.kind === 'unlock') save();
   notify();
 });
@@ -179,12 +185,7 @@ function globalLimits(): GlobalRiskLimits {
 function accountEquity(accountId: string): number {
   const acc = paper.accounts.get(accountId);
   if (!acc) return 0;
-  let open = 0;
-  for (const p of paper.allPositions(accountId)) {
-    const m = hub.peek(p.instrumentId)?.lastTrade?.px;
-    if (m !== undefined) open += paper.unrealized(accountId, p.instrumentId, m);
-  }
-  return acc.balance + open + paper.optionUnrealized(accountId);
+  return acc.balance + paper.openPnl(accountId);
 }
 
 function dayState(accountId: string): DayState {
@@ -233,7 +234,7 @@ function breach(accountId: string, message: string): void {
   const lim = globalLimits();
   const st = dayState(accountId);
   if (lim.onBreach === 'warn') {
-    if (!st.lossNotified) toast('warning', 'Risk limit reached', message, 8000);
+    if (!st.lossNotified) toast('warning', tl('Risk limit reached'), message, 8000);
     st.lossNotified = true;
     return;
   }
@@ -242,7 +243,7 @@ function breach(accountId: string, message: string): void {
     st.lockedUntil = lockEnd(lim.lockUntil, now, nextDayStart(now, localTimeZone()));
     if (lim.onBreach === 'flatten')
       for (const p of paper.allPositions(accountId)) paper.flatten(accountId, p.instrumentId);
-    toast('error', 'Trading locked (Settings → Risk)', message, 8000);
+    toast('error', tl('Trading locked (Settings → Risk)'), message, 8000);
     activityLog.add({ type: 'lock', account: accountId, message });
   }
 }
@@ -257,7 +258,7 @@ paper.preTradeChecks.push((req) => {
     req,
     {
       position: paper.position(req.accountId, req.instrumentId).qty,
-      lastPx: hub.peek(req.instrumentId)?.lastTrade?.px ?? Number.NaN,
+      lastPx: paper.mark(req.instrumentId),
       dayPnl: accountEquity(req.accountId) - st.startEquity,
       tradesToday: st.trades,
     },
@@ -269,7 +270,7 @@ paper.preTradeChecks.push((req) => {
   }
   if (v.verdict === 'warn' && v.message && v.message !== lastWarn) {
     lastWarn = v.message;
-    toast('warning', 'Risk warning', v.message, 6000);
+    toast('warning', tl('Risk warning'), v.message, 6000);
   }
   return null;
 });

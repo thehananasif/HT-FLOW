@@ -16,7 +16,7 @@ import {
 import { formatCompact, type Instrument, type MarketStore } from '@htflow/market-data';
 import { getSetting } from '../../state/settings';
 import type { ChartHandle } from '../buildChart';
-import { effectiveMaxFps } from './performance';
+import { chartRenderer, effectiveMaxFps, chartPowerPreference } from './performance';
 import { globalCandleColors, globalChartOptions } from './globals';
 import { sBool, sLine, sNum, sStr, type ChartSettings, type LineValue } from './schema';
 
@@ -149,6 +149,8 @@ export function applyChartSettings(h: ChartHandle, s: ChartSettings, c: ApplyCon
       maxFps: fps,
       autoScalePadding: sNum(s, 'other.verticalOffset') / 100,
       priceAxisWidth: sNum(s, 'axis.width'),
+      renderer: chartRenderer(),
+      powerPreference: chartPowerPreference(),
     });
     if (changed('scales.autoScale') && !core.linkedPrice)
       core.autoScale = sBool(s, 'scales.autoScale');

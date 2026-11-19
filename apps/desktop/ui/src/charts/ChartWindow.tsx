@@ -30,14 +30,13 @@ import { getSetting } from '../state/settings';
 import {
   DAY_MS,
   LazyHistoryGate,
-  MAX_LOAD_DAYS,
   autoLoadsHistory,
   lazySpanMs,
   loadChunks,
-  openLoadChunks,
   progressLabel,
-  normalizeLoadDays,
+  runBackfill,
   spanLabel,
+  type BackfillEnd,
 } from './history';
 import { useSettingsStore } from '../state/settings';
 import { onChartAction, publishCrosshair, subscribeCrosshair, type CrosshairSync } from './bus';
@@ -63,8 +62,17 @@ import './chart-core.css';
 installChartCommands();
 import { SessionSelect } from './timeframes/TimeframeDialog';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const LOT_FILTERS = [1, 2, 5, 10, 100];
 const COMPARE_COLORS = ['#4FA3F7', '#B07CF0', '#E8B04B', '#BDBDBD', '#64C8D8'];
+
+/** Footer suffix for the automatic history state. */
+function backfillNote(b: 'running' | BackfillEnd | null): string {
+  if (b === 'running') return ' · loading older history…';
+  if (b === 'exhausted') return ' · all available history';
+  if (b === 'max-candles') return ' · max candles reached';
+  return '';
+}
 
 export function ChartWindow(props: IDockviewPanelProps) {
   const id = props.api.id;
@@ -133,18 +141,8 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   linkRef.current = s.link;
   const instRef = useRef(s.instrumentId);
   instRef.current = s.instrumentId;
-  // Load days (P31): per chart, default from Settings → Common → Default load days.
-  const loadDays = normalizeLoadDays(
-    (s.ext as Record<string, unknown> | undefined)?.loadDays,
-    normalizeLoadDays(getSetting('common.defaultLoadDays'), 4),
-  );
-  const setLoadDays = (d: number) => {
-    const cur = useWindows.getState().windows[id];
-    if (cur?.kind !== 'chart') return;
-    patch(id, {
-      ext: { ...(cur.ext ?? {}), loadDays: normalizeLoadDays(d) },
-    } as Partial<WindowState>);
-  };
+  // Automatic history: "backfilling" while the background loop runs, then why it stopped.
+  const [backfill, setBackfill] = useState<'running' | BackfillEnd | null>(null);
   const syncRef = useRef<CrosshairSync>('off');
   syncRef.current = sStr(settings, 'crosshair.sync') as CrosshairSync;
 
@@ -279,44 +277,30 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
     return () => clearInterval(t);
   }, [countdown]);
 
-  // Load days: real / replay feeds fill the missing days in the background when the chart opens.
+  // Automatic history (replaces "Load days"): real / replay feeds backfill older history in the
+  // background, as far back as the venue provides, up to Settings → Common → Max candles. Each
+  // step yields to the UI; the loop stops on rebuild (timeframe change) and is step-capped.
   useEffect(() => {
     if (!store.ready || !autoLoadsHistory(store.feedKind, !!store.olderLoader)) return;
+    if (getSetting('common.autoBackfill') === false) return;
     let stop = false;
-    void (async () => {
-      const chunks = openLoadChunks(
-        store.trades[0]?.ts,
-        store.lastTs,
-        loadDays,
-        // Long timeframes load enough bars on live feeds (klines keep that cheap).
-        store.feedKind === 'live' ? (handle.current?.periodMs ?? undefined) : undefined,
-      );
-      for (const span of chunks) {
-        if (stop || store.historyExhausted) break;
-        setOlderNote(`Loading history (${loadDays} days)…`);
-        const n = await store.loadOlder(span);
-        if (!n) break;
-      }
-      if (!stop) setOlderNote(null);
-    })();
+    setBackfill('running');
+    void runBackfill({
+      periodMs: handle.current?.periodMs ?? null,
+      bars: () => handle.current?.series()?.bars.length ?? 0,
+      maxBars: globalChartOptions().maxCandles,
+      loadOlder: (span, opts) => store.loadOlder(span, opts),
+      busy: () => store.loadingOlder,
+      exhausted: () => store.historyExhausted,
+      stopped: () => stop,
+      onStep: () => handle.current?.main.invalidate(),
+    }).then((r) => {
+      if (!stop) setBackfill(r.end);
+    });
     return () => {
       stop = true;
     };
-  }, [store, store.ready, loadDays, built]);
-
-  const loadOneMoreDay = () => {
-    if (!store.olderLoader) return toast('info', 'No older history from this feed');
-    store.historyExhausted = false;
-    setOlderNote('Loading 1 more day of history…');
-    // Let the note paint before a simulated day is generated.
-    setTimeout(() => {
-      void store.loadOlder(DAY_MS).then((n) => {
-        setOlderNote(n ? null : 'Start of available history');
-        handle.current?.cores.forEach((c) => c.invalidate());
-        if (n) toast('info', `Loaded ${n.toLocaleString()} older ticks`, '1 more day of history');
-      });
-    }, 30);
-  };
+  }, [store, store.ready, built]);
 
   // Default template per instrument class when the instrument changes.
   const prevInst = useRef(s.instrumentId);
@@ -340,12 +324,14 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
   const snapshot = () => {
     const core = handle.current?.cores[handle.current.cores.length - 1];
     if (!core) return;
-    core.canvas.toBlob((blob) => {
+    core.snapshotCanvas().toBlob((blob) => {
       if (!blob) return;
       const item =
         typeof ClipboardItem !== 'undefined' ? new ClipboardItem({ 'image/png': blob }) : null;
       if (item && navigator.clipboard?.write)
-        void navigator.clipboard.write([item]).then(() => toast('success', 'Chart copied as PNG'));
+        void navigator.clipboard
+          .write([item])
+          .then(() => toast('success', tl('Chart copied as PNG')));
       else {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -377,14 +363,15 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
       if (!n) break;
     }
     setOlderNote(null);
-    if (!h.main.scrollToTime(t)) toast('warning', 'Date is before the available history');
+    if (!h.main.scrollToTime(t)) toast('warning', tl('Date is before the available history'));
   };
 
   const fullscreen = () => {
     const el = rootRef.current;
     if (!el) return;
     if (document.fullscreenElement) void document.exitFullscreen();
-    else void el.requestFullscreen?.().catch(() => toast('error', 'Full screen is not available'));
+    else
+      void el.requestFullscreen?.().catch(() => toast('error', tl('Full screen is not available')));
   };
 
   const bars = () => handle.current?.series()?.bars ?? [];
@@ -407,22 +394,27 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             return setSaveOpen(true);
           case 'refresh':
             setRebuild((x) => x + 1);
-            return toast('info', 'Chart refreshed');
+            return toast('info', tl('Chart refreshed'));
           case 'reload-history':
             store.historyExhausted = false;
             store.rebuildSeries();
             setOlderNote(null);
             return toast(
               'info',
-              'Historical data reloaded',
-              `${store.trades.length.toLocaleString()} ticks`,
+              tl('Historical data reloaded'),
+              tt`${store.trades.length.toLocaleString()} ticks`,
             );
-          case 'load-day':
-            return loadOneMoreDay();
           case 'load-older':
+            // Explicit request (palette / hot key): one more day before the first bar.
             store.historyExhausted = false;
+            setOlderNote('Loading older history…');
             void store
-              .loadOlder()
+              .loadOlder(DAY_MS)
+              .then((n) => {
+                setOlderNote(null);
+                handle.current?.cores.forEach((c) => c.invalidate());
+                return n;
+              })
               .then((n) =>
                 toast(
                   'info',
@@ -450,6 +442,8 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             return fullscreen();
           case 'reset':
             return handle.current?.cores.forEach((c) => c.reset());
+          case 'go-latest':
+            return handle.current?.cores.forEach((c) => c.goLatest());
           case 'clone':
             return;
         }
@@ -571,6 +565,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           <div
             ref={hostsRef}
             className={isSplit ? 'chart-hosts split' : 'chart-hosts'}
+            dir="ltr"
             onContextMenu={capture}
             onDoubleClick={(e) => {
               if (e.ctrlKey) fullscreen();
@@ -578,8 +573,19 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             data-testid={`chart-${s.template}`}
           >
             {!store.ready && (
-              <div className="chart-loading">
-                {store.error ?? `Loading ${inst.symbol} history…`}
+              <div className="chart-loading" data-testid="chart-loading" role="status">
+                {!store.error && <span className="chart-loading-spin" aria-hidden />}
+                {store.error ?? `Loading ${inst.symbol}…`}
+              </div>
+            )}
+            {store.ready && backfill === 'running' && (
+              <div
+                className="chart-backfill"
+                data-testid="chart-backfill"
+                role="status"
+                title={tl('Loading older history in the background')}
+              >
+                <span className="chart-loading-spin" aria-hidden /> {tl('history')}
               </div>
             )}
             <div ref={hostA} className="chart-host" />
@@ -591,9 +597,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               <div
                 className={`lots-filter ${isSplit ? 'lots-filter--split' : ''}`}
                 role="radiogroup"
-                aria-label="Lots filter"
+                aria-label={tl('Lots filter')}
               >
-                <div className="lots-filter-title">Lots ≥</div>
+                <div className="lots-filter-title">{tl('Lots ≥')}</div>
                 {LOT_FILTERS.map((n) => (
                   <button
                     key={n}
@@ -611,9 +617,9 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             {ext.pinned && (
               <span
                 className="chart-pin-badge"
-                title="Pinned: keeps its instrument when the link group changes"
+                title={tl('Pinned: keeps its instrument when the link group changes')}
               >
-                Pinned
+                {tl('Pinned')}
               </span>
             )}
           </div>
@@ -639,47 +645,25 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
           <button
             className="ht-chip ht-chip--ghost"
             onClick={() => handle.current?.cores.forEach((c) => c.reset())}
-            title="Go to latest"
+            title={tl('Go to latest')}
           >
             ◂▸
           </button>
           <SessionSelect windowId={id} s={s} />
           <button
             className="ht-chip ht-chip--ghost"
-            aria-label="Go to date"
-            title="Go to date (Ctrl+G)"
+            aria-label={tl('Go to date')}
+            title={tl('Go to date (Ctrl+G)')}
             onClick={() => setGotoOpen(true)}
           >
             📅
           </button>
-          <button
-            className="ht-chip ht-chip--ghost"
-            data-testid="load-one-more-day"
-            title="Load 1 more day of history"
-            onClick={loadOneMoreDay}
-          >
-            ◂ Load 1 more day
-          </button>
-          <label
-            className="chart-load-days"
-            title="History loaded when the chart opens (per chart)"
-          >
-            Load days
-            <input
-              type="number"
-              aria-label="Load days"
-              min={1}
-              max={MAX_LOAD_DAYS}
-              value={loadDays}
-              onChange={(e) => setLoadDays(Number(e.target.value))}
-            />
-          </label>
           <span className="muted" data-testid="history-range">
             {(store.historyProgress && progressLabel(store.historyProgress)) ??
               olderNote ??
               (s.template === 'liquidity-map'
                 ? `Brightness 100 · Cut-off 98/20 · ${store.depth.length} columns`
-                : `History ${spanLabel(store.trades.length ? store.lastTs - store.trades[0]!.ts : 0)} of ${loadDays} d · ${store.trades.length.toLocaleString()} ticks`)}
+                : `History ${spanLabel(store.trades.length ? store.lastTs - store.trades[0]!.ts : 0)} · ${store.trades.length.toLocaleString()} ticks${backfillNote(backfill)}`)}
           </span>
           <div className="grow" />
           {sBool(settings, 'delays.show') && <DelayChip store={store} settings={settings} />}
@@ -688,14 +672,14 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             aria-pressed={showData}
             onClick={() => setChartSetting(id, 'crosshair.dataWindow', !showData)}
           >
-            Data window
+            {tl('Data window')}
           </button>
           <button
             className="ht-chip ht-chip--ghost"
             aria-pressed={domTrader}
             onClick={() => setDomTrader((x) => !x)}
           >
-            DOM Trader
+            {tl('DOM Trader')}
           </button>
           <button
             className="ht-chip ht-chip--ghost"
@@ -703,7 +687,7 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
               useWindows.getState().setTradingPanel(!useWindows.getState().tradingPanel)
             }
           >
-            Trading Panel
+            {tl('Trading Panel')}
           </button>
         </div>
       )}
@@ -813,7 +797,7 @@ function DelayChip({ store, settings }: { store: MarketStore; settings: ChartSet
   return (
     <span
       className="chart-delay tnum"
-      title="Feed delay (Chart settings → Data delays)"
+      title={tl('Feed delay (Chart settings → Data delays)')}
       style={{ background: sStr(settings, keys[0]!), color: sStr(settings, keys[1]!) }}
     >
       {test ? ['Good', 'Warning', 'Critical'][phase] : `${Math.round(ms)} ms`}
@@ -837,14 +821,13 @@ function ChartScrollbar({
     <input
       type="range"
       className="chart-scrollbar"
-      aria-label="Scroll chart"
+      aria-label={tl('Scroll chart')}
       min={-(core?.options.rightMargin ?? 0) - 1}
       max={Math.max(1, n)}
       value={value}
       onChange={(e) => {
         if (!core) return;
-        core.rightOffset = -Number(e.target.value);
-        core.invalidate();
+        core.setRightOffset(-Number(e.target.value));
       }}
     />
   );

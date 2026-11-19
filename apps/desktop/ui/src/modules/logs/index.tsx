@@ -14,6 +14,7 @@ import {
 } from '../../state/log';
 import './styles.css';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 installLogCapture();
 
 interface Prefs {
@@ -97,9 +98,9 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(entriesToText(shown));
-      toast('success', 'Copied', `${shown.length} log lines`);
+      toast('success', tl('Copied'), tt`${shown.length} log lines`);
     } catch {
-      toast('error', 'Copy failed', 'Clipboard access was denied');
+      toast('error', tl('Copy failed'), tl('Clipboard access was denied'));
     }
   };
 
@@ -107,13 +108,13 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
     <div className="logs-win col" data-testid="logs-window">
       <div className="logs-toolbar">
         <Select<LogLevel>
-          aria-label="Minimum level"
+          aria-label={tl('Minimum level')}
           value={prefs.minLevel}
           onChange={(v) => set({ minLevel: v })}
           options={LOG_LEVELS.map((l) => ({ value: l, label: `≥ ${l}` }))}
         />
         <Select<string>
-          aria-label="Source"
+          aria-label={tl('Source')}
           value={prefs.source}
           onChange={(v) => set({ source: v })}
           options={[
@@ -122,8 +123,8 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
           ]}
         />
         <Input
-          aria-label="Search logs"
-          placeholder="Search…"
+          aria-label={tl('Search logs')}
+          placeholder={tl('Search…')}
           value={prefs.query}
           onChange={(e) => set({ query: e.target.value })}
           style={{ width: 160 }}
@@ -136,7 +137,7 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
           {prefs.paused ? `Resume${missed ? ` (+${missed})` : ''}` : 'Pause'}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => void copy()}>
-          Copy
+          {tl('Copy')}
         </Button>
         <Button
           size="sm"
@@ -148,7 +149,7 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
             )
           }
         >
-          Export .txt
+          {tl('Export .txt')}
         </Button>
         <Button
           size="sm"
@@ -158,7 +159,7 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
             frozen.current = null;
           }}
         >
-          Clear
+          {tl('Clear')}
         </Button>
         <span className="grow" />
         <span className="muted tnum" data-testid="logs-count">
@@ -166,28 +167,28 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
         </span>
       </div>
       <div className="logs-toolbar logs-view-opts">
-        <span className="muted">View</span>
+        <span className="muted">{tl('View')}</span>
         <label className="logs-opt">
-          Font
+          {tl('Font')}
           <input
             type="range"
             min={9}
             max={18}
             value={prefs.fontSize}
             onChange={(e) => set({ fontSize: Number(e.target.value) })}
-            aria-label="Font size"
+            aria-label={tl('Font size')}
           />
         </label>
-        <Checkbox checked={prefs.wrap} onChange={(v) => set({ wrap: v })} label="Wrap" />
+        <Checkbox checked={prefs.wrap} onChange={(v) => set({ wrap: v })} label={tl('Wrap')} />
         <Checkbox
           checked={prefs.showSource}
           onChange={(v) => set({ showSource: v })}
-          label="Source column"
+          label={tl('Source column')}
         />
         <Checkbox
           checked={prefs.autoscroll}
           onChange={(v) => set({ autoscroll: v })}
-          label="Auto-scroll"
+          label={tl('Auto-scroll')}
         />
       </div>
       <div
@@ -195,10 +196,10 @@ function LogsWindow({ state, setParams }: ModuleViewProps) {
         className="logs-body"
         style={{ fontSize: prefs.fontSize }}
         role="log"
-        aria-label="Log lines"
+        aria-label={tl('Log lines')}
         data-testid="logs-body"
       >
-        {shown.length === 0 && <div className="logs-empty muted">No log lines match.</div>}
+        {shown.length === 0 && <div className="logs-empty muted">{tl('No log lines match.')}</div>}
         {shown.map((e) => (
           <div key={e.id} className={`logs-row lv-${e.level}${prefs.wrap ? ' wrap' : ''}`}>
             <span className="logs-ts tnum">{formatTime(e.ts)}</span>

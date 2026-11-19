@@ -14,7 +14,11 @@ import { specLabel, type BarSeries, type BarSpec, type MarketStore } from '@htfl
 import { THEMES } from '@htflow/ui-kit';
 import type { ChartTemplateId, ChartWindowState } from '@htflow/workspace';
 import { toPalette } from '../palette';
-import { CotPaneLayer, CotPriceLayer, cotSource, cotWeeks, type CotWeek } from './cotLayers';
+import { CotPaneLayer, CotTableLayer, cotSource } from './cotLayers';
+import { cotData, resolveCot, type CotData } from './cotModel';
+import type { CotReport } from './cotMarkets';
+import { getSetting } from '../../state/settings';
+import { useCot } from '../../state/cot';
 import {
   BigTradesLayer,
   CvdPaneLayer,
@@ -97,6 +101,8 @@ export function buildExtraTemplate(b: TemplateBuildCtx): (s: ChartWindowState) =
       c.invalidate();
       c.slotWidth = 110;
       c.options.rightMargin = 1;
+      // A narrow window still shows a few bars of context (they collapse to candles).
+      c.minVisibleSlots = 3;
       c.rightOffset = 0.6;
       c.setSource(barSource(series()));
       const fp = new FootprintLayer(series, { mode: 'bidask-delta-colored' });
@@ -129,6 +135,8 @@ export function buildExtraTemplate(b: TemplateBuildCtx): (s: ChartWindowState) =
       const c = b.mk(b.hosts[0]!);
       c.slotWidth = 110;
       c.options.rightMargin = 1;
+      // A narrow window still shows a few bars of context (they collapse to candles).
+      c.minVisibleSlots = 3;
       c.rightOffset = 0.6;
       c.setSource(barSource(series()));
       const fp = new FootprintLayer(series, { mode: 'delta-profile' });
@@ -269,33 +277,54 @@ export function buildExtraTemplate(b: TemplateBuildCtx): (s: ChartWindowState) =
     }
     case 'cot': {
       const c = b.mk(b.hosts[0]!);
-      let anchor = Number.NaN;
-      let weeks: CotWeek[] = [];
-      const getWeeks = () => {
-        const px = store.lastTrade?.px ?? store.book.mid;
-        const a = Number.isFinite(px) ? Math.round(px) : 10_000;
-        if (a !== anchor) {
-          anchor = a;
-          weeks = cotWeeks(a);
-        }
-        return weeks;
+      const want = () =>
+        resolveCot(get().cot, store.instrument.symbol, getSetting('data.cotReport') as CotReport);
+      let cache: { entries: unknown; key: string; out: CotData } | null = null;
+      const data = (): CotData => {
+        const { market, report } = want();
+        const entries = useCot.getState().entries;
+        const key = `${market?.code ?? ''}:${report}`;
+        if (!cache || cache.entries !== entries || cache.key !== key)
+          cache = { entries, key, out: cotData(entries, market, report) };
+        return cache.out;
+      };
+      /** Loads the data once per (market, report, years); weekly refresh when enabled. */
+      let requested = '';
+      const ensure = () => {
+        const { market, report } = want();
+        if (!market) return;
+        const years = get().cot.years;
+        const k = `${report}:${market.code}:${years}`;
+        if (k === requested) return;
+        requested = k;
+        void useCot
+          .getState()
+          .load(report, market.code, years, false, !getSetting('data.cotAutoRefresh'));
       };
       c.slotWidth = 8;
       c.options.rightMargin = 2;
       c.rightOffset = 2;
-      c.setSource(cotSource(getWeeks));
+      c.setSource(cotSource(data));
+      const slots = [0, 1, 2, 3, 4].map((i) => new CotPaneLayer(i, data, get));
       c.setLayers([
-        new CotPriceLayer(getWeeks, get),
-        new CotPaneLayer('commercials', getWeeks, get),
-        new CotPaneLayer('nonCommercials', getWeeks, get),
-        new CotPaneLayer('nonReportable', getWeeks, get),
-        new CotPaneLayer('openInterest', getWeeks, get),
+        new CotTableLayer(data, get),
+        ...slots,
+        new CotPaneLayer(-1, data, get),
         new LegendLayer(
           () => null,
-          () =>
-            `COT (Legacy, weekly) · ${store.instrument.symbol} · SAMPLE DATA — no COT feed connected yet`,
+          () => {
+            const d = data();
+            const name = d.market ? `${d.market.name} (${d.market.root})` : store.instrument.symbol;
+            return `COT (${d.report.toUpperCase()}, weekly) · ${name}${d.sample ? ' · SAMPLE DATA' : ''}`;
+          },
         ),
       ]);
+      ensure();
+      b.unsubs.push(useCot.subscribe(() => c.invalidate()));
+      onUpdate = () => {
+        ensure();
+        c.invalidate();
+      };
       break;
     }
     case 'mtf': {

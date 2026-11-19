@@ -71,6 +71,14 @@ const VENUES: Venue[] = [
     url: 'https://www.bybit.com/en/announcement-info/spot-trading-rules',
   },
   {
+    sub: 'Bybit Inverse',
+    exchange: 'Bybit',
+    provider: 'bybit-inverse',
+    kind: 'inverse',
+    symbol: (b) => `${b}USD`,
+    url: 'https://www.bybit.com/en/announcement-info/transact-parameters',
+  },
+  {
     sub: 'Kraken Flexible Perpetual Futures',
     exchange: 'Kraken Futures',
     provider: 'kraken-futures',

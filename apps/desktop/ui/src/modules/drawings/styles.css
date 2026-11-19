@@ -140,7 +140,7 @@
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  margin-right: 8px;
+  margin-inline-end: 8px;
 }
 .st-btn[data-has-tool] {
   background: var(--ht-hover, #262626);

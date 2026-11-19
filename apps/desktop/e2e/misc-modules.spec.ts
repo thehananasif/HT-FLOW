@@ -113,7 +113,7 @@ test('User Guide: search, articles, and Open this window links', async ({ page }
   await palette(page, 'Open User Guide');
   const win = page.getByTestId('user-guide');
   await expect(win).toBeVisible();
-  await expect(win.getByTestId('guide-article')).toContainText('Welcome to HT Flow');
+  await expect(win.getByTestId('guide-article')).toContainText('Getting started');
 
   await win.getByLabel('Search the guide').fill('replay');
   await win

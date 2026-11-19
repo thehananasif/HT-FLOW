@@ -79,10 +79,13 @@ describe('symbol discovery (UI)', () => {
       pricePrecision: 4,
       displayName: 'WIF-USDT-SWAP Perpetual',
     });
-    // Catalog-only venues (no connector) never become feeds.
-    expect(discoveredFeed('bybit-spot:SOLUSDT')).toBeUndefined();
-    expect(discoveredExtras().map((i) => i.id)).toEqual(['okx-swap:WIF-USDT-SWAP']);
-    // …but are in the catalog.
+    // Bybit spot streams through the connector: its discovered symbols become feeds too.
+    expect(discoveredFeed('bybit-spot:SOLUSDT')).toMatchObject({ tickSize: 0.01 });
+    expect(discoveredExtras().map((i) => i.id)).toEqual([
+      'okx-swap:WIF-USDT-SWAP',
+      'bybit-spot:SOLUSDT',
+    ]);
+    // …and are in the catalog.
     expect(catalog().get('cat:BYBIT-SPOT:SOLUSDT')).toBeDefined();
     expect(catalog().get('cat:OKX:WIF-USDT-SWAP')?.tickSize).toBe(0.0001);
   });

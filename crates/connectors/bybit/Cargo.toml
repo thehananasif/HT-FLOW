@@ -1,6 +1,6 @@
 [package]
 name = "htflow-connector-bybit"
-description = "Bybit v5 linear perpetuals public market data connector (trades + L2 depth), free"
+description = "Bybit v5 public market data connector (linear, inverse, spot: trades, L2 depth, funding and OI), free"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

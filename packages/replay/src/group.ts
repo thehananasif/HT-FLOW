@@ -85,15 +85,27 @@ export class ReplayGroup {
   }
 }
 
-/** Drives a group (or engine) from a wall clock; ~60 ticks per second by default. */
+/**
+ * Drives a group (or engine) from a wall clock; ~60 ticks per second by default.
+ *
+ * Load shedding: when one tick costs more than `budgetMs` of wall time (1000x on a busy chart),
+ * the next ticks are skipped for the same amount of time, so the UI thread keeps painting and
+ * input stays responsive; the replay clock then runs a little slower than nominal instead of the
+ * window freezing. Skipped time is not lost: the engine caps the catch-up of the next tick.
+ */
 export class ReplayScheduler {
   private timer: ReturnType<typeof setInterval> | null = null;
   private last = 0;
+  private resumeAt = 0;
+  /** Wall time of the last tick (ms) and number of ticks skipped to give the UI time. */
+  lastCostMs = 0;
+  skipped = 0;
 
   constructor(
     private target: { tick(wallDtMs: number): void },
     private frameMs = 16,
     private clock: () => number = () => performance.now(),
+    private budgetMs = 40,
   ) {}
 
   get running(): boolean {
@@ -103,12 +115,23 @@ export class ReplayScheduler {
   start(): void {
     if (this.timer) return;
     this.last = this.clock();
-    this.timer = setInterval(() => {
-      const now = this.clock();
-      const dt = now - this.last;
-      this.last = now;
-      this.target.tick(dt);
-    }, this.frameMs);
+    this.resumeAt = 0;
+    this.timer = setInterval(() => this.frame(), this.frameMs);
+  }
+
+  /** One scheduler step (public for tests). */
+  frame(): void {
+    const now = this.clock();
+    if (now < this.resumeAt) {
+      this.skipped++;
+      return;
+    }
+    const dt = now - this.last;
+    this.last = now;
+    this.target.tick(dt);
+    const cost = this.clock() - now;
+    this.lastCostMs = cost;
+    if (cost > this.budgetMs) this.resumeAt = this.clock() + cost;
   }
 
   stop(): void {

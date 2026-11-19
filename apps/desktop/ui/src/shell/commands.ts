@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { t, translateLiteral } from '@htflow/i18n';
 
 export type CommandGroup =
   | 'Platform'
@@ -64,11 +65,32 @@ export function registerCommands(cmds: Command[]): () => void {
 }
 
 /** Commands with the user's effective shortcut and scope applied (what the palette shows). */
+/** Translates a command label: exact en.ts text, "Group: Name" pairs and "Open <module>". */
+export function translateCommandLabel(label: string): string {
+  const exact = translateLiteral(label);
+  if (exact !== label) return exact;
+  const i = label.indexOf(': ');
+  if (i > 0) {
+    const a = label.slice(0, i);
+    const b = label.slice(i + 2);
+    const ta = translateLiteral(a);
+    const tb = translateLiteral(b);
+    if (ta !== a || tb !== b) return `${ta}: ${tb}`;
+  }
+  if (label.startsWith('Open ')) {
+    const b = label.slice(5);
+    const tb = translateLiteral(b);
+    if (tb !== b) return t('cmd.open', { name: tb });
+  }
+  return label;
+}
+
 export function commands(): Command[] {
   return [...registry.values()].map((c) => {
     const o = overrides[c.id];
-    if (!o) return c;
-    return { ...c, shortcut: effectiveShortcut(c.id), scope: effectiveScope(c.id) };
+    const label = translateCommandLabel(c.label);
+    if (!o) return label === c.label ? c : { ...c, label };
+    return { ...c, label, shortcut: effectiveShortcut(c.id), scope: effectiveScope(c.id) };
   });
 }
 

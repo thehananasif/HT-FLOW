@@ -41,8 +41,9 @@ describe('buildIndicatorConfig (shared by the dialog and the palette)', () => {
   });
 
   it('returns null for a pending entry', () => {
-    const pending = CATALOG.find((e) => !isImplemented(e));
-    expect(pending).toBeDefined();
-    expect(buildIndicatorConfig(pending!)).toBeNull();
+    // Every catalog entry is built now: a synthetic one stands in for a future pending entry.
+    const pending = { key: 'technical:future', name: 'Future', category: 'technical' as const };
+    expect(isImplemented(pending)).toBe(false);
+    expect(buildIndicatorConfig(pending)).toBeNull();
   });
 });

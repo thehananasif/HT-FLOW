@@ -20,6 +20,7 @@ import {
   type ScanColumn,
 } from './scanner';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const WINDOWS = [
   { id: 'm1', label: '1m' },
   { id: 'm5', label: '5m' },
@@ -48,7 +49,10 @@ function PctCell({ v }: { v: number }) {
   return (
     <span className="scan-bar">
       <i style={{ width: `${v}%`, background: tint(c, 0.16 + (Math.abs(v - 50) / 50) * 0.2) }} />
-      <b style={{ color: c }}>{v.toFixed(0)}% buy</b>
+      <b style={{ color: c }}>
+        {v.toFixed(0)}
+        {tl('% buy')}
+      </b>
     </span>
   );
 }
@@ -80,7 +84,7 @@ function MarketPressure({ state, setParams }: ModuleViewProps) {
         toast(
           r.signal === 'strong-buy' ? 'success' : 'warning',
           `${r.sym}: ${SIGNAL_LABEL[r.signal]}`,
-          `Aggressive buy ${r.pr[win].toFixed(0)}% over ${win}`,
+          tt`Aggressive buy ${r.pr[win].toFixed(0)}% over ${win}`,
         );
         beep(r.signal === 'strong-buy' ? 1 : -1);
       }
@@ -130,14 +134,14 @@ function MarketPressure({ state, setParams }: ModuleViewProps) {
   return (
     <ScannerFrame
       testId="market-pressure"
-      subtitle="aggressor buy %"
+      subtitle={tl('aggressor buy %')}
       chips={WINDOWS.map((w) => (
         <Chip
           key={w.id}
           selected={win === w.id}
           onClick={() => setParams({ window: w.id, sortKey: w.id, sortDir: 'desc' })}
         >
-          {w.label}
+          {tl(w.label)}
         </Chip>
       ))}
       settings={
@@ -151,7 +155,7 @@ function MarketPressure({ state, setParams }: ModuleViewProps) {
           }
         >
           <label>
-            Strong buy at ≥ (%)
+            {tl('Strong buy at ≥ (%)')}
             <Input
               type="number"
               min={0}
@@ -163,7 +167,7 @@ function MarketPressure({ state, setParams }: ModuleViewProps) {
             />
           </label>
           <label>
-            Strong sell at ≤ (%)
+            {tl('Strong sell at ≤ (%)')}
             <Input
               type="number"
               min={0}

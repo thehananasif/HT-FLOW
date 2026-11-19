@@ -4,6 +4,7 @@ import { listImported, onImportedChange, removeImported } from '../../../feeds/i
 import { ImportDialog, replayImported, showOnChart } from './ImportDialog';
 import { openCsvImport } from './ui';
 
+import { translateLiteral as tl, tt } from '@htflow/i18n';
 const fmt = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
 
 /** "Imported files" block of the Data manager: import button, dialog and the imported datasets. */
@@ -15,22 +16,22 @@ export function ImportedFiles() {
     <div className="col gap8 dm-imported">
       <div className="row gap8">
         <Button size="sm" variant="primary" onClick={openCsvImport}>
-          Import CSV…
+          {tl('Import CSV…')}
         </Button>
         <span className="muted">
-          Trades or OHLCV bars from a file; they open in a chart and in Replay.
+          {tl('Trades or OHLCV bars from a file; they open in a chart and in Replay.')}
         </span>
       </div>
       {list.length > 0 && (
         <div className="tbl-wrap">
-          <table className="tbl tnum dm-table" aria-label="Imported files">
+          <table className="tbl tnum dm-table" aria-label={tl('Imported files')}>
             <thead>
               <tr>
-                <th>Imported dataset</th>
-                <th>From (UTC)</th>
-                <th>To (UTC)</th>
-                <th className="r">Trades</th>
-                <th className="r">Actions</th>
+                <th>{tl('Imported dataset')}</th>
+                <th>{tl('From (UTC)')}</th>
+                <th>{tl('To (UTC)')}</th>
+                <th className="r">{tl('Trades')}</th>
+                <th className="r">{tl('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -43,22 +44,22 @@ export function ImportedFiles() {
                   <td className="r">
                     <div className="dm-actions">
                       <button type="button" className="cx-link" onClick={() => showOnChart(d.id)}>
-                        Chart
+                        {tl('Chart')}
                       </button>
                       <button
                         type="button"
                         className="cx-link"
                         onClick={() => void replayImported(d)}
                       >
-                        Replay
+                        {tl('Replay')}
                       </button>
                       <button
                         type="button"
                         className="cx-link down"
-                        aria-label={`Remove ${d.id}`}
+                        aria-label={tt`Remove ${d.id}`}
                         onClick={() => removeImported(d.id)}
                       >
-                        Remove
+                        {tl('Remove')}
                       </button>
                     </div>
                   </td>

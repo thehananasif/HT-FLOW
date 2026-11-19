@@ -10,6 +10,7 @@ import {
   type Zone,
 } from '@htflow/indicator-sdk';
 import { pivotAt } from './trend2';
+import { openFrom } from './common';
 
 const lv = { category: 'technical' as const, group: 'Levels & structure' };
 const NaN_ = Number.NaN;
@@ -100,7 +101,9 @@ export const FVG = defineIndicator({
     const { minTicks, fill, maxBars } = ctx.inputs;
     const i = ctx.i;
     const b = ctx.bar;
-    for (const z of ctx.out.zones.items) {
+    const zs = ctx.out.zones.items;
+    for (let k = openFrom(zs, ctx.buf('open'), i); k < zs.length; k++) {
+      const z = zs[k]!;
       if (z.to >= 0 && z.to < i) continue;
       if (z.bar >= i) continue;
       const bull = z.tone === 0;
@@ -145,7 +148,9 @@ export const OrderBlocks = defineIndicator({
     const { n, lookback, maxBars } = ctx.inputs;
     const i = ctx.i;
     const b = ctx.bar;
-    for (const z of ctx.out.zones.items) {
+    const zs = ctx.out.zones.items;
+    for (let k = openFrom(zs, ctx.buf('open'), i); k < zs.length; k++) {
+      const z = zs[k]!;
       if (z.to >= 0 && z.to < i) continue;
       if (z.bar >= i) continue;
       const hit = z.tone === 0 ? b.c < z.bottom : b.c > z.top;

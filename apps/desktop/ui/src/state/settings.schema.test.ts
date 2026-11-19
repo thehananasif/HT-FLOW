@@ -112,9 +112,12 @@ describe('enums', () => {
     expect(validateSetting('privacy.crashReports', 'upload').ok).toBe(false);
     expect(STATIC_DEFAULTS['privacy.telemetry']).toBe('off');
   });
-  it('Urdu and Arabic are listed as coming and cannot be selected yet', () => {
+  it('Urdu is selectable; Arabic is listed as coming and cannot be selected yet', () => {
     const lang = SCHEMA['general.language'];
-    for (const v of ['ur', 'ar']) {
+    const ur = lang.options.find((x) => x.value === 'ur')!;
+    expect(ur.label).toMatch(/RTL/);
+    expect(validateSetting('general.language', 'ur').ok).toBe(true);
+    for (const v of ['ar']) {
       const o = lang.options.find((x) => x.value === v)!;
       expect(o.label).toMatch(/coming/);
       expect(o.label).toMatch(/RTL/);
@@ -153,6 +156,8 @@ describe('list settings', () => {
       'binance-spot',
       'binance-coinm',
       'bybit-linear',
+      'bybit-spot',
+      'bybit-inverse',
       'okx-swap',
       'bitget',
       'deribit',
