@@ -76,6 +76,8 @@ test('switch a chart to Renko, Point & Figure and TPO without errors', async ({ 
 test('every additional template renders; timeframe presets can be configured', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // Deterministic: the COT chart falls back to its labelled sample when CFTC is unreachable.
+  await page.route('https://publicreporting.cftc.gov/**', (route) => route.abort());
   await createAccount(page, 'charttypes2');
   await page.waitForTimeout(1500);
   for (const [label, id] of [
