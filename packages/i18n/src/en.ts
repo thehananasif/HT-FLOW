@@ -1333,6 +1333,7 @@ export const en = {
   'ui.reset-password.5c4b': 'Reset password',
   'ui.animated-background.72fb': 'Animated background:',
   'ui.chart-copied-as-png.a0d5': 'Chart copied as PNG',
+  'ui.clipboard-unavailable-chart-saved.c7a1': 'Clipboard unavailable: chart saved as PNG',
   'ui.date-is-before-the.6a65': 'Date is before the available history',
   'ui.full-screen-is-not.4bf3': 'Full screen is not available',
   'ui.chart-refreshed.9349': 'Chart refreshed',

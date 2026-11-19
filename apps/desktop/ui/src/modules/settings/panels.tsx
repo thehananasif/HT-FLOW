@@ -439,8 +439,13 @@ export function LogPanel({ level }: { level: LogLevel }) {
           size="xs"
           variant="outline"
           onClick={() => {
-            void navigator.clipboard?.writeText(logText(shown.slice().reverse()));
-            toast('success', tl('Log copied'), tt`${shown.length} entries`);
+            // Clipboard access can be refused: say so instead of a false "copied" + rejection.
+            void Promise.resolve(
+              navigator.clipboard?.writeText(logText(shown.slice().reverse())),
+            ).then(
+              () => toast('success', tl('Log copied'), tt`${shown.length} entries`),
+              () => toast('error', tl('Copy failed'), tl('Clipboard access was denied')),
+            );
           }}
         >
           <Copy size={12} /> {tl('Copy')}

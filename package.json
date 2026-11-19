@@ -21,6 +21,7 @@
     "test:watch": "vitest",
     "bench": "vitest run --config vitest.bench.config.ts",
     "e2e": "pnpm --filter @htflow/desktop e2e",
+    "e2e:clickall": "pnpm --filter @htflow/desktop e2e:clickall",
     "guide:screenshots": "pnpm --filter @htflow/desktop guide:screenshots",
     "check": "pnpm typecheck && pnpm lint && pnpm test && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace"
   },

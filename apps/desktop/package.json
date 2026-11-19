@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "e2e": "playwright test",
+    "e2e:clickall": "playwright test --grep @clickall",
     "guide:screenshots": "playwright test -c playwright.guide.config.ts"
   },
   "dependencies": {
