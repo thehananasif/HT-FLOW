@@ -428,12 +428,19 @@ pub async fn os_window_open(
         None => default_bounds(req.width, req.height, anchor.as_ref(), &monitors),
     };
     let url = WebviewUrl::App(format!("index.html?window={}", req.label).into());
-    let w = WebviewWindowBuilder::new(&app, &req.label, url)
+    #[allow(unused_mut)]
+    let mut builder = WebviewWindowBuilder::new(&app, &req.label, url)
         .title(&title)
         .decorations(false)
         .visible(false)
         .min_inner_size(MIN_WIDTH as f64 / 1.5, MIN_HEIGHT as f64 / 1.5)
-        .background_color(tauri::window::Color(0, 0, 0, 255))
+        .background_color(tauri::window::Color(0, 0, 0, 255));
+    // Same WebView2 arguments as the main window, or WebView2 refuses the new webview.
+    #[cfg(windows)]
+    if let Some(args) = crate::native_prefs::session_browser_args() {
+        builder = builder.additional_browser_args(args);
+    }
+    let w = builder
         .build()
         .map_err(|e| CmdError::new("window.open", e.to_string()))?;
     let _ = w.set_size(PhysicalSize::new(bounds.rect.width, bounds.rect.height));

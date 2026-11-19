@@ -60,25 +60,45 @@ jobs:
           & "$HOME/.cargo/bin/msedgedriver-tool.exe"
           $PWD.Path | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Start tauri-driver
+      # tauri-driver is started in the same step as the tests (a process started in an earlier step
+      # can be gone by the next one), we wait until it answers /status instead of sleeping, and its
+      # logs are printed when anything fails.
+      - name: Native smoke test + click-everything crawl (tauri-driver + WebdriverIO)
         shell: pwsh
-        run: |
-          $drv = (Get-Command msedgedriver.exe).Source
-          Start-Process -FilePath "$HOME/.cargo/bin/tauri-driver.exe" `
-            -ArgumentList "--port", "4444", "--native-driver", "$drv" `
-            -RedirectStandardOutput tauri-driver.log -RedirectStandardError tauri-driver.err.log
-          Start-Sleep -Seconds 3
-
-      - name: Native smoke test + click-everything crawl (WebdriverIO)
-        shell: pwsh
-        working-directory: apps/desktop
         env:
           QUICK: ${{ inputs.quick }}
         run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $PWD.Path
+          $drv = (Get-Command msedgedriver.exe).Source
+          Write-Host "msedgedriver: $drv"
+          & $drv --version
+          $td = Start-Process -FilePath "$HOME\.cargo\bin\tauri-driver.exe" -PassThru `
+            -ArgumentList '--port', '4444', '--native-driver', "`"$drv`"" `
+            -RedirectStandardOutput "$root\tauri-driver.log" -RedirectStandardError "$root\tauri-driver.err.log"
+          $ready = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            if ($td.HasExited) { break }
+            try { Invoke-RestMethod -Uri 'http://127.0.0.1:4444/status' -TimeoutSec 2 | Out-Null; $ready = $true; break } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $ready) {
+            Write-Host "tauri-driver did not start (exited: $($td.HasExited), code: $($td.ExitCode))"
+            Get-Content "$root\tauri-driver.log", "$root\tauri-driver.err.log" -ErrorAction SilentlyContinue
+            exit 1
+          }
+          Set-Location apps/desktop
           $exe = (Resolve-Path ../../target/debug/htflow-desktop.exe).Path
           $extra = @()
           if ($env:QUICK -eq 'true') { $extra += '--quick' }
-          node --import ./e2e/native/register.mjs e2e/native/run.ts --app "$exe" --port 4444 @extra
+          $code = 0
+          try {
+            node --import ./e2e/native/register.mjs e2e/native/run.ts --app "$exe" --port 4444 @extra
+            $code = $LASTEXITCODE
+          } finally {
+            if ($code -ne 0) { Get-Content "$root\tauri-driver.log", "$root\tauri-driver.err.log" -Tail 80 -ErrorAction SilentlyContinue }
+            if (-not $td.HasExited) { Stop-Process -Id $td.Id -Force }
+          }
+          exit $code
 
       - uses: actions/upload-artifact@v4
         if: always()

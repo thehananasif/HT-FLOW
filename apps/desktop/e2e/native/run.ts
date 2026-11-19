@@ -13,7 +13,6 @@
  * Exit code 1 when any check or crawled control fails. Report: test-results/native-report/.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { remote } from 'webdriverio';
@@ -200,16 +199,34 @@ async function nativePaths(d: Driver, b: Browser): Promise<StepResult[]> {
     return `windows ${n}→${m}`;
   });
   await check(d, 'Detach the active window to an OS window, then re-attach', out, async () => {
-    const handles0 = (await b.getWindowHandles()).length;
+    // Ask the app which secondary windows exist: msedgedriver does not list a new WebView2
+    // window as a WebDriver handle, so getWindowHandles() cannot see it.
+    const count = async () => {
+      if (WEB) return (await b.getWindowHandles()).length;
+      const r = await invokeNative(d, 'os_window_list');
+      if (!r.startsWith('ok: ')) throw new Error(`os_window_list: ${r}`);
+      return (r.match(/"label"/g) ?? []).length;
+    };
+    const n0 = await count();
     await intro(d, `runCommand('detach-os')`);
-    await d.sleep(2500);
-    const handles1 = (await b.getWindowHandles()).length;
+    let n1 = n0;
+    for (let i = 0; i < 20 && n1 <= n0; i++) {
+      await d.sleep(500);
+      n1 = await count();
+    }
     await intro(d, `runCommand('window.reattach-all')`);
-    await d.sleep(2000);
-    const handles2 = (await b.getWindowHandles()).length;
-    if (!WEB && handles1 <= handles0) throw new Error('no OS window appeared');
-    if (handles2 > handles0) throw new Error('OS window did not close on re-attach');
-    return `OS windows ${handles0}→${handles1}→${handles2}`;
+    let n2 = n1;
+    for (let i = 0; i < 20 && n2 > n0; i++) {
+      await d.sleep(500);
+      n2 = await count();
+    }
+    if (!WEB && n1 <= n0) {
+      const reg = JSON.stringify(await intro(d, 'osWindows()'));
+      const probs = ((await intro(d, 'recentProblems(5)')) as string[]).join(' | ');
+      throw new Error(`no OS window appeared (registry ${reg}; log: ${probs || 'none'})`);
+    }
+    if (n2 > n0) throw new Error('OS window did not close on re-attach');
+    return `OS windows ${n0}→${n1}→${n2}`;
   });
   await check(d, 'Binance symbol discovery', out, () =>
     invokeNative(d, 'instruments_list', { venue: 'binance', refresh: true }, 90_000),
@@ -269,44 +286,27 @@ async function nativePaths(d: Driver, b: Browser): Promise<StepResult[]> {
   return out;
 }
 
-/** Second app launch with a file path argument (Explorer double-click / file association). */
+/**
+ * File association (.htstrat double-click). tauri-driver forwards `tauri:options.args` to WebView2
+ * as browser switches ("Ignoring switch with invalid name"), not to the app's own argv, so a second
+ * launch with a file path cannot be driven here. The command-line → HT Editor route is covered by
+ * the unit tests (openFile / openfile.rs) and the manual checklist (docs/MANUAL-TEST-CHECKLIST.md).
+ */
 async function fileAssociation(): Promise<StepResult[]> {
-  const out: StepResult[] = [];
-  if (WEB) {
-    out.push({
+  return [
+    {
       surface: 'Native paths',
       control: 'File association (.htstrat via command line)',
       role: 'check',
       status: 'skip',
       effect: '',
-      notes: ['native only'],
-    });
-    return out;
-  }
-  const dir = join(tmpdir(), 'htflow-native-test');
-  mkdirSync(dir, { recursive: true });
-  const file = join(dir, 'Native Smoke.htstrat');
-  writeFileSync(
-    file,
-    JSON.stringify({
-      format: 'htstrat',
-      version: 1,
-      name: 'Native Smoke',
-      code: 'export default function onBar(ctx) {}',
-    }),
-  );
-  const b = await session([file]);
-  try {
-    const d = await boot(b, 'nativefile');
-    await check(d, 'File association (.htstrat via command line)', out, async () => {
-      const ok = await waitFor(d, `document.querySelector('[data-testid="hte-backtest"]')`, 20_000);
-      if (!ok) throw new Error('HT Editor did not open for the file passed on the command line');
-      return 'HT Editor opened the file';
-    });
-  } finally {
-    await b.deleteSession().catch(() => undefined);
-  }
-  return out;
+      notes: [
+        WEB
+          ? 'native only'
+          : 'not drivable under tauri-driver (args go to WebView2); manual checklist item',
+      ],
+    },
+  ];
 }
 
 async function crawl(d: Driver): Promise<ReportPart> {
@@ -390,6 +390,10 @@ async function main() {
   console.log(
     `native report: ${report.totals.controls} steps, ${report.totals.fail} failures, ${report.totals.warn} warnings → ${OUT}/index.html`,
   );
+  for (const part of parts)
+    for (const c of part.commands ?? [])
+      if (part.name !== 'native-crawl')
+        console.log(`  ${c.status.toUpperCase().padEnd(4)} ${c.control}: ${c.notes.join(' | ')}`);
   for (const f of report.failures) console.log(`  FAIL ${f}`);
   process.exit(report.failures.length ? 1 : 0);
 }
