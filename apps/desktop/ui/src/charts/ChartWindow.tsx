@@ -442,6 +442,8 @@ function ChartBody({ id, s }: { id: string; s: ChartWindowState }) {
             return fullscreen();
           case 'reset':
             return handle.current?.cores.forEach((c) => c.reset());
+          case 'go-latest':
+            return handle.current?.cores.forEach((c) => c.goLatest());
           case 'clone':
             return;
         }
@@ -825,8 +827,7 @@ function ChartScrollbar({
       value={value}
       onChange={(e) => {
         if (!core) return;
-        core.rightOffset = -Number(e.target.value);
-        core.invalidate();
+        core.setRightOffset(-Number(e.target.value));
       }}
     />
   );

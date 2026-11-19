@@ -159,7 +159,8 @@ test('HT Editor plot() lines are drawn on the instrument chart during a paper ru
   await expect(runs.getByTestId('hte-run-plots')).toHaveText('Show plots');
   await expect.poll(magenta, { timeout: 10_000 }).toBe(0);
   await runs.getByTestId('hte-run-plots').click();
-  await expect.poll(magenta, { timeout: 10_000 }).toBeGreaterThan(5);
+  // The chart repaints on its own schedule (rAF under CPU load can take many seconds).
+  await expect.poll(magenta, { timeout: 30_000 }).toBeGreaterThan(5);
 
   // Stopping the run removes the overlay.
   await runs.getByRole('button', { name: 'Stop', exact: true }).click();

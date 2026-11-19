@@ -466,7 +466,7 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
       <Field
         label={tl('Centring')}
         hint={tl(
-          'Auto re-centres when price leaves the middle band; Always keeps it centred; Manual only on C / double-click.',
+          'When out of view re-centres once the price leaves the visible rows; Band re-centres when it leaves the middle band; Always keeps it centred; Manual only on C / double-click.',
         )}
       >
         <Select<CentringMode>
@@ -474,7 +474,8 @@ function StyleEditor({ draft, setDraft }: EditorProps) {
           value={s.centring}
           onChange={(v) => set({ centring: v })}
           options={[
-            { value: 'auto', label: 'Auto (band)' },
+            { value: 'view', label: 'When out of view' },
+            { value: 'auto', label: 'Band (middle share)' },
             { value: 'always', label: 'Always centred' },
             { value: 'manual', label: 'Manual' },
           ]}

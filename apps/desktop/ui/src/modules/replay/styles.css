@@ -246,3 +246,38 @@
 .rp-evt--high {
   background: var(--ht-down);
 }
+
+/* Preview 6 fix: the control bar never overflows or overlaps itself on a narrow chart. Rows wrap,
+   the speed buttons wrap, labels stay on one line each and a very tall bar scrolls inside the
+   chart instead of covering the whole window. */
+.rp-bar {
+  min-width: 0;
+  box-sizing: border-box;
+  max-height: calc(100% - 44px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.rp-clock {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  min-width: 0;
+}
+.rp-clock > .rp-tag {
+  white-space: nowrap;
+}
+.rp-clock > .tnum {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rp-btn {
+  flex: none;
+  white-space: nowrap;
+}
+.rp-speeds {
+  display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.rp-row > label {
+  white-space: nowrap;
+}

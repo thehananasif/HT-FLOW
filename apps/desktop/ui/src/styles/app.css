@@ -1178,21 +1178,77 @@
 /* Round 7: small windows (e.g. 1366 × 700). The title bar shrinks its contents and never pushes
    the window controls off-screen; the main column and side panels keep everything reachable by
    scrolling instead of cutting it off at the bottom. */
+/* Preview 6 fix: the title bar never overlaps itself. The brand is never cut mid-word (it drops to
+   the icon alone when tight), the workspace name ellipsizes, groups are never squeezed (they drop
+   to icons, then disappear, by priority) and the window controls stay pinned on the right. */
 .titlebar {
   min-width: 0;
   overflow: hidden;
+  container-type: inline-size;
+  container-name: titlebar;
 }
 .titlebar > :not(.win-controls) {
   min-width: 0;
-  flex-shrink: 1;
 }
+.titlebar > .titlebar-brand,
 .titlebar > .tb-group,
+.titlebar > .tb-risk,
+.titlebar > .avatar,
+.titlebar > .ht-icon-btn,
+.titlebar > [data-testid='help-menu'] {
+  flex: none;
+}
 .titlebar > .titlebar-brand {
+  overflow: visible;
+  white-space: nowrap;
+}
+.titlebar > .tb-workspace {
+  flex: 0 1 auto;
+  max-width: 280px;
+  min-width: 36px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+.titlebar > .titlebar-spacer {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .titlebar > .win-controls {
   flex: none;
   margin-inline-start: auto;
+}
+@container titlebar (max-width: 1320px) {
+  .tb-group .tb-label,
+  .tb-actions .tb-txt {
+    display: none;
+  }
+}
+@container titlebar (max-width: 1100px) {
+  .tb-mainchart,
+  .tb-ws-label {
+    display: none;
+  }
+}
+@container titlebar (max-width: 900px) {
+  .tb-actions,
+  .tb-risk .muted {
+    display: none;
+  }
+  .titlebar > .tb-workspace {
+    max-width: 160px;
+  }
+}
+@container titlebar (max-width: 720px) {
+  .titlebar .tb-logo,
+  .tb-risk {
+    display: none;
+  }
+}
+@container titlebar (max-width: 560px) {
+  .tb-layout {
+    display: none;
+  }
 }
 .sidetools {
   min-height: 0;
