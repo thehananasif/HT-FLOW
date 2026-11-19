@@ -101,10 +101,17 @@ export async function installed(d: Driver): Promise<boolean> {
 }
 
 export async function takeErrors(d: Driver): Promise<string[]> {
-  const inPage = await d.exec<{ kind: string; message: string }[]>(`${CA}.takeErrors()`);
+  const inPage = await d.exec<{ kind: string; message: string; stack?: string }[]>(
+    `${CA}.takeErrors()`,
+  );
   const extra = d.drainExtraErrors?.() ?? [];
-  const all = [...inPage.map((e) => `${e.kind}: ${e.message}`), ...extra];
-  return [...new Set(all)].filter((m) => !isBenign(m));
+  const all = [
+    ...inPage
+      .filter((e) => !isBenign(`${e.kind}: ${e.message}`))
+      .map((e) => `${e.kind}: ${e.message}${e.stack ? ` @ ${e.stack}` : ''}`),
+    ...extra.filter((m) => !isBenign(m)),
+  ];
+  return [...new Set(all)];
 }
 
 /** True when the heartbeat advances within `ms` (main thread and timers alive). */
@@ -439,7 +446,16 @@ export async function runCommands(
       notes: [],
     };
     try {
-      await d.exec(`window.__HTFLOW_INTROSPECT__.runCommand(${q(c.id)}) ?? null`);
+      // Run inside a try/catch in the page, so a throw comes back with its stack frames.
+      const threw = await d.exec<string | null>(
+        `(() => { try { window.__HTFLOW_INTROSPECT__.runCommand(${q(c.id)}); return null; } ` +
+          `catch (e) { return String(e && e.message) + ' @ ' + String(e && e.stack || '')` +
+          `.split('\\n').slice(1, 5).map((l) => l.trim()).join(' | '); } })()`,
+      );
+      if (threw) {
+        step.status = 'fail';
+        step.notes.push(`threw: ${threw}`);
+      }
     } catch (e) {
       step.status = 'fail';
       step.notes.push(`threw: ${String((e as Error).message ?? e).split('\n')[0]}`);
