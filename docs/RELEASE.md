@@ -35,6 +35,25 @@ File associations registered by the installers: `.htprofile`, `.htworkspace`, `.
    GitHub points at the newest published, non-pre-release release. Publishing a **pre-release** also
    refreshes the rolling `beta-channel` release that the "Beta" update channel reads.
 
+## Release checklist
+
+An official (non pre-release) release is cut **only** when all three are green for the exact commit
+being released (details: [TESTING-WINDOWS.md](TESTING-WINDOWS.md)):
+
+- [ ] **(a) CI green** — the `CI` workflow on that commit: typecheck, lint, format, Vitest, Rust
+      fmt / clippy / tests, Playwright e2e **including the click-everything crawl** (`@clickall`,
+      report `click-report`), Windows build + installer smoke test.
+- [ ] **(b) `windows-app-test` green** — Actions → _Windows app test (native)_ → _Run workflow_ on
+      the release branch / commit (full run, not _quick_): the real `.exe` under tauri-driver +
+      WebView2, native paths and the crawl. Keep the `windows-app-test-report` artifact link in the
+      release notes PR.
+- [ ] **(c) Manual checklist signed off** — print [MANUAL-TEST-CHECKLIST.md](MANUAL-TEST-CHECKLIST.md)
+      (regenerate first: `WRITE_CHECKLIST=1 pnpm e2e:clickall -g registry`), tick every box on a
+      real Windows PC with the installed release candidate, and file / fix anything that fails.
+
+Then follow "Cut a release" above. Pushing the `v*` tag also starts `windows-app-test` once more
+against the tagged commit; do not publish the draft until that run is green.
+
 ## Auto-update setup (one time)
 
 Updates are verified with a minisign key pair made by the free Tauri signer.

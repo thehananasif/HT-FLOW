@@ -1,0 +1,90 @@
+name: Windows app test (native)
+
+# Drives the real HT Flow .exe (Tauri runtime + WebView2 + native commands) under tauri-driver
+# with WebdriverIO: native paths (account + PIN, lock / unlock, log folder, backup, Web Page
+# window, OS-window detach / re-attach, symbol discovery, COT, news / calendar, HT Editor
+# backtest in the sandbox worker, AI provider validation, file association) plus the same
+# click-everything crawl as the Playwright spec. Manual only (costs Windows minutes), and on
+# release tags. See docs/TESTING-WINDOWS.md.
+on:
+  workflow_dispatch:
+    inputs:
+      quick:
+        description: 'Native paths only (skip the full click-everything crawl)'
+        type: boolean
+        default: false
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-app-test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  native:
+    name: Native app smoke test (Windows, WebView2)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: native-test
+      - run: pnpm install --frozen-lockfile
+
+      # Debug build: same Tauri runtime, native commands and embedded (production) frontend as the
+      # release, but compiles much faster. No installer bundle needed.
+      - name: Build the app (tauri build --debug --no-bundle)
+        run: pnpm --filter @htflow/desktop tauri build --debug --no-bundle
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      # msedgedriver must match the runner's Edge / WebView2 version (documented Tauri approach).
+      - name: Install a matching msedgedriver
+        shell: pwsh
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$HOME/.cargo/bin/msedgedriver-tool.exe"
+          $PWD.Path | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Start tauri-driver
+        shell: pwsh
+        run: |
+          $drv = (Get-Command msedgedriver.exe).Source
+          Start-Process -FilePath "$HOME/.cargo/bin/tauri-driver.exe" `
+            -ArgumentList "--port", "4444", "--native-driver", "$drv" `
+            -RedirectStandardOutput tauri-driver.log -RedirectStandardError tauri-driver.err.log
+          Start-Sleep -Seconds 3
+
+      - name: Native smoke test + click-everything crawl (WebdriverIO)
+        shell: pwsh
+        working-directory: apps/desktop
+        env:
+          QUICK: ${{ inputs.quick }}
+        run: |
+          $exe = (Resolve-Path ../../target/debug/htflow-desktop.exe).Path
+          $extra = @()
+          if ($env:QUICK -eq 'true') { $extra += '--quick' }
+          node --import ./e2e/native/register.mjs e2e/native/run.ts --app "$exe" --port 4444 @extra
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-app-test-report
+          path: |
+            apps/desktop/test-results/native-report
+            tauri-driver*.log
+          retention-days: 30

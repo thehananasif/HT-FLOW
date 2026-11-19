@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { StatusPill } from '@htflow/ui-kit';
 import type { MarketStore } from '@htflow/market-data';
@@ -36,6 +36,22 @@ function feedLabel(s: MarketStore): { key: string; label: string; state: string;
     state: st === 'live' ? DELAY_STATE[classifyDelay(s.status.latencyMs)] : st,
     title: `${venue}: ${st}${s.status.message ? ' — ' + s.status.message : ''} · ${s.status.latencyMs.toFixed(0)} ms · ${s.status.msgsPerSec.toFixed(0)} msg/s`,
   };
+}
+
+/**
+ * Invisible liveness probe for the click-everything crawlers: a timer bumps `data-beat` every
+ * 250 ms straight on the DOM node (no React render), so a frozen main thread is visible to tests.
+ */
+function Heartbeat() {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    let n = 0;
+    const id = setInterval(() => {
+      if (ref.current) ref.current.dataset.beat = String(++n);
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
+  return <span ref={ref} hidden aria-hidden="true" data-testid="app-heartbeat" data-beat="0" />;
 }
 
 /** Paper account P&L: open P&L at the marks and today's net (realized − fees + open). */
@@ -117,6 +133,7 @@ export function StatusBar({ version, timezone }: { version: string; timezone: st
         {clock} {timezone.split('/').pop()?.replace('_', ' ')}
       </span>
       <span className="sb-item sb-version">v{version}</span>
+      <Heartbeat />
     </footer>
   );
 }

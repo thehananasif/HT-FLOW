@@ -7,6 +7,8 @@ export default defineConfig({
   testDir: './e2e',
   testIgnore: 'guide-screenshots.spec.ts',
   timeout: 60_000,
+  // Folds the click-everything report parts into test-results/click-report (no-op otherwise).
+  globalTeardown: './e2e/clickall/teardown.ts',
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
