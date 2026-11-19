@@ -1165,8 +1165,25 @@
 }
 .ai-providers .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+}
+/* Windows' wider UI font: let fields shrink and buttons wrap onto their own line instead of
+   sliding under the next label (found by the click-everything run on the Windows runner). */
+.ai-providers .row > * {
+  min-width: 0;
+}
+.ai-providers .row input {
+  flex: 1 1 140px;
+}
+.ai-form > *,
+.ai-form label {
+  min-width: 0;
+}
+.ai-form details {
+  overflow: hidden;
 }
 
 /* narrow windows: side panels can be toggled; keep the centre usable */
