@@ -78,8 +78,10 @@ pub fn run() {
                 let mut win = WebviewWindowBuilder::from_config(app.handle(), cfg)?;
                 #[cfg(windows)]
                 {
-                    win = win
-                        .additional_browser_args(&native_prefs::browser_args(&prefs.video_adapter));
+                    let args = native_prefs::set_session_browser_args(native_prefs::browser_args(
+                        &prefs.video_adapter,
+                    ));
+                    win = win.additional_browser_args(args);
                 }
                 win.build()?;
             }

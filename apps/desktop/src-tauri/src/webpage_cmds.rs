@@ -326,6 +326,11 @@ pub async fn webpage_open(
             }
             NewWindowResponse::Deny
         });
+    // Same WebView2 arguments as the main window, or WebView2 refuses the new webview.
+    #[cfg(windows)]
+    if let Some(a) = crate::native_prefs::session_browser_args() {
+        builder = builder.additional_browser_args(a);
+    }
     match args.bounds.map(clamp_bounds) {
         Some(b) => {
             builder = builder.inner_size(b.w, b.h).position(b.x, b.y);

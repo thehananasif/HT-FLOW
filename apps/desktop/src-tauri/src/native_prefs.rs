@@ -84,6 +84,23 @@ pub fn browser_args(adapter: &str) -> String {
     )
 }
 
+/// The WebView2 arguments the main window started with. Every webview of the process shares one
+/// WebView2 environment, and WebView2 refuses to create another webview with different arguments
+/// (HRESULT 0x8007139F), so secondary OS windows and Web Page windows must reuse these exactly.
+static SESSION_ARGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Records the arguments the main window is built with (first call wins).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn set_session_browser_args(args: String) -> &'static str {
+    SESSION_ARGS.get_or_init(|| args).as_str()
+}
+
+/// Arguments to pass to every later window; `None` before the main window was built.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn session_browser_args() -> Option<&'static str> {
+    SESSION_ARGS.get().map(String::as_str)
+}
+
 /// Tauri's `additional_browser_args` replaces WebView2's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`
 /// instead of adding to it, so anything already set there (e.g. msedgedriver's
 /// `--remote-debugging-port` under tauri-driver, or a user's own flags) is appended here.
@@ -156,7 +173,7 @@ mod tests {
 
 #[cfg(test)]
 mod browser_args_tests {
-    use super::browser_args_with;
+    use super::{browser_args_with, session_browser_args, set_session_browser_args};
 
     #[test]
     fn keeps_existing_webview2_args() {
@@ -165,5 +182,13 @@ mod browser_args_tests {
         assert!(a.ends_with(" --remote-debugging-port=9222"));
         assert!(!browser_args_with("default", Some("  ")).ends_with(' '));
         assert!(!browser_args_with("default", None).contains("remote-debugging"));
+    }
+
+    #[test]
+    fn later_windows_reuse_the_main_window_args() {
+        let first = set_session_browser_args("--a".into());
+        // First call wins: a second value never replaces what the main window used.
+        assert_eq!(set_session_browser_args("--b".into()), first);
+        assert_eq!(session_browser_args(), Some(first));
     }
 }
