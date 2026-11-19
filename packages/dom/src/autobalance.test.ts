@@ -91,6 +91,16 @@ describe('fitColumns', () => {
   });
 });
 
+describe('fitColumns degenerate widths', () => {
+  const cols = [
+    { id: 'price', width: 80 },
+    { id: 'bid', width: 70 },
+  ];
+  it('terminates for a zero, tiny or NaN width', () => {
+    for (const w of [0, 5, Number.NaN]) expect(() => fitColumns(cols, w, 12)).not.toThrow();
+  });
+});
+
 describe('size bars', () => {
   it('scales to the largest visible level so it fits exactly', () => {
     const max = visibleMax([3, 120, 40]);

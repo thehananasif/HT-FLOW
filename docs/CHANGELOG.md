@@ -2,6 +2,11 @@
 
 ## Unreleased — round 7
 
+### Preview 6 fixes
+
+- **DOM auto-balance** — the ladder keeps itself balanced: re-centres on the last price with a mode (Settings → DOM → Re-centre: off / when out of view (default) / always; per-template Centring adds the old band mode), always shows an odd number of rows so both sides are symmetric, fits row height and font to the window (no blank strip, no clipped digits), fits column widths to the window (lowest-priority columns are hidden instead of scrolling sideways; Settings → DOM → Auto-fit), and scales size bars to the largest visible level. New "Re-centre" button and mode menu in the DOM header; palette "Smart DOM: re-centre" (C). Unit tests: `packages/dom/src/autobalance.test.ts`.
+- **No overlapping text** — title bar: app name never cut (icon only when tight), workspace name ellipsizes with a tooltip, groups drop to icons then hide by priority, window controls stay pinned. Chart legend lines are ellipsized and trailing OHLC parts dropped to fit; price-scale labels no longer sit under the current-price tag; replay control bar wraps on narrow charts; Risk trading-hours row wraps. New Playwright `text-overlap.spec.ts` audits shell, replay bar, Indicators dialog, palette and every module window for overlapping text at 1280x600, 1366x768, 1920x1080 and 125 % / 150 % scaling.
+
 ### Added
 
 - Bybit spot and inverse market data: the Bybit connector now streams every category (`bybit-spot:` and `bybit-inverse:` feeds next to `bybit-linear:`) — trades with aggressor side, the 200-level book with snapshot / delta sequence checks and re-subscribe on a gap, ping, reconnect with backoff, klines (`category=spot|inverse`) and recent trades for the history path. Inverse sizes are kept as USD contracts (1 contract = 1 USD), consistent across trades, book and candles. Linear and inverse also stream funding and open interest from `tickers`. Picker entries for Bybit spot / inverse no longer say "No feed"; Connections lists "Bybit Spot" and "Bybit Inverse". Tested on fixtures built from Bybit's documented message shapes (the venue is region-blocked from the build server).

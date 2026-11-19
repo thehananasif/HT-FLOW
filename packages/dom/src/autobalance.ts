@@ -119,7 +119,7 @@ export function fitColumns(
   const w = kept.map((c) => Math.max(min(c.id), Math.floor((c.width * width) / total)));
   let diff = width - w.reduce((a, x) => a + x, 0);
   // Hand the remainder to (or take the excess from) the widest columns, one pixel at a time.
-  while (diff !== 0) {
+  for (let guard = 0; diff !== 0 && Number.isFinite(diff) && guard < 20_000; guard++) {
     let idx = -1;
     for (let i = 0; i < w.length; i++) {
       if (diff < 0 && w[i]! <= min(kept[i]!.id)) continue;
