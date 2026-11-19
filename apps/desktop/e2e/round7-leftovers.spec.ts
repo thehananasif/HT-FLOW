@@ -131,6 +131,18 @@ test('HT Editor plot() lines are drawn on the instrument chart during a paper ru
   await page.getByTestId('hte-paper').click();
   const runs = page.getByTestId('hte-runs');
   await expect(runs.getByText('running')).toBeVisible({ timeout: 30_000 });
+  // The Strategies window may open as a tab over the chart (it follows Layout settings and the
+  // focused group). Float it, like a user who wants to watch the plots, so the chart is shown.
+  const chartShown = () =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll('canvas')).some(
+        (c) => c.width > 0 && !c.closest('[data-testid="dom-ladder"]') && c.offsetParent !== null,
+      ),
+    );
+  if (!(await chartShown())) {
+    await page.evaluate(() => window.__HTFLOW_INTROSPECT__?.runCommand('window.float-toggle'));
+    await expect.poll(chartShown, { timeout: 10_000 }).toBe(true);
+  }
 
   // Count magenta pixels on the chart canvases (the plot line colour).
   const magenta = () =>
@@ -142,13 +154,8 @@ test('HT Editor plot() lines are drawn on the instrument chart during a paper ru
         if (!g || !c.width || !c.height) continue;
         const d = g.getImageData(0, 0, c.width, c.height).data;
         for (let i = 0; i < d.length; i += 4)
-          if (
-            d[i]! > 130 &&
-            d[i + 2]! > 130 &&
-            d[i + 1]! < d[i]! - 70 &&
-            d[i + 2]! > d[i + 1]! + 70
-          )
-            n++;
+          // Near-pure #ff00ff only: the footprint's own purple cells must not count.
+          if (d[i]! > 200 && d[i + 2]! > 200 && d[i + 1]! < 80) n++;
       }
       return n;
     });

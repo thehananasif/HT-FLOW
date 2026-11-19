@@ -5,7 +5,7 @@
 (function () {
   if (window.__CLICKALL__) return;
 
-  /** @type {{kind: string, message: string, at: number}[]} */
+  /** @type {{kind: string, message: string, stack?: string, at: number}[]} */
   var errors = [];
   /** @type {string[]} */
   var nativeDialogs = [];
@@ -18,15 +18,32 @@
       return String(a);
     }
   };
-  var push = function (kind, msg) {
-    errors.push({ kind: kind, message: String(msg).slice(0, 600), at: Date.now() });
+  // The first frames of an error's stack (file:line:col), so a failure in the minified bundle can
+  // be mapped back to source with a local source-mapped build.
+  var frames = function (err) {
+    var st = err && typeof err.stack === 'string' ? err.stack : '';
+    return st
+      .split('\n')
+      .slice(1, 5)
+      .map(function (l) {
+        return l.trim();
+      });
+  };
+  var push = function (kind, msg, err) {
+    var f = frames(err);
+    errors.push({
+      kind: kind,
+      message: String(msg).slice(0, 600),
+      stack: f.length ? f.join(' | ').slice(0, 600) : undefined,
+      at: Date.now(),
+    });
   };
   window.addEventListener('error', function (e) {
-    if (e && e.message) push('pageerror', e.message);
+    if (e && e.message) push('pageerror', e.message, e.error);
   });
   window.addEventListener('unhandledrejection', function (e) {
     var r = e && e.reason;
-    push('unhandledrejection', r && r.message ? r.message : fmt(r));
+    push('unhandledrejection', r && r.message ? r.message : fmt(r), r);
   });
   // A Content-Security-Policy block (e.g. the HT Editor sandbox worker) is an app error.
   document.addEventListener('securitypolicyviolation', function (e) {
@@ -35,7 +52,10 @@
   var origError = console.error;
   console.error = function () {
     try {
-      push('console.error', Array.prototype.map.call(arguments, fmt).join(' '));
+      var errArg = Array.prototype.find.call(arguments, function (a) {
+        return a instanceof Error;
+      });
+      push('console.error', Array.prototype.map.call(arguments, fmt).join(' '), errArg);
     } catch {
       /* ignore */
     }

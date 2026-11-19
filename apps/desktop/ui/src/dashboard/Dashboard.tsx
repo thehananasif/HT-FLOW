@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { installDockviewGuards } from './dockviewGuards';
 import {
   DockviewReact,
   type DockviewApi,
@@ -108,6 +109,7 @@ import {
 } from '../modules/layout-settings/display';
 
 import { translateLiteral as tl, tt } from '@htflow/i18n';
+installDockviewGuards();
 const theme: DockviewTheme = { name: 'htflow', className: 'dockview-theme-htflow', gap: 4 };
 const components = { chart: ChartWindow, dom: DomWindow, module: ModuleWindow };
 

@@ -1226,12 +1226,12 @@
 }
 @container titlebar (max-width: 1100px) {
   .tb-mainchart,
-  .tb-ws-label {
+  .tb-ws-label,
+  .tb-actions {
     display: none;
   }
 }
 @container titlebar (max-width: 900px) {
-  .tb-actions,
   .tb-risk .muted {
     display: none;
   }
@@ -1245,7 +1245,7 @@
     display: none;
   }
 }
-@container titlebar (max-width: 560px) {
+@container titlebar (max-width: 820px) {
   .tb-layout {
     display: none;
   }

@@ -190,8 +190,9 @@ function WorkspaceCard({
   onRename(): void;
 }) {
   useTimeFormat();
-  const tab = w.doc.tabs.find((t) => t.id === w.doc.activeTab) ?? w.doc.tabs[0]!;
-  const tiles = useMemo(() => tabTiles(tab), [tab]);
+  // A saved workspace can have no tabs (e.g. saved while every window was in a separate OS window).
+  const tab = w.doc.tabs.find((t) => t.id === w.doc.activeTab) ?? w.doc.tabs[0];
+  const tiles = useMemo(() => (tab ? tabTiles(tab) : []), [tab]);
   const name = w.meta.name;
   return (
     <div
