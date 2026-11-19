@@ -131,6 +131,18 @@ test('HT Editor plot() lines are drawn on the instrument chart during a paper ru
   await page.getByTestId('hte-paper').click();
   const runs = page.getByTestId('hte-runs');
   await expect(runs.getByText('running')).toBeVisible({ timeout: 30_000 });
+  // The Strategies window may open as a tab over the chart (it follows Layout settings and the
+  // focused group). Float it, like a user who wants to watch the plots, so the chart is shown.
+  const chartShown = () =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll('canvas')).some(
+        (c) => c.width > 0 && !c.closest('[data-testid="dom-ladder"]') && c.offsetParent !== null,
+      ),
+    );
+  if (!(await chartShown())) {
+    await page.evaluate(() => window.__HTFLOW_INTROSPECT__?.runCommand('window.float-toggle'));
+    await expect.poll(chartShown, { timeout: 10_000 }).toBe(true);
+  }
 
   // Count magenta pixels on the chart canvases (the plot line colour).
   const magenta = () =>
