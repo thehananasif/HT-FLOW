@@ -518,6 +518,42 @@ test('guide screenshots', async ({ page, context }) => {
     await reset(page);
   });
 
+  // ------------------------------------------------------------------ AI page
+  // No provider is configured in the web build, so every shot shows the real empty states (no
+  // invented answers): the chat with its quick actions, the agent dashboard, the audit log and
+  // the provider cards.
+  await part('ai', async () => {
+    await reset(page);
+    await page.getByTitle('Single').click();
+    await page.waitForTimeout(600);
+    await page.getByTestId('ribbon-ai').click();
+    const win = page.getByTestId('ai-window');
+    await win.waitFor();
+    await page.keyboard.press('Escape');
+    await shot(page, 'ai-chat', {
+      target: win,
+      marks: [
+        { loc: win.getByTestId('ai-rail'), label: '1' },
+        { loc: win.getByTestId('ai-input'), label: '2' },
+        { loc: win.getByTestId('ai-context-panel'), label: '3' },
+      ],
+    });
+    await win.getByRole('tab', { name: 'Agent' }).click();
+    await shot(page, 'ai-agent', {
+      target: win,
+      marks: [
+        { loc: win.getByTestId('ai-agent-start'), label: '1' },
+        { loc: win.getByTestId('ai-kill'), label: '2' },
+        { loc: win.getByTestId('ai-gauges'), label: '3' },
+      ],
+    });
+    await win.getByRole('tab', { name: 'Audit log' }).click();
+    await shot(page, 'ai-audit', { target: win });
+    await win.getByRole('tab', { name: 'Providers' }).click();
+    await shot(page, 'ai-providers', { target: win });
+    await reset(page);
+  });
+
   // ------------------------------------------------------------------ guide itself
   await part('guide', async () => {
     await page.keyboard.press('F1');

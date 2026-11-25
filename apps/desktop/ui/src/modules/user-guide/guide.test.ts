@@ -188,38 +188,93 @@ describe('guide content', () => {
   });
 });
 
+const RAW_GUIDE = import.meta.glob('../../../../../../docs/user-guide/**/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
 describe('Urdu guide articles', () => {
   const ur = articlesFor('ur');
+  const urOnly = buildArticles(RAW_GUIDE, 'ur');
 
-  it('translates the first two articles and falls back to English for the rest', () => {
+  it('has an Urdu counterpart for every English article (same file name and id)', () => {
+    const urFiles = new Set(urOnly.map((a) => a.file));
+    for (const a of ARTICLES) expect(urFiles.has(a.file), `missing ur/${a.file}.md`).toBe(true);
+    expect(urOnly.map((a) => a.id)).toEqual(ARTICLES.map((a) => a.id));
+    expect(ur.map((a) => a.id)).toEqual(ARTICLES.map((a) => a.id));
+  });
+
+  it('translates titles and sections (no article falls back to English)', () => {
+    for (const a of ARTICLES) {
+      const u = urOnly.find((x) => x.file === a.file)!;
+      expect(/[\u0600-\u06FF]/.test(u.title), `${a.file} title`).toBe(true);
+      expect(/[\u0600-\u06FF]/.test(u.section), `${a.file} section`).toBe(true);
+      expect(u.body.trim().length, a.file).toBeGreaterThan(200);
+    }
     const byId = new Map(ur.map((a) => [a.id, a]));
     expect(byId.get('getting-started')!.title).toBe('آغاز کرنا');
     expect(byId.get('interface')!.title).toBe('انٹرفیس کا ٹور');
-    expect(ur.map((a) => a.id)).toEqual(ARTICLES.map((a) => a.id));
-    expect(byId.get('charts')!.title).toBe(ARTICLES.find((a) => a.id === 'charts')!.title);
+    expect(byId.get('ai')!.isNew).toBe(true);
   });
 
-  it('keeps ids, "opens" targets, images and links of the English article', () => {
-    for (const id of ['getting-started', 'interface']) {
-      const en = ARTICLES.find((a) => a.id === id)!;
-      const u = ur.find((a) => a.id === id)!;
-      expect(u.opens).toEqual(en.opens);
-      const imgs = (a: typeof en) => {
-        const out: string[] = [];
-        walk(a.blocks ?? [], (b) => {
-          if (b.t === 'img') out.push(b.src);
-        });
-        return out;
-      };
-      expect(imgs(u)).toEqual(imgs(en));
+  it('keeps ids, "opens" targets, images, links and headings of every English article', () => {
+    const imgs = (a: (typeof ARTICLES)[number]) => {
+      const out: string[] = [];
+      walk(a.blocks ?? [], (b) => {
+        if (b.t === 'img') out.push(b.src);
+      });
+      return out;
+    };
+    const links = (a: (typeof ARTICLES)[number]) => {
+      const out: string[] = [];
+      walk(a.blocks ?? [], (b) => {
+        const inl =
+          b.t === 'p' ? b.inl : b.t === 'ul' || b.t === 'ol' ? b.items.flatMap((i) => i.inl) : [];
+        for (const p of inl) if (p.t === 'link' && !/^https?:/.test(p.href)) out.push(p.href);
+      });
+      return out.sort();
+    };
+    for (const en of ARTICLES) {
+      const u = ur.find((a) => a.id === en.id)!;
+      expect(u.opens, en.id).toEqual(en.opens);
+      expect(imgs(u), en.id).toEqual(imgs(en));
       for (const src of imgs(u)) expect(guideImage(src), src).toBeTruthy();
-      expect(u.parts?.length).toBe(en.parts?.length);
+      expect(links(u), en.id).toEqual(links(en));
+      expect(u.parts?.length, `${en.id} headings`).toBe(en.parts?.length);
+    }
+  });
+
+  it('keeps every non-generated English callout as a recognised callout', () => {
+    const count = (a: (typeof ARTICLES)[number]) => {
+      let n = 0;
+      walk(a.blocks ?? [], (b) => {
+        if (b.t === 'quote') n++;
+      });
+      return n;
+    };
+    for (const en of ARTICLES) {
+      const u = ur.find((a) => a.id === en.id)!;
+      expect(count(u), en.id).toBe(count(en));
     }
   });
 
   it('recognises translated callout labels', () => {
     const b = parseMarkdown('> **ٹِپ** استعمال کریں\n\n> **انتباہ** احتیاط\n\n> **نوٹ** یاد رکھیں');
     expect(b.map((x) => (x.t === 'quote' ? x.kind : null))).toEqual(['tip', 'warning', 'note']);
+  });
+});
+
+describe('guide wording', () => {
+  it('does not mention open-source libraries, community plugins or the animated background', () => {
+    const banned = /open[- ]source|plugin|marketplace|animated background|module folder/i;
+    for (const [path, src] of Object.entries(RAW_GUIDE)) expect(banned.test(src), path).toBe(false);
+  });
+  it('says the HANAN TRADE logo is on the lock screen only', () => {
+    for (const lang of ['en', 'ur']) {
+      const a = buildArticles(RAW_GUIDE, lang).find((x) => x.id === 'getting-started')!;
+      expect(a.body, lang).toMatch(/HANAN TRADE/);
+    }
   });
 });
 
