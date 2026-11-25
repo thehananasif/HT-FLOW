@@ -34,11 +34,11 @@ Open Settings with `Ctrl+,` or `Ctrl+K` → `Settings: <section>`. Search finds 
 | **Privacy & security** | Telemetry (off), crash reports, mask account numbers, hide balances, clear caches on log-out, reset everything                                                                                |
 | **Logs**               | Log level and in-memory entries                                                                                                                                                               |
 | **Custom modules**     | Enable or disable windows                                                                                                                                                                     |
-| **About & updates**    | Version, licences, update check and channel (Stable or Beta)                                                                                                                                  |
+| **About & updates**    | Version, update check and channel (Stable or Beta)                                                                                                                                  |
 
 ![Hot keys](images/settings-hotkeys.webp)
 
-> **Note** A few options are shown but not active yet (they are marked in the window): MBO history storage, NTP server, module folders. They are placeholders for work that needs the native core.
+> **Note** A few options are shown but not active yet (they are marked in the window): MBO history storage and the NTP server. They are placeholders for work that needs the native core.
 
 ![Data settings](images/settings-data.webp)
 

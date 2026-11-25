@@ -22,6 +22,8 @@ HT Flow opens `.htprofile`, `.htworkspace`, `.htind` and `.httemplate` files whe
 
 ![The login screen](images/login.webp)
 
+> **Note** The HANAN TRADE logo appears on the lock screen only (login, unlock and the lock after inactivity). The rest of the application carries just the HT Flow name.
+
 The first screen offers **Login** and **Create account**. Click **Create account** and fill in:
 
 - **Display name** and **Username** (the username is what you type to log in).
