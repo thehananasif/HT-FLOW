@@ -30,11 +30,11 @@ Open Settings with `Ctrl+,` or `Ctrl+K` → `Settings: <section>`. Search finds 
 | **Commission**         | Crypto maker and taker fees, futures round-turn commission, rules by account and instrument                                                                                                   |
 | **Data delays**        | Latency thresholds for amber / red status pills                                                                                                                                               |
 | **Performance**        | Renderer, video adapter, FPS cap, worker threads, debug overlay, hidden-window rendering                                                                                                      |
-| **Common settings**    | Value area percent, maximum candles per chart, default load days, recorder disk budget and retention, notifications, tables                                                                   |
-| **Privacy & security** | Telemetry (off), crash reports, mask account numbers, hide balances, clear caches on log-out, reset everything                                                                                |
+| **Common settings**    | Value area percent, maximum candles per chart, default load days, recorder disk budget and retention, notifications, tables, AI assistant button                                              |
+| **Privacy & security** | Telemetry (off), crash reports, mask account numbers, hide balances, clear caches on log-out, reset everything, screenshots and screen context sent to AI                                     |
 | **Logs**               | Log level and in-memory entries                                                                                                                                                               |
 | **Custom modules**     | Enable or disable windows                                                                                                                                                                     |
-| **About & updates**    | Version, update check and channel (Stable or Beta)                                                                                                                                  |
+| **About & updates**    | Version, update check and channel (Stable or Beta)                                                                                                                                            |
 
 ![Hot keys](images/settings-hotkeys.webp)
 

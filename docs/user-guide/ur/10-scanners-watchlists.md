@@ -19,12 +19,12 @@ opens: watchlist, market-pressure, price-change, dom-pressure, delta-divergence,
 
 چار مختصر ڈیش بورڈ بیک وقت کئی انسٹرومنٹس (200 تک، ہر سیکنڈ ریفریش) پر نظر رکھتے ہیں۔ ہر ایک کے سیٹنگز مینو میں حدیں ہیں، toast اور beep دکھا سکتا ہے، اور قطار پر کلک فعال چارٹ طے کرتا ہے۔
 
-| ونڈو                 | کیا رینک کرتی ہے                                                                         |
-| -------------------- | ---------------------------------------------------------------------------------------- |
-| **Market Pressure**  | 1 m، 5 m، 15 m اور سیشن میں والیوم کا Buy %                                              |
-| **Price Change**     | % ، ticks یا ڈالر میں تبدیلی، دن کی رینج میں پوزیشن، VWAP سے فاصلہ، sparkline            |
-| **DOM Pressure**     | ±5، ±10 اور ±25 ticks کے اندر bid / ask imbalance، pull flashes کے ساتھ                  |
-| **Delta Divergence** | M1 سے H1 پر قیمت کے highs / lows جو مجموعی delta سے اختلاف کریں، اختیاری absorption     |
+| ونڈو                 | کیا رینک کرتی ہے                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| **Market Pressure**  | 1 m، 5 m، 15 m اور سیشن میں والیوم کا Buy %                                         |
+| **Price Change**     | % ، ticks یا ڈالر میں تبدیلی، دن کی رینج میں پوزیشن، VWAP سے فاصلہ، sparkline       |
+| **DOM Pressure**     | ±5، ±10 اور ±25 ticks کے اندر bid / ask imbalance، pull flashes کے ساتھ             |
+| **Delta Divergence** | M1 سے H1 پر قیمت کے highs / lows جو مجموعی delta سے اختلاف کریں، اختیاری absorption |
 
 ![Market Pressure](images/market-pressure.webp)
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — after v1.0.0
+
+- User Guide: all 17 articles now have an Urdu translation in `docs/user-guide/ur/` (labels follow `packages/i18n` ur.ts; trading and window names stay in English); a test requires an Urdu counterpart for every English article with the same images, links, headings and `opens` targets.
+- User Guide: the AI page article describes the real page (providers and keys, chat with context panel, quick actions and slash commands, order cards, agent with hard limits and kill switch, audit log, screenshot privacy) with four new screenshots; `GUIDE_ONLY=ai pnpm guide:screenshots` regenerates them from the empty states.
+- User Guide wording: no open-source or plugin mentions (module folders and licences removed from the Settings reference); the HANAN TRADE logo is stated to appear on the lock screen only; a test guards the wording.
+
 ## Unreleased — round 7
 
 - AI page redesigned as a live trading tool: conversation rail, context panel with include checkboxes, clickable price chips (chart line / alert), order cards with risk and R-multiple and Confirm / Edit / Reject, tool-step cards, quick actions, slash commands, image drop / paste, keyboard shortcuts, palette entries, Agent dashboard with gauges and timeline, Providers cards with Test connection; Urdu and RTL.

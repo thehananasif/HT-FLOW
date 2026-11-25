@@ -66,7 +66,7 @@ export function guideLanguage(): string {
 
 /**
  * Articles in `lang`; every article without a translation falls back to its English version, so a
- * partly translated folder (or none at all, as for Urdu today) never leaves the guide empty.
+ * partly translated folder (or none at all) never leaves the guide empty.
  */
 export function articlesFor(lang: string, raw: Record<string, string> = RAW): Article[] {
   const english = buildArticles(raw, 'en');
